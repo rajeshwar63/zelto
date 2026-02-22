@@ -1,3 +1,4 @@
+import { supabase } from './supabase-client'
 import {
   AdminAccount,
   BusinessEntity,
@@ -19,51 +20,164 @@ import {
   snapshotPaymentTerms,
 } from './business-logic'
 
-const KV_KEYS = {
-  BUSINESS_ENTITIES: 'zelto:business-entities',
-  USER_ACCOUNTS: 'zelto:user-accounts',
-  CONNECTIONS: 'zelto:connections',
-  ORDERS: 'zelto:orders',
-  PAYMENT_EVENTS: 'zelto:payment-events',
-  ISSUE_REPORTS: 'zelto:issue-reports',
-  ADMIN_ACCOUNTS: 'zelto:admin-accounts',
-  ENTITY_FLAGS: 'zelto:entity-flags',
-  FROZEN_ENTITIES: 'zelto:frozen-entities',
-  CONNECTION_REQUESTS: 'zelto:connection-requests',
-  ROLE_CHANGE_REQUESTS: 'zelto:role-change-requests',
+// Helper to convert snake_case DB columns to camelCase TypeScript
+function toCamelCase(obj: any): any {
+  if (Array.isArray(obj)) {
+    return obj.map(toCamelCase)
+  }
+  if (obj === null || typeof obj !== 'object') {
+    return obj
+  }
+  const result: any = {}
+  for (const key in obj) {
+    const camelKey = key.replace(/_([a-z])/g, (_, letter) => letter.toUpperCase())
+    result[camelKey] = toCamelCase(obj[key])
+  }
+  return result
+}
+
+// Helper to convert camelCase TypeScript to snake_case DB columns
+function toSnakeCase(obj: any): any {
+  if (Array.isArray(obj)) {
+    return obj.map(toSnakeCase)
+  }
+  if (obj === null || typeof obj !== 'object') {
+    return obj
+  }
+  const result: any = {}
+  for (const key in obj) {
+    const snakeKey = key.replace(/[A-Z]/g, letter => `_${letter.toLowerCase()}`)
+    result[snakeKey] = toSnakeCase(obj[key])
+  }
+  return result
 }
 
 export class ZeltoDataStore {
+  // ============ BUSINESS ENTITIES ============
+  
   async getAllBusinessEntities(): Promise<BusinessEntity[]> {
-    const entities = await spark.kv.get<BusinessEntity[]>(KV_KEYS.BUSINESS_ENTITIES)
-    return entities || []
+    const { data, error } = await supabase
+      .from('business_entities')
+      .select('*')
+    
+    if (error) throw error
+    return toCamelCase(data || [])
   }
 
-  async createBusinessEntity(
-    businessName: string
-  ): Promise<BusinessEntity> {
+  async createBusinessEntity(businessName: string): Promise<BusinessEntity> {
     const entities = await this.getAllBusinessEntities()
     const existingZeltoIds = entities.map((e) => e.zeltoId)
     
-    const newEntity: BusinessEntity = {
-      id: crypto.randomUUID(),
-      zeltoId: generateZeltoId(existingZeltoIds),
-      businessName,
-      createdAt: Date.now(),
+    const newEntity = {
+      zelto_id: generateZeltoId(existingZeltoIds),
+      business_name: businessName,
+      created_at: Date.now(),
     }
 
-    await spark.kv.set(KV_KEYS.BUSINESS_ENTITIES, [...entities, newEntity])
-    return newEntity
+    const { data, error } = await supabase
+      .from('business_entities')
+      .insert([newEntity])
+      .select()
+      .single()
+    
+    if (error) throw error
+    return toCamelCase(data)
   }
 
   async getBusinessEntityById(id: string): Promise<BusinessEntity | undefined> {
-    const entities = await this.getAllBusinessEntities()
-    return entities.find((e) => e.id === id)
+    const { data, error } = await supabase
+      .from('business_entities')
+      .select('*')
+      .eq('id', id)
+      .single()
+    
+    if (error) {
+      if (error.code === 'PGRST116') return undefined // Not found
+      throw error
+    }
+    return toCamelCase(data)
   }
 
+  async getBusinessEntityByZeltoId(zeltoId: string): Promise<BusinessEntity | undefined> {
+    const { data, error } = await supabase
+      .from('business_entities')
+      .select('*')
+      .eq('zelto_id', zeltoId)
+      .single()
+    
+    if (error) {
+      if (error.code === 'PGRST116') return undefined
+      throw error
+    }
+    return toCamelCase(data)
+  }
+
+  async updateBusinessDetails(
+    businessId: string,
+    details: {
+      gstNumber?: string
+      address?: string
+      businessType?: string
+      website?: string
+    }
+  ): Promise<BusinessEntity> {
+    const updates: any = {}
+    if (details.gstNumber !== undefined) updates.gst_number = details.gstNumber
+    if (details.address !== undefined) updates.business_address = details.address
+    if (details.businessType !== undefined) updates.business_type = details.businessType
+    if (details.website !== undefined) updates.website = details.website
+
+    const { data, error } = await supabase
+      .from('business_entities')
+      .update(updates)
+      .eq('id', businessId)
+      .select()
+      .single()
+    
+    if (error) throw error
+    return toCamelCase(data)
+  }
+
+  async updateBusinessEntity(
+    businessEntityId: string,
+    updates: Partial<Pick<BusinessEntity, 'gstNumber' | 'businessAddress' | 'businessType' | 'website'>>
+  ): Promise<BusinessEntity> {
+    const dbUpdates = toSnakeCase(updates)
+    const { data, error } = await supabase
+      .from('business_entities')
+      .update(dbUpdates)
+      .eq('id', businessEntityId)
+      .select()
+      .single()
+    
+    if (error) throw error
+    return toCamelCase(data)
+  }
+
+  async checkGSTExists(gstNumber: string, excludeEntityId?: string): Promise<boolean> {
+    let query = supabase
+      .from('business_entities')
+      .select('id')
+      .eq('gst_number', gstNumber)
+    
+    if (excludeEntityId) {
+      query = query.neq('id', excludeEntityId)
+    }
+
+    const { data, error } = await query
+    if (error) throw error
+    return (data?.length || 0) > 0
+  }
+
+  // ============ USER ACCOUNTS ============
+
   async getAllUserAccounts(): Promise<UserAccount[]> {
-    const accounts = await spark.kv.get<UserAccount[]>(KV_KEYS.USER_ACCOUNTS)
-    return accounts || []
+    const { data, error } = await supabase
+      .from('user_accounts')
+      .select('*')
+    
+    if (error) throw error
+    return toCamelCase(data || [])
   }
 
   async createUserAccount(
@@ -75,25 +189,51 @@ export class ZeltoDataStore {
       throw new Error('Business entity does not exist')
     }
 
-    const accounts = await this.getAllUserAccounts()
-    const newAccount: UserAccount = {
-      id: crypto.randomUUID(),
-      phoneNumber,
-      businessEntityId,
-    }
-
-    await spark.kv.set(KV_KEYS.USER_ACCOUNTS, [...accounts, newAccount])
-    return newAccount
+    const { data, error } = await supabase
+      .from('user_accounts')
+      .insert([{
+        phone_number: phoneNumber,
+        business_entity_id: businessEntityId
+      }])
+      .select()
+      .single()
+    
+    if (error) throw error
+    return toCamelCase(data)
   }
 
   async getUserAccountsByBusinessId(businessEntityId: string): Promise<UserAccount[]> {
-    const accounts = await this.getAllUserAccounts()
-    return accounts.filter((a) => a.businessEntityId === businessEntityId)
+    const { data, error } = await supabase
+      .from('user_accounts')
+      .select('*')
+      .eq('business_entity_id', businessEntityId)
+    
+    if (error) throw error
+    return toCamelCase(data || [])
   }
 
+  async getUserAccountByPhoneNumber(phoneNumber: string): Promise<UserAccount | undefined> {
+    const { data, error } = await supabase
+      .from('user_accounts')
+      .select('*')
+      .eq('phone_number', phoneNumber)
+      .single()
+    
+    if (error) {
+      if (error.code === 'PGRST116') return undefined
+      throw error
+    }
+    return toCamelCase(data)
+  }
+  // ============ CONNECTIONS ============
+
   async getAllConnections(): Promise<Connection[]> {
-    const connections = await spark.kv.get<Connection[]>(KV_KEYS.CONNECTIONS)
-    return connections || []
+    const { data, error } = await supabase
+      .from('connections')
+      .select('*')
+    
+    if (error) throw error
+    return toCamelCase(data || [])
   }
 
   async createConnection(
@@ -108,76 +248,86 @@ export class ZeltoDataStore {
       throw new Error('Both businesses must exist')
     }
 
-    const connections = await this.getAllConnections()
-    const newConnection: Connection = {
-      id: crypto.randomUUID(),
-      buyerBusinessId,
-      supplierBusinessId,
-      paymentTerms,
-      connectionState: 'Stable',
-      behaviourHistory: [],
-      createdAt: Date.now(),
-    }
-
-    await spark.kv.set(KV_KEYS.CONNECTIONS, [...connections, newConnection])
-    return newConnection
+    const { data, error } = await supabase
+      .from('connections')
+      .insert([{
+        buyer_business_id: buyerBusinessId,
+        supplier_business_id: supplierBusinessId,
+        payment_terms: paymentTerms,
+        connection_state: 'Stable',
+        behaviour_history: [],
+        created_at: Date.now()
+      }])
+      .select()
+      .single()
+    
+    if (error) throw error
+    return toCamelCase(data)
   }
 
   async getConnectionById(id: string): Promise<Connection | undefined> {
-    const connections = await this.getAllConnections()
-    return connections.find((c) => c.id === id)
+    const { data, error } = await supabase
+      .from('connections')
+      .select('*')
+      .eq('id', id)
+      .single()
+    
+    if (error) {
+      if (error.code === 'PGRST116') return undefined
+      throw error
+    }
+    return toCamelCase(data)
   }
 
   async getConnectionsByBusinessId(businessId: string): Promise<Connection[]> {
-    const connections = await this.getAllConnections()
-    return connections.filter(
-      (c) => c.buyerBusinessId === businessId || c.supplierBusinessId === businessId
-    )
+    const { data, error} = await supabase
+      .from('connections')
+      .select('*')
+      .or(`buyer_business_id.eq.${businessId},supplier_business_id.eq.${businessId}`)
+    
+    if (error) throw error
+    return toCamelCase(data || [])
   }
 
   async updateConnectionPaymentTerms(
     connectionId: string,
     newPaymentTerms: Connection['paymentTerms']
   ): Promise<Connection> {
-    const connections = await this.getAllConnections()
-    const index = connections.findIndex((c) => c.id === connectionId)
-
-    if (index === -1) {
-      throw new Error('Connection not found')
-    }
-
-    connections[index] = {
-      ...connections[index],
-      paymentTerms: newPaymentTerms,
-    }
-
-    await spark.kv.set(KV_KEYS.CONNECTIONS, connections)
-    return connections[index]
+    const { data, error } = await supabase
+      .from('connections')
+      .update({ payment_terms: newPaymentTerms })
+      .eq('id', connectionId)
+      .select()
+      .single()
+    
+    if (error) throw error
+    return toCamelCase(data)
   }
 
   async updateConnectionState(
     connectionId: string,
     newState: Connection['connectionState']
   ): Promise<Connection> {
-    const connections = await this.getAllConnections()
-    const index = connections.findIndex((c) => c.id === connectionId)
-
-    if (index === -1) {
-      throw new Error('Connection not found')
-    }
-
-    connections[index] = {
-      ...connections[index],
-      connectionState: newState,
-    }
-
-    await spark.kv.set(KV_KEYS.CONNECTIONS, connections)
-    return connections[index]
+    const { data, error } = await supabase
+      .from('connections')
+      .update({ connection_state: newState })
+      .eq('id', connectionId)
+      .select()
+      .single()
+    
+    if (error) throw error
+    return toCamelCase(data)
   }
 
+  // ============ ORDERS ============
+
   async getAllOrders(): Promise<Order[]> {
-    const orders = await spark.kv.get<Order[]>(KV_KEYS.ORDERS)
-    return orders || []
+    const { data, error } = await supabase
+      .from('orders')
+      .select('*')
+    
+    if (error) throw error
+    return toCamelCase(data || [])
   }
 
   async createOrder(
@@ -194,87 +344,124 @@ export class ZeltoDataStore {
       throw new Error('Payment terms must be set before creating orders')
     }
 
-    const orders = await this.getAllOrders()
-    const newOrder: Order = {
-      id: crypto.randomUUID(),
-      connectionId,
-      itemSummary,
-      orderValue,
-      createdAt: Date.now(),
-      acceptedAt: null,
-      dispatchedAt: null,
-      deliveredAt: null,
-      declinedAt: null,
-      paymentTermSnapshot: snapshotPaymentTerms(connection.paymentTerms),
-      billToBillInvoiceDate: null,
-    }
-
-    await spark.kv.set(KV_KEYS.ORDERS, [...orders, newOrder])
-    return newOrder
+    const { data, error } = await supabase
+      .from('orders')
+      .insert([{
+        connection_id: connectionId,
+        item_summary: itemSummary,
+        order_value: orderValue,
+        created_at: Date.now(),
+        payment_term_snapshot: snapshotPaymentTerms(connection.paymentTerms)
+      }])
+      .select()
+      .single()
+    
+    if (error) throw error
+    return toCamelCase(data)
   }
 
   async getOrderById(id: string): Promise<Order | undefined> {
-    const orders = await this.getAllOrders()
-    return orders.find((o) => o.id === id)
+    const { data, error } = await supabase
+      .from('orders')
+      .select('*')
+      .eq('id', id)
+      .single()
+    
+    if (error) {
+      if (error.code === 'PGRST116') return undefined
+      throw error
+    }
+    return toCamelCase(data)
   }
 
   async getOrdersByConnectionId(connectionId: string): Promise<Order[]> {
-    const orders = await this.getAllOrders()
-    return orders.filter((o) => o.connectionId === connectionId)
+    const { data, error } = await supabase
+      .from('orders')
+      .select('*')
+      .eq('connection_id', connectionId)
+      .order('created_at', { ascending: false })
+    
+    if (error) throw error
+    return toCamelCase(data || [])
   }
 
   async updateOrderState(
     orderId: string,
     state: 'Accepted' | 'Dispatched' | 'Delivered' | 'Declined'
   ): Promise<Order> {
-    const orders = await this.getAllOrders()
-    const index = orders.findIndex((o) => o.id === orderId)
-
-    if (index === -1) {
-      throw new Error('Order not found')
-    }
-
     const timestamp = Date.now()
-    const updates: Partial<Order> = {}
+    const updates: any = {}
 
-    if (state === 'Accepted') {
-      updates.acceptedAt = timestamp
-    } else if (state === 'Dispatched') {
-      updates.dispatchedAt = timestamp
-    } else if (state === 'Delivered') {
-      updates.deliveredAt = timestamp
-    } else if (state === 'Declined') {
-      updates.declinedAt = timestamp
-    }
+    if (state === 'Accepted') updates.accepted_at = timestamp
+    else if (state === 'Dispatched') updates.dispatched_at = timestamp
+    else if (state === 'Delivered') updates.delivered_at = timestamp
+    else if (state === 'Declined') updates.declined_at = timestamp
 
-    orders[index] = { ...orders[index], ...updates }
-    await spark.kv.set(KV_KEYS.ORDERS, orders)
-    return orders[index]
+    const { data, error } = await supabase
+      .from('orders')
+      .update(updates)
+      .eq('id', orderId)
+      .select()
+      .single()
+    
+    if (error) throw error
+    return toCamelCase(data)
   }
 
   async updateOrderBillToBillInvoiceDate(
     orderId: string,
     invoiceDate: number
   ): Promise<Order> {
-    const orders = await this.getAllOrders()
-    const index = orders.findIndex((o) => o.id === orderId)
-
-    if (index === -1) {
-      throw new Error('Order not found')
-    }
-
-    orders[index] = {
-      ...orders[index],
-      billToBillInvoiceDate: invoiceDate,
-    }
-
-    await spark.kv.set(KV_KEYS.ORDERS, orders)
-    return orders[index]
+    const { data, error } = await supabase
+      .from('orders')
+      .update({ bill_to_bill_invoice_date: invoiceDate })
+      .eq('id', orderId)
+      .select()
+      .single()
+    
+    if (error) throw error
+    return toCamelCase(data)
   }
 
+  async getOrderWithPaymentState(orderId: string): Promise<OrderWithPaymentState> {
+    const order = await this.getOrderById(orderId)
+    if (!order) {
+      throw new Error('Order not found')
+    }
+    const payments = await this.getPaymentEventsByOrderId(orderId)
+    return enrichOrderWithPaymentState(order, payments)
+  }
+
+  async getAllOrdersWithPaymentState(): Promise<OrderWithPaymentState[]> {
+    const orders = await this.getAllOrders()
+    const allPayments = await this.getAllPaymentEvents()
+    
+    return orders.map(order => {
+      const payments = allPayments.filter(p => p.orderId === order.id)
+      return enrichOrderWithPaymentState(order, payments)
+    })
+  }
+
+  async getOrdersWithPaymentStateByConnectionId(
+    connectionId: string
+  ): Promise<OrderWithPaymentState[]> {
+    const orders = await this.getOrdersByConnectionId(connectionId)
+    const allPayments = await this.getAllPaymentEvents()
+    
+    return orders.map(order => {
+      const payments = allPayments.filter(p => p.orderId === order.id)
+      return enrichOrderWithPaymentState(order, payments)
+    })
+  }
+  // ============ PAYMENT EVENTS ============
+
   async getAllPaymentEvents(): Promise<PaymentEvent[]> {
-    const events = await spark.kv.get<PaymentEvent[]>(KV_KEYS.PAYMENT_EVENTS)
-    return events || []
+    const { data, error } = await supabase
+      .from('payment_events')
+      .select('*')
+    
+    if (error) throw error
+    return toCamelCase(data || [])
   }
 
   async createPaymentEvent(
@@ -287,93 +474,74 @@ export class ZeltoDataStore {
       throw new Error('Order does not exist')
     }
 
-    const events = await this.getAllPaymentEvents()
-    const newEvent: PaymentEvent = {
-      id: crypto.randomUUID(),
-      orderId,
-      amountPaid,
-      timestamp: Date.now(),
-      recordedBy,
-      disputed: false,
-      disputedAt: null,
-      acceptedAt: null,
-    }
-
-    await spark.kv.set(KV_KEYS.PAYMENT_EVENTS, [...events, newEvent])
-    return newEvent
+    const { data, error } = await supabase
+      .from('payment_events')
+      .insert([{
+        order_id: orderId,
+        amount_paid: amountPaid,
+        timestamp: Date.now(),
+        recorded_by: recordedBy,
+        disputed: false
+      }])
+      .select()
+      .single()
+    
+    if (error) throw error
+    return toCamelCase(data)
   }
 
   async getPaymentEventsByOrderId(orderId: string): Promise<PaymentEvent[]> {
-    const events = await this.getAllPaymentEvents()
-    return events.filter((e) => e.orderId === orderId)
-  }
-
-  async disputePaymentEvent(paymentId: string): Promise<PaymentEvent> {
-    const events = await this.getAllPaymentEvents()
-    const index = events.findIndex((e) => e.id === paymentId)
+    const { data, error } = await supabase
+      .from('payment_events')
+      .select('*')
+      .eq('order_id', orderId)
+      .order('timestamp', { ascending: true })
     
-    if (index === -1) {
-      throw new Error('Payment event not found')
-    }
-
-    events[index] = {
-      ...events[index],
-      disputed: true,
-      disputedAt: Date.now(),
-    }
-
-    await spark.kv.set(KV_KEYS.PAYMENT_EVENTS, events)
-    return events[index]
+    if (error) throw error
+    return toCamelCase(data || [])
   }
 
-  async acceptPaymentEvent(paymentId: string): Promise<PaymentEvent> {
-    const events = await this.getAllPaymentEvents()
-    const index = events.findIndex((e) => e.id === paymentId)
+  async updatePaymentEventDispute(
+    paymentEventId: string,
+    disputed: boolean
+  ): Promise<PaymentEvent> {
+    const updates: any = { disputed }
+    if (disputed) {
+      updates.disputed_at = Date.now()
+    }
+
+    const { data, error } = await supabase
+      .from('payment_events')
+      .update(updates)
+      .eq('id', paymentEventId)
+      .select()
+      .single()
     
-    if (index === -1) {
-      throw new Error('Payment event not found')
-    }
-
-    events[index] = {
-      ...events[index],
-      acceptedAt: Date.now(),
-    }
-
-    await spark.kv.set(KV_KEYS.PAYMENT_EVENTS, events)
-    return events[index]
+    if (error) throw error
+    return toCamelCase(data)
   }
 
-  async getOrderWithPaymentState(orderId: string): Promise<OrderWithPaymentState | undefined> {
-    const order = await this.getOrderById(orderId)
-    if (!order) return undefined
-
-    const allPaymentEvents = await this.getAllPaymentEvents()
-    return enrichOrderWithPaymentState(order, allPaymentEvents)
+  async acceptPaymentEvent(paymentEventId: string): Promise<PaymentEvent> {
+    const { data, error } = await supabase
+      .from('payment_events')
+      .update({ accepted_at: Date.now() })
+      .eq('id', paymentEventId)
+      .select()
+      .single()
+    
+    if (error) throw error
+    return toCamelCase(data)
   }
 
-  async getAllOrdersWithPaymentState(): Promise<OrderWithPaymentState[]> {
-    const orders = await this.getAllOrders()
-    const allPaymentEvents = await this.getAllPaymentEvents()
-
-    return orders.map((order) =>
-      enrichOrderWithPaymentState(order, allPaymentEvents)
-    )
-  }
-
-  async getOrdersWithPaymentStateByConnectionId(
-    connectionId: string
-  ): Promise<OrderWithPaymentState[]> {
-    const orders = await this.getOrdersByConnectionId(connectionId)
-    const allPaymentEvents = await this.getAllPaymentEvents()
-
-    return orders.map((order) =>
-      enrichOrderWithPaymentState(order, allPaymentEvents)
-    )
-  }
+  // ============ ISSUE REPORTS ============
 
   async getAllIssueReports(): Promise<IssueReport[]> {
-    const issues = await spark.kv.get<IssueReport[]>(KV_KEYS.ISSUE_REPORTS)
-    return issues || []
+    const { data, error } = await supabase
+      .from('issue_reports')
+      .select('*')
+    
+    if (error) throw error
+    return toCamelCase(data || [])
   }
 
   async createIssueReport(
@@ -384,78 +552,217 @@ export class ZeltoDataStore {
   ): Promise<IssueReport> {
     const order = await this.getOrderById(orderId)
     if (!order) {
-      throw new Error('Issue must be attached to an existing order')
+      throw new Error('Order does not exist')
     }
 
-    const issues = await this.getAllIssueReports()
-    const newIssue: IssueReport = {
-      id: crypto.randomUUID(),
-      orderId,
-      issueType,
-      severity,
-      raisedBy,
-      status: 'Open',
-      createdAt: Date.now(),
-    }
-
-    await spark.kv.set(KV_KEYS.ISSUE_REPORTS, [...issues, newIssue])
-    return newIssue
+    const { data, error } = await supabase
+      .from('issue_reports')
+      .insert([{
+        order_id: orderId,
+        issue_type: issueType,
+        severity,
+        raised_by: raisedBy,
+        status: 'Open',
+        created_at: Date.now()
+      }])
+      .select()
+      .single()
+    
+    if (error) throw error
+    return toCamelCase(data)
   }
 
   async updateIssueStatus(
     issueId: string,
     status: IssueReport['status']
   ): Promise<IssueReport> {
-    const issues = await this.getAllIssueReports()
-    const index = issues.findIndex((i) => i.id === issueId)
-
-    if (index === -1) {
-      throw new Error('Issue report not found')
-    }
-
-    issues[index] = { ...issues[index], status }
-    await spark.kv.set(KV_KEYS.ISSUE_REPORTS, issues)
-    return issues[index]
+    const { data, error } = await supabase
+      .from('issue_reports')
+      .update({ status })
+      .eq('id', issueId)
+      .select()
+      .single()
+    
+    if (error) throw error
+    return toCamelCase(data)
   }
 
   async getIssueReportsByOrderId(orderId: string): Promise<IssueReport[]> {
-    const issues = await this.getAllIssueReports()
-    return issues.filter((i) => i.orderId === orderId)
+    const { data, error } = await supabase
+      .from('issue_reports')
+      .select('*')
+      .eq('order_id', orderId)
+    
+    if (error) throw error
+    return toCamelCase(data || [])
   }
 
-  async clearAllData(): Promise<void> {
-    await spark.kv.delete(KV_KEYS.BUSINESS_ENTITIES)
-    await spark.kv.delete(KV_KEYS.USER_ACCOUNTS)
-    await spark.kv.delete(KV_KEYS.CONNECTIONS)
-    await spark.kv.delete(KV_KEYS.ORDERS)
-    await spark.kv.delete(KV_KEYS.PAYMENT_EVENTS)
-    await spark.kv.delete(KV_KEYS.ISSUE_REPORTS)
+  // ============ CONNECTION REQUESTS ============
+
+  async getAllConnectionRequests(): Promise<ConnectionRequest[]> {
+    const { data, error } = await supabase
+      .from('connection_requests')
+      .select('*')
+    
+    if (error) throw error
+    return toCamelCase(data || [])
   }
+
+  async createConnectionRequest(
+    requesterBusinessId: string,
+    receiverBusinessId: string,
+    requesterRole: 'buyer' | 'supplier',
+    receiverRole: 'buyer' | 'supplier'
+  ): Promise<ConnectionRequest> {
+    const { data, error } = await supabase
+      .from('connection_requests')
+      .insert([{
+        requester_business_id: requesterBusinessId,
+        receiver_business_id: receiverBusinessId,
+        requester_role: requesterRole,
+        receiver_role: receiverRole,
+        status: 'Pending',
+        created_at: Date.now()
+      }])
+      .select()
+      .single()
+    
+    if (error) throw error
+    return toCamelCase(data)
+  }
+
+  async getConnectionRequestsByBusinessId(businessId: string): Promise<ConnectionRequest[]> {
+    const { data, error } = await supabase
+      .from('connection_requests')
+      .select('*')
+      .or(`receiver_business_id.eq.${businessId},requester_business_id.eq.${businessId}`)
+    
+    if (error) throw error
+    return toCamelCase(data || [])
+  }
+
+  async updateConnectionRequestStatus(
+    requestId: string,
+    status: ConnectionRequestStatus
+  ): Promise<ConnectionRequest> {
+    const updates: any = { status }
+    if (status !== 'Pending') {
+      updates.resolved_at = Date.now()
+    }
+
+    const { data, error } = await supabase
+      .from('connection_requests')
+      .update(updates)
+      .eq('id', requestId)
+      .select()
+      .single()
+    
+    if (error) throw error
+    return toCamelCase(data)
+  }
+
+  // ============ ROLE CHANGE REQUESTS ============
+
+  async getAllRoleChangeRequests(): Promise<RoleChangeRequest[]> {
+    const { data, error } = await supabase
+      .from('role_change_requests')
+      .select('*')
+    
+    if (error) throw error
+    return toCamelCase(data || [])
+  }
+
+  async createRoleChangeRequest(
+    connectionId: string,
+    requestedByBusinessId: string
+  ): Promise<RoleChangeRequest> {
+    const { data, error } = await supabase
+      .from('role_change_requests')
+      .insert([{
+        connection_id: connectionId,
+        requested_by_business_id: requestedByBusinessId,
+        status: 'pending',
+        created_at: Date.now()
+      }])
+      .select()
+      .single()
+    
+    if (error) throw error
+    return toCamelCase(data)
+  }
+
+  async getRoleChangeRequestsByConnectionId(connectionId: string): Promise<RoleChangeRequest[]> {
+    const { data, error } = await supabase
+      .from('role_change_requests')
+      .select('*')
+      .eq('connection_id', connectionId)
+    
+    if (error) throw error
+    return toCamelCase(data || [])
+  }
+
+  async updateRoleChangeRequestStatus(
+    requestId: string,
+    status: 'approved' | 'declined'
+  ): Promise<RoleChangeRequest> {
+    const { data, error } = await supabase
+      .from('role_change_requests')
+      .update({ 
+        status,
+        resolved_at: Date.now()
+      })
+      .eq('id', requestId)
+      .select()
+      .single()
+    
+    if (error) throw error
+    return toCamelCase(data)
+  }
+  // ============ ADMIN ACCOUNTS ============
 
   async getAllAdminAccounts(): Promise<AdminAccount[]> {
-    const accounts = await spark.kv.get<AdminAccount[]>(KV_KEYS.ADMIN_ACCOUNTS)
-    return accounts || []
+    const { data, error } = await supabase
+      .from('admin_accounts')
+      .select('*')
+    
+    if (error) throw error
+    return toCamelCase(data || [])
   }
 
   async createAdminAccount(username: string, password: string): Promise<AdminAccount> {
-    const accounts = await this.getAllAdminAccounts()
-    const newAccount: AdminAccount = {
-      id: crypto.randomUUID(),
-      username,
-      password,
-    }
-    await spark.kv.set(KV_KEYS.ADMIN_ACCOUNTS, [...accounts, newAccount])
-    return newAccount
+    const { data, error } = await supabase
+      .from('admin_accounts')
+      .insert([{ username, password }])
+      .select()
+      .single()
+    
+    if (error) throw error
+    return toCamelCase(data)
   }
 
   async getAdminAccountByUsername(username: string): Promise<AdminAccount | undefined> {
-    const accounts = await this.getAllAdminAccounts()
-    return accounts.find((a) => a.username === username)
+    const { data, error } = await supabase
+      .from('admin_accounts')
+      .select('*')
+      .eq('username', username)
+      .single()
+    
+    if (error) {
+      if (error.code === 'PGRST116') return undefined
+      throw error
+    }
+    return toCamelCase(data)
   }
 
+  // ============ ENTITY FLAGS ============
+
   async getAllEntityFlags(): Promise<EntityFlag[]> {
-    const flags = await spark.kv.get<EntityFlag[]>(KV_KEYS.ENTITY_FLAGS)
-    return flags || []
+    const { data, error } = await supabase
+      .from('entity_flags')
+      .select('*')
+    
+    if (error) throw error
+    return toCamelCase(data || [])
   }
 
   async createEntityFlag(
@@ -465,38 +772,63 @@ export class ZeltoDataStore {
     note: string,
     adminUsername: string
   ): Promise<EntityFlag> {
-    const flags = await this.getAllEntityFlags()
-    const newFlag: EntityFlag = {
-      id: crypto.randomUUID(),
-      entityId,
-      roleContext,
-      flagType,
-      note,
-      timestamp: Date.now(),
-      adminUsername,
-    }
-    await spark.kv.set(KV_KEYS.ENTITY_FLAGS, [...flags, newFlag])
-    return newFlag
+    const { data, error } = await supabase
+      .from('entity_flags')
+      .insert([{
+        entity_id: entityId,
+        role_context: roleContext,
+        flag_type: flagType,
+        note,
+        timestamp: Date.now(),
+        admin_username: adminUsername
+      }])
+      .select()
+      .single()
+    
+    if (error) throw error
+    return toCamelCase(data)
   }
 
   async getEntityFlagsByEntityId(entityId: string): Promise<EntityFlag[]> {
-    const flags = await this.getAllEntityFlags()
-    return flags.filter((f) => f.entityId === entityId)
+    const { data, error } = await supabase
+      .from('entity_flags')
+      .select('*')
+      .eq('entity_id', entityId)
+      .order('timestamp', { ascending: false })
+    
+    if (error) throw error
+    return toCamelCase(data || [])
   }
 
   async getCurrentFlagForEntity(
     entityId: string,
     roleContext: EntityFlag['roleContext']
   ): Promise<EntityFlag | undefined> {
-    const flags = await this.getEntityFlagsByEntityId(entityId)
-    const contextFlags = flags.filter((f) => f.roleContext === roleContext)
-    if (contextFlags.length === 0) return undefined
-    return contextFlags.sort((a, b) => b.timestamp - a.timestamp)[0]
+    const { data, error } = await supabase
+      .from('entity_flags')
+      .select('*')
+      .eq('entity_id', entityId)
+      .eq('role_context', roleContext)
+      .order('timestamp', { ascending: false })
+      .limit(1)
+      .single()
+    
+    if (error) {
+      if (error.code === 'PGRST116') return undefined
+      throw error
+    }
+    return toCamelCase(data)
   }
 
+  // ============ FROZEN ENTITIES ============
+
   async getAllFrozenEntities(): Promise<FrozenEntity[]> {
-    const frozen = await spark.kv.get<FrozenEntity[]>(KV_KEYS.FROZEN_ENTITIES)
-    return frozen || []
+    const { data, error } = await supabase
+      .from('frozen_entities')
+      .select('*')
+    
+    if (error) throw error
+    return toCamelCase(data || [])
   }
 
   async freezeEntity(
@@ -504,228 +836,56 @@ export class ZeltoDataStore {
     note: string,
     adminUsername: string
   ): Promise<FrozenEntity> {
-    const frozen = await this.getAllFrozenEntities()
-    const newFrozen: FrozenEntity = {
-      id: crypto.randomUUID(),
-      entityId,
-      frozenAt: Date.now(),
-      note,
-      adminUsername,
-    }
-    await spark.kv.set(KV_KEYS.FROZEN_ENTITIES, [...frozen, newFrozen])
+    const { data, error } = await supabase
+      .from('frozen_entities')
+      .insert([{
+        entity_id: entityId,
+        frozen_at: Date.now(),
+        note,
+        admin_username: adminUsername
+      }])
+      .select()
+      .single()
     
+    if (error) throw error
+
+    // Also create suspended flags
     await this.createEntityFlag(entityId, 'buyer', 'Suspended', note, adminUsername)
     await this.createEntityFlag(entityId, 'supplier', 'Suspended', note, adminUsername)
     
-    return newFrozen
+    return toCamelCase(data)
   }
 
   async getFrozenEntityByEntityId(entityId: string): Promise<FrozenEntity | undefined> {
-    const frozen = await this.getAllFrozenEntities()
-    return frozen.find((f) => f.entityId === entityId)
-  }
-
-  async updateBusinessEntity(
-    businessEntityId: string,
-    updates: Partial<Pick<BusinessEntity, 'gstNumber' | 'businessAddress' | 'businessType' | 'website'>>
-  ): Promise<BusinessEntity> {
-    const entities = await this.getAllBusinessEntities()
-    const index = entities.findIndex((e) => e.id === businessEntityId)
-    if (index === -1) {
-      throw new Error('Business entity not found')
-    }
-
-    const updated = { ...entities[index], ...updates }
-    entities[index] = updated
-    await spark.kv.set(KV_KEYS.BUSINESS_ENTITIES, entities)
-    return updated
-  }
-
-  async updateBusinessDetails(
-    businessId: string,
-    details: {
-      gstNumber?: string
-      address?: string
-      businessType?: string
-      website?: string
-    }
-  ): Promise<BusinessEntity> {
-    const entities = await this.getAllBusinessEntities()
-    const index = entities.findIndex((e) => e.id === businessId)
+    const { data, error } = await supabase
+      .from('frozen_entities')
+      .select('*')
+      .eq('entity_id', entityId)
+      .single()
     
-    if (index === -1) {
-      throw new Error('Business entity not found')
+    if (error) {
+      if (error.code === 'PGRST116') return undefined
+      throw error
     }
-
-    const updates: Partial<BusinessEntity> = {}
-    if (details.gstNumber !== undefined) updates.gstNumber = details.gstNumber
-    if (details.address !== undefined) updates.businessAddress = details.address
-    if (details.businessType !== undefined) updates.businessType = details.businessType as BusinessEntity['businessType']
-    if (details.website !== undefined) updates.website = details.website
-
-    entities[index] = { ...entities[index], ...updates }
-    await spark.kv.set(KV_KEYS.BUSINESS_ENTITIES, entities)
-    return entities[index]
+    return toCamelCase(data)
   }
 
-  async getBusinessEntityByZeltoId(zeltoId: string): Promise<BusinessEntity | undefined> {
-    const entities = await this.getAllBusinessEntities()
-    return entities.find((e) => e.zeltoId === zeltoId)
+  // ============ UTILITY ============
+
+  async clearAllData(): Promise<void> {
+    // Delete in reverse order of dependencies
+    await supabase.from('payment_events').delete().neq('id', '00000000-0000-0000-0000-000000000000')
+    await supabase.from('issue_reports').delete().neq('id', '00000000-0000-0000-0000-000000000000')
+    await supabase.from('orders').delete().neq('id', '00000000-0000-0000-0000-000000000000')
+    await supabase.from('role_change_requests').delete().neq('id', '00000000-0000-0000-0000-000000000000')
+    await supabase.from('connection_requests').delete().neq('id', '00000000-0000-0000-0000-000000000000')
+    await supabase.from('connections').delete().neq('id', '00000000-0000-0000-0000-000000000000')
+    await supabase.from('entity_flags').delete().neq('id', '00000000-0000-0000-0000-000000000000')
+    await supabase.from('frozen_entities').delete().neq('id', '00000000-0000-0000-0000-000000000000')
+    await supabase.from('user_accounts').delete().neq('id', '00000000-0000-0000-0000-000000000000')
+    await supabase.from('business_entities').delete().neq('id', '00000000-0000-0000-0000-000000000000')
+    await supabase.from('admin_accounts').delete().neq('id', '00000000-0000-0000-0000-000000000000')
   }
-
-  async checkGSTExists(gstNumber: string, excludeEntityId?: string): Promise<boolean> {
-    const entities = await this.getAllBusinessEntities()
-    return entities.some((e) => e.gstNumber === gstNumber && e.id !== excludeEntityId)
-  }
-
-  async getUserAccountByPhoneNumber(phoneNumber: string): Promise<UserAccount | undefined> {
-    const accounts = await this.getAllUserAccounts()
-    return accounts.find((a) => a.phoneNumber === phoneNumber)
-  }
-
-  async getAllConnectionRequests(): Promise<ConnectionRequest[]> {
-    const requests = await spark.kv.get<ConnectionRequest[]>(KV_KEYS.CONNECTION_REQUESTS)
-    return requests || []
-  }
-
-  async createConnectionRequest(
-    requesterBusinessId: string,
-    receiverBusinessId: string,
-    requesterRole: 'buyer' | 'supplier',
-    receiverRole: 'buyer' | 'supplier'
-  ): Promise<ConnectionRequest> {
-    const requests = await this.getAllConnectionRequests()
-    const newRequest: ConnectionRequest = {
-      id: crypto.randomUUID(),
-      requesterBusinessId,
-      receiverBusinessId,
-      requesterRole,
-      receiverRole,
-      status: 'Pending' as ConnectionRequestStatus,
-      createdAt: Date.now(),
-      resolvedAt: null,
-    }
-    await spark.kv.set(KV_KEYS.CONNECTION_REQUESTS, [...requests, newRequest])
-    return newRequest
-  }
-
-  async getConnectionRequestsByBusinessId(businessId: string): Promise<ConnectionRequest[]> {
-    const requests = await this.getAllConnectionRequests()
-    return requests.filter((r) => r.receiverBusinessId === businessId || r.requesterBusinessId === businessId)
-  }
-
-  async updateConnectionRequestStatus(
-    requestId: string,
-    status: ConnectionRequestStatus
-  ): Promise<ConnectionRequest> {
-    const requests = await this.getAllConnectionRequests()
-    const index = requests.findIndex((r) => r.id === requestId)
-    if (index === -1) {
-      throw new Error('Connection request not found')
-    }
-    requests[index] = { ...requests[index], status, resolvedAt: Date.now() }
-    await spark.kv.set(KV_KEYS.CONNECTION_REQUESTS, requests)
-    return requests[index]
-  }
-}
-
-const CONNECTION_REQUESTS_KEY = 'zelto:connection-requests'
-const ROLE_CHANGE_REQUESTS_KEY = 'zelto:role-change-requests'
-
-export async function getAllConnectionRequests(): Promise<ConnectionRequest[]> {
-  return await spark.kv.get<ConnectionRequest[]>(CONNECTION_REQUESTS_KEY) || []
-}
-
-export async function createConnectionRequest(
-  requesterBusinessId: string,
-  receiverBusinessId: string,
-  requesterRole: 'buyer' | 'supplier',
-  receiverRole: 'buyer' | 'supplier'
-): Promise<ConnectionRequest> {
-  const requests = await getAllConnectionRequests()
-  const newRequest: ConnectionRequest = {
-    id: crypto.randomUUID(),
-    requesterBusinessId,
-    receiverBusinessId,
-    requesterRole,
-    receiverRole,
-    status: 'Pending',
-    createdAt: Date.now(),
-    resolvedAt: null,
-  }
-  await spark.kv.set(CONNECTION_REQUESTS_KEY, [...requests, newRequest])
-  return newRequest
-}
-
-export async function getConnectionRequestsByBusiness(businessId: string): Promise<ConnectionRequest[]> {
-  const requests = await getAllConnectionRequests()
-  return requests.filter((r) => r.receiverBusinessId === businessId || r.requesterBusinessId === businessId)
-}
-
-export async function getPendingConnectionRequestsBetween(business1Id: string, business2Id: string): Promise<ConnectionRequest | undefined> {
-  const requests = await getAllConnectionRequests()
-  return requests.find((r) =>
-    r.status === 'Pending' &&
-    ((r.requesterBusinessId === business1Id && r.receiverBusinessId === business2Id) ||
-     (r.requesterBusinessId === business2Id && r.receiverBusinessId === business1Id))
-  )
-}
-
-export async function updateConnectionRequest(
-  requestId: string,
-  status: ConnectionRequestStatus,
-  resolvedAt: number
-): Promise<ConnectionRequest> {
-  const requests = await getAllConnectionRequests()
-  const index = requests.findIndex((r) => r.id === requestId)
-  if (index === -1) {
-    throw new Error('Connection request not found')
-  }
-  requests[index] = { ...requests[index], status, resolvedAt }
-  await spark.kv.set(CONNECTION_REQUESTS_KEY, requests)
-  return requests[index]
-}
-
-export async function getAllRoleChangeRequests(): Promise<RoleChangeRequest[]> {
-  return await spark.kv.get<RoleChangeRequest[]>(ROLE_CHANGE_REQUESTS_KEY) || []
-}
-
-export async function createRoleChangeRequest(
-  connectionId: string,
-  requestedByBusinessId: string
-): Promise<RoleChangeRequest> {
-  const requests = await getAllRoleChangeRequests()
-  const newRequest: RoleChangeRequest = {
-    id: crypto.randomUUID(),
-    connectionId,
-    requestedByBusinessId,
-    status: 'pending',
-    createdAt: Date.now(),
-    resolvedAt: null,
-  }
-  await spark.kv.set(ROLE_CHANGE_REQUESTS_KEY, [...requests, newRequest])
-  return newRequest
-}
-
-export async function getRoleChangeRequestsByConnection(connectionId: string): Promise<RoleChangeRequest[]> {
-  const requests = await getAllRoleChangeRequests()
-  return requests.filter((r) => r.connectionId === connectionId)
-}
-
-export async function updateRoleChangeRequest(
-  requestId: string,
-  status: 'pending' | 'approved' | 'declined',
-  resolvedAt: number
-): Promise<RoleChangeRequest> {
-  const requests = await getAllRoleChangeRequests()
-  const index = requests.findIndex((r) => r.id === requestId)
-  if (index === -1) {
-    throw new Error('Role change request not found')
-  }
-  requests[index] = { ...requests[index], status, resolvedAt }
-  await spark.kv.set(ROLE_CHANGE_REQUESTS_KEY, requests)
-  return requests[index]
 }
 
 export const dataStore = new ZeltoDataStore()
-
