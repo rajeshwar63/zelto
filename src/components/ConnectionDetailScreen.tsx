@@ -96,6 +96,9 @@ export function ConnectionDetailScreen({ connectionId, currentBusinessId, select
     setConnection(conn)
     setOtherBusiness(otherBiz || null)
     setOrders(allOrders)
+    // Set filteredOrders immediately in the same batch to avoid stale render
+    const cutoffTime = Date.now() - filterDurations[timeFilter]
+    setFilteredOrders(allOrders.filter(order => order.createdAt >= cutoffTime))
     setInsights(connectionInsights)
     setLoading(false)
   }
