@@ -1,5 +1,4 @@
 import { useEffect, useState } from 'react'
-import { initializeDemoData } from '@/lib/demo-data'
 import { ConnectionsScreen } from '@/components/ConnectionsScreen'
 import { ConnectionDetailScreen } from '@/components/ConnectionDetailScreen'
 import { AttentionScreen } from '@/components/AttentionScreen'
@@ -49,8 +48,7 @@ function App() {
             setCurrentBusinessId(session.businessId)
             setAuthScreen(null)
           } else {
-            await initializeDemoData()
-            setAuthScreen('login')
+            setAuthScreen('signup')
           }
         } catch (err) {
           console.error('Failed to initialize app:', err)
