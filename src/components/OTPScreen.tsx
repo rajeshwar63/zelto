@@ -8,7 +8,7 @@ interface OTPScreenProps {
   phoneNumber: string
   businessName?: string
   isSignup: boolean
-  onSuccess: () => void
+  onSuccess: (businessId: string) => void
   onBack: () => void
 }
 
@@ -41,13 +41,14 @@ export function OTPScreen({ phoneNumber, businessName, isSignup, onSuccess, onBa
     setIsLoading(true)
     try {
       if (isSignup && businessName) {
-        await signupWithPhone(phoneNumber, businessName)
+        const result = await signupWithPhone(phoneNumber, businessName)
         toast.success('Account created successfully!')
+        onSuccess(result.businessEntity.id)
       } else {
-        await loginWithPhone(phoneNumber)
+        const result = await loginWithPhone(phoneNumber)
         toast.success('Welcome back!')
+        onSuccess(result.businessEntity.id)
       }
-      onSuccess()
     } catch (error) {
       console.error('OTP verification error:', error)
       toast.error(error instanceof Error ? error.message : 'Verification failed')
