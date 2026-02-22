@@ -93,15 +93,19 @@ export function ConnectionsScreen({ currentBusinessId, onSelectConnection, onAdd
   const handleSendOrder = async () => {
     if (!selectedConnection || !message.trim()) return
 
+    // Save connectionId before any state mutations
+    const connectionId = selectedConnection.id
+
     setIsSending(true)
     setSendError(null)
     try {
-      await createOrder(selectedConnection.id, message.trim(), 0, currentBusinessId)
+      await createOrder(connectionId, message.trim(), 0, currentBusinessId)
       setShowOrderModal(false)
       setSelectedConnection(null)
       setMessage('')
       setSearch('')
-      onSelectConnection(selectedConnection.id)
+      // Navigate to the connection so the user sees the new order immediately
+      onSelectConnection(connectionId)
     } catch (error) {
       console.error('Failed to create order:', error)
       setSendError(error instanceof Error ? error.message : 'Failed to create order')
@@ -165,7 +169,6 @@ export function ConnectionsScreen({ currentBusinessId, onSelectConnection, onAdd
       {connections.map((conn) => {
         const formattedTerms = formatPaymentTerms(conn.paymentTerms)
         const isSupplier = conn.supplierBusinessId === currentBusinessId
-        const isBuyer = conn.buyerBusinessId === currentBusinessId
         
         const statusLabel = !formattedTerms 
           ? (isSupplier ? 'Payment terms needed' : 'Awaiting payment terms')
