@@ -361,7 +361,7 @@ interface OrderDetailViewProps {
   connection: Connection
   currentBusinessId: string
   onBack: () => void
-  onRefresh: () => void
+  onRefresh: () => Promise<void>
 }
 
 function OrderDetailView({ order: initialOrder, connection, currentBusinessId, onBack, onRefresh }: OrderDetailViewProps) {
@@ -446,7 +446,7 @@ function OrderDetailView({ order: initialOrder, connection, currentBusinessId, o
       toast.success('Order dispatched')
       setDispatchAmount('')
       await refreshOrder()
-      onRefresh()
+      await onRefresh()
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Failed to dispatch order')
     } finally {
@@ -462,7 +462,7 @@ function OrderDetailView({ order: initialOrder, connection, currentBusinessId, o
       toast.success('Order declined')
       setShowDeclineConfirm(false)
       await refreshOrder()
-      onRefresh()
+      await onRefresh()
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Failed to decline order')
     } finally {
@@ -478,7 +478,7 @@ function OrderDetailView({ order: initialOrder, connection, currentBusinessId, o
       toast.success('Order cancelled')
       setShowCancelConfirm(false)
       await refreshOrder()
-      onRefresh()
+      await onRefresh()
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Failed to cancel order')
     } finally {
@@ -493,7 +493,7 @@ function OrderDetailView({ order: initialOrder, connection, currentBusinessId, o
       await transitionOrderState(order.id, 'Delivered', currentBusinessId)
       toast.success('Order marked as delivered')
       await refreshOrder()
-      onRefresh()
+      await onRefresh()
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Failed to mark as delivered')
     } finally {
@@ -521,7 +521,7 @@ function OrderDetailView({ order: initialOrder, connection, currentBusinessId, o
       toast.success('Payment recorded')
       setPaymentAmount('')
       await refreshOrder()
-      onRefresh()
+      await onRefresh()
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Failed to record payment')
     } finally {
@@ -554,7 +554,7 @@ function OrderDetailView({ order: initialOrder, connection, currentBusinessId, o
       setDisputingPaymentId(null)
       toast.success('Dispute raised. This has been added to your Attention tab.')
       await refreshOrder()
-      onRefresh()
+      await onRefresh()
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Failed to dispute payment')
     } finally {
