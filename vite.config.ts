@@ -22,4 +22,10 @@ export default defineConfig({
       '@': resolve(projectRoot, 'src')
     }
   },
+  server: {
+    allowedHosts: [
+      'zelto.onrender.com',
+      '.onrender.com'
+    ]
+  }
 });
