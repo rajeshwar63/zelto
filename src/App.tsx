@@ -13,6 +13,8 @@ import { PaymentTermsSetupScreen } from '@/components/PaymentTermsSetupScreen'
 import { BusinessDetailsScreen } from '@/components/BusinessDetailsScreen'
 import { List, ChartBar, Bell, User } from '@phosphor-icons/react'
 import { getAuthSession, logout } from '@/lib/auth'
+import { attentionEngine } from '@/lib/attention-engine'
+import { updateTabLastSeen, updateConnectionLastSeen, hasUnreadAttentionItems, hasAnyUnreadConnections, hasUnreadConnectionActivity } from '@/lib/unread-tracker'
 
 type Tab = 'status' | 'connections' | 'attention' | 'profile'
 type Screen = 
@@ -30,6 +32,9 @@ function App() {
   const [authScreen, setAuthScreen] = useState<AuthScreen | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [isCheckingAuth, setIsCheckingAuth] = useState(true)
+  const [hasUnreadAttention, setHasUnreadAttention] = useState(false)
+  const [hasUnreadConnections, setHasUnreadConnections] = useState(false)
+  const [unreadConnectionIds, setUnreadConnectionIds] = useState<Set<string>>(new Set())
   
   const screen = navigationStack[navigationStack.length - 1]
 
@@ -64,6 +69,19 @@ function App() {
   const checkRoute = () => {
     setIsAdminRoute(window.location.pathname === '/admin')
   }
+
+  useEffect(() => {
+    if (!currentBusinessId) return
+    async function checkUnread() {
+      const items = await attentionEngine.getAttentionItems(currentBusinessId!)
+      setHasUnreadAttention(hasUnreadAttentionItems(currentBusinessId!, items))
+      setHasUnreadConnections(hasAnyUnreadConnections(currentBusinessId!, items))
+      const connIds = [...new Set(items.map(item => item.connectionId))]
+      const unread = new Set(connIds.filter(id => hasUnreadConnectionActivity(currentBusinessId!, id, items)))
+      setUnreadConnectionIds(unread)
+    }
+    checkUnread()
+  }, [currentBusinessId, navigationStack])
 
   const handleLogout = async () => {
     await logout()
@@ -141,6 +159,9 @@ function App() {
   }
 
   const navigateToConnection = (connectionId: string, orderId?: string) => {
+    if (currentBusinessId) {
+      updateConnectionLastSeen(currentBusinessId, connectionId)
+    }
     setNavigationStack(stack => [...stack, { type: 'connection-detail', connectionId, selectedOrderId: orderId }])
   }
 
@@ -154,6 +175,11 @@ function App() {
   }
 
   const navigateToTab = (tab: Tab) => {
+    if (currentBusinessId) {
+      if (tab === 'attention' || tab === 'connections') {
+        updateTabLastSeen(currentBusinessId, tab)
+      }
+    }
     setNavigationStack([{ type: 'tab', tab }])
   }
 
@@ -223,6 +249,7 @@ function App() {
             currentBusinessId={currentBusinessId}
             onSelectConnection={navigateToConnection}
             onAddConnection={navigateToAddConnection}
+            unreadConnectionIds={unreadConnectionIds}
           />
         ) : screen.type === 'tab' && screen.tab === 'attention' ? (
           <AttentionScreen 
@@ -253,12 +280,14 @@ function App() {
               icon={<List weight="regular" size={22} />}
               active={screen.tab === 'connections'}
               onClick={() => navigateToTab('connections')}
+              hasUnread={hasUnreadConnections}
             />
             <TabButton
               label="Attention"
               icon={<Bell weight="regular" size={22} />}
               active={screen.tab === 'attention'}
               onClick={() => navigateToTab('attention')}
+              hasUnread={hasUnreadAttention}
             />
             <TabButton
               label="Profile"
@@ -278,18 +307,28 @@ function TabButton({
   icon,
   active,
   onClick,
+  hasUnread,
 }: {
   label: string
   icon: React.ReactNode
   active: boolean
   onClick: () => void
+  hasUnread?: boolean
 }) {
   return (
     <button
       onClick={onClick}
-      className="flex flex-col items-center justify-center gap-0.5 py-1 px-3 min-w-[70px]"
+      className="flex flex-col items-center justify-center gap-0.5 py-1 px-3 min-w-[70px] relative"
     >
-      <span className={active ? 'text-foreground' : 'text-muted-foreground'}>{icon}</span>
+      <span className={active ? 'text-foreground' : 'text-muted-foreground'}>
+        {icon}
+        {hasUnread && !active && (
+          <span
+            className="absolute top-0.5 right-4 w-2 h-2 rounded-full"
+            style={{ backgroundColor: '#D64545' }}
+          />
+        )}
+      </span>
       <span
         className={`text-[10px] ${
           active ? 'text-foreground font-medium' : 'text-muted-foreground'

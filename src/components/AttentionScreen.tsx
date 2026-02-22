@@ -6,6 +6,7 @@ import type { AttentionItem, AttentionCategory } from '@/lib/attention-engine'
 import type { ConnectionRequest } from '@/lib/types'
 import { getAttentionHeadingColor } from '@/lib/semantic-colors'
 import { ConnectionRequestItem } from '@/components/ConnectionRequestItem'
+import { getUnreadState } from '@/lib/unread-tracker'
 
 interface Props {
   currentBusinessId: string
@@ -173,6 +174,7 @@ export function AttentionScreen({ currentBusinessId, onNavigateToConnections, on
           const categoryItems = filteredItemsByCategory.get(category)
           if (!categoryItems) return null
           const categoryColor = getAttentionHeadingColor(category)
+          const unreadState = getUnreadState(currentBusinessId)
 
           return (
             <div key={category}>
@@ -205,11 +207,13 @@ export function AttentionScreen({ currentBusinessId, onNavigateToConnections, on
                   'Approval Needed': '#E8A020',
                 } as Record<string, string>)[item.category]
 
+                const isUnread = item.frictionStartedAt > unreadState.attentionLastSeen
+
                 return (
                   <button
                     key={item.id}
                     onClick={() => onNavigateToConnection(item.connectionId, item.orderId)}
-                    className="w-full px-4 py-3 text-left"
+                    className={`w-full px-4 py-3 text-left ${isUnread ? 'bg-muted/30' : ''}`}
                   >
                     <div className="flex items-start justify-between mb-1">
                       <p className="text-[14px] text-foreground font-normal leading-snug flex-1 mr-3">
