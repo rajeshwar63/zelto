@@ -97,11 +97,12 @@ export function ConnectionsScreen({ currentBusinessId, onSelectConnection, onAdd
     setSendError(null)
     try {
       await createOrder(selectedConnection.id, message.trim(), 0, currentBusinessId)
+      const connectionId = selectedConnection.id
       setShowOrderModal(false)
       setSelectedConnection(null)
       setMessage('')
       setSearch('')
-      onSelectConnection(selectedConnection.id)
+      onSelectConnection(connectionId)
     } catch (error) {
       console.error('Failed to create order:', error)
       setSendError(error instanceof Error ? error.message : 'Failed to create order')
