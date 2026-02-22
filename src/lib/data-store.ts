@@ -389,13 +389,18 @@ export class ZeltoDataStore {
 
   async updateOrderState(
     orderId: string,
-    state: 'Accepted' | 'Dispatched' | 'Delivered' | 'Declined'
+    state: 'Accepted' | 'Dispatched' | 'Delivered' | 'Declined',
+    options?: { orderValue?: number; setAcceptedAt?: boolean }
   ): Promise<Order> {
     const timestamp = Date.now()
     const updates: any = {}
 
     if (state === 'Accepted') updates.accepted_at = timestamp
-    else if (state === 'Dispatched') updates.dispatched_at = timestamp
+    else if (state === 'Dispatched') {
+      updates.dispatched_at = timestamp
+      if (options?.setAcceptedAt) updates.accepted_at = timestamp
+      if (options?.orderValue !== undefined) updates.order_value = options.orderValue
+    }
     else if (state === 'Delivered') updates.delivered_at = timestamp
     else if (state === 'Declined') updates.declined_at = timestamp
 
