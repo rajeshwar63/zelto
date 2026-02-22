@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { dataStore } from '@/lib/data-store'
 import { insightEngine } from '@/lib/insight-engine'
 import { transitionOrderState, recordPayment, createIssue, createOrder } from '@/lib/interactions'
@@ -78,6 +78,7 @@ export function ConnectionDetailScreen({ connectionId, currentBusinessId, select
   const [viewingOrderId, setViewingOrderId] = useState<string | null>(selectedOrderId || null)
   const [newOrderMessage, setNewOrderMessage] = useState('')
   const [creatingOrder, setCreatingOrder] = useState(false)
+  const isSubmittingRef = useRef(false)
 
   const loadData = async () => {
     const conn = await dataStore.getConnectionById(connectionId)
@@ -108,6 +109,8 @@ export function ConnectionDetailScreen({ connectionId, currentBusinessId, select
 
   const handleSendOrder = async () => {
     if (!newOrderMessage.trim()) return
+    if (isSubmittingRef.current) return
+    isSubmittingRef.current = true
     setCreatingOrder(true)
     try {
       await createOrder(connectionId, newOrderMessage.trim(), 0, currentBusinessId)
@@ -116,6 +119,7 @@ export function ConnectionDetailScreen({ connectionId, currentBusinessId, select
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Failed to create order')
     } finally {
+      isSubmittingRef.current = false
       setCreatingOrder(false)
     }
   }
@@ -287,7 +291,7 @@ export function ConnectionDetailScreen({ connectionId, currentBusinessId, select
                 e.target.style.height = Math.min(e.target.scrollHeight, 72) + 'px'
               }}
               onKeyDown={e => {
-                if (e.key === 'Enter' && !e.shiftKey && newOrderMessage.trim()) {
+                if (e.key === 'Enter' && !e.shiftKey && newOrderMessage.trim() && !creatingOrder) {
                   e.preventDefault()
                   handleSendOrder()
                 }
@@ -357,7 +361,8 @@ interface OrderDetailViewProps {
   onRefresh: () => void
 }
 
-function OrderDetailView({ order, connection, currentBusinessId, onBack, onRefresh }: OrderDetailViewProps) {
+function OrderDetailView({ order: initialOrder, connection, currentBusinessId, onBack, onRefresh }: OrderDetailViewProps) {
+  const [order, setOrder] = useState<OrderWithPaymentState>(initialOrder)
   const [buyerBusiness, setBuyerBusiness] = useState<BusinessEntity | null>(null)
   const [supplierBusiness, setSupplierBusiness] = useState<BusinessEntity | null>(null)
   const [paymentEvents, setPaymentEvents] = useState<PaymentEvent[]>([])
@@ -369,6 +374,10 @@ function OrderDetailView({ order, connection, currentBusinessId, onBack, onRefre
   const [disputingPaymentId, setDisputingPaymentId] = useState<string | null>(null)
   const [showDeclineConfirm, setShowDeclineConfirm] = useState(false)
   const [showCancelConfirm, setShowCancelConfirm] = useState(false)
+
+  useEffect(() => {
+    setOrder(initialOrder)
+  }, [initialOrder])
 
   useEffect(() => {
     const loadData = async () => {
@@ -408,6 +417,15 @@ function OrderDetailView({ order, connection, currentBusinessId, onBack, onRefre
   const isSupplier = connection.supplierBusinessId === currentBusinessId
   const isBuyer = connection.buyerBusinessId === currentBusinessId
 
+  const refreshOrder = async () => {
+    try {
+      const updated = await dataStore.getOrderWithPaymentState(order.id)
+      setOrder(updated)
+    } catch (err) {
+      console.error('Failed to refresh order state', err)
+    }
+  }
+
   const handleDispatch = async () => {
     setDispatchError('')
     const amount = parseFloat(dispatchAmount)
@@ -421,6 +439,7 @@ function OrderDetailView({ order, connection, currentBusinessId, onBack, onRefre
       toast.success('Order dispatched')
       setDispatchAmount('')
       await onRefresh()
+      await refreshOrder()
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Failed to dispatch order')
     } finally {
@@ -435,6 +454,7 @@ function OrderDetailView({ order, connection, currentBusinessId, onBack, onRefre
       toast.success('Order declined')
       setShowDeclineConfirm(false)
       await onRefresh()
+      await refreshOrder()
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Failed to decline order')
     } finally {
@@ -449,6 +469,7 @@ function OrderDetailView({ order, connection, currentBusinessId, onBack, onRefre
       toast.success('Order cancelled')
       setShowCancelConfirm(false)
       await onRefresh()
+      await refreshOrder()
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Failed to cancel order')
     } finally {
@@ -462,6 +483,7 @@ function OrderDetailView({ order, connection, currentBusinessId, onBack, onRefre
       await transitionOrderState(order.id, 'Delivered', currentBusinessId)
       toast.success('Order marked as delivered')
       await onRefresh()
+      await refreshOrder()
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Failed to mark as delivered')
     } finally {
@@ -486,6 +508,7 @@ function OrderDetailView({ order, connection, currentBusinessId, onBack, onRefre
       toast.success('Payment recorded')
       setPaymentAmount('')
       await onRefresh()
+      await refreshOrder()
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Failed to record payment')
     } finally {
@@ -517,6 +540,7 @@ function OrderDetailView({ order, connection, currentBusinessId, onBack, onRefre
       setDisputingPaymentId(null)
       toast.success('Dispute raised. This has been added to your Attention tab.')
       await onRefresh()
+      await refreshOrder()
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Failed to dispute payment')
     } finally {
