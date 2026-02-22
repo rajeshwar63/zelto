@@ -8,6 +8,8 @@ import {
   EntityFlag,
   FrozenEntity,
   IssueReport,
+  Notification,
+  NotificationType,
   Order,
   OrderWithPaymentState,
   PaymentEvent,
@@ -870,10 +872,83 @@ export class ZeltoDataStore {
     return toCamelCase(data)
   }
 
+  // ============ NOTIFICATIONS ============
+
+  async createNotification(
+    recipientBusinessId: string,
+    type: NotificationType,
+    relatedEntityId: string,
+    connectionId: string,
+    message: string
+  ): Promise<Notification> {
+    const { data, error } = await supabase
+      .from('notifications')
+      .insert([{
+        recipient_business_id: recipientBusinessId,
+        type,
+        related_entity_id: relatedEntityId,
+        connection_id: connectionId,
+        message,
+        created_at: Date.now(),
+        read_at: null
+      }])
+      .select()
+      .single()
+    
+    if (error) throw error
+    return toCamelCase(data)
+  }
+
+  async getNotificationsByBusinessId(businessId: string, limit: number = 100): Promise<Notification[]> {
+    const { data, error } = await supabase
+      .from('notifications')
+      .select('*')
+      .eq('recipient_business_id', businessId)
+      .order('created_at', { ascending: false })
+      .limit(limit)
+    
+    if (error) throw error
+    return toCamelCase(data || [])
+  }
+
+  async getUnreadNotificationCountByBusinessId(businessId: string): Promise<number> {
+    const { count, error } = await supabase
+      .from('notifications')
+      .select('*', { count: 'exact', head: true })
+      .eq('recipient_business_id', businessId)
+      .is('read_at', null)
+    
+    if (error) throw error
+    return count || 0
+  }
+
+  async markNotificationAsRead(notificationId: string): Promise<Notification> {
+    const { data, error } = await supabase
+      .from('notifications')
+      .update({ read_at: Date.now() })
+      .eq('id', notificationId)
+      .select()
+      .single()
+    
+    if (error) throw error
+    return toCamelCase(data)
+  }
+
+  async markAllNotificationsAsRead(businessId: string): Promise<void> {
+    const { error } = await supabase
+      .from('notifications')
+      .update({ read_at: Date.now() })
+      .eq('recipient_business_id', businessId)
+      .is('read_at', null)
+    
+    if (error) throw error
+  }
+
   // ============ UTILITY ============
 
   async clearAllData(): Promise<void> {
     // Delete in reverse order of dependencies
+    await supabase.from('notifications').delete().neq('id', '00000000-0000-0000-0000-000000000000')
     await supabase.from('payment_events').delete().neq('id', '00000000-0000-0000-0000-000000000000')
     await supabase.from('issue_reports').delete().neq('id', '00000000-0000-0000-0000-000000000000')
     await supabase.from('orders').delete().neq('id', '00000000-0000-0000-0000-000000000000')

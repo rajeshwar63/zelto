@@ -504,8 +504,24 @@ function OrderDetailView({ order, connection, currentBusinessId, onBack, onRefre
   const handleConfirmDispute = async (paymentId: string) => {
     setProcessing(true)
     try {
-      await dataStore.disputePaymentEvent(paymentId)
+      await dataStore.updatePaymentEventDispute(paymentId, true)
       await createIssue(order.id, 'Billing Mismatch', 'Medium', currentBusinessId)
+      
+      // Notify the OTHER party about the dispute
+      const paymentEvent = paymentEvents.find(p => p.id === paymentId)
+      if (paymentEvent) {
+        const otherPartyId = currentBusinessId === connection.buyerBusinessId
+          ? connection.supplierBusinessId
+          : connection.buyerBusinessId
+        await dataStore.createNotification(
+          otherPartyId,
+          'PaymentDisputed',
+          paymentEvent.id,
+          order.connectionId,
+          `A payment has been disputed`
+        )
+      }
+      
       setDisputingPaymentId(null)
       toast.success('Dispute raised. This has been added to your Attention tab.')
       await onRefresh()

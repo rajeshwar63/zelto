@@ -61,9 +61,17 @@ export function ConnectionRequestItem({ request, currentBusinessId, onUpdate, on
 
       const paymentTerms: PaymentTermType | null = receiverRole === 'supplier' ? null : { type: 'Payment on Delivery' }
       
-      await createConnection(buyerBusinessId, supplierBusinessId, paymentTerms)
+      const connection = await createConnection(buyerBusinessId, supplierBusinessId, paymentTerms)
       
       await dataStore.updateConnectionRequestStatus(request.id, 'Accepted')
+      
+      await dataStore.createNotification(
+        request.requesterBusinessId,
+        'ConnectionAccepted',
+        connection.id,
+        connection.id,
+        `Your connection request has been accepted`
+      )
       
       setShowRoleConfirm(false)
       setProcessing(false)

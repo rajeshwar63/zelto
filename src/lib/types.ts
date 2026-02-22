@@ -144,3 +144,23 @@ export interface RoleChangeRequest {
   createdAt: number
   resolvedAt: number | null
 }
+
+export type NotificationType =
+  | 'OrderPlaced'
+  | 'OrderDispatched'
+  | 'OrderDeclined'
+  | 'PaymentRecorded'
+  | 'PaymentDisputed'
+  | 'IssueRaised'
+  | 'ConnectionAccepted'
+
+export interface Notification {
+  id: string
+  recipientBusinessId: string
+  type: NotificationType
+  relatedEntityId: string
+  connectionId: string
+  message: string
+  createdAt: number
+  readAt: number | null
+}

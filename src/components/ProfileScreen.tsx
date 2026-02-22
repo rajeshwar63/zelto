@@ -1,23 +1,27 @@
 import { useEffect, useState } from 'react'
 import { dataStore } from '@/lib/data-store'
 import type { BusinessEntity } from '@/lib/types'
-import { CaretRight } from '@phosphor-icons/react'
+import { CaretRight, Bell } from '@phosphor-icons/react'
 
 interface Props {
   currentBusinessId: string
   onLogout: () => void
   onNavigateToBusinessDetails: () => void
+  onNavigateToNotifications: () => void
 }
 
-export function ProfileScreen({ currentBusinessId, onLogout, onNavigateToBusinessDetails }: Props) {
+export function ProfileScreen({ currentBusinessId, onLogout, onNavigateToBusinessDetails, onNavigateToNotifications }: Props) {
   const [business, setBusiness] = useState<BusinessEntity | null>(null)
+  const [unreadCount, setUnreadCount] = useState(0)
   const [loading, setLoading] = useState(true)
   const [refreshTimestamp, setRefreshTimestamp] = useState(Date.now())
 
   useEffect(() => {
     async function loadBusiness() {
       const biz = await dataStore.getBusinessEntityById(currentBusinessId)
+      const count = await dataStore.getUnreadNotificationCountByBusinessId(currentBusinessId)
       setBusiness(biz || null)
+      setUnreadCount(count)
       setLoading(false)
     }
 
@@ -73,7 +77,21 @@ export function ProfileScreen({ currentBusinessId, onLogout, onNavigateToBusines
     <div>
       <div className="sticky top-0 bg-white z-10" style={{ paddingTop: 'env(safe-area-inset-top)' }}>
         <div className="h-11 flex items-center px-4">
-          <h1 className="text-[17px] text-foreground font-normal">Profile</h1>
+          <h1 className="text-[17px] text-foreground font-normal flex-1">Profile</h1>
+          <button
+            onClick={onNavigateToNotifications}
+            className="relative flex items-center text-foreground hover:text-muted-foreground"
+          >
+            <Bell size={22} weight="regular" />
+            {unreadCount > 0 && (
+              <div
+                className="absolute -top-1 -right-1 min-w-[18px] h-[18px] rounded-full flex items-center justify-center text-white text-[10px] font-medium px-1"
+                style={{ backgroundColor: '#D64545' }}
+              >
+                {unreadCount > 99 ? '99+' : unreadCount}
+              </div>
+            )}
+          </button>
         </div>
       </div>
       <div className="px-4 py-6 border-b border-border">
