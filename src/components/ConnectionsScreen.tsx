@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { dataStore } from '@/lib/data-store'
 import { behaviourEngine } from '@/lib/behaviour-engine'
+import { createOrder } from '@/lib/interactions'
 import type { Connection, BusinessEntity, ConnectionState } from '@/lib/types'
 import { getConnectionStateColor } from '@/lib/semantic-colors'
 import { Plus, Users, PencilSimple, MagnifyingGlass, X, PaperPlaneTilt } from '@phosphor-icons/react'
@@ -95,34 +96,12 @@ export function ConnectionsScreen({ currentBusinessId, onSelectConnection, onAdd
     setIsSending(true)
     setSendError(null)
     try {
-      await dataStore.createOrder(selectedConnection.id, message.trim(), 0)
+      await createOrder(selectedConnection.id, message.trim(), 0, currentBusinessId)
       setShowOrderModal(false)
       setSelectedConnection(null)
       setMessage('')
       setSearch('')
-      
-      const rawConnections = await dataStore.getConnectionsByBusinessId(currentBusinessId)
-      const entities = await dataStore.getAllBusinessEntities()
-      const entityMap = new Map(entities.map((e) => [e.id, e]))
-
-      const connectionsWithState = await Promise.all(
-        rawConnections.map(async (conn) => {
-          const otherId =
-            conn.buyerBusinessId === currentBusinessId
-              ? conn.supplierBusinessId
-              : conn.buyerBusinessId
-          const otherBusiness = entityMap.get(otherId)
-          const computedState = await behaviourEngine.computeConnectionState(conn.id)
-
-          return {
-            ...conn,
-            otherBusinessName: otherBusiness?.businessName || 'Unknown',
-            computedState,
-          }
-        })
-      )
-
-      setConnections(connectionsWithState)
+      onSelectConnection(selectedConnection.id)
     } catch (error) {
       console.error('Failed to create order:', error)
       setSendError(error instanceof Error ? error.message : 'Failed to create order')
