@@ -80,12 +80,9 @@ function App() {
     setAuthScreen({ type: 'otp', phoneNumber, businessName, isSignup: true })
   }
 
-  const handleOTPSuccess = async () => {
-    const session = await getAuthSession()
-    if (session) {
-      setCurrentBusinessId(session.businessId)
-      setAuthScreen(null)
-    }
+  const handleOTPSuccess = async (businessId: string) => {
+    setCurrentBusinessId(businessId)
+    setAuthScreen(null)
   }
 
   const handleOTPBack = () => {
