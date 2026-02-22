@@ -911,14 +911,14 @@ export class ZeltoDataStore {
   }
 
   async getUnreadNotificationCountByBusinessId(businessId: string): Promise<number> {
-    const { data, error } = await supabase
+    const { count, error } = await supabase
       .from('notifications')
-      .select('id', { count: 'exact', head: true })
+      .select('*', { count: 'exact', head: true })
       .eq('recipient_business_id', businessId)
       .is('read_at', null)
     
     if (error) throw error
-    return data?.length || 0
+    return count || 0
   }
 
   async markNotificationAsRead(notificationId: string): Promise<Notification> {
