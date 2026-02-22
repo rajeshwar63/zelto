@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useCallback } from 'react'
 import { dataStore } from '@/lib/data-store'
 import { formatDistanceToNow } from 'date-fns'
 import type { Notification } from '@/lib/types'
@@ -14,16 +14,16 @@ export function NotificationHistoryScreen({ currentBusinessId, onBack, onNavigat
   const [notifications, setNotifications] = useState<Notification[]>([])
   const [loading, setLoading] = useState(true)
 
-  const loadNotifications = async () => {
+  const loadNotifications = useCallback(async () => {
     setLoading(true)
     const allNotifications = await dataStore.getNotificationsByBusinessId(currentBusinessId)
     setNotifications(allNotifications)
     setLoading(false)
-  }
+  }, [currentBusinessId])
 
   useEffect(() => {
     loadNotifications()
-  }, [currentBusinessId])
+  }, [loadNotifications])
 
   const handleMarkAllAsRead = async () => {
     await dataStore.markAllNotificationsAsRead(currentBusinessId)

@@ -899,12 +899,13 @@ export class ZeltoDataStore {
     return toCamelCase(data)
   }
 
-  async getNotificationsByBusinessId(businessId: string): Promise<Notification[]> {
+  async getNotificationsByBusinessId(businessId: string, limit: number = 100): Promise<Notification[]> {
     const { data, error } = await supabase
       .from('notifications')
       .select('*')
       .eq('recipient_business_id', businessId)
       .order('created_at', { ascending: false })
+      .limit(limit)
     
     if (error) throw error
     return toCamelCase(data || [])

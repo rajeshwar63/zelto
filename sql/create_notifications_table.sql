@@ -13,8 +13,8 @@ CREATE TABLE IF NOT EXISTS notifications (
     'IssueRaised',
     'ConnectionAccepted'
   )),
-  related_entity_id TEXT NOT NULL,
-  connection_id TEXT NOT NULL,
+  related_entity_id UUID NOT NULL,
+  connection_id UUID NOT NULL,
   message TEXT NOT NULL,
   created_at BIGINT NOT NULL,
   read_at BIGINT
