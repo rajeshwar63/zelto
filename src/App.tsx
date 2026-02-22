@@ -11,6 +11,7 @@ import { AdminApp } from '@/components/admin/AdminApp'
 import { AddConnectionScreen } from '@/components/AddConnectionScreen'
 import { PaymentTermsSetupScreen } from '@/components/PaymentTermsSetupScreen'
 import { BusinessDetailsScreen } from '@/components/BusinessDetailsScreen'
+import { NotificationHistoryScreen } from '@/components/NotificationHistoryScreen'
 import { List, ChartBar, Bell, User } from '@phosphor-icons/react'
 import { getAuthSession, logout } from '@/lib/auth'
 
@@ -21,6 +22,7 @@ type Screen =
   | { type: 'add-connection' }
   | { type: 'payment-terms-setup'; connectionId: string; businessName: string; returnTo?: 'connection-detail' | 'connections' }
   | { type: 'business-details' }
+  | { type: 'notifications' }
 type AuthScreen = 'login' | 'signup' | { type: 'otp'; phoneNumber: string; businessName?: string; isSignup: boolean }
 
 function App() {
@@ -181,6 +183,10 @@ function App() {
     setNavigationStack(stack => [...stack, { type: 'business-details' }])
   }
 
+  const navigateToNotifications = () => {
+    setNavigationStack(stack => [...stack, { type: 'notifications' }])
+  }
+
   const handleBusinessDetailsSaved = () => {
     navigateBack()
   }
@@ -188,7 +194,13 @@ function App() {
   return (
     <div className="h-full flex flex-col bg-background">
       <div className="flex-1 overflow-auto pb-16">
-        {screen.type === 'business-details' ? (
+        {screen.type === 'notifications' ? (
+          <NotificationHistoryScreen
+            currentBusinessId={currentBusinessId}
+            onBack={navigateBack}
+            onNavigateToConnection={navigateToConnection}
+          />
+        ) : screen.type === 'business-details' ? (
           <BusinessDetailsScreen
             currentBusinessId={currentBusinessId}
             onBack={navigateBack}
@@ -235,6 +247,7 @@ function App() {
             currentBusinessId={currentBusinessId} 
             onLogout={handleLogout}
             onNavigateToBusinessDetails={navigateToBusinessDetails}
+            onNavigateToNotifications={navigateToNotifications}
           />
         ) : null}
       </div>
