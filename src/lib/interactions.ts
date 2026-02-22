@@ -108,6 +108,15 @@ export async function createOrder(
 
   await recalculateConnectionState(connectionId)
 
+  // Notify supplier that a new order was placed
+  await dataStore.createNotification(
+    connection.supplierBusinessId,
+    'OrderPlaced',
+    newOrder.id,
+    connectionId,
+    `New order received: ${itemSummary}`
+  )
+
   return newOrder
 }
 
@@ -169,6 +178,25 @@ export async function transitionOrderState(
 
   await recalculateConnectionState(order.connectionId)
 
+  if (newState === 'Dispatched') {
+    await dataStore.createNotification(
+      connection.buyerBusinessId,
+      'OrderDispatched',
+      orderId,
+      order.connectionId,
+      `Your order has been dispatched`
+    )
+  }
+  if (newState === 'Declined') {
+    await dataStore.createNotification(
+      connection.buyerBusinessId,
+      'OrderDeclined',
+      orderId,
+      order.connectionId,
+      `Your order was declined`
+    )
+  }
+
   return updatedOrder
 }
 
@@ -223,6 +251,18 @@ export async function recordPayment(
 
   await recalculateConnectionState(order.connectionId)
 
+  // Notify the OTHER party about the payment
+  const otherPartyId = requestingBusinessId === connection.buyerBusinessId
+    ? connection.supplierBusinessId
+    : connection.buyerBusinessId
+  await dataStore.createNotification(
+    otherPartyId,
+    'PaymentRecorded',
+    orderId,
+    order.connectionId,
+    `Payment of ₹${amount.toLocaleString('en-IN')} recorded`
+  )
+
   return newPayment
 }
 
@@ -261,6 +301,18 @@ export async function createIssue(
   )
 
   await recalculateConnectionState(order.connectionId)
+
+  // Notify the OTHER party about the issue
+  const otherPartyId = requestingBusinessId === connection.buyerBusinessId
+    ? connection.supplierBusinessId
+    : connection.buyerBusinessId
+  await dataStore.createNotification(
+    otherPartyId,
+    'IssueRaised',
+    newIssue.id,
+    order.connectionId,
+    `Issue raised: ${issueType}`
+  )
 
   return newIssue
 }
