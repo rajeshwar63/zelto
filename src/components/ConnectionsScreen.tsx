@@ -16,6 +16,7 @@ interface Props {
   currentBusinessId: string
   onSelectConnection: (connectionId: string) => void
   onAddConnection: () => void
+  unreadConnectionIds?: Set<string>
 }
 
 function formatPaymentTerms(terms: Connection['paymentTerms']): string | null {
@@ -32,7 +33,7 @@ function formatPaymentTerms(terms: Connection['paymentTerms']): string | null {
   }
 }
 
-export function ConnectionsScreen({ currentBusinessId, onSelectConnection, onAddConnection }: Props) {
+export function ConnectionsScreen({ currentBusinessId, onSelectConnection, onAddConnection, unreadConnectionIds }: Props) {
   const [connections, setConnections] = useState<ConnectionWithState[]>([])
   const [loading, setLoading] = useState(true)
   const [showOrderModal, setShowOrderModal] = useState(false)
@@ -202,7 +203,15 @@ export function ConnectionsScreen({ currentBusinessId, onSelectConnection, onAdd
             className="w-full text-left px-4 py-3 hover:bg-muted/30 transition-colors"
           >
             <div className="flex items-baseline justify-between">
-              <p className="text-[15px] text-foreground font-normal">{conn.otherBusinessName}</p>
+              <div className="flex items-center gap-1.5">
+                {unreadConnectionIds?.has(conn.id) && (
+                  <span
+                    className="w-2 h-2 rounded-full flex-shrink-0"
+                    style={{ backgroundColor: '#4A90D9' }}
+                  />
+                )}
+                <p className="text-[15px] text-foreground font-normal">{conn.otherBusinessName}</p>
+              </div>
             </div>
             <div className="flex items-center gap-2 mt-0.5">
               {formattedTerms && (
