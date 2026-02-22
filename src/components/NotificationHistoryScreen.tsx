@@ -1,7 +1,7 @@
 import { useEffect, useState, useCallback } from 'react'
 import { dataStore } from '@/lib/data-store'
 import { formatDistanceToNow } from 'date-fns'
-import type { Notification } from '@/lib/types'
+import type { Notification, NotificationType } from '@/lib/types'
 import { CaretLeft } from '@phosphor-icons/react'
 
 interface Props {
@@ -9,6 +9,15 @@ interface Props {
   onBack: () => void
   onNavigateToConnection: (connectionId: string, orderId?: string) => void
 }
+
+// Notification types that relate to specific orders
+const ORDER_RELATED_NOTIFICATION_TYPES: NotificationType[] = [
+  'OrderPlaced',
+  'OrderDispatched',
+  'OrderDeclined',
+  'PaymentRecorded',
+  'IssueRaised'
+]
 
 export function NotificationHistoryScreen({ currentBusinessId, onBack, onNavigateToConnection }: Props) {
   const [notifications, setNotifications] = useState<Notification[]>([])
@@ -37,7 +46,7 @@ export function NotificationHistoryScreen({ currentBusinessId, onBack, onNavigat
     }
     
     // Navigate to the relevant connection/order
-    const orderId = ['OrderPlaced', 'OrderDispatched', 'OrderDeclined', 'PaymentRecorded', 'IssueRaised'].includes(notification.type)
+    const orderId = ORDER_RELATED_NOTIFICATION_TYPES.includes(notification.type)
       ? notification.relatedEntityId
       : undefined
     
@@ -89,7 +98,7 @@ export function NotificationHistoryScreen({ currentBusinessId, onBack, onNavigat
                   className={`w-full px-4 py-3 text-left transition-colors hover:bg-muted/30 ${
                     isUnread ? 'bg-muted/20' : ''
                   }`}
-                  style={isUnread ? { borderLeft: '3px solid #E8A020' } : {}}
+                  style={isUnread ? { borderLeft: '3px solid #E8A020' } : {}} // Warning color for unread items
                 >
                   <p className={`text-[14px] leading-snug mb-1 ${isUnread ? 'font-medium text-foreground' : 'text-foreground'}`}>
                     {notification.message}
