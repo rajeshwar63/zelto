@@ -417,11 +417,7 @@ function OrderDetailView({ order, connection, currentBusinessId, onBack, onRefre
     }
     setProcessing(true)
     try {
-      const orders = await dataStore.getAllOrders()
-      const index = orders.findIndex(o => o.id === order.id)
-      if (index === -1) throw new Error('Order not found')
-      orders[index] = { ...orders[index], orderValue: amount, dispatchedAt: Date.now() }
-      await spark.kv.set('zelto:orders', orders)
+      await transitionOrderState(order.id, 'Dispatched', currentBusinessId, amount)
       toast.success('Order dispatched')
       setDispatchAmount('')
       await onRefresh()
@@ -449,11 +445,7 @@ function OrderDetailView({ order, connection, currentBusinessId, onBack, onRefre
   const handleCancel = async () => {
     setProcessing(true)
     try {
-      const orders = await dataStore.getAllOrders()
-      const index = orders.findIndex(o => o.id === order.id)
-      if (index === -1) throw new Error('Order not found')
-      orders[index] = { ...orders[index], declinedAt: Date.now() }
-      await spark.kv.set('zelto:orders', orders)
+      await transitionOrderState(order.id, 'Declined', currentBusinessId)
       toast.success('Order cancelled')
       setShowCancelConfirm(false)
       await onRefresh()

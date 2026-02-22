@@ -114,7 +114,8 @@ export async function createOrder(
 export async function transitionOrderState(
   orderId: string,
   newState: OrderLifecycleState,
-  requestingBusinessId: string
+  requestingBusinessId: string,
+  orderValue?: number
 ): Promise<Order> {
   const order = await dataStore.getOrderById(orderId)
 
@@ -134,8 +135,11 @@ export async function transitionOrderState(
     if (currentState !== 'Placed') {
       throw new Error('Can only decline an order in Placed state')
     }
-    if (requestingBusinessId !== connection.supplierBusinessId) {
-      throw new Error('Only the supplier may decline an order')
+    const isAuthorized =
+      requestingBusinessId === connection.supplierBusinessId ||
+      requestingBusinessId === connection.buyerBusinessId
+    if (!isAuthorized) {
+      throw new Error('Only the supplier or buyer may decline an order')
     }
   } else if (newState === 'Accepted') {
     if (currentState !== 'Placed') {
@@ -145,12 +149,16 @@ export async function transitionOrderState(
       throw new Error('Only the supplier may accept an order')
     }
   } else if (newState === 'Dispatched') {
-    if (currentState !== 'Accepted') {
-      throw new Error('Can only dispatch an order in Accepted state')
+    if (currentState !== 'Accepted' && currentState !== 'Placed') {
+      throw new Error('Can only dispatch an order in Accepted or Placed state')
     }
     if (requestingBusinessId !== connection.supplierBusinessId) {
       throw new Error('Only the supplier may dispatch an order')
     }
+    if (orderValue !== undefined && orderValue <= 0) {
+      throw new Error('Order value must be greater than zero')
+    }
+    // When dispatching from Placed state, the accept step is implicit (combined accept + dispatch)
   } else if (newState === 'Delivered') {
     if (currentState !== 'Dispatched') {
       throw new Error('Can only deliver an order in Dispatched state')
@@ -165,7 +173,10 @@ export async function transitionOrderState(
     throw new Error('Invalid state transition')
   }
 
-  const updatedOrder = await dataStore.updateOrderState(orderId, newState)
+  const updatedOrder = await dataStore.updateOrderState(orderId, newState, {
+    orderValue,
+    setAcceptedAt: newState === 'Dispatched' && currentState === 'Placed',
+  })
 
   await recalculateConnectionState(order.connectionId)
 
