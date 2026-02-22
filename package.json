@@ -10,7 +10,7 @@
   "scripts": {
     "dev": "vite",
     "kill": "fuser -k 5000/tcp",
-    "build": "tsc -b --noCheck && vite build",
+    "build": "NODE_OPTIONS='--max-old-space-size=4096' tsc -b --noCheck && vite build",
     "lint": "eslint .",
     "optimize": "vite optimize",
     "preview": "vite preview"
