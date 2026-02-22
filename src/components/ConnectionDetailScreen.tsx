@@ -379,10 +379,6 @@ function OrderDetailView({ order: initialOrder, connection, currentBusinessId, o
   const [showCancelConfirm, setShowCancelConfirm] = useState(false)
 
   useEffect(() => {
-    setOrder(initialOrder)
-  }, [initialOrder])
-
-  useEffect(() => {
     const loadData = async () => {
       const buyer = await dataStore.getBusinessEntityById(connection.buyerBusinessId)
       const supplier = await dataStore.getBusinessEntityById(connection.supplierBusinessId)
@@ -446,7 +442,7 @@ function OrderDetailView({ order: initialOrder, connection, currentBusinessId, o
       toast.success('Order dispatched')
       setDispatchAmount('')
       await refreshOrder()
-      await onRefresh()
+      onRefresh()
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Failed to dispatch order')
     } finally {
@@ -462,7 +458,7 @@ function OrderDetailView({ order: initialOrder, connection, currentBusinessId, o
       toast.success('Order declined')
       setShowDeclineConfirm(false)
       await refreshOrder()
-      await onRefresh()
+      onRefresh()
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Failed to decline order')
     } finally {
@@ -478,7 +474,7 @@ function OrderDetailView({ order: initialOrder, connection, currentBusinessId, o
       toast.success('Order cancelled')
       setShowCancelConfirm(false)
       await refreshOrder()
-      await onRefresh()
+      onRefresh()
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Failed to cancel order')
     } finally {
@@ -493,7 +489,7 @@ function OrderDetailView({ order: initialOrder, connection, currentBusinessId, o
       await transitionOrderState(order.id, 'Delivered', currentBusinessId)
       toast.success('Order marked as delivered')
       await refreshOrder()
-      await onRefresh()
+      onRefresh()
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Failed to mark as delivered')
     } finally {
@@ -521,7 +517,7 @@ function OrderDetailView({ order: initialOrder, connection, currentBusinessId, o
       toast.success('Payment recorded')
       setPaymentAmount('')
       await refreshOrder()
-      await onRefresh()
+      onRefresh()
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Failed to record payment')
     } finally {
@@ -554,7 +550,7 @@ function OrderDetailView({ order: initialOrder, connection, currentBusinessId, o
       setDisputingPaymentId(null)
       toast.success('Dispute raised. This has been added to your Attention tab.')
       await refreshOrder()
-      await onRefresh()
+      onRefresh()
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Failed to dispute payment')
     } finally {
