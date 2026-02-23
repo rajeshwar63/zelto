@@ -117,14 +117,15 @@ export function ConnectionDetailScreen({ connectionId, currentBusinessId, select
     setCreatingOrder(true)
     try {
       await createOrder(connectionId, newOrderMessage.trim(), 0, currentBusinessId)
+      toast.success('Order placed')
       setNewOrderMessage('')
-      await loadData()
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Failed to create order')
     } finally {
       isSubmittingRef.current = false
       setCreatingOrder(false)
     }
+    loadData()
   }
 
   if (loading || !connection || !otherBusiness) {
@@ -335,7 +336,7 @@ export function ConnectionDetailScreen({ connectionId, currentBusinessId, select
                 marginBottom: '2px'
               }}
             >
-              {creatingOrder ? '...' : 'Order'}
+              {creatingOrder ? 'Sending...' : 'Order'}
             </button>
           </div>
         </div>
@@ -438,12 +439,12 @@ function OrderDetailView({ order, connection, currentBusinessId, onBack, onRefre
       await transitionOrderState(order.id, 'Dispatched', currentBusinessId, amount)
       toast.success('Order dispatched')
       setDispatchAmount('')
-      await onRefresh()
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Failed to dispatch order')
-    } finally {
       setProcessing(false)
+      return
     }
+    try { await onRefresh() } catch { /* action already succeeded */ } finally { setProcessing(false) }
   }
 
   const handleDecline = async () => {
@@ -453,12 +454,12 @@ function OrderDetailView({ order, connection, currentBusinessId, onBack, onRefre
       await transitionOrderState(order.id, 'Declined', currentBusinessId)
       toast.success('Order declined')
       setShowDeclineConfirm(false)
-      await onRefresh()
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Failed to decline order')
-    } finally {
       setProcessing(false)
+      return
     }
+    try { await onRefresh() } catch { /* action already succeeded */ } finally { setProcessing(false) }
   }
 
   const handleCancel = async () => {
@@ -468,12 +469,12 @@ function OrderDetailView({ order, connection, currentBusinessId, onBack, onRefre
       await transitionOrderState(order.id, 'Declined', currentBusinessId)
       toast.success('Order cancelled')
       setShowCancelConfirm(false)
-      await onRefresh()
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Failed to cancel order')
-    } finally {
       setProcessing(false)
+      return
     }
+    try { await onRefresh() } catch { /* action already succeeded */ } finally { setProcessing(false) }
   }
 
   const handleMarkDelivered = async () => {
@@ -482,12 +483,12 @@ function OrderDetailView({ order, connection, currentBusinessId, onBack, onRefre
     try {
       await transitionOrderState(order.id, 'Delivered', currentBusinessId)
       toast.success('Order marked as delivered')
-      await onRefresh()
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Failed to mark as delivered')
-    } finally {
       setProcessing(false)
+      return
     }
+    try { await onRefresh() } catch { /* action already succeeded */ } finally { setProcessing(false) }
   }
 
   const handleRecordPayment = async () => {
@@ -509,13 +510,12 @@ function OrderDetailView({ order, connection, currentBusinessId, onBack, onRefre
       await recordPayment(order.id, amount, currentBusinessId)
       toast.success('Payment recorded')
       setPaymentAmount('')
-      await onRefresh()
-      await refreshPayments()
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Failed to record payment')
-    } finally {
       setProcessing(false)
+      return
     }
+    try { await onRefresh(); await refreshPayments() } catch { /* action already succeeded */ } finally { setProcessing(false) }
   }
 
   const handleConfirmDispute = async (paymentId: string) => {
@@ -524,7 +524,7 @@ function OrderDetailView({ order, connection, currentBusinessId, onBack, onRefre
     try {
       await dataStore.updatePaymentEventDispute(paymentId, true)
       await createIssue(order.id, 'Billing Mismatch', 'Medium', currentBusinessId)
-      
+
       // Notify the OTHER party about the dispute
       const paymentEvent = paymentEvents.find(p => p.id === paymentId)
       if (paymentEvent) {
@@ -539,16 +539,15 @@ function OrderDetailView({ order, connection, currentBusinessId, onBack, onRefre
           `A payment has been disputed`
         )
       }
-      
+
       setDisputingPaymentId(null)
       toast.success('Dispute raised. This has been added to your Attention tab.')
-      await onRefresh()
-      await refreshPayments()
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Failed to dispute payment')
-    } finally {
       setProcessing(false)
+      return
     }
+    try { await onRefresh(); await refreshPayments() } catch { /* action already succeeded */ } finally { setProcessing(false) }
   }
 
   if (!buyerBusiness || !supplierBusiness) {
