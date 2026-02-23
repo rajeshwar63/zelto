@@ -58,6 +58,7 @@ export function RecordPaymentScreen({ orderId, currentBusinessId, onBack, onSucc
       onSuccess()
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to record payment')
+    } finally {
       setIsSubmitting(false)
     }
   }
