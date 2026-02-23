@@ -364,8 +364,7 @@ interface OrderDetailViewProps {
   onRefresh: () => Promise<void>
 }
 
-function OrderDetailView({ order: initialOrder, connection, currentBusinessId, onBack, onRefresh }: OrderDetailViewProps) {
-  const [order, setOrder] = useState<OrderWithPaymentState>(initialOrder)
+function OrderDetailView({ order, connection, currentBusinessId, onBack, onRefresh }: OrderDetailViewProps) {
   const [buyerBusiness, setBuyerBusiness] = useState<BusinessEntity | null>(null)
   const [supplierBusiness, setSupplierBusiness] = useState<BusinessEntity | null>(null)
   const [paymentEvents, setPaymentEvents] = useState<PaymentEvent[]>([])
@@ -416,14 +415,12 @@ function OrderDetailView({ order: initialOrder, connection, currentBusinessId, o
   const isSupplier = connection.supplierBusinessId === currentBusinessId
   const isBuyer = connection.buyerBusinessId === currentBusinessId
 
-  const refreshOrder = async () => {
+  const refreshPayments = async () => {
     try {
-      const updated = await dataStore.getOrderWithPaymentState(order.id)
-      setOrder(updated)
       const payments = await dataStore.getPaymentEventsByOrderId(order.id)
       setPaymentEvents(payments)
     } catch (err) {
-      console.error('Failed to refresh order state', err)
+      console.error('Failed to refresh payments', err)
     }
   }
 
@@ -441,8 +438,7 @@ function OrderDetailView({ order: initialOrder, connection, currentBusinessId, o
       await transitionOrderState(order.id, 'Dispatched', currentBusinessId, amount)
       toast.success('Order dispatched')
       setDispatchAmount('')
-      await refreshOrder()
-      onRefresh()
+      await onRefresh()
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Failed to dispatch order')
     } finally {
@@ -457,8 +453,7 @@ function OrderDetailView({ order: initialOrder, connection, currentBusinessId, o
       await transitionOrderState(order.id, 'Declined', currentBusinessId)
       toast.success('Order declined')
       setShowDeclineConfirm(false)
-      await refreshOrder()
-      onRefresh()
+      await onRefresh()
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Failed to decline order')
     } finally {
@@ -473,8 +468,7 @@ function OrderDetailView({ order: initialOrder, connection, currentBusinessId, o
       await transitionOrderState(order.id, 'Declined', currentBusinessId)
       toast.success('Order cancelled')
       setShowCancelConfirm(false)
-      await refreshOrder()
-      onRefresh()
+      await onRefresh()
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Failed to cancel order')
     } finally {
@@ -488,8 +482,7 @@ function OrderDetailView({ order: initialOrder, connection, currentBusinessId, o
     try {
       await transitionOrderState(order.id, 'Delivered', currentBusinessId)
       toast.success('Order marked as delivered')
-      await refreshOrder()
-      onRefresh()
+      await onRefresh()
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Failed to mark as delivered')
     } finally {
@@ -516,8 +509,8 @@ function OrderDetailView({ order: initialOrder, connection, currentBusinessId, o
       await recordPayment(order.id, amount, currentBusinessId)
       toast.success('Payment recorded')
       setPaymentAmount('')
-      await refreshOrder()
-      onRefresh()
+      await onRefresh()
+      await refreshPayments()
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Failed to record payment')
     } finally {
@@ -549,8 +542,8 @@ function OrderDetailView({ order: initialOrder, connection, currentBusinessId, o
       
       setDisputingPaymentId(null)
       toast.success('Dispute raised. This has been added to your Attention tab.')
-      await refreshOrder()
-      onRefresh()
+      await onRefresh()
+      await refreshPayments()
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Failed to dispute payment')
     } finally {
