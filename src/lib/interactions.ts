@@ -106,8 +106,6 @@ export async function createOrder(
     orderValue
   )
 
-  await recalculateConnectionState(connectionId)
-
   // Notify supplier that a new order was placed
   await dataStore.createNotification(
     connection.supplierBusinessId,
@@ -187,8 +185,6 @@ export async function transitionOrderState(
     setAcceptedAt: newState === 'Dispatched' && currentState === 'Placed',
   })
 
-  await recalculateConnectionState(order.connectionId)
-
   if (newState === 'Dispatched') {
     await dataStore.createNotification(
       connection.buyerBusinessId,
@@ -260,8 +256,6 @@ export async function recordPayment(
 
   const newPayment = await dataStore.createPaymentEvent(orderId, amount, requestingBusinessId)
 
-  await recalculateConnectionState(order.connectionId)
-
   // Notify the OTHER party about the payment
   const otherPartyId = requestingBusinessId === connection.buyerBusinessId
     ? connection.supplierBusinessId
@@ -310,8 +304,6 @@ export async function createIssue(
     severity,
     raisedBy
   )
-
-  await recalculateConnectionState(order.connectionId)
 
   // Notify the OTHER party about the issue
   const otherPartyId = requestingBusinessId === connection.buyerBusinessId
@@ -362,8 +354,6 @@ export async function resolveIssue(
 
   const updatedIssue = await dataStore.updateIssueStatus(issueId, 'Resolved')
 
-  await recalculateConnectionState(order.connectionId)
-
   return updatedIssue
 }
 
@@ -396,8 +386,6 @@ export async function setInvoiceDate(
     orderId,
     invoiceDate
   )
-
-  await recalculateConnectionState(order.connectionId)
 
   return updatedOrder
 }
