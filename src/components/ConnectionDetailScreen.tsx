@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useState } from 'react'
 import { dataStore } from '@/lib/data-store'
 import { insightEngine } from '@/lib/insight-engine'
 import { transitionOrderState, recordPayment, createIssue, createOrder } from '@/lib/interactions'
@@ -77,9 +77,8 @@ export function ConnectionDetailScreen({ connectionId, currentBusinessId, select
   const [viewingOrderId, setViewingOrderId] = useState<string | null>(selectedOrderId || null)
   const [newOrderMessage, setNewOrderMessage] = useState('')
   const [creatingOrder, setCreatingOrder] = useState(false)
-  const isSubmittingRef = useRef(false)
 
-  const loadData = async () => {
+  const loadHeaderData = async () => {
     try {
       const conn = await dataStore.getConnectionById(connectionId)
       if (!conn) return
@@ -89,8 +88,6 @@ export function ConnectionDetailScreen({ connectionId, currentBusinessId, select
         onNavigateToPaymentTermsSetup(connectionId, otherBiz?.businessName || 'Unknown')
         return
       }
-      const allOrders = await dataStore.getOrdersWithPaymentStateByConnectionId(connectionId)
-      allOrders.sort((a, b) => b.createdAt - a.createdAt)
       const viewerRole = conn.buyerBusinessId === currentBusinessId ? 'buyer' : 'supplier'
       let connectionInsights: string[] = []
       try {
@@ -100,13 +97,6 @@ export function ConnectionDetailScreen({ connectionId, currentBusinessId, select
       }
       setConnection(conn)
       setOtherBusiness(otherBiz || null)
-      setOrders(prev => {
-        const map = new Map(prev.map(o => [o.id, o]))
-        for (const serverOrder of allOrders) {
-          map.set(serverOrder.id, serverOrder)
-        }
-        return Array.from(map.values()).sort((a, b) => b.createdAt - a.createdAt)
-      })
       setInsights(connectionInsights)
       setLoading(false)
     } catch (err) {
@@ -115,62 +105,33 @@ export function ConnectionDetailScreen({ connectionId, currentBusinessId, select
     }
   }
 
-  useEffect(() => { loadData() }, [connectionId, currentBusinessId])
-
-  const updateOrderInList = (updatedOrder: OrderWithPaymentState) => {
-    setOrders(prev => prev.map(o => o.id === updatedOrder.id ? updatedOrder : o))
+  const loadOrders = async () => {
+    try {
+      const allOrders = await dataStore.getOrdersWithPaymentStateByConnectionId(connectionId)
+      setOrders(allOrders.sort((a, b) => b.createdAt - a.createdAt))
+    } catch (err) {
+      console.error('Failed to load orders:', err)
+    }
   }
+
+  useEffect(() => { loadHeaderData(); loadOrders() }, [connectionId, currentBusinessId])
 
   const handleSendOrder = async () => {
     if (!newOrderMessage.trim()) return
-    if (isSubmittingRef.current) return
-    isSubmittingRef.current = true
+    if (creatingOrder) return
 
     const orderText = newOrderMessage.trim()
-
-    // Optimistic update: clear text and show order in list immediately
     setNewOrderMessage('')
     setCreatingOrder(true)
 
-    const optimisticId = `optimistic-${Date.now()}`
-    const optimisticOrder: OrderWithPaymentState = {
-      id: optimisticId,
-      connectionId,
-      itemSummary: orderText,
-      orderValue: 0,
-      createdAt: Date.now(),
-      acceptedAt: null,
-      dispatchedAt: null,
-      deliveredAt: null,
-      declinedAt: null,
-      paymentTermSnapshot: connection!.paymentTerms!,
-      billToBillInvoiceDate: null,
-      totalPaid: 0,
-      pendingAmount: 0,
-      settlementState: 'Unpaid',
-      calculatedDueDate: null,
-    }
-    setOrders(prev => [optimisticOrder, ...prev])
-
     try {
-      const newOrder = await createOrder(connectionId, orderText, 0, currentBusinessId)
+      await createOrder(connectionId, orderText, 0, currentBusinessId)
       toast.success('Order placed')
-      // Replace optimistic order with real server order
-      const realOrder: OrderWithPaymentState = {
-        ...newOrder,
-        totalPaid: 0,
-        pendingAmount: 0,
-        settlementState: 'Unpaid',
-        calculatedDueDate: null,
-      }
-      setOrders(prev => prev.map(o => o.id === optimisticId ? realOrder : o))
+      await loadOrders()
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Failed to create order')
-      // Rollback: remove optimistic order and restore text
-      setOrders(prev => prev.filter(o => o.id !== optimisticId))
       setNewOrderMessage(orderText)
     } finally {
-      isSubmittingRef.current = false
       setCreatingOrder(false)
     }
   }
@@ -203,7 +164,7 @@ export function ConnectionDetailScreen({ connectionId, currentBusinessId, select
         connection={connection}
         currentBusinessId={currentBusinessId}
         onBack={() => setViewingOrderId(null)}
-        onUpdateOrder={updateOrderInList}
+        onRefreshOrders={loadOrders}
       />
     )
   }
@@ -410,10 +371,10 @@ interface OrderDetailViewProps {
   connection: Connection
   currentBusinessId: string
   onBack: () => void
-  onUpdateOrder: (order: OrderWithPaymentState) => void
+  onRefreshOrders: () => Promise<void>
 }
 
-function OrderDetailView({ order: orderProp, connection, currentBusinessId, onBack, onUpdateOrder }: OrderDetailViewProps) {
+function OrderDetailView({ order: orderProp, connection, currentBusinessId, onBack, onRefreshOrders }: OrderDetailViewProps) {
   const order = orderProp
 
   const [buyerBusiness, setBuyerBusiness] = useState<BusinessEntity | null>(null)
@@ -487,9 +448,9 @@ function OrderDetailView({ order: orderProp, connection, currentBusinessId, onBa
     }
     setDispatchAmount('')
     try {
-      const serverOrder = await transitionOrderState(order.id, 'Dispatched', currentBusinessId, amount)
+      await transitionOrderState(order.id, 'Dispatched', currentBusinessId, amount)
       toast.success('Order dispatched')
-      onUpdateOrder({ ...orderProp, ...serverOrder, pendingAmount: serverOrder.orderValue - orderProp.totalPaid })
+      await onRefreshOrders()
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Failed to dispatch order')
     } finally {
@@ -502,9 +463,9 @@ function OrderDetailView({ order: orderProp, connection, currentBusinessId, onBa
     setProcessing(true)
     setShowDeclineConfirm(false)
     try {
-      const serverOrder = await transitionOrderState(order.id, 'Declined', currentBusinessId)
+      await transitionOrderState(order.id, 'Declined', currentBusinessId)
       toast.success('Order declined')
-      onUpdateOrder({ ...orderProp, ...serverOrder })
+      await onRefreshOrders()
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Failed to decline order')
     } finally {
@@ -517,9 +478,9 @@ function OrderDetailView({ order: orderProp, connection, currentBusinessId, onBa
     setProcessing(true)
     setShowCancelConfirm(false)
     try {
-      const serverOrder = await transitionOrderState(order.id, 'Declined', currentBusinessId)
+      await transitionOrderState(order.id, 'Declined', currentBusinessId)
       toast.success('Order cancelled')
-      onUpdateOrder({ ...orderProp, ...serverOrder })
+      await onRefreshOrders()
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Failed to cancel order')
     } finally {
@@ -531,9 +492,9 @@ function OrderDetailView({ order: orderProp, connection, currentBusinessId, onBa
     if (processing) return
     setProcessing(true)
     try {
-      const serverOrder = await transitionOrderState(order.id, 'Delivered', currentBusinessId)
+      await transitionOrderState(order.id, 'Delivered', currentBusinessId)
       toast.success('Order marked as delivered')
-      onUpdateOrder({ ...orderProp, ...serverOrder })
+      await onRefreshOrders()
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Failed to mark as delivered')
     } finally {
@@ -556,17 +517,11 @@ function OrderDetailView({ order: orderProp, connection, currentBusinessId, onBa
       setProcessing(false)
       return
     }
-    const updatedOrder: OrderWithPaymentState = {
-      ...order,
-      totalPaid: order.totalPaid + amount,
-      pendingAmount: order.pendingAmount - amount,
-      settlementState: order.pendingAmount - amount <= 0 ? 'Paid' : 'Partial Payment',
-    }
     setPaymentAmount('')
     try {
       await recordPayment(order.id, amount, currentBusinessId)
       toast.success('Payment recorded')
-      onUpdateOrder(updatedOrder)
+      await onRefreshOrders()
       await refreshPayments()
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Failed to record payment')
