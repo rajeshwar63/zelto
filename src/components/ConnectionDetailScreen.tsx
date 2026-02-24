@@ -195,7 +195,8 @@ export function ConnectionDetailScreen({ connectionId, currentBusinessId, select
   }
 
   const handleListTouchMove = (event: TouchEvent<HTMLDivElement>) => {
-    const touchY = event.touches[0]?.clientY ?? 0
+    const touchY = event.touches[0]?.clientY
+    if (touchY === undefined) return
     if (pullRevealHeight > 0 && lastTouchY.current !== null && touchY < lastTouchY.current) {
       setPullRevealHeight(0)
       pullStartY.current = null
@@ -253,13 +254,13 @@ export function ConnectionDetailScreen({ connectionId, currentBusinessId, select
         className="flex-1 overflow-y-auto"
         onScroll={event => {
           const currentScrollTop = event.currentTarget.scrollTop
-          if (pullRevealHeight > 0 && currentScrollTop < lastScrollTop.current) {
+          if (pullRevealHeight > 0 && currentScrollTop > lastScrollTop.current) {
             setPullRevealHeight(0)
           }
           lastScrollTop.current = currentScrollTop
         }}
         onWheel={event => {
-          if (pullRevealHeight > 0 && event.deltaY < 0) {
+          if (pullRevealHeight > 0 && event.deltaY > 0) {
             setPullRevealHeight(0)
           }
         }}
