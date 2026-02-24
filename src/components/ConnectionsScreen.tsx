@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { dataStore } from '@/lib/data-store'
 import { behaviourEngine } from '@/lib/behaviour-engine'
 import { createOrder } from '@/lib/interactions'
@@ -35,9 +35,25 @@ function formatPaymentTerms(terms: Connection['paymentTerms']): string | null {
   }
 }
 
+const cachedConnectionsByBusiness = new Map<string, ConnectionWithState[]>()
+
+function isSameConnections(a: ConnectionWithState[], b: ConnectionWithState[]) {
+  if (a.length !== b.length) return false
+  return a.every((conn, index) => {
+    const other = b[index]
+    return (
+      conn.id === other.id &&
+      conn.otherBusinessName === other.otherBusinessName &&
+      conn.computedState === other.computedState &&
+      JSON.stringify(conn.paymentTerms) === JSON.stringify(other.paymentTerms)
+    )
+  })
+}
+
 export function ConnectionsScreen({ currentBusinessId, onSelectConnection, onAddConnection, unreadConnectionIds }: Props) {
-  const [connections, setConnections] = useState<ConnectionWithState[]>([])
-  const [loading, setLoading] = useState(true)
+  const [connections, setConnections] = useState<ConnectionWithState[]>(
+    () => cachedConnectionsByBusiness.get(currentBusinessId) || []
+  )
   const [showOrderModal, setShowOrderModal] = useState(false)
   const [eligibleConnections, setEligibleConnections] = useState<Connection[]>([])
   const [businesses, setBusinesses] = useState<Map<string, BusinessEntity>>(new Map())
@@ -48,7 +64,20 @@ export function ConnectionsScreen({ currentBusinessId, onSelectConnection, onAdd
   const [sendError, setSendError] = useState<string | null>(null)
 
   useEffect(() => {
+    console.debug('[ConnectionsScreen] mount', Date.now(), { currentBusinessId })
+    requestAnimationFrame(() => console.debug('[ConnectionsScreen] paint', Date.now(), { currentBusinessId }))
+  }, [currentBusinessId])
+
+  useEffect(() => {
+    const cachedConnections = cachedConnectionsByBusiness.get(currentBusinessId)
+    if (cachedConnections) {
+      setConnections(cachedConnections)
+    }
+
+    let cancelled = false
+
     async function loadConnections() {
+      console.debug('[ConnectionsScreen] fetch start', Date.now(), { currentBusinessId })
       const rawConnections = await dataStore.getConnectionsByBusinessId(currentBusinessId)
       const entities = await dataStore.getAllBusinessEntities()
       const entityMap = new Map(entities.map((e) => [e.id, e]))
@@ -70,11 +99,25 @@ export function ConnectionsScreen({ currentBusinessId, onSelectConnection, onAdd
         })
       )
 
-      setConnections(connectionsWithState)
-      setLoading(false)
+      console.debug('[ConnectionsScreen] fetch end', Date.now(), { currentBusinessId })
+      if (cancelled) return
+
+      if (!cachedConnections || !isSameConnections(cachedConnections, connectionsWithState)) {
+        cachedConnectionsByBusiness.set(currentBusinessId, connectionsWithState)
+        setConnections(connectionsWithState)
+        console.debug('[ConnectionsScreen] state update', Date.now(), { currentBusinessId })
+      }
+
+      void Promise.all(
+        connectionsWithState.slice(0, 3).map(conn => dataStore.getOrdersWithPaymentStateByConnectionId(conn.id))
+      )
     }
 
-    loadConnections()
+    void loadConnections()
+
+    return () => {
+      cancelled = true
+    }
   }, [currentBusinessId])
 
   const handleOpenOrderModal = async () => {
@@ -116,20 +159,14 @@ export function ConnectionsScreen({ currentBusinessId, onSelectConnection, onAdd
     }
   }
 
-  const filteredConnections = search.trim()
-    ? eligibleConnections.filter(conn => {
+  const filteredConnections = useMemo(() => (
+    search.trim()
+      ? eligibleConnections.filter(conn => {
         const supplier = businesses.get(conn.supplierBusinessId)
         return supplier?.businessName.toLowerCase().includes(search.toLowerCase())
       })
-    : eligibleConnections
-
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center min-h-screen">
-        <p className="text-sm text-muted-foreground">Loading connections...</p>
-      </div>
-    )
-  }
+      : eligibleConnections
+  ), [businesses, eligibleConnections, search])
 
   if (connections.length === 0) {
     return (
