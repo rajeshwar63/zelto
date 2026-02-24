@@ -81,6 +81,12 @@ export function ConnectionDetailScreen({ connectionId, currentBusinessId, select
   const [creatingOrder, setCreatingOrder] = useState(false)
   const [showArchived, setShowArchived] = useState(false)
   const [archivedIds, setArchivedIds] = useState<Set<string>>(new Set())
+  const [analyticsVisible, setAnalyticsVisible] = useState(false)
+  const scrollRef = useRef<HTMLDivElement>(null)
+  const analyticsContentRef = useRef<HTMLDivElement>(null)
+  const contentHeightRef = useRef(0)
+  const analyticsOpenRef = useRef(false)
+  const revealHeight = useMotionValue(0)
 
   const loadHeaderData = async () => {
     try {
@@ -134,6 +140,119 @@ export function ConnectionDetailScreen({ connectionId, currentBusinessId, select
     doUnarchiveOrder(currentBusinessId, orderId)
     refreshArchivedIds()
     toast.success('Order restored')
+  }
+
+  // Measure analytics content height
+  useEffect(() => {
+    const el = analyticsContentRef.current
+    if (!el) return
+    const measure = () => {
+      contentHeightRef.current = el.scrollHeight
+      if (analyticsOpenRef.current) {
+        revealHeight.set(el.scrollHeight)
+      }
+    }
+    measure()
+    const ro = new ResizeObserver(measure)
+    ro.observe(el)
+    return () => ro.disconnect()
+  }, [])
+
+  // Pull-down gesture via touch events
+  useEffect(() => {
+    const el = scrollRef.current
+    if (!el) return
+
+    let startY = 0
+    let pulling = false
+    let lastPull = 0
+
+    const onTouchStart = (e: TouchEvent) => {
+      if (el.scrollTop <= 0) {
+        startY = e.touches[0].clientY
+        pulling = true
+        lastPull = 0
+      }
+    }
+
+    const onTouchMove = (e: TouchEvent) => {
+      if (!pulling) return
+      const dy = e.touches[0].clientY - startY
+      const maxH = contentHeightRef.current
+
+      if (!analyticsOpenRef.current && dy > 5 && el.scrollTop <= 0) {
+        e.preventDefault()
+        lastPull = dy
+        revealHeight.set(Math.min(dy * 0.5, maxH))
+      } else if (analyticsOpenRef.current && dy < -5 && el.scrollTop <= 0) {
+        e.preventDefault()
+        lastPull = dy
+        revealHeight.set(Math.max(maxH + dy * 0.5, 0))
+      } else if (dy < 0 && !analyticsOpenRef.current) {
+        pulling = false
+      }
+    }
+
+    const onTouchEnd = () => {
+      if (!pulling) return
+      const maxH = contentHeightRef.current
+      const THRESHOLD = 50
+
+      if (!analyticsOpenRef.current && lastPull > THRESHOLD) {
+        animate(revealHeight, maxH, { type: 'spring', stiffness: 300, damping: 30 })
+        analyticsOpenRef.current = true
+        setAnalyticsVisible(true)
+      } else if (analyticsOpenRef.current && lastPull < -THRESHOLD) {
+        animate(revealHeight, 0, { type: 'spring', stiffness: 300, damping: 30 })
+        analyticsOpenRef.current = false
+        setAnalyticsVisible(false)
+      } else if (!analyticsOpenRef.current) {
+        animate(revealHeight, 0, { type: 'spring', stiffness: 300, damping: 30 })
+      } else {
+        animate(revealHeight, maxH, { type: 'spring', stiffness: 300, damping: 30 })
+      }
+      pulling = false
+      lastPull = 0
+    }
+
+    el.addEventListener('touchstart', onTouchStart, { passive: true })
+    el.addEventListener('touchmove', onTouchMove, { passive: false })
+    el.addEventListener('touchend', onTouchEnd, { passive: true })
+
+    return () => {
+      el.removeEventListener('touchstart', onTouchStart)
+      el.removeEventListener('touchmove', onTouchMove)
+      el.removeEventListener('touchend', onTouchEnd)
+    }
+  }, [])
+
+  // Auto-collapse analytics when scrolling through orders
+  useEffect(() => {
+    const el = scrollRef.current
+    if (!el) return
+    const onScroll = () => {
+      if (analyticsOpenRef.current && el.scrollTop > 40) {
+        animate(revealHeight, 0, { type: 'spring', stiffness: 300, damping: 30 })
+        analyticsOpenRef.current = false
+        setAnalyticsVisible(false)
+      }
+    }
+    el.addEventListener('scroll', onScroll, { passive: true })
+    return () => el.removeEventListener('scroll', onScroll)
+  }, [])
+
+  // Desktop click toggle for analytics
+  const toggleAnalytics = () => {
+    const maxH = contentHeightRef.current
+    if (analyticsOpenRef.current) {
+      animate(revealHeight, 0, { type: 'spring', stiffness: 300, damping: 30 })
+      analyticsOpenRef.current = false
+      setAnalyticsVisible(false)
+    } else {
+      animate(revealHeight, maxH, { type: 'spring', stiffness: 300, damping: 30 })
+      analyticsOpenRef.current = true
+      setAnalyticsVisible(true)
+    }
   }
 
   const handleSendOrder = async () => {
@@ -203,7 +322,7 @@ export function ConnectionDetailScreen({ connectionId, currentBusinessId, select
         </div>
       </div>
 
-      <div className="flex-1 overflow-y-auto">
+      <div ref={scrollRef} className="flex-1 overflow-y-auto" style={{ overscrollBehavior: 'none' }}>
         <div className="px-4 py-2">
           <div className="flex items-center gap-2">
             <p className="text-[13px] text-muted-foreground">{formatPaymentTerms(connection.paymentTerms)}</p>
@@ -222,53 +341,66 @@ export function ConnectionDetailScreen({ connectionId, currentBusinessId, select
           )}
         </div>
 
-        <div className="px-4 py-2 text-[13px] text-muted-foreground">
-          <span>{totalOrders} order{totalOrders !== 1 ? 's' : ''}</span>
-          <span className="mx-1.5">·</span>
-          <span>₹{totalValue.toLocaleString('en-IN')} total</span>
-          {outstandingBalance > 0 && (
-            <>
+        {/* Pull-down indicator */}
+        <button onClick={toggleAnalytics} className="w-full flex flex-col items-center py-1.5 gap-0.5">
+          <div className="w-8 h-[3px] rounded-full bg-muted-foreground/20" />
+          <motion.div animate={{ rotate: analyticsVisible ? 180 : 0 }} transition={{ type: 'spring', stiffness: 300, damping: 25 }}>
+            <CaretDown size={12} weight="bold" className="text-muted-foreground/30" />
+          </motion.div>
+        </button>
+
+        {/* Revealable analytics section */}
+        <motion.div style={{ height: revealHeight, overflow: 'hidden' }}>
+          <div ref={analyticsContentRef}>
+            <div className="px-4 py-2 text-[13px] text-muted-foreground">
+              <span>{totalOrders} order{totalOrders !== 1 ? 's' : ''}</span>
               <span className="mx-1.5">·</span>
-              <span style={{ color: '#E8A020' }}>₹{outstandingBalance.toLocaleString('en-IN')} outstanding</span>
-            </>
-          )}
-        </div>
+              <span>₹{totalValue.toLocaleString('en-IN')} total</span>
+              {outstandingBalance > 0 && (
+                <>
+                  <span className="mx-1.5">·</span>
+                  <span style={{ color: '#E8A020' }}>₹{outstandingBalance.toLocaleString('en-IN')} outstanding</span>
+                </>
+              )}
+            </div>
 
-        <div className="px-4 py-2 flex items-center gap-2 overflow-x-auto">
-          {(['7d', '30d', '90d', '1y'] as TimeFilter[]).map(f => (
-            <FilterButton
-              key={f}
-              label={f === '7d' ? 'Last 7 days' : f === '30d' ? 'Last 30 days' : f === '90d' ? '90 days' : '1 year'}
-              active={timeFilter === f && !showArchived}
-              onClick={() => { setTimeFilter(f); setShowArchived(false) }}
-            />
-          ))}
-          {archivedOrders.length > 0 && (
-            <FilterButton
-              label={`Archived (${archivedOrders.length})`}
-              active={showArchived}
-              onClick={() => setShowArchived(!showArchived)}
-            />
-          )}
-        </div>
+            <div className="px-4 py-2 flex items-center gap-2 overflow-x-auto">
+              {(['7d', '30d', '90d', '1y'] as TimeFilter[]).map(f => (
+                <FilterButton
+                  key={f}
+                  label={f === '7d' ? 'Last 7 days' : f === '30d' ? 'Last 30 days' : f === '90d' ? '90 days' : '1 year'}
+                  active={timeFilter === f && !showArchived}
+                  onClick={() => { setTimeFilter(f); setShowArchived(false) }}
+                />
+              ))}
+              {archivedOrders.length > 0 && (
+                <FilterButton
+                  label={`Archived (${archivedOrders.length})`}
+                  active={showArchived}
+                  onClick={() => setShowArchived(!showArchived)}
+                />
+              )}
+            </div>
 
-        {insights.length > 0 && (
-          <div className="px-4 py-3">
-            <Collapsible open={insightsOpen} onOpenChange={setInsightsOpen}>
-              <CollapsibleTrigger className="flex items-center gap-1 text-[10px] text-muted-foreground/60 uppercase tracking-wide mb-2">
-                <span>Insights</span>
-                {insightsOpen ? <CaretDown size={12} weight="bold" /> : <CaretRight size={12} weight="bold" />}
-              </CollapsibleTrigger>
-              <CollapsibleContent>
-                <div className="space-y-1.5">
-                  {insights.map((insight, idx) => (
-                    <p key={idx} className="text-[12px] text-muted-foreground leading-relaxed">{insight}</p>
-                  ))}
-                </div>
-              </CollapsibleContent>
-            </Collapsible>
+            {insights.length > 0 && (
+              <div className="px-4 py-3">
+                <Collapsible open={insightsOpen} onOpenChange={setInsightsOpen}>
+                  <CollapsibleTrigger className="flex items-center gap-1 text-[10px] text-muted-foreground/60 uppercase tracking-wide mb-2">
+                    <span>Insights</span>
+                    {insightsOpen ? <CaretDown size={12} weight="bold" /> : <CaretRight size={12} weight="bold" />}
+                  </CollapsibleTrigger>
+                  <CollapsibleContent>
+                    <div className="space-y-1.5">
+                      {insights.map((insight, idx) => (
+                        <p key={idx} className="text-[12px] text-muted-foreground leading-relaxed">{insight}</p>
+                      ))}
+                    </div>
+                  </CollapsibleContent>
+                </Collapsible>
+              </div>
+            )}
           </div>
-        )}
+        </motion.div>
 
         <div className="pb-4">
           {filteredOrders.length === 0 ? (
