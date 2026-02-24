@@ -12,6 +12,9 @@ import { AddConnectionScreen } from '@/components/AddConnectionScreen'
 import { PaymentTermsSetupScreen } from '@/components/PaymentTermsSetupScreen'
 import { BusinessDetailsScreen } from '@/components/BusinessDetailsScreen'
 import { NotificationHistoryScreen } from '@/components/NotificationHistoryScreen'
+import { NotificationSettingsScreen } from '@/components/NotificationSettingsScreen'
+import { AccountScreen } from '@/components/AccountScreen'
+import { HelpSupportScreen } from '@/components/HelpSupportScreen'
 import { List, ChartBar, Bell, User } from '@phosphor-icons/react'
 import { getAuthSession, logout } from '@/lib/auth'
 import { attentionEngine } from '@/lib/attention-engine'
@@ -25,6 +28,9 @@ type Screen =
   | { type: 'payment-terms-setup'; connectionId: string; businessName: string; returnTo?: 'connection-detail' | 'connections' }
   | { type: 'business-details' }
   | { type: 'notifications' }
+  | { type: 'profile-notifications' }
+  | { type: 'profile-account' }
+  | { type: 'profile-support' }
 type AuthScreen = 'login' | 'signup' | { type: 'otp'; phoneNumber: string; businessName?: string; isSignup: boolean }
 
 function App() {
@@ -213,6 +219,18 @@ function App() {
     setNavigationStack(stack => [...stack, { type: 'notifications' }])
   }
 
+  const navigateToProfileNotifications = () => {
+    setNavigationStack(stack => [...stack, { type: 'profile-notifications' }])
+  }
+
+  const navigateToProfileAccount = () => {
+    setNavigationStack(stack => [...stack, { type: 'profile-account' }])
+  }
+
+  const navigateToProfileSupport = () => {
+    setNavigationStack(stack => [...stack, { type: 'profile-support' }])
+  }
+
   const handleBusinessDetailsSaved = () => {
     navigateBack()
   }
@@ -220,7 +238,13 @@ function App() {
   return (
     <div className="h-full flex flex-col bg-background">
       <div className="flex-1 overflow-auto pb-16">
-        {screen.type === 'notifications' ? (
+        {screen.type === 'profile-notifications' ? (
+          <NotificationSettingsScreen onBack={navigateBack} />
+        ) : screen.type === 'profile-account' ? (
+          <AccountScreen onBack={navigateBack} onLogout={handleLogout} />
+        ) : screen.type === 'profile-support' ? (
+          <HelpSupportScreen onBack={navigateBack} />
+        ) : screen.type === 'notifications' ? (
           <NotificationHistoryScreen
             currentBusinessId={currentBusinessId}
             onBack={navigateBack}
@@ -275,6 +299,9 @@ function App() {
             onLogout={handleLogout}
             onNavigateToBusinessDetails={navigateToBusinessDetails}
             onNavigateToNotifications={navigateToNotifications}
+            onNavigateToNotificationSettings={navigateToProfileNotifications}
+            onNavigateToAccount={navigateToProfileAccount}
+            onNavigateToSupport={navigateToProfileSupport}
           />
         ) : null}
       </div>
