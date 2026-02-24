@@ -2,15 +2,19 @@ import { useEffect, useState } from 'react'
 import { dataStore } from '@/lib/data-store'
 import type { BusinessEntity } from '@/lib/types'
 import { CaretRight, Bell } from '@phosphor-icons/react'
+import { SettingsItem } from './SettingsItem'
 
 interface Props {
   currentBusinessId: string
   onLogout: () => void
   onNavigateToBusinessDetails: () => void
   onNavigateToNotifications: () => void
+  onNavigateToNotificationSettings: () => void
+  onNavigateToAccount: () => void
+  onNavigateToSupport: () => void
 }
 
-export function ProfileScreen({ currentBusinessId, onLogout, onNavigateToBusinessDetails, onNavigateToNotifications }: Props) {
+export function ProfileScreen({ currentBusinessId, onLogout, onNavigateToBusinessDetails, onNavigateToNotifications, onNavigateToNotificationSettings, onNavigateToAccount, onNavigateToSupport }: Props) {
   const [business, setBusiness] = useState<BusinessEntity | null>(null)
   const [unreadCount, setUnreadCount] = useState(0)
   const [loading, setLoading] = useState(true)
@@ -151,19 +155,10 @@ export function ProfileScreen({ currentBusinessId, onLogout, onNavigateToBusines
         <h2 className="text-[11px] font-medium text-muted-foreground uppercase tracking-wide mb-3">
           Settings
         </h2>
-        <div className="space-y-0 divide-y divide-border">
-          <button className="w-full text-left py-3 hover:bg-muted/30 transition-colors">
-            <p className="text-[14px] text-foreground">Notifications</p>
-          </button>
-          <button className="w-full text-left py-3 hover:bg-muted/30 transition-colors">
-            <p className="text-[14px] text-foreground">Payment Terms</p>
-          </button>
-          <button className="w-full text-left py-3 hover:bg-muted/30 transition-colors">
-            <p className="text-[14px] text-foreground">Account</p>
-          </button>
-          <button className="w-full text-left py-3 hover:bg-muted/30 transition-colors">
-            <p className="text-[14px] text-foreground">Help & Support</p>
-          </button>
+        <div className="divide-y divide-border">
+          <SettingsItem title="Notifications" onPress={onNavigateToNotificationSettings} />
+          <SettingsItem title="Account" onPress={onNavigateToAccount} />
+          <SettingsItem title="Help & Support" onPress={onNavigateToSupport} showDivider={false} />
         </div>
       </div>
 
