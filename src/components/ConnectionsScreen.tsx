@@ -36,6 +36,14 @@ function formatPaymentTerms(terms: Connection['paymentTerms']): string | null {
 }
 
 const cachedConnectionsByBusiness = new Map<string, ConnectionWithState[]>()
+const MAX_CACHED_BUSINESSES = 5
+const PREFETCH_CONNECTION_COUNT = 3
+
+function isSamePaymentTerms(a: Connection['paymentTerms'], b: Connection['paymentTerms']) {
+  if (!a && !b) return true
+  if (!a || !b) return false
+  return a.type === b.type && (a.type !== 'Days After Delivery' || a.days === b.days)
+}
 
 function isSameConnections(a: ConnectionWithState[], b: ConnectionWithState[]) {
   if (a.length !== b.length) return false
@@ -45,7 +53,7 @@ function isSameConnections(a: ConnectionWithState[], b: ConnectionWithState[]) {
       conn.id === other.id &&
       conn.otherBusinessName === other.otherBusinessName &&
       conn.computedState === other.computedState &&
-      JSON.stringify(conn.paymentTerms) === JSON.stringify(other.paymentTerms)
+      isSamePaymentTerms(conn.paymentTerms, other.paymentTerms)
     )
   })
 }
@@ -103,14 +111,20 @@ export function ConnectionsScreen({ currentBusinessId, onSelectConnection, onAdd
       if (cancelled) return
 
       if (!cachedConnections || !isSameConnections(cachedConnections, connectionsWithState)) {
+        if (!cachedConnectionsByBusiness.has(currentBusinessId) && cachedConnectionsByBusiness.size >= MAX_CACHED_BUSINESSES) {
+          const oldestBusinessId = cachedConnectionsByBusiness.keys().next().value
+          if (oldestBusinessId) cachedConnectionsByBusiness.delete(oldestBusinessId)
+        }
         cachedConnectionsByBusiness.set(currentBusinessId, connectionsWithState)
         setConnections(connectionsWithState)
         console.debug('[ConnectionsScreen] state update', Date.now(), { currentBusinessId })
       }
 
       void Promise.all(
-        connectionsWithState.slice(0, 3).map(conn => dataStore.getOrdersWithPaymentStateByConnectionId(conn.id))
-      )
+        connectionsWithState
+          .slice(0, PREFETCH_CONNECTION_COUNT)
+          .map(conn => dataStore.getOrdersWithPaymentStateByConnectionId(conn.id))
+      ).catch(() => {})
     }
 
     void loadConnections()
