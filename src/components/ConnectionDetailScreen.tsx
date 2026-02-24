@@ -81,26 +81,36 @@ export function ConnectionDetailScreen({ connectionId, currentBusinessId, select
   const isSubmittingRef = useRef(false)
 
   const loadData = async () => {
-    const conn = await dataStore.getConnectionById(connectionId)
-    if (!conn) return
-    const otherId = conn.buyerBusinessId === currentBusinessId ? conn.supplierBusinessId : conn.buyerBusinessId
-    const otherBiz = await dataStore.getBusinessEntityById(otherId)
-    if (!conn.paymentTerms && conn.supplierBusinessId === currentBusinessId) {
-      onNavigateToPaymentTermsSetup(connectionId, otherBiz?.businessName || 'Unknown')
-      return
+    try {
+      const conn = await dataStore.getConnectionById(connectionId)
+      if (!conn) return
+      const otherId = conn.buyerBusinessId === currentBusinessId ? conn.supplierBusinessId : conn.buyerBusinessId
+      const otherBiz = await dataStore.getBusinessEntityById(otherId)
+      if (!conn.paymentTerms && conn.supplierBusinessId === currentBusinessId) {
+        onNavigateToPaymentTermsSetup(connectionId, otherBiz?.businessName || 'Unknown')
+        return
+      }
+      const allOrders = await dataStore.getOrdersWithPaymentStateByConnectionId(connectionId)
+      allOrders.sort((a, b) => b.createdAt - a.createdAt)
+      const viewerRole = conn.buyerBusinessId === currentBusinessId ? 'buyer' : 'supplier'
+      let connectionInsights: string[] = []
+      try {
+        connectionInsights = await insightEngine.getInsightsForConnection(connectionId, viewerRole)
+      } catch {
+        // Insights are non-critical, don't block data refresh
+      }
+      setConnection(conn)
+      setOtherBusiness(otherBiz || null)
+      setOrders(allOrders)
+      // Set filteredOrders immediately in the same batch to avoid stale render
+      const cutoffTime = Date.now() - filterDurations[timeFilter]
+      setFilteredOrders(allOrders.filter(order => order.createdAt >= cutoffTime))
+      setInsights(connectionInsights)
+      setLoading(false)
+    } catch (err) {
+      console.error('Failed to load connection data:', err)
+      setLoading(false)
     }
-    const allOrders = await dataStore.getOrdersWithPaymentStateByConnectionId(connectionId)
-    allOrders.sort((a, b) => b.createdAt - a.createdAt)
-    const viewerRole = conn.buyerBusinessId === currentBusinessId ? 'buyer' : 'supplier'
-    const connectionInsights = await insightEngine.getInsightsForConnection(connectionId, viewerRole)
-    setConnection(conn)
-    setOtherBusiness(otherBiz || null)
-    setOrders(allOrders)
-    // Set filteredOrders immediately in the same batch to avoid stale render
-    const cutoffTime = Date.now() - filterDurations[timeFilter]
-    setFilteredOrders(allOrders.filter(order => order.createdAt >= cutoffTime))
-    setInsights(connectionInsights)
-    setLoading(false)
   }
 
   useEffect(() => { loadData() }, [connectionId, currentBusinessId])
@@ -114,17 +124,46 @@ export function ConnectionDetailScreen({ connectionId, currentBusinessId, select
     if (!newOrderMessage.trim()) return
     if (isSubmittingRef.current) return
     isSubmittingRef.current = true
+
+    const orderText = newOrderMessage.trim()
+
+    // Optimistic update: clear text and show order in list immediately
+    setNewOrderMessage('')
     setCreatingOrder(true)
+
+    const optimisticId = `optimistic-${Date.now()}`
+    const optimisticOrder: OrderWithPaymentState = {
+      id: optimisticId,
+      connectionId,
+      itemSummary: orderText,
+      orderValue: 0,
+      createdAt: Date.now(),
+      acceptedAt: null,
+      dispatchedAt: null,
+      deliveredAt: null,
+      declinedAt: null,
+      paymentTermSnapshot: connection!.paymentTerms!,
+      billToBillInvoiceDate: null,
+      totalPaid: 0,
+      pendingAmount: 0,
+      settlementState: 'Unpaid',
+      calculatedDueDate: null,
+    }
+    setOrders(prev => [optimisticOrder, ...prev])
+
     try {
-      await createOrder(connectionId, newOrderMessage.trim(), 0, currentBusinessId)
+      await createOrder(connectionId, orderText, 0, currentBusinessId)
       toast.success('Order placed')
-      setNewOrderMessage('')
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Failed to create order')
+      // Rollback: remove optimistic order and restore text
+      setOrders(prev => prev.filter(o => o.id !== optimisticId))
+      setNewOrderMessage(orderText)
     } finally {
       isSubmittingRef.current = false
       setCreatingOrder(false)
     }
+    // Refresh in background to replace optimistic order with real data
     loadData()
   }
 
@@ -365,7 +404,12 @@ interface OrderDetailViewProps {
   onRefresh: () => Promise<void>
 }
 
-function OrderDetailView({ order, connection, currentBusinessId, onBack, onRefresh }: OrderDetailViewProps) {
+function OrderDetailView({ order: orderProp, connection, currentBusinessId, onBack, onRefresh }: OrderDetailViewProps) {
+  // Local copy of order for optimistic updates - falls back to prop
+  const [localOrder, setLocalOrder] = useState<OrderWithPaymentState>(orderProp)
+  useEffect(() => { setLocalOrder(orderProp) }, [orderProp])
+  const order = localOrder
+
   const [buyerBusiness, setBuyerBusiness] = useState<BusinessEntity | null>(null)
   const [supplierBusiness, setSupplierBusiness] = useState<BusinessEntity | null>(null)
   const [paymentEvents, setPaymentEvents] = useState<PaymentEvent[]>([])
@@ -435,60 +479,72 @@ function OrderDetailView({ order, connection, currentBusinessId, onBack, onRefre
       setProcessing(false)
       return
     }
+    // Optimistic update
+    setLocalOrder(prev => ({ ...prev, dispatchedAt: Date.now(), acceptedAt: prev.acceptedAt || Date.now(), orderValue: amount, pendingAmount: amount }))
+    setDispatchAmount('')
     try {
       await transitionOrderState(order.id, 'Dispatched', currentBusinessId, amount)
       toast.success('Order dispatched')
-      setDispatchAmount('')
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Failed to dispatch order')
+      setLocalOrder(orderProp) // Rollback
       setProcessing(false)
       return
     }
-    try { await onRefresh() } catch { /* action already succeeded */ } finally { setProcessing(false) }
+    try { await onRefresh() } catch {} finally { setProcessing(false) }
   }
 
   const handleDecline = async () => {
     if (processing) return
     setProcessing(true)
+    // Optimistic update
+    setLocalOrder(prev => ({ ...prev, declinedAt: Date.now() }))
+    setShowDeclineConfirm(false)
     try {
       await transitionOrderState(order.id, 'Declined', currentBusinessId)
       toast.success('Order declined')
-      setShowDeclineConfirm(false)
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Failed to decline order')
+      setLocalOrder(orderProp) // Rollback
       setProcessing(false)
       return
     }
-    try { await onRefresh() } catch { /* action already succeeded */ } finally { setProcessing(false) }
+    try { await onRefresh() } catch {} finally { setProcessing(false) }
   }
 
   const handleCancel = async () => {
     if (processing) return
     setProcessing(true)
+    // Optimistic update
+    setLocalOrder(prev => ({ ...prev, declinedAt: Date.now() }))
+    setShowCancelConfirm(false)
     try {
       await transitionOrderState(order.id, 'Declined', currentBusinessId)
       toast.success('Order cancelled')
-      setShowCancelConfirm(false)
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Failed to cancel order')
+      setLocalOrder(orderProp) // Rollback
       setProcessing(false)
       return
     }
-    try { await onRefresh() } catch { /* action already succeeded */ } finally { setProcessing(false) }
+    try { await onRefresh() } catch {} finally { setProcessing(false) }
   }
 
   const handleMarkDelivered = async () => {
     if (processing) return
     setProcessing(true)
+    // Optimistic update
+    setLocalOrder(prev => ({ ...prev, deliveredAt: Date.now() }))
     try {
       await transitionOrderState(order.id, 'Delivered', currentBusinessId)
       toast.success('Order marked as delivered')
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Failed to mark as delivered')
+      setLocalOrder(orderProp) // Rollback
       setProcessing(false)
       return
     }
-    try { await onRefresh() } catch { /* action already succeeded */ } finally { setProcessing(false) }
+    try { await onRefresh() } catch {} finally { setProcessing(false) }
   }
 
   const handleRecordPayment = async () => {
@@ -506,16 +562,25 @@ function OrderDetailView({ order, connection, currentBusinessId, onBack, onRefre
       setProcessing(false)
       return
     }
+    // Optimistic update
+    const prevOrder = { ...order }
+    setLocalOrder(prev => ({
+      ...prev,
+      totalPaid: prev.totalPaid + amount,
+      pendingAmount: prev.pendingAmount - amount,
+      settlementState: prev.pendingAmount - amount <= 0 ? 'Paid' : 'Partial Payment',
+    }))
+    setPaymentAmount('')
     try {
       await recordPayment(order.id, amount, currentBusinessId)
       toast.success('Payment recorded')
-      setPaymentAmount('')
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Failed to record payment')
+      setLocalOrder(prevOrder as OrderWithPaymentState) // Rollback
       setProcessing(false)
       return
     }
-    try { await onRefresh(); await refreshPayments() } catch { /* action already succeeded */ } finally { setProcessing(false) }
+    try { await onRefresh(); await refreshPayments() } catch {} finally { setProcessing(false) }
   }
 
   const handleConfirmDispute = async (paymentId: string) => {
@@ -547,7 +612,7 @@ function OrderDetailView({ order, connection, currentBusinessId, onBack, onRefre
       setProcessing(false)
       return
     }
-    try { await onRefresh(); await refreshPayments() } catch { /* action already succeeded */ } finally { setProcessing(false) }
+    try { await onRefresh(); await refreshPayments() } catch {} finally { setProcessing(false) }
   }
 
   if (!buyerBusiness || !supplierBusiness) {
