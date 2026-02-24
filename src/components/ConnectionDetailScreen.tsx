@@ -83,6 +83,8 @@ export function ConnectionDetailScreen({ connectionId, currentBusinessId, select
   const [archivedIds, setArchivedIds] = useState<Set<string>>(new Set())
   const [pullRevealHeight, setPullRevealHeight] = useState(0)
   const pullStartY = useRef<number | null>(null)
+  const lastTouchY = useRef<number | null>(null)
+  const lastScrollTop = useRef(0)
   const isPullingReveal = useRef(false)
 
   const loadHeaderData = async () => {
@@ -186,18 +188,25 @@ export function ConnectionDetailScreen({ connectionId, currentBusinessId, select
   const showPullReveal = pullRevealHeight > pullRevealThreshold
 
   const handleListTouchStart = (event: TouchEvent<HTMLDivElement>) => {
-    if (event.currentTarget.scrollTop > 0) {
-      if (pullRevealHeight !== 0) setPullRevealHeight(0)
-      return
-    }
-    pullStartY.current = event.touches[0]?.clientY ?? null
+    const touchY = event.touches[0]?.clientY ?? null
+    pullStartY.current = event.currentTarget.scrollTop === 0 ? touchY : null
+    lastTouchY.current = touchY
     isPullingReveal.current = false
   }
 
   const handleListTouchMove = (event: TouchEvent<HTMLDivElement>) => {
+    const touchY = event.touches[0]?.clientY
+    if (touchY === undefined) return
+    if (pullRevealHeight > 0 && lastTouchY.current !== null && touchY < lastTouchY.current) {
+      setPullRevealHeight(0)
+      pullStartY.current = null
+      isPullingReveal.current = false
+      lastTouchY.current = touchY
+      return
+    }
+    lastTouchY.current = touchY
     if (pullStartY.current === null) return
     if (event.currentTarget.scrollTop > 0) return
-    const touchY = event.touches[0]?.clientY ?? 0
     const deltaY = touchY - pullStartY.current
     if (deltaY <= 0) {
       setPullRevealHeight(0)
@@ -209,9 +218,12 @@ export function ConnectionDetailScreen({ connectionId, currentBusinessId, select
 
   const handleListTouchEnd = () => {
     pullStartY.current = null
+    lastTouchY.current = null
     if (!isPullingReveal.current && pullRevealHeight === 0) return
+    if (isPullingReveal.current) {
+      setPullRevealHeight(pullRevealHeight > pullRevealThreshold ? pullRevealMax : 0)
+    }
     isPullingReveal.current = false
-    setPullRevealHeight(0)
   }
 
   const viewingOrder = viewingOrderId ? orders.find(o => o.id === viewingOrderId) : null
@@ -241,8 +253,14 @@ export function ConnectionDetailScreen({ connectionId, currentBusinessId, select
       <div
         className="flex-1 overflow-y-auto"
         onScroll={event => {
-          if (pullRevealHeight === 0) return
-          if (event.currentTarget.scrollTop > 0) {
+          const currentScrollTop = event.currentTarget.scrollTop
+          if (pullRevealHeight > 0 && currentScrollTop > lastScrollTop.current) {
+            setPullRevealHeight(0)
+          }
+          lastScrollTop.current = currentScrollTop
+        }}
+        onWheel={event => {
+          if (pullRevealHeight > 0 && event.deltaY > 0) {
             setPullRevealHeight(0)
           }
         }}
