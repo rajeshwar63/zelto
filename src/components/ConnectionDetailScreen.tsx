@@ -1,4 +1,4 @@
-import { useEffect, useState, useRef } from 'react'
+import { useEffect, useState, useRef, type TouchEvent } from 'react'
 import { dataStore } from '@/lib/data-store'
 import { insightEngine } from '@/lib/insight-engine'
 import { transitionOrderState, recordPayment, createIssue, createOrder } from '@/lib/interactions'
@@ -81,6 +81,9 @@ export function ConnectionDetailScreen({ connectionId, currentBusinessId, select
   const [creatingOrder, setCreatingOrder] = useState(false)
   const [showArchived, setShowArchived] = useState(false)
   const [archivedIds, setArchivedIds] = useState<Set<string>>(new Set())
+  const [pullRevealHeight, setPullRevealHeight] = useState(0)
+  const pullStartY = useRef<number | null>(null)
+  const isPullingReveal = useRef(false)
 
   const loadHeaderData = async () => {
     try {
@@ -178,6 +181,38 @@ export function ConnectionDetailScreen({ connectionId, currentBusinessId, select
   const isSupplier = connection.supplierBusinessId === currentBusinessId
   const isBuyer = connection.buyerBusinessId === currentBusinessId
   const canPlaceOrder = isBuyer && connection.paymentTerms !== null
+  const pullRevealMax = 200
+  const pullRevealThreshold = 18
+  const showPullReveal = pullRevealHeight > pullRevealThreshold
+
+  const handleListTouchStart = (event: TouchEvent<HTMLDivElement>) => {
+    if (event.currentTarget.scrollTop > 0) {
+      if (pullRevealHeight !== 0) setPullRevealHeight(0)
+      return
+    }
+    pullStartY.current = event.touches[0]?.clientY ?? null
+    isPullingReveal.current = false
+  }
+
+  const handleListTouchMove = (event: TouchEvent<HTMLDivElement>) => {
+    if (pullStartY.current === null) return
+    if (event.currentTarget.scrollTop > 0) return
+    const touchY = event.touches[0]?.clientY ?? 0
+    const deltaY = touchY - pullStartY.current
+    if (deltaY <= 0) {
+      setPullRevealHeight(0)
+      return
+    }
+    isPullingReveal.current = true
+    setPullRevealHeight(Math.min(deltaY, pullRevealMax))
+  }
+
+  const handleListTouchEnd = () => {
+    pullStartY.current = null
+    if (!isPullingReveal.current && pullRevealHeight === 0) return
+    isPullingReveal.current = false
+    setPullRevealHeight(0)
+  }
 
   const viewingOrder = viewingOrderId ? orders.find(o => o.id === viewingOrderId) : null
   if (viewingOrder) {
@@ -203,7 +238,19 @@ export function ConnectionDetailScreen({ connectionId, currentBusinessId, select
         </div>
       </div>
 
-      <div className="flex-1 overflow-y-auto">
+      <div
+        className="flex-1 overflow-y-auto"
+        onScroll={event => {
+          if (pullRevealHeight === 0) return
+          if (event.currentTarget.scrollTop > 0) {
+            setPullRevealHeight(0)
+          }
+        }}
+        onTouchStart={handleListTouchStart}
+        onTouchMove={handleListTouchMove}
+        onTouchEnd={handleListTouchEnd}
+        onTouchCancel={handleListTouchEnd}
+      >
         <div className="px-4 py-2">
           <div className="flex items-center gap-2">
             <p className="text-[13px] text-muted-foreground">{formatPaymentTerms(connection.paymentTerms)}</p>
@@ -234,41 +281,49 @@ export function ConnectionDetailScreen({ connectionId, currentBusinessId, select
           )}
         </div>
 
-        <div className="px-4 py-2 flex items-center gap-2 overflow-x-auto">
-          {(['7d', '30d', '90d', '1y'] as TimeFilter[]).map(f => (
-            <FilterButton
-              key={f}
-              label={f === '7d' ? 'Last 7 days' : f === '30d' ? 'Last 30 days' : f === '90d' ? '90 days' : '1 year'}
-              active={timeFilter === f && !showArchived}
-              onClick={() => { setTimeFilter(f); setShowArchived(false) }}
-            />
-          ))}
-          {archivedOrders.length > 0 && (
-            <FilterButton
-              label={`Archived (${archivedOrders.length})`}
-              active={showArchived}
-              onClick={() => setShowArchived(!showArchived)}
-            />
+        <div
+          className="overflow-hidden transition-all duration-200 ease-out"
+          style={{
+            maxHeight: showPullReveal ? `${pullRevealHeight}px` : '0px',
+            opacity: showPullReveal ? 1 : 0,
+          }}
+        >
+          <div className="px-4 py-2 flex items-center gap-2 overflow-x-auto">
+            {(['7d', '30d', '90d', '1y'] as TimeFilter[]).map(f => (
+              <FilterButton
+                key={f}
+                label={f === '7d' ? 'Last 7 days' : f === '30d' ? 'Last 30 days' : f === '90d' ? '90 days' : '1 year'}
+                active={timeFilter === f && !showArchived}
+                onClick={() => { setTimeFilter(f); setShowArchived(false) }}
+              />
+            ))}
+            {archivedOrders.length > 0 && (
+              <FilterButton
+                label={`Archived (${archivedOrders.length})`}
+                active={showArchived}
+                onClick={() => setShowArchived(!showArchived)}
+              />
+            )}
+          </div>
+
+          {insights.length > 0 && (
+            <div className="px-4 py-3">
+              <Collapsible open={insightsOpen} onOpenChange={setInsightsOpen}>
+                <CollapsibleTrigger className="flex items-center gap-1 text-[10px] text-muted-foreground/60 uppercase tracking-wide mb-2">
+                  <span>Insights</span>
+                  {insightsOpen ? <CaretDown size={12} weight="bold" /> : <CaretRight size={12} weight="bold" />}
+                </CollapsibleTrigger>
+                <CollapsibleContent>
+                  <div className="space-y-1.5">
+                    {insights.map((insight, idx) => (
+                      <p key={idx} className="text-[12px] text-muted-foreground leading-relaxed">{insight}</p>
+                    ))}
+                  </div>
+                </CollapsibleContent>
+              </Collapsible>
+            </div>
           )}
         </div>
-
-        {insights.length > 0 && (
-          <div className="px-4 py-3">
-            <Collapsible open={insightsOpen} onOpenChange={setInsightsOpen}>
-              <CollapsibleTrigger className="flex items-center gap-1 text-[10px] text-muted-foreground/60 uppercase tracking-wide mb-2">
-                <span>Insights</span>
-                {insightsOpen ? <CaretDown size={12} weight="bold" /> : <CaretRight size={12} weight="bold" />}
-              </CollapsibleTrigger>
-              <CollapsibleContent>
-                <div className="space-y-1.5">
-                  {insights.map((insight, idx) => (
-                    <p key={idx} className="text-[12px] text-muted-foreground leading-relaxed">{insight}</p>
-                  ))}
-                </div>
-              </CollapsibleContent>
-            </Collapsible>
-          </div>
-        )}
 
         <div className="pb-4">
           {filteredOrders.length === 0 ? (
