@@ -408,10 +408,7 @@ interface OrderDetailViewProps {
 }
 
 function OrderDetailView({ order: orderProp, connection, currentBusinessId, onBack, onUpdateOrder }: OrderDetailViewProps) {
-  // Local copy of order for optimistic updates - falls back to prop
-  const [localOrder, setLocalOrder] = useState<OrderWithPaymentState>(orderProp)
-  useEffect(() => { setLocalOrder(orderProp) }, [orderProp])
-  const order = localOrder
+  const order = orderProp
 
   const [buyerBusiness, setBuyerBusiness] = useState<BusinessEntity | null>(null)
   const [supplierBusiness, setSupplierBusiness] = useState<BusinessEntity | null>(null)
@@ -482,16 +479,13 @@ function OrderDetailView({ order: orderProp, connection, currentBusinessId, onBa
       setProcessing(false)
       return
     }
-    const updatedOrder: OrderWithPaymentState = { ...order, dispatchedAt: Date.now(), acceptedAt: order.acceptedAt || Date.now(), orderValue: amount, pendingAmount: amount }
-    setLocalOrder(updatedOrder)
     setDispatchAmount('')
     try {
-      await transitionOrderState(order.id, 'Dispatched', currentBusinessId, amount)
+      const serverOrder = await transitionOrderState(order.id, 'Dispatched', currentBusinessId, amount)
       toast.success('Order dispatched')
-      onUpdateOrder(updatedOrder)
+      onUpdateOrder({ ...orderProp, ...serverOrder, pendingAmount: serverOrder.orderValue - orderProp.totalPaid })
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Failed to dispatch order')
-      setLocalOrder(orderProp) // Rollback
     } finally {
       setProcessing(false)
     }
@@ -500,16 +494,13 @@ function OrderDetailView({ order: orderProp, connection, currentBusinessId, onBa
   const handleDecline = async () => {
     if (processing) return
     setProcessing(true)
-    const updatedOrder: OrderWithPaymentState = { ...order, declinedAt: Date.now() }
-    setLocalOrder(updatedOrder)
     setShowDeclineConfirm(false)
     try {
-      await transitionOrderState(order.id, 'Declined', currentBusinessId)
+      const serverOrder = await transitionOrderState(order.id, 'Declined', currentBusinessId)
       toast.success('Order declined')
-      onUpdateOrder(updatedOrder)
+      onUpdateOrder({ ...orderProp, ...serverOrder })
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Failed to decline order')
-      setLocalOrder(orderProp) // Rollback
     } finally {
       setProcessing(false)
     }
@@ -518,16 +509,13 @@ function OrderDetailView({ order: orderProp, connection, currentBusinessId, onBa
   const handleCancel = async () => {
     if (processing) return
     setProcessing(true)
-    const updatedOrder: OrderWithPaymentState = { ...order, declinedAt: Date.now() }
-    setLocalOrder(updatedOrder)
     setShowCancelConfirm(false)
     try {
-      await transitionOrderState(order.id, 'Declined', currentBusinessId)
+      const serverOrder = await transitionOrderState(order.id, 'Declined', currentBusinessId)
       toast.success('Order cancelled')
-      onUpdateOrder(updatedOrder)
+      onUpdateOrder({ ...orderProp, ...serverOrder })
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Failed to cancel order')
-      setLocalOrder(orderProp) // Rollback
     } finally {
       setProcessing(false)
     }
@@ -536,15 +524,12 @@ function OrderDetailView({ order: orderProp, connection, currentBusinessId, onBa
   const handleMarkDelivered = async () => {
     if (processing) return
     setProcessing(true)
-    const updatedOrder: OrderWithPaymentState = { ...order, deliveredAt: Date.now() }
-    setLocalOrder(updatedOrder)
     try {
-      await transitionOrderState(order.id, 'Delivered', currentBusinessId)
+      const serverOrder = await transitionOrderState(order.id, 'Delivered', currentBusinessId)
       toast.success('Order marked as delivered')
-      onUpdateOrder(updatedOrder)
+      onUpdateOrder({ ...orderProp, ...serverOrder })
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Failed to mark as delivered')
-      setLocalOrder(orderProp) // Rollback
     } finally {
       setProcessing(false)
     }
@@ -571,7 +556,6 @@ function OrderDetailView({ order: orderProp, connection, currentBusinessId, onBa
       pendingAmount: order.pendingAmount - amount,
       settlementState: order.pendingAmount - amount <= 0 ? 'Paid' : 'Partial Payment',
     }
-    setLocalOrder(updatedOrder)
     setPaymentAmount('')
     try {
       await recordPayment(order.id, amount, currentBusinessId)
@@ -580,7 +564,6 @@ function OrderDetailView({ order: orderProp, connection, currentBusinessId, onBa
       await refreshPayments()
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Failed to record payment')
-      setLocalOrder(orderProp) // Rollback
     } finally {
       setProcessing(false)
     }
