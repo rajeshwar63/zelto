@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useRef } from 'react'
 import { dataStore } from '@/lib/data-store'
 import { insightEngine } from '@/lib/insight-engine'
 import { transitionOrderState, recordPayment, createIssue, createOrder } from '@/lib/interactions'
@@ -10,6 +10,8 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { toast } from 'sonner'
 import { getConnectionStateColor, getDueDateColor, getLifecycleStatusColor } from '@/lib/semantic-colors'
+import { motion, useMotionValue, useTransform, animate, PanInfo } from 'framer-motion'
+import { getArchivedOrderIds, archiveOrder as doArchiveOrder, unarchiveOrder as doUnarchiveOrder } from '@/lib/archive-store'
 
 interface Props {
   connectionId: string
@@ -77,6 +79,8 @@ export function ConnectionDetailScreen({ connectionId, currentBusinessId, select
   const [viewingOrderId, setViewingOrderId] = useState<string | null>(selectedOrderId || null)
   const [newOrderMessage, setNewOrderMessage] = useState('')
   const [creatingOrder, setCreatingOrder] = useState(false)
+  const [showArchived, setShowArchived] = useState(false)
+  const [archivedIds, setArchivedIds] = useState<Set<string>>(new Set())
 
   const loadHeaderData = async () => {
     try {
@@ -114,7 +118,23 @@ export function ConnectionDetailScreen({ connectionId, currentBusinessId, select
     }
   }
 
-  useEffect(() => { loadHeaderData(); loadOrders() }, [connectionId, currentBusinessId])
+  const refreshArchivedIds = () => {
+    setArchivedIds(getArchivedOrderIds(currentBusinessId))
+  }
+
+  useEffect(() => { loadHeaderData(); loadOrders(); refreshArchivedIds() }, [connectionId, currentBusinessId])
+
+  const handleArchiveOrder = (orderId: string) => {
+    doArchiveOrder(currentBusinessId, orderId)
+    refreshArchivedIds()
+    toast.success('Order archived')
+  }
+
+  const handleUnarchiveOrder = (orderId: string) => {
+    doUnarchiveOrder(currentBusinessId, orderId)
+    refreshArchivedIds()
+    toast.success('Order restored')
+  }
 
   const handleSendOrder = async () => {
     if (!newOrderMessage.trim()) return
@@ -144,10 +164,13 @@ export function ConnectionDetailScreen({ connectionId, currentBusinessId, select
     )
   }
 
-  const filteredOrders = orders.filter(order => order.createdAt >= Date.now() - filterDurations[timeFilter])
-  const totalOrders = filteredOrders.length
-  const totalValue = filteredOrders.reduce((sum, order) => sum + order.orderValue, 0)
-  const outstandingBalance = filteredOrders.reduce((sum, order) => {
+  const timeFilteredOrders = orders.filter(order => order.createdAt >= Date.now() - filterDurations[timeFilter])
+  const activeOrders = timeFilteredOrders.filter(o => !archivedIds.has(o.id))
+  const archivedOrders = timeFilteredOrders.filter(o => archivedIds.has(o.id))
+  const filteredOrders = showArchived ? archivedOrders : activeOrders
+  const totalOrders = activeOrders.length
+  const totalValue = activeOrders.reduce((sum, order) => sum + order.orderValue, 0)
+  const outstandingBalance = activeOrders.reduce((sum, order) => {
     if (order.settlementState !== 'Paid') return sum + (order.pendingAmount || 0)
     return sum
   }, 0)
@@ -216,10 +239,17 @@ export function ConnectionDetailScreen({ connectionId, currentBusinessId, select
             <FilterButton
               key={f}
               label={f === '7d' ? 'Last 7 days' : f === '30d' ? 'Last 30 days' : f === '90d' ? '90 days' : '1 year'}
-              active={timeFilter === f}
-              onClick={() => setTimeFilter(f)}
+              active={timeFilter === f && !showArchived}
+              onClick={() => { setTimeFilter(f); setShowArchived(false) }}
             />
           ))}
+          {archivedOrders.length > 0 && (
+            <FilterButton
+              label={`Archived (${archivedOrders.length})`}
+              active={showArchived}
+              onClick={() => setShowArchived(!showArchived)}
+            />
+          )}
         </div>
 
         {insights.length > 0 && (
@@ -243,7 +273,9 @@ export function ConnectionDetailScreen({ connectionId, currentBusinessId, select
         <div className="pb-4">
           {filteredOrders.length === 0 ? (
             <div className="px-4 py-8 text-center">
-              <p className="text-[13px] text-muted-foreground">No orders in this period</p>
+              <p className="text-[13px] text-muted-foreground">
+                {showArchived ? 'No archived orders' : 'No orders in this period'}
+              </p>
             </div>
           ) : (
             filteredOrders.map(order => {
@@ -251,42 +283,47 @@ export function ConnectionDetailScreen({ connectionId, currentBusinessId, select
               const lifecycleState = getLifecycleState(order)
               const dueLabel = formatDueDate(order)
               return (
-                <button
+                <SwipeableOrderRow
                   key={order.id}
-                  onClick={() => setViewingOrderId(order.id)}
-                  className={`px-4 py-3 w-full text-left ${lifecycleState === 'Declined' ? 'opacity-40' : ''}`}
+                  actionLabel={showArchived ? 'Unarchive' : 'Archive'}
+                  onAction={() => showArchived ? handleUnarchiveOrder(order.id) : handleArchiveOrder(order.id)}
                 >
-                  <div className="flex items-start justify-between mb-1">
-                    <p className={`text-[14px] leading-snug ${isOld ? 'text-muted-foreground/80 text-[13px]' : 'text-foreground'}`}>
-                      {order.itemSummary}
-                    </p>
-                    <div className="ml-3 flex-shrink-0 text-right">
-                      {order.settlementState === 'Paid' ? (
-                        <div>
-                          <p className="text-[14px] font-medium" style={{ color: '#4CAF50' }}>₹{order.orderValue.toLocaleString('en-IN')}</p>
-                          <p className="text-[11px]" style={{ color: '#4CAF50' }}>Paid</p>
-                        </div>
-                      ) : order.settlementState === 'Partial Payment' ? (
-                        <div>
-                          <p className="text-[14px] font-medium" style={{ color: '#E8A020' }}>₹{order.pendingAmount.toLocaleString('en-IN')} remaining</p>
-                          <p className="text-[11px] text-muted-foreground">of ₹{order.orderValue.toLocaleString('en-IN')}</p>
-                        </div>
-                      ) : (
-                        <p className={`text-[14px] font-medium ${isOld ? 'text-muted-foreground/80 text-[13px]' : 'text-foreground'}`}>
-                          ₹{order.orderValue.toLocaleString('en-IN')}
-                        </p>
-                      )}
+                  <button
+                    onClick={() => setViewingOrderId(order.id)}
+                    className={`px-4 py-3 w-full text-left ${lifecycleState === 'Declined' ? 'opacity-40' : ''}`}
+                  >
+                    <div className="flex items-start justify-between mb-1">
+                      <p className={`text-[14px] leading-snug ${isOld ? 'text-muted-foreground/80 text-[13px]' : 'text-foreground'}`}>
+                        {order.itemSummary}
+                      </p>
+                      <div className="ml-3 flex-shrink-0 text-right">
+                        {order.settlementState === 'Paid' ? (
+                          <div>
+                            <p className="text-[14px] font-medium" style={{ color: '#4CAF50' }}>₹{order.orderValue.toLocaleString('en-IN')}</p>
+                            <p className="text-[11px]" style={{ color: '#4CAF50' }}>Paid</p>
+                          </div>
+                        ) : order.settlementState === 'Partial Payment' ? (
+                          <div>
+                            <p className="text-[14px] font-medium" style={{ color: '#E8A020' }}>₹{order.pendingAmount.toLocaleString('en-IN')} remaining</p>
+                            <p className="text-[11px] text-muted-foreground">of ₹{order.orderValue.toLocaleString('en-IN')}</p>
+                          </div>
+                        ) : (
+                          <p className={`text-[14px] font-medium ${isOld ? 'text-muted-foreground/80 text-[13px]' : 'text-foreground'}`}>
+                            ₹{order.orderValue.toLocaleString('en-IN')}
+                          </p>
+                        )}
+                      </div>
                     </div>
-                  </div>
-                  <div className="flex items-center justify-between text-[12px]">
-                    <div className="flex items-center gap-1.5">
-                      <span className="text-muted-foreground">{formatTimestamp(order.createdAt, isOld)}</span>
-                      <span className="text-muted-foreground">·</span>
-                      <span style={{ color: getLifecycleStatusColor(lifecycleState) }}>{lifecycleState}</span>
+                    <div className="flex items-center justify-between text-[12px]">
+                      <div className="flex items-center gap-1.5">
+                        <span className="text-muted-foreground">{formatTimestamp(order.createdAt, isOld)}</span>
+                        <span className="text-muted-foreground">·</span>
+                        <span style={{ color: getLifecycleStatusColor(lifecycleState) }}>{lifecycleState}</span>
+                      </div>
+                      <p style={{ color: getDueDateColor(dueLabel) }}>{dueLabel}</p>
                     </div>
-                    <p style={{ color: getDueDateColor(dueLabel) }}>{dueLabel}</p>
-                  </div>
-                </button>
+                  </button>
+                </SwipeableOrderRow>
               )
             })
           )}
@@ -350,6 +387,76 @@ export function ConnectionDetailScreen({ connectionId, currentBusinessId, select
           </div>
         </div>
       )}
+    </div>
+  )
+}
+
+const SWIPE_THRESHOLD = 80
+
+function SwipeableOrderRow({
+  children,
+  actionLabel,
+  onAction,
+}: {
+  children: React.ReactNode
+  actionLabel: string
+  onAction: () => void
+}) {
+  const x = useMotionValue(0)
+  const actionOpacity = useTransform(x, [-SWIPE_THRESHOLD, -SWIPE_THRESHOLD / 2, 0], [1, 0.6, 0])
+  const containerRef = useRef<HTMLDivElement>(null)
+  const didSwipe = useRef(false)
+
+  const handleDragEnd = (_: any, info: PanInfo) => {
+    if (info.offset.x < -SWIPE_THRESHOLD) {
+      // Snap open
+      animate(x, -SWIPE_THRESHOLD, { type: 'spring', stiffness: 300, damping: 30 })
+      didSwipe.current = true
+    } else {
+      // Snap closed
+      animate(x, 0, { type: 'spring', stiffness: 300, damping: 30 })
+      didSwipe.current = false
+    }
+  }
+
+  const handleAction = () => {
+    animate(x, -300, { type: 'spring', stiffness: 300, damping: 30 })
+    setTimeout(onAction, 200)
+  }
+
+  // Close swipe when tapping elsewhere
+  useEffect(() => {
+    const handleTouchOutside = (e: PointerEvent) => {
+      if (didSwipe.current && containerRef.current && !containerRef.current.contains(e.target as Node)) {
+        animate(x, 0, { type: 'spring', stiffness: 300, damping: 30 })
+        didSwipe.current = false
+      }
+    }
+    document.addEventListener('pointerdown', handleTouchOutside)
+    return () => document.removeEventListener('pointerdown', handleTouchOutside)
+  }, [x])
+
+  return (
+    <div ref={containerRef} className="relative overflow-hidden">
+      <motion.div style={{ opacity: actionOpacity }} className="absolute right-0 top-0 bottom-0 flex items-center">
+        <button
+          onClick={handleAction}
+          className="h-full px-5 flex items-center text-[13px] font-medium text-white"
+          style={{ backgroundColor: actionLabel === 'Archive' ? '#8B8B8B' : '#4CAF50' }}
+        >
+          {actionLabel}
+        </button>
+      </motion.div>
+      <motion.div
+        style={{ x, backgroundColor: '#ffffff' }}
+        drag="x"
+        dragDirectionLock
+        dragConstraints={{ left: -SWIPE_THRESHOLD, right: 0 }}
+        dragElastic={{ left: 0.2, right: 0 }}
+        onDragEnd={handleDragEnd}
+      >
+        {children}
+      </motion.div>
     </div>
   )
 }
