@@ -45,6 +45,7 @@ function formatDueDate(order: OrderWithPaymentState): string {
   if (order.settlementState === 'Paid') return 'Paid'
   if (!order.calculatedDueDate) {
     if (!order.deliveredAt) return 'Awaiting delivery'
+    if (order.paymentTermSnapshot.type === 'Bill to Bill') return 'Linked to next delivery'
     return 'Due date pending'
   }
   const dueDate = new Date(order.calculatedDueDate)
