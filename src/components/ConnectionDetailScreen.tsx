@@ -100,7 +100,13 @@ export function ConnectionDetailScreen({ connectionId, currentBusinessId, select
       }
       setConnection(conn)
       setOtherBusiness(otherBiz || null)
-      setOrders(allOrders)
+      setOrders(prev => {
+        const map = new Map(prev.map(o => [o.id, o]))
+        for (const serverOrder of allOrders) {
+          map.set(serverOrder.id, serverOrder)
+        }
+        return Array.from(map.values()).sort((a, b) => b.createdAt - a.createdAt)
+      })
       setInsights(connectionInsights)
       setLoading(false)
     } catch (err) {

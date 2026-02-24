@@ -130,7 +130,13 @@ function ConnectionDetail({
 
     setBuyer(buyerEntity || null)
     setSupplier(supplierEntity || null)
-    setOrders(ordersData)
+    setOrders(prev => {
+      const map = new Map(prev.map(o => [o.id, o]))
+      for (const serverOrder of ordersData) {
+        map.set(serverOrder.id, serverOrder)
+      }
+      return Array.from(map.values()).sort((a, b) => b.createdAt - a.createdAt)
+    })
 
     const orderIds = ordersData.map((o) => o.id)
     setIssues(allIssues.filter((i) => orderIds.includes(i.orderId)))
