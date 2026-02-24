@@ -33,7 +33,7 @@ export function calculateDueDate(
       return order.deliveredAt
 
     case 'Bill to Bill':
-      return order.billToBillInvoiceDate
+      return null
 
     case 'Days After Delivery':
       if (!order.deliveredAt) return null
@@ -103,6 +103,38 @@ export function enrichOrderWithPaymentState(
     settlementState,
     calculatedDueDate,
   }
+}
+
+export function enrichConnectionOrdersWithPaymentState(
+  orders: Order[],
+  allPaymentEvents: PaymentEvent[]
+): OrderWithPaymentState[] {
+  const sortedOrders = [...orders].sort((a, b) => a.createdAt - b.createdAt)
+
+  return sortedOrders.map((order, index) => {
+    const payments = allPaymentEvents.filter((p) => p.orderId === order.id)
+
+    if (order.paymentTermSnapshot.type === 'Bill to Bill') {
+      const nextOrder = sortedOrders.slice(index + 1).find((o) => !o.declinedAt)
+      const billToBillDueDate = nextOrder?.deliveredAt ?? null
+      const totalPaid = calculateTotalPaid(order.id, payments)
+      const pendingAmount = order.orderValue - totalPaid
+      const settlementState = calculateSettlementState(
+        order.orderValue,
+        totalPaid,
+        billToBillDueDate
+      )
+      return {
+        ...order,
+        totalPaid,
+        pendingAmount,
+        settlementState,
+        calculatedDueDate: billToBillDueDate,
+      }
+    }
+
+    return enrichOrderWithPaymentState(order, payments)
+  })
 }
 
 export function validateUniqueZeltoId(

@@ -17,6 +17,7 @@ import {
   UserAccount,
 } from './types'
 import {
+  enrichConnectionOrdersWithPaymentState,
   enrichOrderWithPaymentState,
   generateZeltoId,
   snapshotPaymentTerms,
@@ -454,11 +455,8 @@ export class ZeltoDataStore {
   ): Promise<OrderWithPaymentState[]> {
     const orders = await this.getOrdersByConnectionId(connectionId)
     const allPayments = await this.getAllPaymentEvents()
-    
-    return orders.map(order => {
-      const payments = allPayments.filter(p => p.orderId === order.id)
-      return enrichOrderWithPaymentState(order, payments)
-    })
+
+    return enrichConnectionOrdersWithPaymentState(orders, allPayments)
   }
   // ============ PAYMENT EVENTS ============
 
