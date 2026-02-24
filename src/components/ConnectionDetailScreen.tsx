@@ -186,7 +186,10 @@ export function ConnectionDetailScreen({ connectionId, currentBusinessId, select
   const showPullReveal = pullRevealHeight > pullRevealThreshold
 
   const handleListTouchStart = (event: TouchEvent<HTMLDivElement>) => {
-    if (event.currentTarget.scrollTop > 0) return
+    if (event.currentTarget.scrollTop > 0) {
+      if (pullRevealHeight !== 0) setPullRevealHeight(0)
+      return
+    }
     pullStartY.current = event.touches[0]?.clientY ?? null
     isPullingReveal.current = false
   }
@@ -194,7 +197,8 @@ export function ConnectionDetailScreen({ connectionId, currentBusinessId, select
   const handleListTouchMove = (event: TouchEvent<HTMLDivElement>) => {
     if (pullStartY.current === null) return
     if (event.currentTarget.scrollTop > 0) return
-    const deltaY = (event.touches[0]?.clientY ?? 0) - pullStartY.current
+    const touchY = event.touches[0]?.clientY ?? 0
+    const deltaY = touchY - pullStartY.current
     if (deltaY <= 0) {
       setPullRevealHeight(0)
       return
@@ -237,7 +241,8 @@ export function ConnectionDetailScreen({ connectionId, currentBusinessId, select
       <div
         className="flex-1 overflow-y-auto"
         onScroll={event => {
-          if (event.currentTarget.scrollTop > 0 && pullRevealHeight !== 0) {
+          if (pullRevealHeight === 0) return
+          if (event.currentTarget.scrollTop > 0) {
             setPullRevealHeight(0)
           }
         }}
