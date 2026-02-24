@@ -7,6 +7,7 @@ import { getConnectionStateColor } from '@/lib/semantic-colors'
 import { Plus, Users, PencilSimple, MagnifyingGlass, X, PaperPlaneTilt } from '@phosphor-icons/react'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
+import { toast } from 'sonner'
 
 interface ConnectionWithState extends Connection {
   otherBusinessName: string
@@ -100,6 +101,7 @@ export function ConnectionsScreen({ currentBusinessId, onSelectConnection, onAdd
     setSendError(null)
     try {
       await createOrder(connectionId, message.trim(), 0, currentBusinessId)
+      toast.success('Order placed')
       setShowOrderModal(false)
       setSelectedConnection(null)
       setMessage('')
