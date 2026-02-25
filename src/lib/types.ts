@@ -164,3 +164,18 @@ export interface Notification {
   createdAt: number
   readAt: number | null
 }
+
+export type AttachmentType = 'bill' | 'payment_proof' | 'note'
+
+export interface OrderAttachment {
+  id: string
+  orderId: string
+  fileUrl: string | null
+  fileName: string | null
+  fileType: string | null
+  thumbnailUrl: string | null
+  noteText: string | null
+  type: AttachmentType
+  uploadedBy: string
+  timestamp: number
+}

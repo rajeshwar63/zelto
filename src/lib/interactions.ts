@@ -5,8 +5,10 @@ import type {
   OrderLifecycleState,
   IssueType,
   IssueSeverity,
+  AttachmentType,
   Connection,
   Order,
+  OrderAttachment,
   PaymentEvent,
   IssueReport,
   RaisedBy,
@@ -388,4 +390,56 @@ export async function setInvoiceDate(
   )
 
   return updatedOrder
+}
+
+export async function addAttachment(
+  orderId: string,
+  type: AttachmentType,
+  requestingBusinessId: string,
+  options: {
+    fileUrl?: string
+    fileName?: string
+    fileType?: string
+    thumbnailUrl?: string
+    noteText?: string
+  }
+): Promise<OrderAttachment> {
+  const order = await dataStore.getOrderById(orderId)
+
+  if (!order) {
+    throw new Error('Order does not exist')
+  }
+
+  const connection = await dataStore.getConnectionById(order.connectionId)
+
+  if (!connection) {
+    throw new Error('Connection not found')
+  }
+
+  const isAuthorized =
+    requestingBusinessId === connection.buyerBusinessId ||
+    requestingBusinessId === connection.supplierBusinessId
+
+  if (!isAuthorized) {
+    throw new Error('Only the buyer or supplier may add attachments')
+  }
+
+  return dataStore.createOrderAttachment(orderId, type, requestingBusinessId, options)
+}
+
+export async function deleteAttachment(
+  attachmentId: string,
+  requestingBusinessId: string
+): Promise<void> {
+  const attachment = await dataStore.getAttachmentById(attachmentId)
+
+  if (!attachment) {
+    throw new Error('Attachment not found')
+  }
+
+  if (attachment.uploadedBy !== requestingBusinessId) {
+    throw new Error('Only the uploader may delete an attachment')
+  }
+
+  await dataStore.deleteOrderAttachment(attachmentId)
 }
