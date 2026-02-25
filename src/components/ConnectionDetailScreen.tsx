@@ -1,17 +1,20 @@
 import { useEffect, useState, useRef, type TouchEvent } from 'react'
 import { dataStore } from '@/lib/data-store'
 import { insightEngine } from '@/lib/insight-engine'
-import { transitionOrderState, recordPayment, createIssue, createOrder } from '@/lib/interactions'
+import { transitionOrderState, recordPayment, createIssue, createOrder, addAttachment, deleteAttachment } from '@/lib/interactions'
 import { formatDistanceToNow, differenceInDays, format } from 'date-fns'
-import type { Connection, OrderWithPaymentState, BusinessEntity, PaymentEvent } from '@/lib/types'
-import { CaretLeft, CaretDown, CaretRight } from '@phosphor-icons/react'
+import type { Connection, OrderWithPaymentState, BusinessEntity, PaymentEvent, OrderAttachment, AttachmentType } from '@/lib/types'
+import { CaretLeft, CaretDown, CaretRight, Paperclip } from '@phosphor-icons/react'
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { toast } from 'sonner'
 import { getConnectionStateColor, getDueDateColor, getLifecycleStatusColor } from '@/lib/semantic-colors'
-import { motion, useMotionValue, useTransform, animate, PanInfo } from 'framer-motion'
+import { motion, useMotionValue, useTransform, animate, PanInfo, AnimatePresence } from 'framer-motion'
 import { getArchivedOrderIds, archiveOrder as doArchiveOrder, unarchiveOrder as doUnarchiveOrder } from '@/lib/archive-store'
+import { OrderAttachments } from '@/components/OrderAttachments'
+import { AddAttachmentSheet } from '@/components/AddAttachmentSheet'
+import { AttachmentViewer } from '@/components/AttachmentViewer'
 
 interface Props {
   connectionId: string
@@ -82,6 +85,7 @@ export function ConnectionDetailScreen({ connectionId, currentBusinessId, select
   const [creatingOrder, setCreatingOrder] = useState(false)
   const [showArchived, setShowArchived] = useState(false)
   const [archivedIds, setArchivedIds] = useState<Set<string>>(new Set())
+  const [attachmentCounts, setAttachmentCounts] = useState<Record<string, number>>({})
   const [pullRevealHeight, setPullRevealHeight] = useState(0)
   const pullStartY = useRef<number | null>(null)
   const lastTouchY = useRef<number | null>(null)
@@ -119,6 +123,12 @@ export function ConnectionDetailScreen({ connectionId, currentBusinessId, select
     try {
       const allOrders = await dataStore.getOrdersWithPaymentStateByConnectionId(connectionId)
       setOrders(allOrders.sort((a, b) => b.createdAt - a.createdAt))
+
+      const orderIds = allOrders.map(o => o.id)
+      if (orderIds.length > 0) {
+        const counts = await dataStore.getAttachmentCountsByOrderIds(orderIds)
+        setAttachmentCounts(counts)
+      }
     } catch (err) {
       console.error('Failed to load orders:', err)
     }
@@ -393,6 +403,12 @@ export function ConnectionDetailScreen({ connectionId, currentBusinessId, select
                         <span className="text-muted-foreground">{formatTimestamp(order.createdAt, isOld)}</span>
                         <span className="text-muted-foreground">·</span>
                         <span style={{ color: getLifecycleStatusColor(lifecycleState) }}>{lifecycleState}</span>
+                        {(attachmentCounts[order.id] || 0) > 0 && (
+                          <>
+                            <span className="text-muted-foreground">·</span>
+                            <Paperclip size={11} className="text-muted-foreground" />
+                          </>
+                        )}
                       </div>
                       <p style={{ color: getDueDateColor(dueLabel) }}>{dueLabel}</p>
                     </div>
@@ -569,6 +585,18 @@ function OrderDetailView({ order: orderProp, connection, currentBusinessId, onBa
   const [disputingPaymentId, setDisputingPaymentId] = useState<string | null>(null)
   const [showDeclineConfirm, setShowDeclineConfirm] = useState(false)
   const [showCancelConfirm, setShowCancelConfirm] = useState(false)
+  const [attachments, setAttachments] = useState<OrderAttachment[]>([])
+  const [showAddAttachment, setShowAddAttachment] = useState(false)
+  const [viewingAttachmentIndex, setViewingAttachmentIndex] = useState<number | null>(null)
+
+  const loadAttachments = async () => {
+    try {
+      const data = await dataStore.getAttachmentsByOrderId(order.id)
+      setAttachments(data)
+    } catch (err) {
+      console.error('Failed to load attachments:', err)
+    }
+  }
 
   useEffect(() => {
     const loadData = async () => {
@@ -580,6 +608,7 @@ function OrderDetailView({ order: orderProp, connection, currentBusinessId, onBa
       setPaymentEvents(payments)
     }
     loadData()
+    loadAttachments()
   }, [order.id, connection])
 
   useEffect(() => {
@@ -614,6 +643,29 @@ function OrderDetailView({ order: orderProp, connection, currentBusinessId, onBa
       setPaymentEvents(payments)
     } catch (err) {
       console.error('Failed to refresh payments', err)
+    }
+  }
+
+  const handleAddAttachment = async (
+    type: AttachmentType,
+    options: {
+      fileUrl?: string
+      fileName?: string
+      fileType?: string
+      thumbnailUrl?: string
+      noteText?: string
+    }
+  ) => {
+    await addAttachment(order.id, type, currentBusinessId, options)
+  }
+
+  const handleDeleteAttachment = async (attachment: OrderAttachment) => {
+    try {
+      await deleteAttachment(attachment.id, currentBusinessId)
+      await loadAttachments()
+      toast.success('Attachment deleted')
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Failed to delete attachment')
     }
   }
 
@@ -886,6 +938,18 @@ function OrderDetailView({ order: orderProp, connection, currentBusinessId, onBa
           </div>
         </div>
 
+        {buyerBusiness && supplierBusiness && (
+          <OrderAttachments
+            attachments={attachments}
+            currentBusinessId={currentBusinessId}
+            buyerBusiness={buyerBusiness}
+            supplierBusiness={supplierBusiness}
+            onAddAttachment={() => setShowAddAttachment(true)}
+            onViewAttachment={(index) => setViewingAttachmentIndex(index)}
+            onDeleteAttachment={handleDeleteAttachment}
+          />
+        )}
+
         {lifecycleState === 'Placed' && isSupplier && (
           <div className="space-y-3">
             <Input
@@ -999,6 +1063,27 @@ function OrderDetailView({ order: orderProp, connection, currentBusinessId, onBa
           </p>
         )}
       </div>
+
+      <AddAttachmentSheet
+        open={showAddAttachment}
+        orderId={order.id}
+        currentBusinessId={currentBusinessId}
+        onClose={() => setShowAddAttachment(false)}
+        onAttachmentAdded={loadAttachments}
+        onAddAttachment={handleAddAttachment}
+      />
+
+      <AnimatePresence>
+        {viewingAttachmentIndex !== null && buyerBusiness && supplierBusiness && (
+          <AttachmentViewer
+            attachments={attachments}
+            initialIndex={viewingAttachmentIndex}
+            buyerBusiness={buyerBusiness}
+            supplierBusiness={supplierBusiness}
+            onClose={() => setViewingAttachmentIndex(null)}
+          />
+        )}
+      </AnimatePresence>
     </div>
   )
 }

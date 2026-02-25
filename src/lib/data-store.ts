@@ -1,6 +1,7 @@
 import { supabase } from './supabase-client'
 import {
   AdminAccount,
+  AttachmentType,
   BusinessEntity,
   Connection,
   ConnectionRequest,
@@ -11,6 +12,7 @@ import {
   Notification,
   NotificationType,
   Order,
+  OrderAttachment,
   OrderWithPaymentState,
   PaymentEvent,
   RoleChangeRequest,
@@ -947,11 +949,103 @@ export class ZeltoDataStore {
     if (error) throw error
   }
 
+  // ============ ORDER ATTACHMENTS ============
+
+  async createOrderAttachment(
+    orderId: string,
+    type: AttachmentType,
+    uploadedBy: string,
+    options: {
+      fileUrl?: string
+      fileName?: string
+      fileType?: string
+      thumbnailUrl?: string
+      noteText?: string
+    }
+  ): Promise<OrderAttachment> {
+    const order = await this.getOrderById(orderId)
+    if (!order) {
+      throw new Error('Order does not exist')
+    }
+
+    const { data, error } = await supabase
+      .from('order_attachments')
+      .insert([{
+        order_id: orderId,
+        file_url: options.fileUrl || null,
+        file_name: options.fileName || null,
+        file_type: options.fileType || null,
+        thumbnail_url: options.thumbnailUrl || null,
+        note_text: options.noteText || null,
+        type,
+        uploaded_by: uploadedBy,
+        timestamp: Date.now()
+      }])
+      .select()
+      .single()
+
+    if (error) throw error
+    return toCamelCase(data)
+  }
+
+  async getAttachmentById(attachmentId: string): Promise<OrderAttachment | undefined> {
+    const { data, error } = await supabase
+      .from('order_attachments')
+      .select('*')
+      .eq('id', attachmentId)
+      .single()
+
+    if (error) {
+      if (error.code === 'PGRST116') return undefined
+      throw error
+    }
+    return toCamelCase(data)
+  }
+
+  async getAttachmentsByOrderId(orderId: string): Promise<OrderAttachment[]> {
+    const { data, error } = await supabase
+      .from('order_attachments')
+      .select('*')
+      .eq('order_id', orderId)
+      .order('timestamp', { ascending: true })
+
+    if (error) throw error
+    return toCamelCase(data || [])
+  }
+
+  async getAttachmentCountsByOrderIds(orderIds: string[]): Promise<Record<string, number>> {
+    if (orderIds.length === 0) return {}
+
+    const { data, error } = await supabase
+      .from('order_attachments')
+      .select('order_id')
+      .in('order_id', orderIds)
+
+    if (error) throw error
+
+    const counts: Record<string, number> = {}
+    for (const row of data || []) {
+      const orderId = row.order_id
+      counts[orderId] = (counts[orderId] || 0) + 1
+    }
+    return counts
+  }
+
+  async deleteOrderAttachment(attachmentId: string): Promise<void> {
+    const { error } = await supabase
+      .from('order_attachments')
+      .delete()
+      .eq('id', attachmentId)
+
+    if (error) throw error
+  }
+
   // ============ UTILITY ============
 
   async clearAllData(): Promise<void> {
     // Delete in reverse order of dependencies
     await supabase.from('notifications').delete().neq('id', '00000000-0000-0000-0000-000000000000')
+    await supabase.from('order_attachments').delete().neq('id', '00000000-0000-0000-0000-000000000000')
     await supabase.from('payment_events').delete().neq('id', '00000000-0000-0000-0000-000000000000')
     await supabase.from('issue_reports').delete().neq('id', '00000000-0000-0000-0000-000000000000')
     await supabase.from('orders').delete().neq('id', '00000000-0000-0000-0000-000000000000')
