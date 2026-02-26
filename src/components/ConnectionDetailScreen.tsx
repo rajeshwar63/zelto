@@ -379,7 +379,11 @@ export function ConnectionDetailScreen({ connectionId, currentBusinessId, select
                       markOrderSeen(currentBusinessId, order.id)
                       setViewingOrderId(order.id)
                     }}
-                    className={`px-4 py-3 w-full text-left ${lifecycleState === 'Declined' ? 'opacity-40' : ''} ${isNew ? 'bg-amber-50/40' : ''}`}
+                    className={`px-4 py-3 w-full text-left transition-colors ${lifecycleState === 'Declined' ? 'opacity-40' : ''} ${
+                      isNew
+                        ? 'border-l-[3px] border-l-amber-400 bg-amber-50'
+                        : 'border-l-[3px] border-l-transparent'
+                    }`}
                   >
                     <div className="flex items-start justify-between mb-1">
                       <p className={`text-[14px] leading-snug ${isOld ? 'text-muted-foreground/80 text-[13px]' : 'text-foreground'}`}>

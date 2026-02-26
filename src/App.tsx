@@ -19,6 +19,7 @@ import { List, ChartBar, Bell, User } from '@phosphor-icons/react'
 import { getAuthSession, logout } from '@/lib/auth'
 import { attentionEngine } from '@/lib/attention-engine'
 import { updateTabLastSeen, updateConnectionLastSeen, hasUnreadAttentionItems, hasAnyUnreadConnections, hasUnreadConnectionActivity } from '@/lib/unread-tracker'
+import { dataStore } from '@/lib/data-store'
 
 type Tab = 'status' | 'connections' | 'attention' | 'profile'
 type Screen = 
@@ -87,8 +88,13 @@ function App() {
     async function checkUnread() {
       const items = await attentionEngine.getAttentionItems(currentBusinessId!)
       if (cancelled) return
+      const allRequests = await dataStore.getAllConnectionRequests()
+      if (cancelled) return
+      const hasPendingRequests = allRequests.some(
+        r => r.receiverBusinessId === currentBusinessId && r.status === 'Pending'
+      )
       if (!isOnAttention) {
-        setHasUnreadAttention(hasUnreadAttentionItems(currentBusinessId!, items))
+        setHasUnreadAttention(hasUnreadAttentionItems(currentBusinessId!, items) || hasPendingRequests)
       }
       if (!isOnConnections) {
         setHasUnreadConnections(hasAnyUnreadConnections(currentBusinessId!, items))
