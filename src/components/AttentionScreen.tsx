@@ -6,7 +6,7 @@ import type { AttentionItem, AttentionCategory } from '@/lib/attention-engine'
 import type { ConnectionRequest } from '@/lib/types'
 import { getAttentionHeadingColor } from '@/lib/semantic-colors'
 import { ConnectionRequestItem } from '@/components/ConnectionRequestItem'
-import { getUnreadState, updateTabLastSeen } from '@/lib/unread-tracker'
+import { markOrderSeen, isOrderNew } from '@/lib/unread-tracker'
 
 interface Props {
   currentBusinessId: string
@@ -174,19 +174,35 @@ export function AttentionScreen({ currentBusinessId, onNavigateToConnections, on
           const categoryItems = filteredItemsByCategory.get(category)
           if (!categoryItems) return null
           const categoryColor = getAttentionHeadingColor(category)
-          const unreadState = getUnreadState(currentBusinessId)
+
+          const newCount = categoryItems.filter(item =>
+            item.orderId != null && isOrderNew(currentBusinessId, item.orderId, item.frictionStartedAt)
+          ).length
+
+          const sortedItems = [...categoryItems].sort((a, b) => {
+            const aNew = a.orderId != null && isOrderNew(currentBusinessId, a.orderId, a.frictionStartedAt)
+            const bNew = b.orderId != null && isOrderNew(currentBusinessId, b.orderId, b.frictionStartedAt)
+            if (aNew && !bNew) return -1
+            if (!aNew && bNew) return 1
+            return b.frictionStartedAt - a.frictionStartedAt
+          })
 
           return (
             <div key={category}>
               <div className="px-4 pt-3 pb-1.5">
                 <h2
-                  className="text-[10px] uppercase tracking-wide"
+                  className="text-[10px] uppercase tracking-wide flex items-center gap-1.5"
                   style={{ color: categoryColor || 'hsl(var(--muted-foreground) / 0.6)' }}
                 >
                   {category}
+                  {newCount > 0 && (
+                    <span className="inline-flex items-center gap-0.5 text-[9px] font-medium px-1.5 py-0.5 rounded-full bg-amber-100 text-amber-700 normal-case tracking-normal">
+                      • {newCount} new
+                    </span>
+                  )}
                 </h2>
               </div>
-              {categoryItems.map(item => {
+              {sortedItems.map(item => {
                 const amount = item.metadata?.pendingAmount
                 const amountStr = amount ? `₹${amount.toLocaleString('en-IN')}` : ''
                 const issueType = item.metadata?.issueType || 'Issue'
@@ -207,25 +223,19 @@ export function AttentionScreen({ currentBusinessId, onNavigateToConnections, on
                   'Approval Needed': '#E8A020',
                 } as Record<string, string>)[item.category]
 
-                const isUnread = item.frictionStartedAt > unreadState.attentionLastSeen
+                const isNew = item.orderId != null && isOrderNew(currentBusinessId, item.orderId, item.frictionStartedAt)
 
                 return (
                   <button
                     key={item.id}
                     onClick={() => {
-                      updateTabLastSeen(currentBusinessId, 'attention')
+                      if (item.orderId) markOrderSeen(currentBusinessId, item.orderId)
                       onNavigateToConnection(item.connectionId, item.orderId)
                     }}
-                    className={`w-full px-4 py-3 text-left ${isUnread ? 'bg-muted/30' : ''}`}
+                    className={`w-full px-4 py-3 text-left ${isNew ? 'bg-amber-50' : ''}`}
                   >
                     <div className="flex items-start justify-between mb-1">
-                      <div className="flex items-center gap-1.5 flex-1 mr-3">
-                        {isUnread && (
-                          <span
-                            className="w-2 h-2 rounded-full flex-shrink-0"
-                            style={{ backgroundColor: '#D64545' }}
-                          />
-                        )}
+                      <div className="flex-1 mr-3">
                         <p className="text-[14px] text-foreground font-normal leading-snug">
                           {item.metadata?.orderSummary || item.description}
                         </p>
