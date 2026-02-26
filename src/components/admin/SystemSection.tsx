@@ -33,6 +33,9 @@ export function SystemSection({ adminUsername }: SystemSectionProps) {
   const [totalOpenIssues, setTotalOpenIssues] = useState(0)
   const [totalOverdueOrders, setTotalOverdueOrders] = useState(0)
   const [showFreezeDialog, setShowFreezeDialog] = useState(false)
+  const [showResetDialog, setShowResetDialog] = useState(false)
+  const [resetConfirmText, setResetConfirmText] = useState('')
+  const [resetting, setResetting] = useState(false)
   const [entities, setEntities] = useState<BusinessEntity[]>([])
   const [selectedEntityId, setSelectedEntityId] = useState('')
   const [freezeNote, setFreezeNote] = useState('')
@@ -51,82 +54,91 @@ export function SystemSection({ adminUsername }: SystemSectionProps) {
       dataStore.getAllOrdersWithPaymentState(),
     ])
 
-    setEntities(entities.sort((a, b) => a.businessName.localeCompare(b.businessName)))
     setTotalEntities(entities.length)
     setTotalConnections(connections.length)
     setTotalOrders(orders.length)
-    setTotalOpenIssues(issues.filter((i) => i.status === 'Open').length)
-
-    const overdueCount = ordersWithPayment.filter((o) => {
-      if (!o.calculatedDueDate) return false
-      return Date.now() > o.calculatedDueDate && o.settlementState !== 'Paid'
-    }).length
-    setTotalOverdueOrders(overdueCount)
+    setTotalOpenIssues(issues.filter((i: any) => i.status === 'open').length)
+    setTotalOverdueOrders(
+      ordersWithPayment.filter((o: any) => o.paymentState === 'Overdue').length
+    )
+    setEntities(entities)
   }
 
-  const handleFreeze = async () => {
-    if (!selectedEntityId) {
-      toast.error('Please select an entity')
-      return
-    }
-
-    if (!freezeNote.trim()) {
-      toast.error('Note is required')
-      return
-    }
-
+  const handleFreezeAccount = async () => {
+    if (!selectedEntityId || !freezeNote.trim()) return
     setFreezing(true)
     try {
-      await dataStore.freezeEntity(selectedEntityId, freezeNote.trim(), adminUsername)
+      await dataStore.freezeEntity(selectedEntityId, adminUsername, freezeNote)
       toast.success('Account frozen successfully')
       setShowFreezeDialog(false)
       setSelectedEntityId('')
       setFreezeNote('')
-    } catch (error) {
+      loadData()
+    } catch (err) {
       toast.error('Failed to freeze account')
     } finally {
       setFreezing(false)
     }
   }
 
-  const canFreeze = selectedEntityId && freezeNote.trim().length > 0
+  const handleResetAllData = async () => {
+    if (resetConfirmText !== 'RESET') return
+    setResetting(true)
+    try {
+      await dataStore.clearAllData()
+      // Also clear local auth session
+      localStorage.removeItem('zelto:local-auth-session')
+      toast.success('All data has been reset successfully')
+      setShowResetDialog(false)
+      setResetConfirmText('')
+      // Reload stats
+      setTotalEntities(0)
+      setTotalConnections(0)
+      setTotalOrders(0)
+      setTotalOpenIssues(0)
+      setTotalOverdueOrders(0)
+      setEntities([])
+    } catch (err) {
+      toast.error('Failed to reset data')
+    } finally {
+      setResetting(false)
+    }
+  }
 
   return (
-    <div>
-      <div className="mb-6">
-        <h2 className="text-xl font-semibold text-gray-900">System</h2>
-        <p className="text-sm text-gray-500 mt-1">System overview and operations</p>
-      </div>
-
-      <div className="space-y-6">
-        <div className="bg-white border border-gray-200 rounded-lg p-6">
-          <h3 className="text-sm font-medium text-gray-900 mb-4">System Statistics</h3>
-          <div className="space-y-3">
-            <div className="flex items-center justify-between py-2 border-b border-gray-100">
-              <span className="text-sm text-gray-600">Total Entities</span>
-              <span className="text-sm font-medium text-gray-900">{totalEntities}</span>
-            </div>
-            <div className="flex items-center justify-between py-2 border-b border-gray-100">
-              <span className="text-sm text-gray-600">Total Connections</span>
-              <span className="text-sm font-medium text-gray-900">{totalConnections}</span>
-            </div>
-            <div className="flex items-center justify-between py-2 border-b border-gray-100">
-              <span className="text-sm text-gray-600">Total Orders</span>
-              <span className="text-sm font-medium text-gray-900">{totalOrders}</span>
-            </div>
-            <div className="flex items-center justify-between py-2 border-b border-gray-100">
-              <span className="text-sm text-gray-600">Total Open Issues</span>
-              <span className="text-sm font-medium text-gray-900">{totalOpenIssues}</span>
-            </div>
-            <div className="flex items-center justify-between py-2">
-              <span className="text-sm text-gray-600">Total Overdue Orders</span>
-              <span className="text-sm font-medium text-gray-900">{totalOverdueOrders}</span>
-            </div>
+    <div className="space-y-6">
+      {/* Stats */}
+      <div className="bg-white border border-gray-200 rounded-lg p-6">
+        <h3 className="text-sm font-medium text-gray-900 mb-4">System Overview</h3>
+        <div className="space-y-1">
+          <div className="flex items-center justify-between py-2 border-b border-gray-100">
+            <span className="text-sm text-gray-600">Total Entities</span>
+            <span className="text-sm font-medium text-gray-900">{totalEntities}</span>
+          </div>
+          <div className="flex items-center justify-between py-2 border-b border-gray-100">
+            <span className="text-sm text-gray-600">Total Connections</span>
+            <span className="text-sm font-medium text-gray-900">{totalConnections}</span>
+          </div>
+          <div className="flex items-center justify-between py-2 border-b border-gray-100">
+            <span className="text-sm text-gray-600">Total Orders</span>
+            <span className="text-sm font-medium text-gray-900">{totalOrders}</span>
+          </div>
+          <div className="flex items-center justify-between py-2 border-b border-gray-100">
+            <span className="text-sm text-gray-600">Total Open Issues</span>
+            <span className="text-sm font-medium text-gray-900">{totalOpenIssues}</span>
+          </div>
+          <div className="flex items-center justify-between py-2">
+            <span className="text-sm text-gray-600">Total Overdue Orders</span>
+            <span className="text-sm font-medium text-gray-900">{totalOverdueOrders}</span>
           </div>
         </div>
+      </div>
 
-        <div className="bg-white border border-gray-200 rounded-lg p-6">
-          <h3 className="text-sm font-medium text-gray-900 mb-4">Critical Operations</h3>
+      {/* Critical Operations */}
+      <div className="bg-white border border-gray-200 rounded-lg p-6">
+        <h3 className="text-sm font-medium text-gray-900 mb-4">Critical Operations</h3>
+        <div className="space-y-6">
+          {/* Freeze Account */}
           <div className="space-y-3">
             <p className="text-sm text-gray-600">
               Freeze an account to suspend it across both buyer and supplier roles simultaneously.
@@ -138,9 +150,29 @@ export function SystemSection({ adminUsername }: SystemSectionProps) {
               Freeze Account
             </Button>
           </div>
+
+          <div className="border-t border-gray-100" />
+
+          {/* Reset All Data */}
+          <div className="space-y-3">
+            <div>
+              <p className="text-sm font-medium text-gray-900 mb-1">Reset All Data</p>
+              <p className="text-sm text-gray-600">
+                Permanently delete all businesses, users, connections, orders, and activity. Use this to start fresh for testing. This cannot be undone.
+              </p>
+            </div>
+            <Button
+              variant="outline"
+              className="border-red-300 text-red-600 hover:bg-red-50 hover:text-red-700"
+              onClick={() => setShowResetDialog(true)}
+            >
+              Reset All Data
+            </Button>
+          </div>
         </div>
       </div>
 
+      {/* Freeze Dialog */}
       <Dialog open={showFreezeDialog} onOpenChange={setShowFreezeDialog}>
         <DialogContent>
           <DialogHeader>
@@ -149,13 +181,12 @@ export function SystemSection({ adminUsername }: SystemSectionProps) {
               This will set the selected entity to Suspended status for both buyer and supplier roles. This action requires a mandatory note.
             </DialogDescription>
           </DialogHeader>
-
-          <div className="space-y-4 py-4">
+          <div className="space-y-4 py-2">
             <div className="space-y-2">
-              <Label htmlFor="freeze-entity">Business Entity</Label>
+              <Label>Select Entity</Label>
               <Select value={selectedEntityId} onValueChange={setSelectedEntityId}>
-                <SelectTrigger id="freeze-entity">
-                  <SelectValue placeholder="Select entity to freeze" />
+                <SelectTrigger>
+                  <SelectValue placeholder="Choose a business entity..." />
                 </SelectTrigger>
                 <SelectContent>
                   {entities.map((entity) => (
@@ -166,37 +197,64 @@ export function SystemSection({ adminUsername }: SystemSectionProps) {
                 </SelectContent>
               </Select>
             </div>
-
             <div className="space-y-2">
-              <Label htmlFor="freeze-note">Reason (Required)</Label>
+              <Label>Reason / Note</Label>
               <Textarea
-                id="freeze-note"
                 value={freezeNote}
                 onChange={(e) => setFreezeNote(e.target.value)}
                 placeholder="Enter reason for freezing this account..."
-                rows={4}
+                rows={3}
               />
             </div>
           </div>
-
           <DialogFooter>
-            <Button
-              variant="outline"
-              onClick={() => {
-                setShowFreezeDialog(false)
-                setSelectedEntityId('')
-                setFreezeNote('')
-              }}
-              disabled={freezing}
-            >
+            <Button variant="outline" onClick={() => setShowFreezeDialog(false)}>
               Cancel
             </Button>
             <Button
               variant="destructive"
-              onClick={handleFreeze}
-              disabled={!canFreeze || freezing}
+              onClick={handleFreezeAccount}
+              disabled={!selectedEntityId || !freezeNote.trim() || freezing}
             >
               {freezing ? 'Freezing...' : 'Freeze Account'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Reset All Data Dialog */}
+      <Dialog open={showResetDialog} onOpenChange={(open) => {
+        setShowResetDialog(open)
+        if (!open) setResetConfirmText('')
+      }}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Reset All Data</DialogTitle>
+            <DialogDescription>
+              This will permanently delete <strong>all</strong> data — businesses, users, connections, orders, payments, issues, and notifications. Auth sessions will also be cleared. This action <strong>cannot be undone</strong>.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3 py-2">
+            <p className="text-sm text-gray-600">
+              Type <span className="font-mono font-semibold text-red-600">RESET</span> to confirm.
+            </p>
+            <Input
+              value={resetConfirmText}
+              onChange={(e) => setResetConfirmText(e.target.value)}
+              placeholder="Type RESET to confirm"
+              className="font-mono"
+            />
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowResetDialog(false)}>
+              Cancel
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={handleResetAllData}
+              disabled={resetConfirmText !== 'RESET' || resetting}
+            >
+              {resetting ? 'Resetting...' : 'Reset All Data'}
             </Button>
           </DialogFooter>
         </DialogContent>
