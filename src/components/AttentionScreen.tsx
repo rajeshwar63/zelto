@@ -6,7 +6,7 @@ import type { AttentionItem, AttentionCategory } from '@/lib/attention-engine'
 import type { ConnectionRequest } from '@/lib/types'
 import { getAttentionHeadingColor } from '@/lib/semantic-colors'
 import { ConnectionRequestItem } from '@/components/ConnectionRequestItem'
-import { getUnreadState } from '@/lib/unread-tracker'
+import { getUnreadState, updateTabLastSeen } from '@/lib/unread-tracker'
 
 interface Props {
   currentBusinessId: string
@@ -212,7 +212,10 @@ export function AttentionScreen({ currentBusinessId, onNavigateToConnections, on
                 return (
                   <button
                     key={item.id}
-                    onClick={() => onNavigateToConnection(item.connectionId, item.orderId)}
+                    onClick={() => {
+                      updateTabLastSeen(currentBusinessId, 'attention')
+                      onNavigateToConnection(item.connectionId, item.orderId)
+                    }}
                     className={`w-full px-4 py-3 text-left ${isUnread ? 'bg-muted/30' : ''}`}
                   >
                     <div className="flex items-start justify-between mb-1">
