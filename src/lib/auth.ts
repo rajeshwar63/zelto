@@ -1,8 +1,14 @@
+import { RecaptchaVerifier, signInWithPhoneNumber, ConfirmationResult } from 'firebase/auth'
+import { auth } from './firebase'
 import { dataStore } from './data-store'
 import { BusinessEntity, UserAccount } from './types'
 
 const AUTH_SESSION_KEY = 'zelto:local-auth-session'
-const TEST_OTP = '123456'
+
+// Module-level state for Firebase Phone Auth flow
+let confirmationResult: ConfirmationResult | null = null
+let recaptchaVerifier: RecaptchaVerifier | null = null
+let lastSentPhoneNumber: string | null = null
 
 export interface AuthSession {
   businessId: string
@@ -33,8 +39,79 @@ export async function checkPhoneNumberExists(phoneNumber: string): Promise<boole
   return accounts.some(a => a.phoneNumber === phoneNumber)
 }
 
-export function verifyOTP(otp: string): boolean {
-  return otp === TEST_OTP
+function getRecaptchaVerifier(): RecaptchaVerifier {
+  if (!recaptchaVerifier) {
+    recaptchaVerifier = new RecaptchaVerifier(auth, 'recaptcha-container', {
+      size: 'invisible',
+    })
+  }
+  return recaptchaVerifier
+}
+
+function formatFirebaseError(error: unknown): string {
+  const code = (error as { code?: string }).code
+  switch (code) {
+    case 'auth/invalid-phone-number':
+      return 'Invalid phone number. Please check and try again.'
+    case 'auth/too-many-requests':
+      return 'Too many attempts. Please wait a few minutes and try again.'
+    case 'auth/code-expired':
+      return 'Verification code has expired. Please request a new one.'
+    case 'auth/invalid-verification-code':
+      return 'Invalid verification code. Please check and try again.'
+    case 'auth/missing-phone-number':
+      return 'Phone number is required.'
+    case 'auth/quota-exceeded':
+      return 'SMS quota exceeded. Please try again later.'
+    default:
+      return error instanceof Error ? error.message : 'Something went wrong. Please try again.'
+  }
+}
+
+export async function sendOTP(phoneNumber: string): Promise<void> {
+  // Avoid re-sending if already sent for this number and confirmation is active
+  if (lastSentPhoneNumber === phoneNumber && confirmationResult) {
+    return
+  }
+
+  try {
+    const verifier = getRecaptchaVerifier()
+    confirmationResult = await signInWithPhoneNumber(auth, phoneNumber, verifier)
+    lastSentPhoneNumber = phoneNumber
+  } catch (error) {
+    // Reset verifier on error so it can be recreated for retry
+    if (recaptchaVerifier) {
+      recaptchaVerifier.clear()
+      recaptchaVerifier = null
+    }
+    confirmationResult = null
+    lastSentPhoneNumber = null
+    throw new Error(formatFirebaseError(error))
+  }
+}
+
+export async function confirmOTP(code: string): Promise<void> {
+  if (!confirmationResult) {
+    throw new Error('No OTP request in progress. Please go back and request a new code.')
+  }
+  try {
+    await confirmationResult.confirm(code)
+    confirmationResult = null
+    lastSentPhoneNumber = null
+  } catch (error) {
+    throw new Error(formatFirebaseError(error))
+  }
+}
+
+export async function resendOTP(phoneNumber: string): Promise<void> {
+  // Force a new OTP send by clearing existing state
+  confirmationResult = null
+  lastSentPhoneNumber = null
+  if (recaptchaVerifier) {
+    recaptchaVerifier.clear()
+    recaptchaVerifier = null
+  }
+  await sendOTP(phoneNumber)
 }
 
 export async function signupWithPhone(phoneNumber: string, businessName: string): Promise<{ businessEntity: BusinessEntity; userAccount: UserAccount }> {

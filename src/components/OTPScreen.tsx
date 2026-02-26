@@ -1,7 +1,7 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { verifyOTP, signupWithPhone, loginWithPhone } from '@/lib/auth'
+import { sendOTP, confirmOTP, resendOTP, signupWithPhone, loginWithPhone } from '@/lib/auth'
 import { toast } from 'sonner'
 
 interface OTPScreenProps {
@@ -15,6 +15,9 @@ interface OTPScreenProps {
 export function OTPScreen({ phoneNumber, businessName, isSignup, onSuccess, onBack }: OTPScreenProps) {
   const [otp, setOtp] = useState('')
   const [isLoading, setIsLoading] = useState(false)
+  const [isSending, setIsSending] = useState(true)
+  const [sendError, setSendError] = useState<string | null>(null)
+  const [resendCooldown, setResendCooldown] = useState(30)
 
   const formatPhoneNumber = (phone: string) => {
     const cleanNumber = phone.replace(/\D/g, '')
@@ -25,6 +28,56 @@ export function OTPScreen({ phoneNumber, businessName, isSignup, onSuccess, onBa
     return phone
   }
 
+  // Send OTP on mount via Firebase Phone Auth
+  useEffect(() => {
+    let cancelled = false
+
+    const initSend = async () => {
+      setIsSending(true)
+      setSendError(null)
+      try {
+        await sendOTP(phoneNumber)
+      } catch (error) {
+        if (!cancelled) {
+          const msg = error instanceof Error ? error.message : 'Failed to send verification code'
+          setSendError(msg)
+          toast.error(msg)
+        }
+      } finally {
+        if (!cancelled) {
+          setIsSending(false)
+        }
+      }
+    }
+
+    initSend()
+    return () => { cancelled = true }
+  }, [phoneNumber])
+
+  // Countdown for resend button cooldown
+  useEffect(() => {
+    if (resendCooldown <= 0) return
+    const timer = setTimeout(() => setResendCooldown(c => c - 1), 1000)
+    return () => clearTimeout(timer)
+  }, [resendCooldown])
+
+  const handleResend = async () => {
+    setIsSending(true)
+    setSendError(null)
+    setOtp('')
+    try {
+      await resendOTP(phoneNumber)
+      setResendCooldown(30)
+      toast.success('Verification code resent')
+    } catch (error) {
+      const msg = error instanceof Error ? error.message : 'Failed to resend verification code'
+      setSendError(msg)
+      toast.error(msg)
+    } finally {
+      setIsSending(false)
+    }
+  }
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
 
@@ -33,13 +86,10 @@ export function OTPScreen({ phoneNumber, businessName, isSignup, onSuccess, onBa
       return
     }
 
-    if (!verifyOTP(otp)) {
-      toast.error('Invalid verification code')
-      return
-    }
-
     setIsLoading(true)
     try {
+      await confirmOTP(otp)
+
       if (isSignup && businessName) {
         const result = await signupWithPhone(phoneNumber, businessName)
         toast.success('Account created successfully!')
@@ -69,12 +119,19 @@ export function OTPScreen({ phoneNumber, businessName, isSignup, onSuccess, onBa
         <div className="mb-8">
           <h1 className="text-2xl font-semibold text-foreground mb-2">Enter Verification Code</h1>
           <p className="text-sm text-muted-foreground">
-            We sent a code to {formatPhoneNumber(phoneNumber)}
-          </p>
-          <p className="text-xs text-muted-foreground mt-2">
-            For testing, use code: <span className="font-mono font-medium">123456</span>
+            {isSending
+              ? `Sending code to ${formatPhoneNumber(phoneNumber)}…`
+              : sendError
+                ? `Failed to send code to ${formatPhoneNumber(phoneNumber)}`
+                : `We sent a code to ${formatPhoneNumber(phoneNumber)}`}
           </p>
         </div>
+
+        {sendError && (
+          <div className="mb-4 p-3 rounded-md bg-destructive/10 border border-destructive/20">
+            <p className="text-sm text-destructive">{sendError}</p>
+          </div>
+        )}
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="space-y-2">
@@ -86,20 +143,37 @@ export function OTPScreen({ phoneNumber, businessName, isSignup, onSuccess, onBa
               placeholder="000000"
               value={otp}
               onChange={(e) => setOtp(e.target.value.replace(/\D/g, ''))}
-              disabled={isLoading}
+              disabled={isLoading || isSending || !!sendError}
               className="h-11 text-center text-lg font-mono tracking-widest"
               autoFocus
             />
           </div>
 
-          <Button 
-            type="submit" 
-            className="w-full h-11 mt-6" 
-            disabled={isLoading || otp.length !== 6}
+          <Button
+            type="submit"
+            className="w-full h-11 mt-6"
+            disabled={isLoading || isSending || !!sendError || otp.length !== 6}
           >
-            {isLoading ? 'Verifying...' : 'Verify'}
+            {isLoading ? 'Verifying…' : isSending ? 'Sending code…' : 'Verify'}
           </Button>
         </form>
+
+        <div className="mt-4 text-center">
+          {resendCooldown > 0 ? (
+            <p className="text-sm text-muted-foreground">
+              Resend code in {resendCooldown}s
+            </p>
+          ) : (
+            <button
+              type="button"
+              onClick={handleResend}
+              disabled={isSending || isLoading}
+              className="text-sm text-muted-foreground hover:text-foreground transition-colors disabled:opacity-50"
+            >
+              Didn't receive a code? <span className="font-medium">Resend</span>
+            </button>
+          )}
+        </div>
       </div>
     </div>
   )
