@@ -235,7 +235,11 @@ export function ConnectionsScreen({ currentBusinessId, onSelectConnection, onAdd
           <button
             key={conn.id}
             onClick={() => onSelectConnection(conn.id)}
-            className={`w-full text-left px-4 py-3 hover:bg-muted/30 transition-colors ${unreadConnectionIds?.has(conn.id) ? 'bg-gray-50' : ''}`}
+            className={`w-full text-left px-4 py-3 hover:bg-muted/30 transition-colors ${
+              unreadConnectionIds?.has(conn.id)
+                ? 'border-l-[3px] border-l-blue-400 bg-blue-50/60'
+                : 'border-l-[3px] border-l-transparent'
+            }`}
           >
             <div className="flex items-baseline justify-between">
               <div className="flex items-center gap-1.5">

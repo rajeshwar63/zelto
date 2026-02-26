@@ -38,7 +38,7 @@ export function AttentionScreen({ currentBusinessId, onNavigateToConnections, on
   const [items, setItems] = useState<ItemWithConnection[]>([])
   const [connectionRequests, setConnectionRequests] = useState<ConnectionRequest[]>([])
   const [loading, setLoading] = useState(true)
-  const [selectedFilter, setSelectedFilter] = useState<AttentionCategory | 'All'>('All')
+  const [selectedFilter, setSelectedFilter] = useState<AttentionCategory | null>(null)
 
   const loadData = async () => {
     const attentionItems = await attentionEngine.getAttentionItems(currentBusinessId)
@@ -72,6 +72,21 @@ export function AttentionScreen({ currentBusinessId, onNavigateToConnections, on
     loadData()
   }, [currentBusinessId])
 
+  useEffect(() => {
+    if (items.length === 0) return
+    const firstNewCategory = CATEGORY_ORDER.find(cat =>
+      items.some(
+        item => item.category === cat &&
+        item.orderId != null &&
+        isOrderNew(currentBusinessId, item.orderId, item.frictionStartedAt)
+      )
+    )
+    const firstAvailableCategory = CATEGORY_ORDER.find(cat =>
+      items.some(item => item.category === cat)
+    )
+    setSelectedFilter(firstNewCategory ?? firstAvailableCategory ?? null)
+  }, [items, currentBusinessId])
+
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-screen">
@@ -103,9 +118,9 @@ export function AttentionScreen({ currentBusinessId, onNavigateToConnections, on
     )
   }
 
-  const filteredItems = selectedFilter === 'All'
-    ? items
-    : items.filter(item => item.category === selectedFilter)
+  const filteredItems = selectedFilter
+    ? items.filter(item => item.category === selectedFilter)
+    : items
 
   const filteredItemsByCategory = new Map<AttentionCategory, ItemWithConnection[]>()
   CATEGORY_ORDER.forEach(category => {
@@ -122,29 +137,31 @@ export function AttentionScreen({ currentBusinessId, onNavigateToConnections, on
         {itemsByCategory.size > 0 && (
           <div className="border-b border-border py-2 px-4">
             <div className="flex gap-3 overflow-x-auto scrollbar-hide">
-              <button
-                onClick={() => setSelectedFilter('All')}
-                className={`text-sm whitespace-nowrap pb-1 ${
-                  selectedFilter === 'All'
-                    ? 'text-foreground border-b-2 border-foreground'
-                    : 'text-muted-foreground'
-                }`}
-              >
-                All
-              </button>
-              {availableCategories.map(category => (
-                <button
-                  key={category}
-                  onClick={() => setSelectedFilter(category)}
-                  className={`text-sm whitespace-nowrap pb-1 ${
-                    selectedFilter === category
-                      ? 'text-foreground border-b-2 border-foreground'
-                      : 'text-muted-foreground'
-                  }`}
-                >
-                  {CATEGORY_LABELS[category]}
-                </button>
-              ))}
+              {availableCategories.map(category => {
+                const newCount = items.filter(
+                  item => item.category === category &&
+                  item.orderId != null &&
+                  isOrderNew(currentBusinessId, item.orderId, item.frictionStartedAt)
+                ).length
+                return (
+                  <button
+                    key={category}
+                    onClick={() => setSelectedFilter(category)}
+                    className={`text-sm whitespace-nowrap pb-1 flex items-center gap-1.5 ${
+                      selectedFilter === category
+                        ? 'text-foreground border-b-2 border-foreground'
+                        : 'text-muted-foreground'
+                    }`}
+                  >
+                    {CATEGORY_LABELS[category]}
+                    {newCount > 0 && (
+                      <span className="text-[9px] font-semibold px-1.5 py-0.5 rounded-full text-white bg-amber-400">
+                        {newCount}
+                      </span>
+                    )}
+                  </button>
+                )
+              })}
             </div>
           </div>
         )}
@@ -232,7 +249,11 @@ export function AttentionScreen({ currentBusinessId, onNavigateToConnections, on
                       if (item.orderId) markOrderSeen(currentBusinessId, item.orderId)
                       onNavigateToConnection(item.connectionId, item.orderId)
                     }}
-                    className={`w-full px-4 py-3 text-left ${isNew ? 'bg-amber-50' : ''}`}
+                    className={`w-full px-4 py-3 text-left transition-colors ${
+                      isNew
+                        ? 'border-l-[3px] border-l-amber-400 bg-amber-50'
+                        : 'border-l-[3px] border-l-transparent'
+                    }`}
                   >
                     <div className="flex items-start justify-between mb-1">
                       <div className="flex-1 mr-3">
