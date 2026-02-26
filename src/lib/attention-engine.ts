@@ -103,6 +103,8 @@ export class AttentionEngine {
         order.calculatedDueDate !== null &&
         this.isToday(order.calculatedDueDate)
       ) {
+        const dueDayStart = new Date(order.calculatedDueDate)
+        dueDayStart.setHours(0, 0, 0, 0)
         items.push({
           id: crypto.randomUUID(),
           category: 'Due Today',
@@ -110,7 +112,7 @@ export class AttentionEngine {
           orderId: order.id,
           description: order.itemSummary,
           priorityScore: PRIORITY_SCORES.DUE_TODAY,
-          frictionStartedAt: order.calculatedDueDate,
+          frictionStartedAt: dueDayStart.getTime(),
           metadata: {
             pendingAmount: order.pendingAmount,
             orderSummary: order.itemSummary,

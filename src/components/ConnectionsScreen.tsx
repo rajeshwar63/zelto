@@ -242,7 +242,7 @@ export function ConnectionsScreen({ currentBusinessId, onSelectConnection, onAdd
                 {unreadConnectionIds?.has(conn.id) && (
                   <span
                     className="w-2 h-2 rounded-full flex-shrink-0"
-                    style={{ backgroundColor: '#4A90D9' }}
+                    style={{ backgroundColor: '#D64545' }}
                   />
                 )}
                 <p className="text-[15px] text-foreground font-normal">{conn.otherBusinessName}</p>

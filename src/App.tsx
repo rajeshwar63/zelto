@@ -80,15 +80,25 @@ function App() {
 
   useEffect(() => {
     if (!currentBusinessId) return
+    let cancelled = false
+    const currentScreen = navigationStack[navigationStack.length - 1]
+    const isOnAttention = currentScreen.type === 'tab' && currentScreen.tab === 'attention'
+    const isOnConnections = currentScreen.type === 'tab' && currentScreen.tab === 'connections'
     async function checkUnread() {
       const items = await attentionEngine.getAttentionItems(currentBusinessId!)
-      setHasUnreadAttention(hasUnreadAttentionItems(currentBusinessId!, items))
-      setHasUnreadConnections(hasAnyUnreadConnections(currentBusinessId!, items))
+      if (cancelled) return
+      if (!isOnAttention) {
+        setHasUnreadAttention(hasUnreadAttentionItems(currentBusinessId!, items))
+      }
+      if (!isOnConnections) {
+        setHasUnreadConnections(hasAnyUnreadConnections(currentBusinessId!, items))
+      }
       const connIds = [...new Set(items.map(item => item.connectionId))]
       const unread = new Set(connIds.filter(id => hasUnreadConnectionActivity(currentBusinessId!, id, items)))
       setUnreadConnectionIds(unread)
     }
     checkUnread()
+    return () => { cancelled = true }
   }, [currentBusinessId, navigationStack])
 
   const handleLogout = async () => {
@@ -190,7 +200,6 @@ function App() {
       } else if (tab === 'connections') {
         updateTabLastSeen(currentBusinessId, 'connections')
         setHasUnreadConnections(false)
-        setUnreadConnectionIds(new Set())
       }
     }
     setNavigationStack([{ type: 'tab', tab }])

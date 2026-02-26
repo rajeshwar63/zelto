@@ -219,9 +219,17 @@ export function AttentionScreen({ currentBusinessId, onNavigateToConnections, on
                     className={`w-full px-4 py-3 text-left ${isUnread ? 'bg-muted/30' : ''}`}
                   >
                     <div className="flex items-start justify-between mb-1">
-                      <p className="text-[14px] text-foreground font-normal leading-snug flex-1 mr-3">
-                        {item.metadata?.orderSummary || item.description}
-                      </p>
+                      <div className="flex items-center gap-1.5 flex-1 mr-3">
+                        {isUnread && (
+                          <span
+                            className="w-2 h-2 rounded-full flex-shrink-0"
+                            style={{ backgroundColor: '#D64545' }}
+                          />
+                        )}
+                        <p className="text-[14px] text-foreground font-normal leading-snug">
+                          {item.metadata?.orderSummary || item.description}
+                        </p>
+                      </div>
                       <p className="text-[12px] text-muted-foreground flex-shrink-0">
                         {formatDistanceToNow(item.frictionStartedAt, { addSuffix: true })}
                       </p>
