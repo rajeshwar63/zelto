@@ -96,6 +96,8 @@ export class AttentionEngine {
     orders: OrderWithPaymentState[]
   ): Promise<AttentionItem[]> {
     const items: AttentionItem[] = []
+    const startOfToday = new Date()
+    startOfToday.setHours(0, 0, 0, 0)
 
     for (const order of orders) {
       if (
@@ -110,7 +112,7 @@ export class AttentionEngine {
           orderId: order.id,
           description: order.itemSummary,
           priorityScore: PRIORITY_SCORES.DUE_TODAY,
-          frictionStartedAt: order.calculatedDueDate,
+          frictionStartedAt: startOfToday.getTime(),
           metadata: {
             pendingAmount: order.pendingAmount,
             orderSummary: order.itemSummary,
