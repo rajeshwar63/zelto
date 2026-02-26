@@ -4,6 +4,7 @@ interface UnreadState {
   attentionLastSeen: number
   connectionsLastSeen: number
   connectionLastSeen: Record<string, number>
+  orderSeen: Record<string, boolean>
 }
 
 const STORAGE_KEY_PREFIX = 'zelto_unread_'
@@ -11,11 +12,15 @@ const STORAGE_KEY_PREFIX = 'zelto_unread_'
 export function getUnreadState(businessId: string): UnreadState {
   try {
     const stored = localStorage.getItem(`${STORAGE_KEY_PREFIX}${businessId}`)
-    if (stored) return JSON.parse(stored) as UnreadState
+    if (stored) {
+      const parsed = JSON.parse(stored) as UnreadState
+      if (!parsed.orderSeen) parsed.orderSeen = {}
+      return parsed
+    }
   } catch {
     // ignore parse errors
   }
-  return { attentionLastSeen: 0, connectionsLastSeen: 0, connectionLastSeen: {} }
+  return { attentionLastSeen: 0, connectionsLastSeen: 0, connectionLastSeen: {}, orderSeen: {} }
 }
 
 function saveUnreadState(businessId: string, state: UnreadState): void {
@@ -69,4 +74,19 @@ export function hasAnyUnreadConnections(businessId: string, items: AttentionItem
     if (connItems.some(item => item.frictionStartedAt > lastSeen)) return true
   }
   return false
+}
+
+export function markOrderSeen(businessId: string, orderId: string): void {
+  const state = getUnreadState(businessId)
+  state.orderSeen[orderId] = true
+  saveUnreadState(businessId, state)
+}
+
+export function isOrderNew(businessId: string, orderId: string, frictionStartedAt: number): boolean {
+  const state = getUnreadState(businessId)
+  return frictionStartedAt > state.attentionLastSeen && !state.orderSeen[orderId]
+}
+
+export function getNewAttentionItems(businessId: string, items: AttentionItem[]): AttentionItem[] {
+  return items.filter(item => item.orderId != null && isOrderNew(businessId, item.orderId, item.frictionStartedAt))
 }

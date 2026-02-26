@@ -12,6 +12,7 @@ import { toast } from 'sonner'
 import { getConnectionStateColor, getDueDateColor, getLifecycleStatusColor } from '@/lib/semantic-colors'
 import { motion, useMotionValue, useTransform, animate, PanInfo, AnimatePresence } from 'framer-motion'
 import { getArchivedOrderIds, archiveOrder as doArchiveOrder, unarchiveOrder as doUnarchiveOrder } from '@/lib/archive-store'
+import { markOrderSeen, isOrderNew } from '@/lib/unread-tracker'
 import { OrderAttachments } from '@/components/OrderAttachments'
 import { AddAttachmentSheet } from '@/components/AddAttachmentSheet'
 import { AttachmentViewer } from '@/components/AttachmentViewer'
@@ -366,6 +367,7 @@ export function ConnectionDetailScreen({ connectionId, currentBusinessId, select
               const isOld = order.createdAt < oldOrderThreshold
               const lifecycleState = getLifecycleState(order)
               const dueLabel = formatDueDate(order)
+              const isNew = isOrderNew(currentBusinessId, order.id, order.createdAt)
               return (
                 <SwipeableOrderRow
                   key={order.id}
@@ -373,8 +375,11 @@ export function ConnectionDetailScreen({ connectionId, currentBusinessId, select
                   onAction={() => showArchived ? handleUnarchiveOrder(order.id) : handleArchiveOrder(order.id)}
                 >
                   <button
-                    onClick={() => setViewingOrderId(order.id)}
-                    className={`px-4 py-3 w-full text-left ${lifecycleState === 'Declined' ? 'opacity-40' : ''}`}
+                    onClick={() => {
+                      markOrderSeen(currentBusinessId, order.id)
+                      setViewingOrderId(order.id)
+                    }}
+                    className={`px-4 py-3 w-full text-left ${lifecycleState === 'Declined' ? 'opacity-40' : ''} ${isNew ? 'bg-amber-50/40' : ''}`}
                   >
                     <div className="flex items-start justify-between mb-1">
                       <p className={`text-[14px] leading-snug ${isOld ? 'text-muted-foreground/80 text-[13px]' : 'text-foreground'}`}>
