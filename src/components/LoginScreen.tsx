@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { checkPhoneNumberExists } from '@/lib/auth'
+import { checkPhoneNumberExists, sendOTP } from '@/lib/auth'
 import { toast } from 'sonner'
 
 interface LoginScreenProps {
@@ -46,10 +46,13 @@ export function LoginScreen({ onLogin, onSwitchToSignup }: LoginScreenProps) {
         return
       }
 
+      // Trigger sendOTP when moving to OTP screen so the SMS is already in flight
+      await sendOTP(fullNumber)
       onLogin(fullNumber)
     } catch (error) {
       console.error('Login error:', error)
-      toast.error('Something went wrong. Please try again.')
+      const msg = error instanceof Error ? error.message : 'Something went wrong. Please try again.'
+      toast.error(msg)
       setIsLoading(false)
     }
   }
@@ -92,7 +95,7 @@ export function LoginScreen({ onLogin, onSwitchToSignup }: LoginScreenProps) {
             className="w-full h-11 mt-6" 
             disabled={isLoading}
           >
-            {isLoading ? 'Checking...' : 'Continue'}
+            {isLoading ? 'Sending code…' : 'Continue'}
           </Button>
         </form>
 
