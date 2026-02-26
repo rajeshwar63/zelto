@@ -1,3 +1,4 @@
+import bcrypt from 'bcryptjs'
 import { supabase } from './supabase-client'
 import {
   AdminAccount,
@@ -737,12 +738,13 @@ export class ZeltoDataStore {
   }
 
   async createAdminAccount(username: string, password: string): Promise<AdminAccount> {
+    const hashedPassword = await bcrypt.hash(password, 10)
     const { data, error } = await supabase
       .from('admin_accounts')
-      .insert([{ username, password }])
+      .insert([{ username, password: hashedPassword }])
       .select()
       .single()
-    
+
     if (error) throw error
     return toCamelCase(data)
   }

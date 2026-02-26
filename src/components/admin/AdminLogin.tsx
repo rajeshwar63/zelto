@@ -1,4 +1,6 @@
 import { useState } from 'react'
+import bcrypt from 'bcryptjs'
+import { dataStore } from '@/lib/data-store'
 
 interface AdminLoginProps {
   onLoginSuccess: (username: string) => void
@@ -9,8 +11,9 @@ export function AdminLogin({ onLoginSuccess }: AdminLoginProps) {
   const [password, setPassword] = useState('')
   const [error, setError] = useState('')
 
-  function handleLogin() {
-    if (username === 'zelto-admin' && password === 'admin2026') {
+  async function handleLogin() {
+    const account = await dataStore.getAdminAccountByUsername(username)
+    if (account && await bcrypt.compare(password, account.password)) {
       onLoginSuccess(username)
     } else {
       setError('Invalid username or password')
