@@ -184,8 +184,12 @@ function App() {
 
   const navigateToTab = (tab: Tab) => {
     if (currentBusinessId) {
-      if (tab === 'attention' || tab === 'connections') {
-        updateTabLastSeen(currentBusinessId, tab)
+      if (tab === 'attention') {
+        updateTabLastSeen(currentBusinessId, 'attention')
+        setHasUnreadAttention(false)
+      } else if (tab === 'connections') {
+        updateTabLastSeen(currentBusinessId, 'connections')
+        setHasUnreadConnections(false)
       }
     }
     setNavigationStack([{ type: 'tab', tab }])
