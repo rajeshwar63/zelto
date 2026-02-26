@@ -190,6 +190,7 @@ function App() {
       } else if (tab === 'connections') {
         updateTabLastSeen(currentBusinessId, 'connections')
         setHasUnreadConnections(false)
+        setUnreadConnectionIds(new Set())
       }
     }
     setNavigationStack([{ type: 'tab', tab }])

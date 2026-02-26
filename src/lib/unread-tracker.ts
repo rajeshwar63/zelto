@@ -49,7 +49,7 @@ export function hasUnreadAttentionItems(businessId: string, items: AttentionItem
 
 export function hasUnreadConnectionActivity(businessId: string, connectionId: string, items: AttentionItem[]): boolean {
   const state = getUnreadState(businessId)
-  const lastSeen = state.connectionLastSeen[connectionId] ?? state.connectionsLastSeen
+  const lastSeen = Math.max(state.connectionLastSeen[connectionId] ?? 0, state.connectionsLastSeen)
   return items.some(item => item.connectionId === connectionId && item.frictionStartedAt > lastSeen)
 }
 
@@ -65,7 +65,7 @@ export function hasAnyUnreadConnections(businessId: string, items: AttentionItem
     }
   }
   for (const [connId, connItems] of itemsByConnection) {
-    const lastSeen = state.connectionLastSeen[connId] ?? state.connectionsLastSeen
+    const lastSeen = Math.max(state.connectionLastSeen[connId] ?? 0, state.connectionsLastSeen)
     if (connItems.some(item => item.frictionStartedAt > lastSeen)) return true
   }
   return false
