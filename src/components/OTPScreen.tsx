@@ -1,23 +1,25 @@
 import { useState, useEffect } from 'react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { sendOTP, confirmOTP, resendOTP, signupWithPhone, loginWithPhone } from '@/lib/auth'
+import { sendOTP, verifyOTP, signupWithPhone, loginWithPhone } from '@/lib/auth'
 import { toast } from 'sonner'
 
 interface OTPScreenProps {
   phoneNumber: string
   businessName?: string
   isSignup: boolean
+  sessionInfo: string
   onSuccess: (businessId: string) => void
   onBack: () => void
 }
 
-export function OTPScreen({ phoneNumber, businessName, isSignup, onSuccess, onBack }: OTPScreenProps) {
+export function OTPScreen({ phoneNumber, businessName, isSignup, sessionInfo: initialSessionInfo, onSuccess, onBack }: OTPScreenProps) {
   const [otp, setOtp] = useState('')
   const [isLoading, setIsLoading] = useState(false)
-  const [isSending, setIsSending] = useState(true)
-  const [sendError, setSendError] = useState<string | null>(null)
+  const [error, setError] = useState<string | null>(null)
   const [resendCooldown, setResendCooldown] = useState(30)
+  const [isResending, setIsResending] = useState(false)
+  const [currentSessionInfo, setCurrentSessionInfo] = useState(initialSessionInfo)
 
   const formatPhoneNumber = (phone: string) => {
     const cleanNumber = phone.replace(/\D/g, '')
@@ -28,34 +30,6 @@ export function OTPScreen({ phoneNumber, businessName, isSignup, onSuccess, onBa
     return phone
   }
 
-  // Send OTP on component mount
-  useEffect(() => {
-    let cancelled = false
-
-    const initSend = async () => {
-      setIsSending(true)
-      setSendError(null)
-      try {
-        await sendOTP(phoneNumber)
-      } catch (error) {
-        if (!cancelled) {
-          const msg = error instanceof Error ? error.message : 'Failed to send verification code'
-          setSendError(msg)
-          toast.error(msg)
-        }
-      } finally {
-        if (!cancelled) {
-          setIsSending(false)
-        }
-      }
-    }
-
-    initSend()
-    return () => {
-      cancelled = true
-    }
-  }, [phoneNumber])
-
   // Countdown for resend button cooldown
   useEffect(() => {
     if (resendCooldown <= 0) return
@@ -64,19 +38,19 @@ export function OTPScreen({ phoneNumber, businessName, isSignup, onSuccess, onBa
   }, [resendCooldown])
 
   const handleResend = async () => {
-    setIsSending(true)
-    setSendError(null)
+    setIsResending(true)
+    setError(null)
     setOtp('')
     try {
-      await resendOTP(phoneNumber)
+      const { sessionInfo } = await sendOTP(phoneNumber)
+      setCurrentSessionInfo(sessionInfo)
       setResendCooldown(30)
-      toast.success('WhatsApp message resent')
-    } catch (error) {
-      const msg = error instanceof Error ? error.message : 'Failed to resend verification code'
-      setSendError(msg)
+      toast.success('Verification code resent')
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : 'Failed to resend verification code'
       toast.error(msg)
     } finally {
-      setIsSending(false)
+      setIsResending(false)
     }
   }
 
@@ -89,8 +63,9 @@ export function OTPScreen({ phoneNumber, businessName, isSignup, onSuccess, onBa
     }
 
     setIsLoading(true)
+    setError(null)
     try {
-      await confirmOTP(otp)
+      await verifyOTP(currentSessionInfo, otp)
 
       if (isSignup && businessName) {
         const result = await signupWithPhone(phoneNumber, businessName)
@@ -101,9 +76,9 @@ export function OTPScreen({ phoneNumber, businessName, isSignup, onSuccess, onBa
         toast.success('Welcome back!')
         onSuccess(result.businessEntity.id)
       }
-    } catch (error) {
-      console.error('OTP verification error:', error)
-      toast.error(error instanceof Error ? error.message : 'Verification failed')
+    } catch (err) {
+      console.error('OTP verification error:', err)
+      setError('Incorrect code, please try again')
       setIsLoading(false)
     }
   }
@@ -121,17 +96,13 @@ export function OTPScreen({ phoneNumber, businessName, isSignup, onSuccess, onBa
         <div className="mb-8">
           <h1 className="text-2xl font-semibold text-foreground mb-2">Enter Verification Code</h1>
           <p className="text-sm text-muted-foreground">
-            {isSending
-              ? `Sending WhatsApp message to ${formatPhoneNumber(phoneNumber)}…`
-              : sendError
-                ? `Failed to send WhatsApp message to ${formatPhoneNumber(phoneNumber)}`
-                : `We sent a WhatsApp message to ${formatPhoneNumber(phoneNumber)}`}
+            We sent a verification code to {formatPhoneNumber(phoneNumber)}
           </p>
         </div>
 
-        {sendError && (
+        {error && (
           <div className="mb-4 p-3 rounded-md bg-destructive/10 border border-destructive/20">
-            <p className="text-sm text-destructive">{sendError}</p>
+            <p className="text-sm text-destructive">{error}</p>
           </div>
         )}
 
@@ -144,8 +115,11 @@ export function OTPScreen({ phoneNumber, businessName, isSignup, onSuccess, onBa
               maxLength={6}
               placeholder="000000"
               value={otp}
-              onChange={(e) => setOtp(e.target.value.replace(/\D/g, ''))}
-              disabled={isLoading || isSending || !!sendError}
+              onChange={(e) => {
+                setOtp(e.target.value.replace(/\D/g, ''))
+                setError(null)
+              }}
+              disabled={isLoading}
               className="h-11 text-center text-lg font-mono tracking-widest"
               autoFocus
             />
@@ -154,9 +128,9 @@ export function OTPScreen({ phoneNumber, businessName, isSignup, onSuccess, onBa
           <Button
             type="submit"
             className="w-full h-11 mt-6"
-            disabled={isLoading || isSending || !!sendError || otp.length !== 6}
+            disabled={isLoading || otp.length !== 6}
           >
-            {isLoading ? 'Verifying…' : isSending ? 'Sending code…' : 'Verify'}
+            {isLoading ? 'Verifying…' : 'Verify'}
           </Button>
         </form>
 
@@ -169,10 +143,10 @@ export function OTPScreen({ phoneNumber, businessName, isSignup, onSuccess, onBa
             <button
               type="button"
               onClick={handleResend}
-              disabled={isSending || isLoading}
+              disabled={isResending || isLoading}
               className="text-sm text-muted-foreground hover:text-foreground transition-colors disabled:opacity-50"
             >
-              Didn't receive a WhatsApp message? <span className="font-medium">Resend</span>
+              Didn't receive a code? <span className="font-medium">Resend</span>
             </button>
           )}
         </div>

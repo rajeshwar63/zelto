@@ -1,79 +1,29 @@
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
+import { serve } from 'https://deno.land/std@0.168.0/http/server.ts'
 
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-}
+const FIREBASE_API_KEY = Deno.env.get('FIREBASE_API_KEY')!
 
-Deno.serve(async (req: Request) => {
-  if (req.method === 'OPTIONS') {
-    return new Response('ok', { headers: corsHeaders })
+serve(async (req) => {
+  const corsHeaders = {
+    'Access-Control-Allow-Origin': '*',
+    'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
   }
+  if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders })
 
-  try {
-    const { phoneNumber, code } = await req.json()
+  const { sessionInfo, code } = await req.json()
 
-    if (!phoneNumber || typeof phoneNumber !== 'string') {
-      return new Response(
-        JSON.stringify({ error: 'phoneNumber is required' }),
-        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      )
+  const res = await fetch(
+    `https://identitytoolkit.googleapis.com/v1/accounts:signInWithPhoneNumber?key=${FIREBASE_API_KEY}`,
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ sessionInfo, code })
     }
+  )
 
-    if (!code || typeof code !== 'string') {
-      return new Response(
-        JSON.stringify({ error: 'code is required' }),
-        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      )
-    }
+  const data = await res.json()
+  if (!res.ok) return new Response(JSON.stringify({ error: data.error?.message }), { status: 400, headers: corsHeaders })
 
-    const supabase = createClient(
-      Deno.env.get('SUPABASE_URL')!,
-      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
-    )
-
-    // Retrieve stored OTP for this phone number
-    const { data, error: fetchError } = await supabase
-      .from('otp_codes')
-      .select('otp_code, expires_at')
-      .eq('phone_number', phoneNumber)
-      .single()
-
-    if (fetchError || !data) {
-      return new Response(
-        JSON.stringify({ error: 'No OTP found for this phone number. Please request a new code.' }),
-        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      )
-    }
-
-    // Check expiry
-    if (new Date(data.expires_at) < new Date()) {
-      await supabase.from('otp_codes').delete().eq('phone_number', phoneNumber)
-      return new Response(
-        JSON.stringify({ error: 'OTP has expired. Please request a new code.' }),
-        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      )
-    }
-
-    // Compare OTP
-    if (data.otp_code !== code) {
-      return new Response(
-        JSON.stringify({ error: 'Invalid OTP. Please try again.' }),
-        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      )
-    }
-
-    // Delete OTP after successful verification
-    await supabase.from('otp_codes').delete().eq('phone_number', phoneNumber)
-
-    return new Response(
-      JSON.stringify({ success: true }),
-      { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-    )
-  } catch (error) {
-    return new Response(
-      JSON.stringify({ error: error instanceof Error ? error.message : 'Failed to verify OTP' }),
-      { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-    )
-  }
+  return new Response(JSON.stringify({ success: true, phoneNumber: data.phoneNumber }), {
+    headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+  })
 })

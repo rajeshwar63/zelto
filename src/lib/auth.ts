@@ -1,13 +1,8 @@
-import { FunctionsHttpError } from '@supabase/supabase-js'
 import { supabase } from './supabase-client'
 import { dataStore } from './data-store'
 import { BusinessEntity, UserAccount } from './types'
 
 const AUTH_SESSION_KEY = 'zelto:local-auth-session'
-
-// Tracks the phone number from the most recent sendOTP call so
-// confirmOTP can pass it to verify-otp without changing the public API.
-let pendingPhoneNumber: string | null = null
 
 export interface AuthSession {
   businessId: string
@@ -38,33 +33,20 @@ export async function checkPhoneNumberExists(phoneNumber: string): Promise<boole
   return accounts.some(a => a.phoneNumber === phoneNumber)
 }
 
-async function invokeFunctionOrThrow(fnName: string, body: Record<string, unknown>): Promise<void> {
-  const { error } = await supabase.functions.invoke(fnName, { body })
-  if (error) {
-    if (error instanceof FunctionsHttpError) {
-      const errorBody = await error.context.json().catch(() => ({}))
-      throw new Error(errorBody.error || error.message || 'Something went wrong. Please try again.')
-    }
-    throw new Error(error.message || 'Something went wrong. Please try again.')
-  }
+export async function sendOTP(phoneNumber: string): Promise<{ sessionInfo: string }> {
+  const { data, error } = await supabase.functions.invoke('send-otp', {
+    body: { phoneNumber }
+  })
+  if (error || data?.error) throw new Error(data?.error || 'Failed to send OTP')
+  return { sessionInfo: data.sessionInfo }
 }
 
-export async function sendOTP(phoneNumber: string): Promise<void> {
-  pendingPhoneNumber = phoneNumber
-  await invokeFunctionOrThrow('send-otp', { phoneNumber })
-}
-
-export async function confirmOTP(code: string): Promise<void> {
-  if (!pendingPhoneNumber) {
-    throw new Error('No OTP request in progress. Please go back and request a new code.')
-  }
-
-  await invokeFunctionOrThrow('verify-otp', { phoneNumber: pendingPhoneNumber, code })
-  pendingPhoneNumber = null
-}
-
-export async function resendOTP(phoneNumber: string): Promise<void> {
-  await sendOTP(phoneNumber)
+export async function verifyOTP(sessionInfo: string, code: string): Promise<boolean> {
+  const { data, error } = await supabase.functions.invoke('verify-otp', {
+    body: { sessionInfo, code }
+  })
+  if (error || data?.error) throw new Error(data?.error || 'Invalid OTP')
+  return true
 }
 
 export async function signupWithPhone(phoneNumber: string, businessName: string): Promise<{ businessEntity: BusinessEntity; userAccount: UserAccount }> {
