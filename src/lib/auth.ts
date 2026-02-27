@@ -1,13 +1,16 @@
+import { RecaptchaVerifier, signInWithPhoneNumber, ConfirmationResult } from 'firebase/auth'
 import { FunctionsHttpError } from '@supabase/supabase-js'
 import { supabase } from './supabase-client'
+import { firebaseAuth } from './firebase'
 import { dataStore } from './data-store'
 import { BusinessEntity, UserAccount } from './types'
 
 const AUTH_SESSION_KEY = 'zelto:local-auth-session'
 
-// Tracks the phone number from the most recent sendOTP call so confirmOTP
-// can pass it to the verify-otp edge function without changing the public API.
-let lastSentPhoneNumber: string | null = null
+// Tracks the Firebase confirmation result from the most recent sendOTP call so
+// confirmOTP can confirm the code without changing the public API.
+let confirmationResult: ConfirmationResult | null = null
+let recaptchaVerifier: RecaptchaVerifier | null = null
 
 export interface AuthSession {
   businessId: string
@@ -50,26 +53,37 @@ async function invokeFunctionOrThrow(fnName: string, body: Record<string, unknow
 }
 
 export async function sendOTP(phoneNumber: string): Promise<void> {
-  lastSentPhoneNumber = phoneNumber
-  try {
-    await invokeFunctionOrThrow('send-otp', { phoneNumber })
-  } catch (error) {
-    lastSentPhoneNumber = null
-    throw error
+  // Clean up any existing verifier before creating a new one
+  if (recaptchaVerifier) {
+    try {
+      recaptchaVerifier.clear()
+    } catch {
+      // ignore errors during cleanup
+    }
+    recaptchaVerifier = null
   }
+  confirmationResult = null
+
+  recaptchaVerifier = new RecaptchaVerifier(firebaseAuth, 'recaptcha-container', {
+    size: 'invisible',
+  })
+
+  confirmationResult = await signInWithPhoneNumber(firebaseAuth, phoneNumber, recaptchaVerifier)
 }
 
 export async function confirmOTP(code: string): Promise<void> {
-  if (!lastSentPhoneNumber) {
+  if (!confirmationResult) {
     throw new Error('No OTP request in progress. Please go back and request a new code.')
   }
-  const phoneNumber = lastSentPhoneNumber
-  await invokeFunctionOrThrow('verify-otp', { phoneNumber, code })
-  lastSentPhoneNumber = null
+
+  const result = await confirmationResult.confirm(code)
+  confirmationResult = null
+
+  const idToken = await result.user.getIdToken()
+  await invokeFunctionOrThrow('verify-firebase-id-token', { idToken })
 }
 
 export async function resendOTP(phoneNumber: string): Promise<void> {
-  lastSentPhoneNumber = null
   await sendOTP(phoneNumber)
 }
 
