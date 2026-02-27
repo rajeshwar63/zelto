@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { sendOTP, confirmOTP, resendOTP, signupWithPhone, loginWithPhone } from '@/lib/auth'
+import { sendOTP, confirmOTP, resendOTP, signupWithPhone, loginWithPhone, initRecaptcha } from '@/lib/auth'
 import { toast } from 'sonner'
 
 interface OTPScreenProps {
@@ -28,7 +28,7 @@ export function OTPScreen({ phoneNumber, businessName, isSignup, onSuccess, onBa
     return phone
   }
 
-  // Send OTP on mount via Firebase Phone Auth
+  // Initialize reCAPTCHA and send OTP on component mount
   useEffect(() => {
     let cancelled = false
 
@@ -36,6 +36,7 @@ export function OTPScreen({ phoneNumber, businessName, isSignup, onSuccess, onBa
       setIsSending(true)
       setSendError(null)
       try {
+        initRecaptcha()
         await sendOTP(phoneNumber)
       } catch (error) {
         if (!cancelled) {
