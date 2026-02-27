@@ -162,8 +162,26 @@ export function ProfileScreen({ currentBusinessId, onLogout, onNavigateToBusines
         </div>
       </div>
 
+      <div className="px-4 py-4 border-t border-border">
+        <div className="flex items-center justify-center gap-6">
+          <a
+            href="/privacy"
+            className="text-[12px] text-muted-foreground hover:text-foreground transition-colors"
+          >
+            Privacy Policy
+          </a>
+          <span className="text-muted-foreground text-[12px]">·</span>
+          <a
+            href="/terms"
+            className="text-[12px] text-muted-foreground hover:text-foreground transition-colors"
+          >
+            Terms of Service
+          </a>
+        </div>
+      </div>
+
       <div className="px-4 pb-8 pt-4">
-        <button 
+        <button
           onClick={onLogout}
           className="w-full text-center py-3"
         >

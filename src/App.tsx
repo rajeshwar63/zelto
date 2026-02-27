@@ -8,6 +8,8 @@ import { LoginScreen } from '@/components/LoginScreen'
 import { SignupScreen } from '@/components/SignupScreen'
 import { OTPScreen } from '@/components/OTPScreen'
 import { AdminApp } from '@/components/admin/AdminApp'
+import { PrivacyPolicyScreen } from '@/components/PrivacyPolicyScreen'
+import { TermsScreen } from '@/components/TermsScreen'
 import { AddConnectionScreen } from '@/components/AddConnectionScreen'
 import { PaymentTermsSetupScreen } from '@/components/PaymentTermsSetupScreen'
 import { BusinessDetailsScreen } from '@/components/BusinessDetailsScreen'
@@ -36,6 +38,8 @@ type AuthScreen = 'login' | 'signup' | { type: 'otp'; phoneNumber: string; busin
 
 function App() {
   const [isAdminRoute, setIsAdminRoute] = useState(false)
+  const [isPrivacyRoute, setIsPrivacyRoute] = useState(false)
+  const [isTermsRoute, setIsTermsRoute] = useState(false)
   const [currentBusinessId, setCurrentBusinessId] = useState<string | null>(null)
   const [navigationStack, setNavigationStack] = useState<Screen[]>([{ type: 'tab', tab: 'connections' }])
   const [authScreen, setAuthScreen] = useState<AuthScreen | null>(null)
@@ -77,6 +81,8 @@ function App() {
 
   const checkRoute = () => {
     setIsAdminRoute(window.location.pathname === '/admin')
+    setIsPrivacyRoute(window.location.pathname === '/privacy')
+    setIsTermsRoute(window.location.pathname === '/terms')
   }
 
   useEffect(() => {
@@ -133,6 +139,14 @@ function App() {
 
   if (isAdminRoute) {
     return <AdminApp />
+  }
+
+  if (isPrivacyRoute) {
+    return <PrivacyPolicyScreen />
+  }
+
+  if (isTermsRoute) {
+    return <TermsScreen />
   }
 
   if (error) {
