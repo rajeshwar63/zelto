@@ -1,12 +1,12 @@
-import { RecaptchaVerifier, signInWithPhoneNumber, ConfirmationResult } from 'firebase/auth'
-import { auth } from './firebase'
+import { FunctionsHttpError } from '@supabase/supabase-js'
+import { supabase } from './supabase-client'
 import { dataStore } from './data-store'
 import { BusinessEntity, UserAccount } from './types'
 
 const AUTH_SESSION_KEY = 'zelto:local-auth-session'
 
-// Module-level state for Firebase Phone Auth flow
-let confirmationResult: ConfirmationResult | null = null
+// Tracks the phone number from the most recent sendOTP call so confirmOTP
+// can pass it to the verify-otp edge function without changing the public API.
 let lastSentPhoneNumber: string | null = null
 
 export interface AuthSession {
@@ -38,57 +38,37 @@ export async function checkPhoneNumberExists(phoneNumber: string): Promise<boole
   return accounts.some(a => a.phoneNumber === phoneNumber)
 }
 
-function formatFirebaseError(error: unknown): string {
-  const code = (error as { code?: string }).code
-  switch (code) {
-    case 'auth/invalid-phone-number':
-      return 'Invalid phone number. Please check and try again.'
-    case 'auth/too-many-requests':
-      return 'Too many attempts. Please wait a few minutes and try again.'
-    case 'auth/code-expired':
-      return 'Verification code has expired. Please request a new one.'
-    case 'auth/invalid-verification-code':
-      return 'Invalid verification code. Please check and try again.'
-    case 'auth/missing-phone-number':
-      return 'Phone number is required.'
-    case 'auth/quota-exceeded':
-      return 'SMS quota exceeded. Please try again later.'
-    default:
-      return error instanceof Error ? error.message : 'Something went wrong. Please try again.'
+async function invokeFunctionOrThrow(fnName: string, body: Record<string, unknown>): Promise<void> {
+  const { error } = await supabase.functions.invoke(fnName, { body })
+  if (error) {
+    if (error instanceof FunctionsHttpError) {
+      const errorBody = await error.context.json().catch(() => ({}))
+      throw new Error(errorBody.error || error.message || 'Something went wrong. Please try again.')
+    }
+    throw new Error(error.message || 'Something went wrong. Please try again.')
   }
 }
 
 export async function sendOTP(phoneNumber: string): Promise<void> {
+  lastSentPhoneNumber = phoneNumber
   try {
-    const verifier = new RecaptchaVerifier(auth, 'recaptcha-container', {
-      size: 'invisible'
-    })
-    await verifier.render()
-    confirmationResult = await signInWithPhoneNumber(auth, phoneNumber, verifier)
-    lastSentPhoneNumber = phoneNumber
-    verifier.clear()
+    await invokeFunctionOrThrow('send-otp', { phoneNumber })
   } catch (error) {
-    confirmationResult = null
     lastSentPhoneNumber = null
-    throw new Error(formatFirebaseError(error))
+    throw error
   }
 }
 
 export async function confirmOTP(code: string): Promise<void> {
-  if (!confirmationResult) {
+  if (!lastSentPhoneNumber) {
     throw new Error('No OTP request in progress. Please go back and request a new code.')
   }
-  try {
-    await confirmationResult.confirm(code)
-    confirmationResult = null
-    lastSentPhoneNumber = null
-  } catch (error) {
-    throw new Error(formatFirebaseError(error))
-  }
+  const phoneNumber = lastSentPhoneNumber
+  await invokeFunctionOrThrow('verify-otp', { phoneNumber, code })
+  lastSentPhoneNumber = null
 }
 
 export async function resendOTP(phoneNumber: string): Promise<void> {
-  confirmationResult = null
   lastSentPhoneNumber = null
   await sendOTP(phoneNumber)
 }
