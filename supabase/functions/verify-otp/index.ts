@@ -11,6 +11,8 @@ serve(async (req) => {
 
   const { sessionInfo, code } = await req.json()
 
+  console.log('Verifying OTP with sessionInfo:', sessionInfo?.substring(0, 20), 'code:', code)
+
   const res = await fetch(
     `https://identitytoolkit.googleapis.com/v1/accounts:signInWithPhoneNumber?key=${FIREBASE_API_KEY}`,
     {
@@ -21,6 +23,7 @@ serve(async (req) => {
   )
 
   const data = await res.json()
+  console.log('Firebase verify response:', JSON.stringify(data))
   if (!res.ok) return new Response(JSON.stringify({ error: data.error?.message }), { status: 400, headers: corsHeaders })
 
   return new Response(JSON.stringify({ success: true, phoneNumber: data.phoneNumber }), {
