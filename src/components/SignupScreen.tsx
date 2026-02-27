@@ -2,11 +2,11 @@ import { useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { checkPhoneNumberExists } from '@/lib/auth'
+import { checkPhoneNumberExists, sendOTP } from '@/lib/auth'
 import { toast } from 'sonner'
 
 interface SignupScreenProps {
-  onSignup: (phoneNumber: string, businessName: string) => void
+  onSignup: (phoneNumber: string, businessName: string, sessionInfo: string) => void
   onSwitchToLogin: () => void
 }
 
@@ -47,7 +47,8 @@ export function SignupScreen({ onSignup, onSwitchToLogin }: SignupScreenProps) {
         return
       }
 
-      onSignup(fullNumber, businessName)
+      const { sessionInfo } = await sendOTP(fullNumber)
+      onSignup(fullNumber, businessName, sessionInfo)
     } catch (error) {
       console.error('Signup error:', error)
       const msg = error instanceof Error ? error.message : 'Something went wrong. Please try again.'
@@ -104,9 +105,9 @@ export function SignupScreen({ onSignup, onSwitchToLogin }: SignupScreenProps) {
             />
           </div>
 
-          <Button 
-            type="submit" 
-            className="w-full h-11 mt-6" 
+          <Button
+            type="submit"
+            className="w-full h-11 mt-6"
             disabled={isLoading}
           >
             {isLoading ? 'Sending code…' : 'Continue'}
