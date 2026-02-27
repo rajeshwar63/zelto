@@ -195,7 +195,7 @@ export function ConnectionsScreen({ currentBusinessId, onSelectConnection, onAdd
           </div>
         </div>
         <div className="flex items-center justify-center min-h-[calc(100vh-44px)] px-4">
-          <p className="text-sm text-muted-foreground text-center">No connections yet</p>
+          <p className="text-sm text-muted-foreground text-center">Add your first buyer or supplier to get started</p>
         </div>
         <button
           onClick={handleOpenOrderModal}

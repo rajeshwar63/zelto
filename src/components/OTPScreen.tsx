@@ -123,7 +123,7 @@ export function OTPScreen({ phoneNumber, businessName, isSignup, onSuccess, onBa
               ? `Sending code to ${formatPhoneNumber(phoneNumber)}…`
               : sendError
                 ? `Failed to send code to ${formatPhoneNumber(phoneNumber)}`
-                : `We sent a code to ${formatPhoneNumber(phoneNumber)}`}
+                : `We sent a 6-digit code to ${formatPhoneNumber(phoneNumber)}`}
           </p>
         </div>
 
