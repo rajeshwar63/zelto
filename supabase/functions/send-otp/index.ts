@@ -61,24 +61,24 @@ Deno.serve(async (req: Request) => {
           integrated_number: '15557443470',
           content_type: 'template',
           payload: {
-            to: recipientNumber,
+            messaging_product: 'whatsapp',
             type: 'template',
             template: {
               name: 'zelto_otp',
-              namespace: '1533d919_ca1e_4004_ba6c_deb567d9e79b',
               language: {
-                policy: 'deterministic',
                 code: 'en',
+                policy: 'deterministic',
               },
-              components: [
+              namespace: '1533d919_ca1e_4004_ba6c_deb567d9e79b',
+              to_and_components: [
                 {
-                  type: 'body',
-                  parameters: [
-                    {
+                  to: [recipientNumber],
+                  components: {
+                    body_1: {
                       type: 'text',
-                      text: otp,
+                      value: otp,
                     },
-                  ],
+                  },
                 },
               ],
             },
