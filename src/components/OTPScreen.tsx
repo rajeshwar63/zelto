@@ -177,7 +177,6 @@ export function OTPScreen({ phoneNumber, businessName, isSignup, onSuccess, onBa
           )}
         </div>
       </div>
-      <div id="recaptcha-container" style={{display: 'block'}}></div>
     </div>
   )
 }
