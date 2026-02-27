@@ -3,12 +3,6 @@ import { auth } from './firebase'
 import { dataStore } from './data-store'
 import { BusinessEntity, UserAccount } from './types'
 
-declare global {
-  interface Window {
-    recaptchaVerifier?: RecaptchaVerifier
-  }
-}
-
 const AUTH_SESSION_KEY = 'zelto:local-auth-session'
 
 // Module-level state for Firebase Phone Auth flow
@@ -44,20 +38,6 @@ export async function checkPhoneNumberExists(phoneNumber: string): Promise<boole
   return accounts.some(a => a.phoneNumber === phoneNumber)
 }
 
-export function initRecaptcha(): void {
-  if (!window.recaptchaVerifier) {
-    window.recaptchaVerifier = new RecaptchaVerifier(auth, 'recaptcha-container', {
-      size: 'invisible',
-      callback: () => {}
-    })
-  }
-}
-
-function getRecaptchaVerifier(): RecaptchaVerifier {
-  initRecaptcha()
-  return window.recaptchaVerifier!
-}
-
 function formatFirebaseError(error: unknown): string {
   const code = (error as { code?: string }).code
   switch (code) {
@@ -79,21 +59,15 @@ function formatFirebaseError(error: unknown): string {
 }
 
 export async function sendOTP(phoneNumber: string): Promise<void> {
-  // Avoid re-sending if already sent for this number and confirmation is active
-  if (lastSentPhoneNumber === phoneNumber && confirmationResult) {
-    return
-  }
-
   try {
-    const verifier = getRecaptchaVerifier()
+    const verifier = new RecaptchaVerifier(auth, 'recaptcha-container', {
+      size: 'invisible'
+    })
+    await verifier.render()
     confirmationResult = await signInWithPhoneNumber(auth, phoneNumber, verifier)
     lastSentPhoneNumber = phoneNumber
+    verifier.clear()
   } catch (error) {
-    // Reset verifier on error so it can be recreated for retry
-    if (window.recaptchaVerifier) {
-      window.recaptchaVerifier.clear()
-      window.recaptchaVerifier = undefined
-    }
     confirmationResult = null
     lastSentPhoneNumber = null
     throw new Error(formatFirebaseError(error))
@@ -114,13 +88,8 @@ export async function confirmOTP(code: string): Promise<void> {
 }
 
 export async function resendOTP(phoneNumber: string): Promise<void> {
-  // Force a new OTP send by clearing existing state
   confirmationResult = null
   lastSentPhoneNumber = null
-  if (window.recaptchaVerifier) {
-    window.recaptchaVerifier.clear()
-    window.recaptchaVerifier = undefined
-  }
   await sendOTP(phoneNumber)
 }
 
