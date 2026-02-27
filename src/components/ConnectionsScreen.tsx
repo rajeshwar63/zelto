@@ -62,6 +62,7 @@ export function ConnectionsScreen({ currentBusinessId, onSelectConnection, onAdd
   const [connections, setConnections] = useState<ConnectionWithState[]>(
     () => cachedConnectionsByBusiness.get(currentBusinessId) || []
   )
+  const [isLoading, setIsLoading] = useState(() => !cachedConnectionsByBusiness.has(currentBusinessId))
   const [showOrderModal, setShowOrderModal] = useState(false)
   const [eligibleConnections, setEligibleConnections] = useState<Connection[]>([])
   const [businesses, setBusinesses] = useState<Map<string, BusinessEntity>>(new Map())
@@ -80,6 +81,8 @@ export function ConnectionsScreen({ currentBusinessId, onSelectConnection, onAdd
     const cachedConnections = cachedConnectionsByBusiness.get(currentBusinessId)
     if (cachedConnections) {
       setConnections(cachedConnections)
+    } else {
+      setIsLoading(true)
     }
 
     let cancelled = false
@@ -119,6 +122,8 @@ export function ConnectionsScreen({ currentBusinessId, onSelectConnection, onAdd
         setConnections(connectionsWithState)
         console.debug('[ConnectionsScreen] state update', Date.now(), { currentBusinessId })
       }
+
+      setIsLoading(false)
 
       void Promise.all(
         connectionsWithState
@@ -195,7 +200,10 @@ export function ConnectionsScreen({ currentBusinessId, onSelectConnection, onAdd
           </div>
         </div>
         <div className="flex items-center justify-center min-h-[calc(100vh-44px)] px-4">
-          <p className="text-sm text-muted-foreground text-center">Add your first buyer or supplier to get started</p>
+          {isLoading
+            ? <p className="text-sm text-muted-foreground text-center">Loading...</p>
+            : <p className="text-sm text-muted-foreground text-center">Add your first buyer or supplier to get started</p>
+          }
         </div>
         <button
           onClick={handleOpenOrderModal}
