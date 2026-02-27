@@ -70,7 +70,7 @@ export function OTPScreen({ phoneNumber, businessName, isSignup, onSuccess, onBa
     try {
       await resendOTP(phoneNumber)
       setResendCooldown(30)
-      toast.success('Verification code resent')
+      toast.success('WhatsApp message resent')
     } catch (error) {
       const msg = error instanceof Error ? error.message : 'Failed to resend verification code'
       setSendError(msg)
@@ -110,7 +110,6 @@ export function OTPScreen({ phoneNumber, businessName, isSignup, onSuccess, onBa
 
   return (
     <div className="min-h-screen flex flex-col items-center justify-center bg-background px-6">
-      <div id="recaptcha-container" />
       <div className="w-full max-w-sm">
         <button
           onClick={onBack}
@@ -123,10 +122,10 @@ export function OTPScreen({ phoneNumber, businessName, isSignup, onSuccess, onBa
           <h1 className="text-2xl font-semibold text-foreground mb-2">Enter Verification Code</h1>
           <p className="text-sm text-muted-foreground">
             {isSending
-              ? `Sending code to ${formatPhoneNumber(phoneNumber)}…`
+              ? `Sending WhatsApp message to ${formatPhoneNumber(phoneNumber)}…`
               : sendError
-                ? `Failed to send code to ${formatPhoneNumber(phoneNumber)}`
-                : `We sent a 6-digit code to ${formatPhoneNumber(phoneNumber)}`}
+                ? `Failed to send WhatsApp message to ${formatPhoneNumber(phoneNumber)}`
+                : `We sent a WhatsApp message to ${formatPhoneNumber(phoneNumber)}`}
           </p>
         </div>
 
@@ -173,7 +172,7 @@ export function OTPScreen({ phoneNumber, businessName, isSignup, onSuccess, onBa
               disabled={isSending || isLoading}
               className="text-sm text-muted-foreground hover:text-foreground transition-colors disabled:opacity-50"
             >
-              Didn't receive a code? <span className="font-medium">Resend</span>
+              Didn't receive a WhatsApp message? <span className="font-medium">Resend</span>
             </button>
           )}
         </div>
