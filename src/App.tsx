@@ -19,6 +19,7 @@ import { AccountScreen } from '@/components/AccountScreen'
 import { HelpSupportScreen } from '@/components/HelpSupportScreen'
 import { List, ChartBar, Bell, User } from '@phosphor-icons/react'
 import { getAuthSession, logout } from '@/lib/auth'
+import { setupBackButtonHandler } from '@/lib/capacitor'
 import { attentionEngine } from '@/lib/attention-engine'
 import { updateTabLastSeen, updateConnectionLastSeen, hasUnreadAttentionItems, hasAnyUnreadConnections, hasUnreadConnectionActivity } from '@/lib/unread-tracker'
 import { dataStore } from '@/lib/data-store'
@@ -112,6 +113,17 @@ function App() {
     checkUnread()
     return () => { cancelled = true }
   }, [currentBusinessId, navigationStack])
+
+  useEffect(() => {
+    return setupBackButtonHandler(() => {
+      setNavigationStack(stack => {
+        if (stack.length > 1) {
+          return stack.slice(0, -1)
+        }
+        return stack
+      })
+    })
+  }, [])
 
   const handleLogout = async () => {
     await logout()
@@ -341,7 +353,7 @@ function App() {
       </div>
 
       {screen.type === 'tab' && (
-        <div className="fixed bottom-0 left-0 right-0 bg-background border-t border-border">
+        <div className="bottom-nav fixed bottom-0 left-0 right-0 bg-background border-t border-border">
           <div className="flex items-center justify-around h-14">
             <TabButton
               label="Status"

@@ -17,6 +17,14 @@
     "preview": "vite preview --host 0.0.0.0 --port $PORT"
   },
   "dependencies": {
+    "@capacitor/android": "^6.0.0",
+    "@capacitor/app": "^6.0.0",
+    "@capacitor/core": "^6.0.0",
+    "@capacitor/haptics": "^6.0.0",
+    "@capacitor/ios": "^6.0.0",
+    "@capacitor/keyboard": "^6.0.0",
+    "@capacitor/splash-screen": "^6.0.0",
+    "@capacitor/status-bar": "^6.0.0",
     "@github/spark": "^0.39.0",
     "@heroicons/react": "^2.2.0",
     "@hookform/resolvers": "^4.1.3",
@@ -85,6 +93,7 @@
     "zod": "^3.25.76"
   },
   "devDependencies": {
+    "@capacitor/cli": "^6.0.0",
     "@eslint/js": "^9.21.0",
     "@tailwindcss/postcss": "^4.1.8",
     "@types/react": "^19.0.10",
