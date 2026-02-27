@@ -33,17 +33,16 @@ export async function checkPhoneNumberExists(phoneNumber: string): Promise<boole
   return accounts.some(a => a.phoneNumber === phoneNumber)
 }
 
-export async function sendOTP(phoneNumber: string): Promise<{ sessionInfo: string }> {
+export async function sendOTP(phoneNumber: string): Promise<void> {
   const { data, error } = await supabase.functions.invoke('send-otp', {
     body: { phoneNumber }
   })
   if (error || data?.error) throw new Error(data?.error || 'Failed to send OTP')
-  return { sessionInfo: data.sessionInfo }
 }
 
-export async function verifyOTP(sessionInfo: string, code: string): Promise<boolean> {
+export async function verifyOTP(phoneNumber: string, code: string): Promise<boolean> {
   const { data, error } = await supabase.functions.invoke('verify-otp', {
-    body: { sessionInfo, code }
+    body: { phoneNumber, code }
   })
   if (error || data?.error) throw new Error(data?.error || 'Invalid OTP')
   return true

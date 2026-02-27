@@ -8,18 +8,16 @@ interface OTPScreenProps {
   phoneNumber: string
   businessName?: string
   isSignup: boolean
-  sessionInfo: string
   onSuccess: (businessId: string) => void
   onBack: () => void
 }
 
-export function OTPScreen({ phoneNumber, businessName, isSignup, sessionInfo: initialSessionInfo, onSuccess, onBack }: OTPScreenProps) {
+export function OTPScreen({ phoneNumber, businessName, isSignup, onSuccess, onBack }: OTPScreenProps) {
   const [otp, setOtp] = useState('')
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [resendCooldown, setResendCooldown] = useState(30)
   const [isResending, setIsResending] = useState(false)
-  const [currentSessionInfo, setCurrentSessionInfo] = useState(initialSessionInfo)
 
   const formatPhoneNumber = (phone: string) => {
     const cleanNumber = phone.replace(/\D/g, '')
@@ -42,8 +40,7 @@ export function OTPScreen({ phoneNumber, businessName, isSignup, sessionInfo: in
     setError(null)
     setOtp('')
     try {
-      const { sessionInfo } = await sendOTP(phoneNumber)
-      setCurrentSessionInfo(sessionInfo)
+      await sendOTP(phoneNumber)
       setResendCooldown(30)
       toast.success('Verification code resent')
     } catch (err) {
@@ -65,7 +62,7 @@ export function OTPScreen({ phoneNumber, businessName, isSignup, sessionInfo: in
     setIsLoading(true)
     setError(null)
     try {
-      await verifyOTP(currentSessionInfo, otp)
+      await verifyOTP(phoneNumber, otp)
 
       if (isSignup && businessName) {
         const result = await signupWithPhone(phoneNumber, businessName)
