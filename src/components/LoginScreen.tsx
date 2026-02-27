@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { checkPhoneNumberExists, sendOTP } from '@/lib/auth'
+import { checkPhoneNumberExists } from '@/lib/auth'
 import { toast } from 'sonner'
 
 interface LoginScreenProps {
@@ -46,8 +46,6 @@ export function LoginScreen({ onLogin, onSwitchToSignup }: LoginScreenProps) {
         return
       }
 
-      // Trigger sendOTP when moving to OTP screen so the SMS is already in flight
-      await sendOTP(fullNumber)
       onLogin(fullNumber)
     } catch (error) {
       console.error('Login error:', error)

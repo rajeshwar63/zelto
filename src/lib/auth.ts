@@ -3,11 +3,16 @@ import { auth } from './firebase'
 import { dataStore } from './data-store'
 import { BusinessEntity, UserAccount } from './types'
 
+declare global {
+  interface Window {
+    recaptchaVerifier?: RecaptchaVerifier
+  }
+}
+
 const AUTH_SESSION_KEY = 'zelto:local-auth-session'
 
 // Module-level state for Firebase Phone Auth flow
 let confirmationResult: ConfirmationResult | null = null
-let recaptchaVerifier: RecaptchaVerifier | null = null
 let lastSentPhoneNumber: string | null = null
 
 export interface AuthSession {
@@ -39,13 +44,18 @@ export async function checkPhoneNumberExists(phoneNumber: string): Promise<boole
   return accounts.some(a => a.phoneNumber === phoneNumber)
 }
 
-function getRecaptchaVerifier(): RecaptchaVerifier {
-  if (!recaptchaVerifier) {
-    recaptchaVerifier = new RecaptchaVerifier(auth, 'recaptcha-container', {
+export function initRecaptcha(): void {
+  if (!window.recaptchaVerifier) {
+    window.recaptchaVerifier = new RecaptchaVerifier(auth, 'recaptcha-container', {
       size: 'invisible',
+      callback: () => {}
     })
   }
-  return recaptchaVerifier
+}
+
+function getRecaptchaVerifier(): RecaptchaVerifier {
+  initRecaptcha()
+  return window.recaptchaVerifier!
 }
 
 function formatFirebaseError(error: unknown): string {
@@ -80,9 +90,9 @@ export async function sendOTP(phoneNumber: string): Promise<void> {
     lastSentPhoneNumber = phoneNumber
   } catch (error) {
     // Reset verifier on error so it can be recreated for retry
-    if (recaptchaVerifier) {
-      recaptchaVerifier.clear()
-      recaptchaVerifier = null
+    if (window.recaptchaVerifier) {
+      window.recaptchaVerifier.clear()
+      window.recaptchaVerifier = undefined
     }
     confirmationResult = null
     lastSentPhoneNumber = null
@@ -107,9 +117,9 @@ export async function resendOTP(phoneNumber: string): Promise<void> {
   // Force a new OTP send by clearing existing state
   confirmationResult = null
   lastSentPhoneNumber = null
-  if (recaptchaVerifier) {
-    recaptchaVerifier.clear()
-    recaptchaVerifier = null
+  if (window.recaptchaVerifier) {
+    window.recaptchaVerifier.clear()
+    window.recaptchaVerifier = undefined
   }
   await sendOTP(phoneNumber)
 }
