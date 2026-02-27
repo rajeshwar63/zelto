@@ -51,8 +51,13 @@ export function OTPScreen({ phoneNumber, businessName, isSignup, onSuccess, onBa
       }
     }
 
-    initSend()
-    return () => { cancelled = true }
+    const timer = setTimeout(() => {
+      initSend()
+    }, 100)
+    return () => {
+      cancelled = true
+      clearTimeout(timer)
+    }
   }, [phoneNumber])
 
   // Countdown for resend button cooldown
@@ -176,6 +181,7 @@ export function OTPScreen({ phoneNumber, businessName, isSignup, onSuccess, onBa
           )}
         </div>
       </div>
+      <div id="recaptcha-container"></div>
     </div>
   )
 }
