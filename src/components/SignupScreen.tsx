@@ -6,7 +6,7 @@ import { checkPhoneNumberExists, sendOTP } from '@/lib/auth'
 import { toast } from 'sonner'
 
 interface SignupScreenProps {
-  onSignup: (phoneNumber: string, businessName: string, sessionInfo: string) => void
+  onSignup: (phoneNumber: string, businessName: string) => void
   onSwitchToLogin: () => void
 }
 
@@ -47,8 +47,8 @@ export function SignupScreen({ onSignup, onSwitchToLogin }: SignupScreenProps) {
         return
       }
 
-      const { sessionInfo } = await sendOTP(fullNumber)
-      onSignup(fullNumber, businessName, sessionInfo)
+      await sendOTP(fullNumber)
+      onSignup(fullNumber, businessName)
     } catch (error) {
       console.error('Signup error:', error)
       const msg = error instanceof Error ? error.message : 'Something went wrong. Please try again.'
