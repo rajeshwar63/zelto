@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { sendOTP, confirmOTP, resendOTP, signupWithPhone, loginWithPhone, initRecaptcha } from '@/lib/auth'
+import { sendOTP, confirmOTP, resendOTP, signupWithPhone, loginWithPhone } from '@/lib/auth'
 import { toast } from 'sonner'
 
 interface OTPScreenProps {
@@ -28,7 +28,7 @@ export function OTPScreen({ phoneNumber, businessName, isSignup, onSuccess, onBa
     return phone
   }
 
-  // Initialize reCAPTCHA and send OTP on component mount
+  // Send OTP on component mount
   useEffect(() => {
     let cancelled = false
 
@@ -36,7 +36,6 @@ export function OTPScreen({ phoneNumber, businessName, isSignup, onSuccess, onBa
       setIsSending(true)
       setSendError(null)
       try {
-        initRecaptcha()
         await sendOTP(phoneNumber)
       } catch (error) {
         if (!cancelled) {
@@ -51,12 +50,9 @@ export function OTPScreen({ phoneNumber, businessName, isSignup, onSuccess, onBa
       }
     }
 
-    const timer = setTimeout(() => {
-      initSend()
-    }, 100)
+    initSend()
     return () => {
       cancelled = true
-      clearTimeout(timer)
     }
   }, [phoneNumber])
 
@@ -181,7 +177,7 @@ export function OTPScreen({ phoneNumber, businessName, isSignup, onSuccess, onBa
           )}
         </div>
       </div>
-      <div id="recaptcha-container"></div>
+      <div id="recaptcha-container" style={{display: 'block'}}></div>
     </div>
   )
 }
