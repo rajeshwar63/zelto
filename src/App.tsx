@@ -4,8 +4,7 @@ import { ConnectionDetailScreen } from '@/components/ConnectionDetailScreen'
 import { AttentionScreen } from '@/components/AttentionScreen'
 import { StatusScreen } from '@/components/StatusScreen'
 import { ProfileScreen } from '@/components/ProfileScreen'
-import { LoginScreen } from '@/components/LoginScreen'
-import { SignupScreen } from '@/components/SignupScreen'
+import { WelcomeScreen } from '@/components/WelcomeScreen'
 import { OTPScreen } from '@/components/OTPScreen'
 import { AdminApp } from '@/components/admin/AdminApp'
 import { PrivacyPolicyScreen } from '@/components/PrivacyPolicyScreen'
@@ -35,7 +34,7 @@ type Screen =
   | { type: 'profile-notifications' }
   | { type: 'profile-account' }
   | { type: 'profile-support' }
-type AuthScreen = 'login' | 'signup' | { type: 'otp'; email: string; businessName?: string; isSignup: boolean }
+type AuthScreen = 'welcome' | { type: 'otp'; email: string }
 
 function App() {
   const [isAdminRoute, setIsAdminRoute] = useState(false)
@@ -67,7 +66,7 @@ function App() {
             setCurrentBusinessId(session.businessId)
             setAuthScreen(null)
           } else {
-            setAuthScreen('signup')
+            setAuthScreen('welcome')
           }
         } catch (err) {
           console.error('Failed to initialize app:', err)
@@ -128,16 +127,12 @@ function App() {
   const handleLogout = async () => {
     await logout()
     setCurrentBusinessId(null)
-    setAuthScreen('login')
+    setAuthScreen('welcome')
     setNavigationStack([{ type: 'tab', tab: 'connections' }])
   }
 
-  const handleLoginSubmit = (email: string) => {
-    setAuthScreen({ type: 'otp', email, isSignup: false })
-  }
-
-  const handleSignupSubmit = (email: string, businessName: string) => {
-    setAuthScreen({ type: 'otp', email, businessName, isSignup: true })
+  const handleWelcomeSubmit = (email: string) => {
+    setAuthScreen({ type: 'otp', email })
   }
 
   const handleOTPSuccess = async (businessId: string) => {
@@ -146,7 +141,7 @@ function App() {
   }
 
   const handleOTPBack = () => {
-    setAuthScreen('login')
+    setAuthScreen('welcome')
   }
 
   if (isAdminRoute) {
@@ -181,18 +176,13 @@ function App() {
   }
 
   if (authScreen) {
-    if (authScreen === 'login') {
-      return <LoginScreen onLogin={handleLoginSubmit} onSwitchToSignup={() => setAuthScreen('signup')} />
-    }
-    if (authScreen === 'signup') {
-      return <SignupScreen onSignup={handleSignupSubmit} onSwitchToLogin={() => setAuthScreen('login')} />
+    if (authScreen === 'welcome') {
+      return <WelcomeScreen onContinue={handleWelcomeSubmit} />
     }
     if (typeof authScreen === 'object' && authScreen.type === 'otp') {
       return (
         <OTPScreen
           email={authScreen.email}
-          businessName={authScreen.businessName}
-          isSignup={authScreen.isSignup}
           onSuccess={handleOTPSuccess}
           onBack={handleOTPBack}
         />

@@ -1,25 +1,22 @@
 import { useState, useEffect } from 'react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { sendEmailOTP, verifyEmailOTP, signupWithEmail, loginWithEmail } from '@/lib/auth'
+import { sendEmailOTP, verifyEmailOTP, findOrCreateBusinessSession } from '@/lib/auth'
 import { toast } from 'sonner'
 
 interface OTPScreenProps {
   email: string
-  businessName?: string
-  isSignup: boolean
   onSuccess: (businessId: string) => void
   onBack: () => void
 }
 
-export function OTPScreen({ email, businessName, isSignup, onSuccess, onBack }: OTPScreenProps) {
+export function OTPScreen({ email, onSuccess, onBack }: OTPScreenProps) {
   const [otp, setOtp] = useState('')
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [resendCooldown, setResendCooldown] = useState(30)
   const [isResending, setIsResending] = useState(false)
 
-  // Countdown for resend button cooldown
   useEffect(() => {
     if (resendCooldown <= 0) return
     const timer = setTimeout(() => setResendCooldown(c => c - 1), 1000)
@@ -54,16 +51,8 @@ export function OTPScreen({ email, businessName, isSignup, onSuccess, onBack }: 
     setError(null)
     try {
       await verifyEmailOTP(email, otp)
-
-      if (isSignup && businessName) {
-        const result = await signupWithEmail(email, businessName)
-        toast.success('Account created successfully!')
-        onSuccess(result.businessEntity.id)
-      } else {
-        const result = await loginWithEmail(email)
-        toast.success('Welcome back!')
-        onSuccess(result.businessEntity.id)
-      }
+      const session = await findOrCreateBusinessSession(email)
+      onSuccess(session.businessId)
     } catch (err) {
       console.error('OTP verification error:', err)
       setError('Incorrect code, please try again')
@@ -82,7 +71,7 @@ export function OTPScreen({ email, businessName, isSignup, onSuccess, onBack }: 
         </button>
 
         <div className="mb-8">
-          <h1 className="text-2xl font-semibold text-foreground mb-2">Enter Verification Code</h1>
+          <h1 className="text-2xl font-semibold text-foreground mb-2">Enter the code</h1>
           <p className="text-sm text-muted-foreground">
             Enter the 6-digit code sent to {email}
           </p>
@@ -134,7 +123,7 @@ export function OTPScreen({ email, businessName, isSignup, onSuccess, onBack }: 
               disabled={isResending || isLoading}
               className="text-sm text-muted-foreground hover:text-foreground transition-colors disabled:opacity-50"
             >
-              Didn't receive a code? <span className="font-medium">Resend</span>
+              Didn't receive a code? <span className="font-medium">Resend code</span>
             </button>
           )}
         </div>
