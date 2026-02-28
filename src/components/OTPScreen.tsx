@@ -45,8 +45,8 @@ export function OTPScreen({ email, businessName, isSignup, onSuccess, onBack }: 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
 
-    if (otp.length !== 6) {
-      toast.error('Please enter a 6-digit code')
+    if (otp.length !== 4) {
+      toast.error('Please enter a 4-digit code')
       return
     }
 
@@ -84,7 +84,7 @@ export function OTPScreen({ email, businessName, isSignup, onSuccess, onBack }: 
         <div className="mb-8">
           <h1 className="text-2xl font-semibold text-foreground mb-2">Enter Verification Code</h1>
           <p className="text-sm text-muted-foreground">
-            Enter the 6-digit code sent to {email}
+            Enter the 4-digit code sent to {email}
           </p>
         </div>
 
@@ -100,8 +100,8 @@ export function OTPScreen({ email, businessName, isSignup, onSuccess, onBack }: 
               id="otp"
               type="text"
               inputMode="numeric"
-              maxLength={6}
-              placeholder="000000"
+              maxLength={4}
+              placeholder="0000"
               value={otp}
               onChange={(e) => {
                 setOtp(e.target.value.replace(/\D/g, ''))
@@ -116,7 +116,7 @@ export function OTPScreen({ email, businessName, isSignup, onSuccess, onBack }: 
           <Button
             type="submit"
             className="w-full h-11 mt-6"
-            disabled={isLoading || otp.length !== 6}
+            disabled={isLoading || otp.length !== 4}
           >
             {isLoading ? 'Verifying…' : 'Verify'}
           </Button>

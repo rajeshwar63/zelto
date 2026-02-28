@@ -11,7 +11,12 @@ export interface AuthSession {
 }
 
 export async function sendEmailOTP(email: string): Promise<void> {
-  const { error } = await supabase.auth.signInWithOtp({ email })
+  const { error } = await supabase.auth.signInWithOtp({
+    email,
+    options: {
+      shouldCreateUser: true,
+    }
+  })
   if (error) throw new Error(error.message)
 }
 
