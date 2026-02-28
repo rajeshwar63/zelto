@@ -1,6 +1,5 @@
 import { supabase } from './supabase-client'
 import { dataStore } from './data-store'
-import { BusinessEntity, UserAccount } from './types'
 
 const AUTH_SESSION_KEY = 'zelto:local-auth-session'
 
@@ -30,6 +29,25 @@ export async function verifyEmailOTP(email: string, token: string): Promise<void
   if (error) throw new Error(error.message)
 }
 
+export async function findOrCreateBusinessSession(email: string): Promise<AuthSession> {
+  const accounts = await dataStore.getAllUserAccounts()
+  const userAccount = accounts.find(a => a.email === email)
+
+  let businessId: string
+  if (userAccount) {
+    businessId = userAccount.businessEntityId
+  } else {
+    const businessName = email.split('@')[0]
+    const businessEntity = await dataStore.createBusinessEntity(businessName)
+    await dataStore.createUserAccount(email, businessEntity.id)
+    businessId = businessEntity.id
+  }
+
+  const session: AuthSession = { businessId, email, createdAt: Date.now() }
+  await setAuthSession(session)
+  return session
+}
+
 export async function getAuthSession(): Promise<AuthSession | null> {
   const sessionStr = localStorage.getItem(AUTH_SESSION_KEY)
   if (!sessionStr) return null
@@ -46,51 +64,6 @@ export async function setAuthSession(session: AuthSession): Promise<void> {
 
 export async function clearAuthSession(): Promise<void> {
   localStorage.removeItem(AUTH_SESSION_KEY)
-}
-
-export async function checkEmailExists(email: string): Promise<boolean> {
-  const accounts = await dataStore.getAllUserAccounts()
-  return accounts.some(a => a.email === email)
-}
-
-export async function signupWithEmail(email: string, businessName: string): Promise<{ businessEntity: BusinessEntity; userAccount: UserAccount }> {
-  const exists = await checkEmailExists(email)
-  if (exists) {
-    throw new Error('Email already registered')
-  }
-
-  const businessEntity = await dataStore.createBusinessEntity(businessName)
-  const userAccount = await dataStore.createUserAccount(email, businessEntity.id)
-
-  await setAuthSession({
-    businessId: businessEntity.id,
-    email,
-    createdAt: Date.now()
-  })
-
-  return { businessEntity, userAccount }
-}
-
-export async function loginWithEmail(email: string): Promise<{ businessEntity: BusinessEntity; userAccount: UserAccount }> {
-  const accounts = await dataStore.getAllUserAccounts()
-  const userAccount = accounts.find(a => a.email === email)
-
-  if (!userAccount) {
-    throw new Error('Email not registered')
-  }
-
-  const businessEntity = await dataStore.getBusinessEntityById(userAccount.businessEntityId)
-  if (!businessEntity) {
-    throw new Error('Business entity not found')
-  }
-
-  await setAuthSession({
-    businessId: businessEntity.id,
-    email,
-    createdAt: Date.now()
-  })
-
-  return { businessEntity, userAccount }
 }
 
 export async function logout(): Promise<void> {
