@@ -30,7 +30,7 @@ export function PrivacyPolicyScreen() {
         <Section title="Data We Collect">
           When you use Zelto, we collect the following information:
           <ul className="mt-2 space-y-1 list-disc list-inside text-[14px] text-muted-foreground">
-            <li><strong className="text-foreground">Phone number</strong> — used to create and identify your account</li>
+            <li><strong className="text-foreground">Email address</strong> — used to create and identify your account</li>
             <li><strong className="text-foreground">Business name</strong> — used to identify your business on the platform</li>
             <li><strong className="text-foreground">Connection data</strong> — information about buyer and supplier relationships you manage in the app</li>
             <li><strong className="text-foreground">Order records</strong> — transaction records you create or receive within the app</li>
