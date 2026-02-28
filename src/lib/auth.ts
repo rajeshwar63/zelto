@@ -15,6 +15,7 @@ export async function sendEmailOTP(email: string): Promise<void> {
     email,
     options: {
       shouldCreateUser: true,
+      emailRedirectTo: undefined,
     }
   })
   if (error) throw new Error(error.message)
@@ -24,7 +25,7 @@ export async function verifyEmailOTP(email: string, token: string): Promise<void
   const { error } = await supabase.auth.verifyOtp({
     email,
     token,
-    type: 'email'
+    type: 'email',
   })
   if (error) throw new Error(error.message)
 }
