@@ -2,53 +2,45 @@ import { useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { checkPhoneNumberExists, sendOTP } from '@/lib/auth'
+import { checkEmailExists, sendEmailOTP } from '@/lib/auth'
 import { toast } from 'sonner'
 
 interface SignupScreenProps {
-  onSignup: (phoneNumber: string, businessName: string) => void
+  onSignup: (email: string, businessName: string) => void
   onSwitchToLogin: () => void
 }
 
 export function SignupScreen({ onSignup, onSwitchToLogin }: SignupScreenProps) {
-  const [phoneNumber, setPhoneNumber] = useState('')
+  const [email, setEmail] = useState('')
   const [businessName, setBusinessName] = useState('')
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState('')
 
-  const handlePhoneChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const value = e.target.value.replace(/\D/g, '')
-    if (value.length <= 10) {
-      setPhoneNumber(value)
-      setError('')
-    }
-  }
-
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
 
-    if (!phoneNumber.trim() || !businessName.trim()) {
+    if (!email.trim() || !businessName.trim()) {
       toast.error('Please fill in all fields')
       return
     }
 
-    if (phoneNumber.length !== 10) {
-      setError('Please enter a valid 10-digit Indian mobile number')
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+    if (!emailRegex.test(email)) {
+      setError('Please enter a valid email address')
       return
     }
 
     setIsLoading(true)
     try {
-      const fullNumber = `+91${phoneNumber}`
-      const exists = await checkPhoneNumberExists(fullNumber)
+      const exists = await checkEmailExists(email)
       if (exists) {
-        toast.error('This number is already registered. Please login instead.')
+        toast.error('This email is already registered. Please login instead.')
         setIsLoading(false)
         return
       }
 
-      await sendOTP(fullNumber)
-      onSignup(fullNumber, businessName)
+      await sendEmailOTP(email)
+      onSignup(email, businessName)
     } catch (error) {
       console.error('Signup error:', error)
       const msg = error instanceof Error ? error.message : 'Something went wrong. Please try again.'
@@ -67,24 +59,21 @@ export function SignupScreen({ onSignup, onSwitchToLogin }: SignupScreenProps) {
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="space-y-2">
-            <Label htmlFor="phoneNumber" className="text-sm font-medium text-foreground">
-              Mobile Number
+            <Label htmlFor="email" className="text-sm font-medium text-foreground">
+              Email Address
             </Label>
-            <div className="flex items-center gap-2">
-              <div className="flex items-center justify-center h-11 px-3 bg-muted rounded-md border border-input">
-                <span className="text-sm font-medium text-foreground">+91</span>
-              </div>
-              <Input
-                id="phoneNumber"
-                type="tel"
-                inputMode="numeric"
-                placeholder="9876543210"
-                value={phoneNumber}
-                onChange={handlePhoneChange}
-                disabled={isLoading}
-                className="h-11 flex-1"
-              />
-            </div>
+            <Input
+              id="email"
+              type="email"
+              placeholder="you@example.com"
+              value={email}
+              onChange={(e) => {
+                setEmail(e.target.value)
+                setError('')
+              }}
+              disabled={isLoading}
+              className="h-11"
+            />
             {error && (
               <p className="text-sm text-destructive">{error}</p>
             )}

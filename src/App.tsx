@@ -35,7 +35,7 @@ type Screen =
   | { type: 'profile-notifications' }
   | { type: 'profile-account' }
   | { type: 'profile-support' }
-type AuthScreen = 'login' | 'signup' | { type: 'otp'; phoneNumber: string; businessName?: string; isSignup: boolean }
+type AuthScreen = 'login' | 'signup' | { type: 'otp'; email: string; businessName?: string; isSignup: boolean }
 
 function App() {
   const [isAdminRoute, setIsAdminRoute] = useState(false)
@@ -132,12 +132,12 @@ function App() {
     setNavigationStack([{ type: 'tab', tab: 'connections' }])
   }
 
-  const handleLoginSubmit = (phoneNumber: string) => {
-    setAuthScreen({ type: 'otp', phoneNumber, isSignup: false })
+  const handleLoginSubmit = (email: string) => {
+    setAuthScreen({ type: 'otp', email, isSignup: false })
   }
 
-  const handleSignupSubmit = (phoneNumber: string, businessName: string) => {
-    setAuthScreen({ type: 'otp', phoneNumber, businessName, isSignup: true })
+  const handleSignupSubmit = (email: string, businessName: string) => {
+    setAuthScreen({ type: 'otp', email, businessName, isSignup: true })
   }
 
   const handleOTPSuccess = async (businessId: string) => {
@@ -190,7 +190,7 @@ function App() {
     if (typeof authScreen === 'object' && authScreen.type === 'otp') {
       return (
         <OTPScreen
-          phoneNumber={authScreen.phoneNumber}
+          email={authScreen.email}
           businessName={authScreen.businessName}
           isSignup={authScreen.isSignup}
           onSuccess={handleOTPSuccess}

@@ -39,7 +39,7 @@ export interface BusinessEntity {
 
 export interface UserAccount {
   id: string
-  phoneNumber: string
+  email: string
   businessEntityId: string
 }
 

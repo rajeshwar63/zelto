@@ -36,9 +36,7 @@ Represents a user who belongs to a specific business entity.
 ```typescript
 interface UserAccount {
   id: string                  // UUID
-  phoneNumber: string
-  username: string
-  password: string            // In production would be hashed
+  email: string
   businessEntityId: string    // Foreign key to BusinessEntity
 }
 ```
@@ -244,7 +242,7 @@ The `ZeltoDataStore` class (in `lib/data-store.ts`) provides a complete API for:
 - `getBusinessEntityById(id)`
 
 **User Accounts:**
-- `createUserAccount(phoneNumber, username, password, businessEntityId)` — Validates entity exists
+- `createUserAccount(email, businessEntityId)` — Validates entity exists
 - `getAllUserAccounts()`
 - `getUserAccountsByBusinessId(businessEntityId)`
 

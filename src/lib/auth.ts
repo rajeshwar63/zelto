@@ -6,8 +6,22 @@ const AUTH_SESSION_KEY = 'zelto:local-auth-session'
 
 export interface AuthSession {
   businessId: string
-  phoneNumber: string
+  email: string
   createdAt: number
+}
+
+export async function sendEmailOTP(email: string): Promise<void> {
+  const { error } = await supabase.auth.signInWithOtp({ email })
+  if (error) throw new Error(error.message)
+}
+
+export async function verifyEmailOTP(email: string, token: string): Promise<void> {
+  const { error } = await supabase.auth.verifyOtp({
+    email,
+    token,
+    type: 'email'
+  })
+  if (error) throw new Error(error.message)
 }
 
 export async function getAuthSession(): Promise<AuthSession | null> {
@@ -28,50 +42,35 @@ export async function clearAuthSession(): Promise<void> {
   localStorage.removeItem(AUTH_SESSION_KEY)
 }
 
-export async function checkPhoneNumberExists(phoneNumber: string): Promise<boolean> {
+export async function checkEmailExists(email: string): Promise<boolean> {
   const accounts = await dataStore.getAllUserAccounts()
-  return accounts.some(a => a.phoneNumber === phoneNumber)
+  return accounts.some(a => a.email === email)
 }
 
-export async function sendOTP(phoneNumber: string): Promise<void> {
-  const { data, error } = await supabase.functions.invoke('send-otp', {
-    body: { phoneNumber }
-  })
-  if (error || data?.error) throw new Error(data?.error || 'Failed to send OTP')
-}
-
-export async function verifyOTP(phoneNumber: string, code: string): Promise<boolean> {
-  const { data, error } = await supabase.functions.invoke('verify-otp', {
-    body: { phoneNumber, code }
-  })
-  if (error || data?.error) throw new Error(data?.error || 'Invalid OTP')
-  return true
-}
-
-export async function signupWithPhone(phoneNumber: string, businessName: string): Promise<{ businessEntity: BusinessEntity; userAccount: UserAccount }> {
-  const exists = await checkPhoneNumberExists(phoneNumber)
+export async function signupWithEmail(email: string, businessName: string): Promise<{ businessEntity: BusinessEntity; userAccount: UserAccount }> {
+  const exists = await checkEmailExists(email)
   if (exists) {
-    throw new Error('Phone number already registered')
+    throw new Error('Email already registered')
   }
 
   const businessEntity = await dataStore.createBusinessEntity(businessName)
-  const userAccount = await dataStore.createUserAccount(phoneNumber, businessEntity.id)
+  const userAccount = await dataStore.createUserAccount(email, businessEntity.id)
 
   await setAuthSession({
     businessId: businessEntity.id,
-    phoneNumber,
+    email,
     createdAt: Date.now()
   })
 
   return { businessEntity, userAccount }
 }
 
-export async function loginWithPhone(phoneNumber: string): Promise<{ businessEntity: BusinessEntity; userAccount: UserAccount }> {
+export async function loginWithEmail(email: string): Promise<{ businessEntity: BusinessEntity; userAccount: UserAccount }> {
   const accounts = await dataStore.getAllUserAccounts()
-  const userAccount = accounts.find(a => a.phoneNumber === phoneNumber)
+  const userAccount = accounts.find(a => a.email === email)
 
   if (!userAccount) {
-    throw new Error('Phone number not registered')
+    throw new Error('Email not registered')
   }
 
   const businessEntity = await dataStore.getBusinessEntityById(userAccount.businessEntityId)
@@ -81,7 +80,7 @@ export async function loginWithPhone(phoneNumber: string): Promise<{ businessEnt
 
   await setAuthSession({
     businessId: businessEntity.id,
-    phoneNumber,
+    email,
     createdAt: Date.now()
   })
 
@@ -89,5 +88,6 @@ export async function loginWithPhone(phoneNumber: string): Promise<{ businessEnt
 }
 
 export async function logout(): Promise<void> {
+  await supabase.auth.signOut()
   await clearAuthSession()
 }
