@@ -7,7 +7,7 @@ interface Props {
 }
 
 export function AccountScreen({ onBack, onLogout }: Props) {
-  const [showChangeMobileModal, setShowChangeMobileModal] = useState(false)
+  const [showChangeEmailModal, setShowChangeEmailModal] = useState(false)
   const [showDeleteModal, setShowDeleteModal] = useState(false)
 
   return (
@@ -24,10 +24,10 @@ export function AccountScreen({ onBack, onLogout }: Props) {
       <div className="px-4 py-4 border-b border-border">
         <h2 className="text-[11px] font-medium text-muted-foreground uppercase tracking-wide mb-3">Security</h2>
         <button
-          onClick={() => setShowChangeMobileModal(true)}
+          onClick={() => setShowChangeEmailModal(true)}
           className="w-full flex items-center justify-between py-3 border-b border-border hover:bg-muted/30 transition-colors"
         >
-          <p className="text-[14px] text-foreground">Change Mobile Number</p>
+          <p className="text-[14px] text-foreground">Change Email</p>
           <span className="text-muted-foreground text-[14px]">›</span>
         </button>
       </div>
@@ -52,8 +52,8 @@ export function AccountScreen({ onBack, onLogout }: Props) {
         </button>
       </div>
 
-      {showChangeMobileModal && (
-        <ChangeMobileModal onClose={() => setShowChangeMobileModal(false)} />
+      {showChangeEmailModal && (
+        <ChangeEmailModal onClose={() => setShowChangeEmailModal(false)} />
       )}
 
       {showDeleteModal && (
@@ -69,8 +69,8 @@ export function AccountScreen({ onBack, onLogout }: Props) {
   )
 }
 
-function ChangeMobileModal({ onClose }: { onClose: () => void }) {
-  const [mobile, setMobile] = useState('')
+function ChangeEmailModal({ onClose }: { onClose: () => void }) {
+  const [email, setEmail] = useState('')
 
   return (
     <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/40" onClick={onClose}>
@@ -80,16 +80,16 @@ function ChangeMobileModal({ onClose }: { onClose: () => void }) {
         style={{ paddingBottom: 'calc(1.5rem + env(safe-area-inset-bottom))' }}
       >
         <div className="flex items-center justify-between mb-4">
-          <h2 className="text-[16px] font-medium text-foreground">Change Mobile Number</h2>
+          <h2 className="text-[16px] font-medium text-foreground">Change Email</h2>
           <button onClick={onClose} className="text-muted-foreground hover:text-foreground">
             <X size={20} />
           </button>
         </div>
         <input
-          type="tel"
-          value={mobile}
-          onChange={e => setMobile(e.target.value)}
-          placeholder="Enter new mobile number"
+          type="email"
+          value={email}
+          onChange={e => setEmail(e.target.value)}
+          placeholder="Enter new email address"
           className="w-full border border-border rounded-lg px-3 py-2 text-[14px] text-foreground outline-none focus:ring-1 focus:ring-foreground mb-4"
         />
         <button
