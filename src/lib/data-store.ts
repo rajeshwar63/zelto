@@ -187,7 +187,7 @@ export class ZeltoDataStore {
   }
 
   async createUserAccount(
-    phoneNumber: string,
+    email: string,
     businessEntityId: string
   ): Promise<UserAccount> {
     const entity = await this.getBusinessEntityById(businessEntityId)
@@ -198,12 +198,12 @@ export class ZeltoDataStore {
     const { data, error } = await supabase
       .from('user_accounts')
       .insert([{
-        phone_number: phoneNumber,
+        email,
         business_entity_id: businessEntityId
       }])
       .select()
       .single()
-    
+
     if (error) throw error
     return toCamelCase(data)
   }
@@ -218,13 +218,13 @@ export class ZeltoDataStore {
     return toCamelCase(data || [])
   }
 
-  async getUserAccountByPhoneNumber(phoneNumber: string): Promise<UserAccount | undefined> {
+  async getUserAccountByEmail(email: string): Promise<UserAccount | undefined> {
     const { data, error } = await supabase
       .from('user_accounts')
       .select('*')
-      .eq('phone_number', phoneNumber)
+      .eq('email', email)
       .single()
-    
+
     if (error) {
       if (error.code === 'PGRST116') return undefined
       throw error

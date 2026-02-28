@@ -1,32 +1,23 @@
 import { useState, useEffect } from 'react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { sendOTP, verifyOTP, signupWithPhone, loginWithPhone } from '@/lib/auth'
+import { sendEmailOTP, verifyEmailOTP, signupWithEmail, loginWithEmail } from '@/lib/auth'
 import { toast } from 'sonner'
 
 interface OTPScreenProps {
-  phoneNumber: string
+  email: string
   businessName?: string
   isSignup: boolean
   onSuccess: (businessId: string) => void
   onBack: () => void
 }
 
-export function OTPScreen({ phoneNumber, businessName, isSignup, onSuccess, onBack }: OTPScreenProps) {
+export function OTPScreen({ email, businessName, isSignup, onSuccess, onBack }: OTPScreenProps) {
   const [otp, setOtp] = useState('')
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [resendCooldown, setResendCooldown] = useState(30)
   const [isResending, setIsResending] = useState(false)
-
-  const formatPhoneNumber = (phone: string) => {
-    const cleanNumber = phone.replace(/\D/g, '')
-    if (cleanNumber.length === 12 && cleanNumber.startsWith('91')) {
-      const tenDigits = cleanNumber.slice(2)
-      return `+91 ${tenDigits.slice(0, 5)} ${tenDigits.slice(5)}`
-    }
-    return phone
-  }
 
   // Countdown for resend button cooldown
   useEffect(() => {
@@ -40,7 +31,7 @@ export function OTPScreen({ phoneNumber, businessName, isSignup, onSuccess, onBa
     setError(null)
     setOtp('')
     try {
-      await sendOTP(phoneNumber)
+      await sendEmailOTP(email)
       setResendCooldown(30)
       toast.success('Verification code resent')
     } catch (err) {
@@ -62,14 +53,14 @@ export function OTPScreen({ phoneNumber, businessName, isSignup, onSuccess, onBa
     setIsLoading(true)
     setError(null)
     try {
-      await verifyOTP(phoneNumber, otp)
+      await verifyEmailOTP(email, otp)
 
       if (isSignup && businessName) {
-        const result = await signupWithPhone(phoneNumber, businessName)
+        const result = await signupWithEmail(email, businessName)
         toast.success('Account created successfully!')
         onSuccess(result.businessEntity.id)
       } else {
-        const result = await loginWithPhone(phoneNumber)
+        const result = await loginWithEmail(email)
         toast.success('Welcome back!')
         onSuccess(result.businessEntity.id)
       }
@@ -93,7 +84,7 @@ export function OTPScreen({ phoneNumber, businessName, isSignup, onSuccess, onBa
         <div className="mb-8">
           <h1 className="text-2xl font-semibold text-foreground mb-2">Enter Verification Code</h1>
           <p className="text-sm text-muted-foreground">
-            We sent a verification code to {formatPhoneNumber(phoneNumber)}
+            Enter the 6-digit code sent to {email}
           </p>
         </div>
 
