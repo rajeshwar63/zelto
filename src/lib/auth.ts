@@ -34,17 +34,21 @@ export type AuthResult =
   | { status: 'new_user'; email: string }
 
 export async function authenticateUser(email: string): Promise<AuthResult> {
-  const userAccount = await dataStore.getUserAccountByEmail(email)
+  try {
+    const userAccount = await dataStore.getUserAccountByEmail(email)
 
-  if (userAccount) {
-    const session: AuthSession = {
-      businessId: userAccount.businessEntityId,
-      userId: userAccount.id,
-      email,
-      createdAt: Date.now(),
+    if (userAccount) {
+      const session: AuthSession = {
+        businessId: userAccount.businessEntityId,
+        userId: userAccount.id,
+        email,
+        createdAt: Date.now(),
+      }
+      await setAuthSession(session)
+      return { status: 'existing_user', session, username: userAccount.username }
     }
-    await setAuthSession(session)
-    return { status: 'existing_user', session, username: userAccount.username }
+  } catch (err) {
+    console.warn('User account lookup failed, treating as new user:', err)
   }
 
   return { status: 'new_user', email }
