@@ -72,6 +72,44 @@ export async function clearAuthSession(): Promise<void> {
   localStorage.removeItem(AUTH_SESSION_KEY)
 }
 
+export async function findOrCreateBusinessSession(
+  email: string,
+  signupData?: { name: string; businessName: string }
+): Promise<AuthSession> {
+  const userAccount = await dataStore.getUserAccountByEmail(email).catch((err) => {
+    console.warn('User account lookup failed:', err)
+    return undefined
+  })
+
+  let businessId: string
+  let userId: string
+
+  if (userAccount) {
+    businessId = userAccount.businessEntityId
+    userId = userAccount.id
+  } else {
+    const businessName = signupData?.businessName || email.split('@')[0]
+    const username = signupData?.name || email.split('@')[0]
+
+    const businessEntity = await dataStore.createBusinessEntity(businessName)
+    const newAccount = await dataStore.createUserAccount(email, businessEntity.id, {
+      username,
+      role: 'owner',
+    })
+    businessId = businessEntity.id
+    userId = newAccount.id
+  }
+
+  const session: AuthSession = {
+    businessId,
+    userId,
+    email,
+    createdAt: Date.now(),
+  }
+  await setAuthSession(session)
+  return session
+}
+
 export async function logout(): Promise<void> {
   await supabase.auth.signOut()
   await clearAuthSession()

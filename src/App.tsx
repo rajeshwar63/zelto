@@ -6,7 +6,6 @@ import { StatusScreen } from '@/components/StatusScreen'
 import { ProfileScreen } from '@/components/ProfileScreen'
 import { WelcomeScreen } from '@/components/WelcomeScreen'
 import { OTPScreen } from '@/components/OTPScreen'
-import { BusinessSetupScreen } from '@/components/BusinessSetupScreen'
 import { AdminApp } from '@/components/admin/AdminApp'
 import { PrivacyPolicyScreen } from '@/components/PrivacyPolicyScreen'
 import { TermsScreen } from '@/components/TermsScreen'
@@ -17,7 +16,6 @@ import { NotificationHistoryScreen } from '@/components/NotificationHistoryScree
 import { NotificationSettingsScreen } from '@/components/NotificationSettingsScreen'
 import { AccountScreen } from '@/components/AccountScreen'
 import { HelpSupportScreen } from '@/components/HelpSupportScreen'
-import { ManageMembersScreen } from '@/components/ManageMembersScreen'
 import { List, ChartBar, Bell, User } from '@phosphor-icons/react'
 import { getAuthSession, logout } from '@/lib/auth'
 import { setupBackButtonHandler } from '@/lib/capacitor'
@@ -36,8 +34,7 @@ type Screen =
   | { type: 'profile-notifications' }
   | { type: 'profile-account' }
   | { type: 'profile-support' }
-  | { type: 'manage-members' }
-type AuthScreen = 'welcome' | { type: 'otp'; email: string } | { type: 'business-setup'; email: string }
+type AuthScreen = 'welcome' | { type: 'otp'; email: string; signupData?: { name: string; businessName: string } }
 
 function App() {
   const [isAdminRoute, setIsAdminRoute] = useState(false)
@@ -134,17 +131,17 @@ function App() {
     setNavigationStack([{ type: 'tab', tab: 'connections' }])
   }
 
-  const handleWelcomeSubmit = (email: string) => {
+  const handleWelcomeSubmit = (data: { name: string; businessName: string; email: string }) => {
+    setAuthScreen({ type: 'otp', email: data.email, signupData: { name: data.name, businessName: data.businessName } })
+  }
+
+  const handleLoginOnly = (email: string) => {
     setAuthScreen({ type: 'otp', email })
   }
 
   const handleOTPSuccess = async (businessId: string) => {
     setCurrentBusinessId(businessId)
     setAuthScreen(null)
-  }
-
-  const handleNewUser = (email: string) => {
-    setAuthScreen({ type: 'business-setup', email })
   }
 
   const handleOTPBack = () => {
@@ -184,26 +181,15 @@ function App() {
 
   if (authScreen) {
     if (authScreen === 'welcome') {
-      return <WelcomeScreen onContinue={handleWelcomeSubmit} />
+      return <WelcomeScreen onContinue={handleWelcomeSubmit} onLoginOnly={handleLoginOnly} />
     }
     if (typeof authScreen === 'object' && authScreen.type === 'otp') {
       return (
         <OTPScreen
           email={authScreen.email}
+          signupData={authScreen.signupData}
           onSuccess={handleOTPSuccess}
-          onNewUser={handleNewUser}
           onBack={handleOTPBack}
-        />
-      )
-    }
-    if (typeof authScreen === 'object' && authScreen.type === 'business-setup') {
-      return (
-        <BusinessSetupScreen
-          email={authScreen.email}
-          onComplete={(businessId) => {
-            setCurrentBusinessId(businessId)
-            setAuthScreen(null)
-          }}
         />
       )
     }
@@ -286,10 +272,6 @@ function App() {
     setNavigationStack(stack => [...stack, { type: 'profile-support' }])
   }
 
-  const navigateToManageMembers = () => {
-    setNavigationStack(stack => [...stack, { type: 'manage-members' }])
-  }
-
   const handleBusinessDetailsSaved = () => {
     navigateBack()
   }
@@ -297,12 +279,7 @@ function App() {
   return (
     <div className="h-full flex flex-col bg-background overflow-hidden">
       <div className="flex-1 overflow-auto pb-16">
-        {screen.type === 'manage-members' ? (
-          <ManageMembersScreen
-            currentBusinessId={currentBusinessId}
-            onBack={navigateBack}
-          />
-        ) : screen.type === 'profile-notifications' ? (
+        {screen.type === 'profile-notifications' ? (
           <NotificationSettingsScreen onBack={navigateBack} />
         ) : screen.type === 'profile-account' ? (
           <AccountScreen onBack={navigateBack} onLogout={handleLogout} />
@@ -366,7 +343,6 @@ function App() {
             onNavigateToNotificationSettings={navigateToProfileNotifications}
             onNavigateToAccount={navigateToProfileAccount}
             onNavigateToSupport={navigateToProfileSupport}
-            onNavigateToManageMembers={navigateToManageMembers}
           />
         ) : null}
       </div>
