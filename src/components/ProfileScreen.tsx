@@ -1,8 +1,10 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useRef } from 'react'
 import { dataStore } from '@/lib/data-store'
-import type { BusinessEntity } from '@/lib/types'
-import { CaretRight, Bell } from '@phosphor-icons/react'
+import { getAuthSession } from '@/lib/auth'
+import type { BusinessEntity, UserAccount } from '@/lib/types'
+import { CaretRight, Bell, PencilSimple, Check, X } from '@phosphor-icons/react'
 import { SettingsItem } from './SettingsItem'
+import { toast } from 'sonner'
 
 interface Props {
   currentBusinessId: string
@@ -16,20 +18,34 @@ interface Props {
 
 export function ProfileScreen({ currentBusinessId, onLogout, onNavigateToBusinessDetails, onNavigateToNotifications, onNavigateToNotificationSettings, onNavigateToAccount, onNavigateToSupport }: Props) {
   const [business, setBusiness] = useState<BusinessEntity | null>(null)
+  const [userAccount, setUserAccount] = useState<UserAccount | null>(null)
   const [unreadCount, setUnreadCount] = useState(0)
   const [loading, setLoading] = useState(true)
   const [refreshTimestamp, setRefreshTimestamp] = useState(Date.now())
 
+  const [isEditingUsername, setIsEditingUsername] = useState(false)
+  const [editedUsername, setEditedUsername] = useState('')
+  const [isSavingUsername, setIsSavingUsername] = useState(false)
+  const usernameInputRef = useRef<HTMLInputElement>(null)
+
   useEffect(() => {
-    async function loadBusiness() {
-      const biz = await dataStore.getBusinessEntityById(currentBusinessId)
-      const count = await dataStore.getUnreadNotificationCountByBusinessId(currentBusinessId)
+    async function loadData() {
+      const session = await getAuthSession()
+      if (!session) return
+
+      const [biz, user, count] = await Promise.all([
+        dataStore.getBusinessEntityById(currentBusinessId),
+        dataStore.getUserAccountByEmail(session.email),
+        dataStore.getUnreadNotificationCountByBusinessId(currentBusinessId),
+      ])
+
       setBusiness(biz || null)
+      setUserAccount(user || null)
       setUnreadCount(count)
       setLoading(false)
     }
 
-    loadBusiness()
+    loadData()
   }, [currentBusinessId, refreshTimestamp])
 
   useEffect(() => {
@@ -43,14 +59,21 @@ export function ProfileScreen({ currentBusinessId, onLogout, onNavigateToBusines
     return () => document.removeEventListener('visibilitychange', handleVisibilityChange)
   }, [])
 
+  useEffect(() => {
+    if (isEditingUsername && usernameInputRef.current) {
+      usernameInputRef.current.focus()
+      usernameInputRef.current.select()
+    }
+  }, [isEditingUsername])
+
   const hasBusinessDetails = business && (
-    business.gstNumber || 
-    business.businessAddress || 
-    business.businessType || 
+    business.gstNumber ||
+    business.businessAddress ||
+    business.businessType ||
     business.website
   )
 
-  if (loading || !business) {
+  if (loading || !business || !userAccount) {
     return (
       <div className="flex items-center justify-center min-h-screen">
         <p className="text-sm text-muted-foreground">Loading...</p>
@@ -60,7 +83,7 @@ export function ProfileScreen({ currentBusinessId, onLogout, onNavigateToBusines
 
   const handleShare = async () => {
     const shareMessage = `Connect with me on Zelto. My Zelto ID is ${business.zeltoId}`
-    
+
     if (navigator.share) {
       try {
         await navigator.share({
@@ -77,8 +100,57 @@ export function ProfileScreen({ currentBusinessId, onLogout, onNavigateToBusines
     }
   }
 
+  const handleStartEditUsername = () => {
+    setEditedUsername(userAccount.username)
+    setIsEditingUsername(true)
+  }
+
+  const handleCancelEditUsername = () => {
+    setIsEditingUsername(false)
+    setEditedUsername('')
+  }
+
+  const handleSaveUsername = async () => {
+    const trimmed = editedUsername.trim()
+    if (trimmed.length < 2 || trimmed.length > 50) {
+      toast.error('Username must be 2-50 characters')
+      return
+    }
+
+    if (trimmed === userAccount.username) {
+      setIsEditingUsername(false)
+      return
+    }
+
+    setIsSavingUsername(true)
+    try {
+      const updated = await dataStore.updateUsername(userAccount.id, trimmed)
+      setUserAccount(updated)
+      setIsEditingUsername(false)
+      toast.success('Saved')
+    } catch (err) {
+      console.error('Failed to update username:', err)
+      toast.error('Failed to update username')
+    } finally {
+      setIsSavingUsername(false)
+    }
+  }
+
+  const handleUsernameKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter') {
+      e.preventDefault()
+      handleSaveUsername()
+    } else if (e.key === 'Escape') {
+      handleCancelEditUsername()
+    }
+  }
+
+  const locationParts = [business.area, business.city].filter(Boolean)
+  const locationStr = locationParts.join(', ')
+
   return (
     <div>
+      {/* Header */}
       <div className="sticky top-0 bg-white z-10" style={{ paddingTop: 'env(safe-area-inset-top)' }}>
         <div className="h-11 flex items-center px-4">
           <h1 className="text-[17px] text-foreground font-normal flex-1">Profile</h1>
@@ -98,9 +170,59 @@ export function ProfileScreen({ currentBusinessId, onLogout, onNavigateToBusines
           </button>
         </div>
       </div>
+
+      {/* User Info Section */}
       <div className="px-4 py-6 border-b border-border">
-        <h1 className="text-[17px] font-medium text-foreground mb-1">{business.businessName}</h1>
         <div className="flex items-center gap-2">
+          {isEditingUsername ? (
+            <div className="flex items-center gap-2 flex-1">
+              <input
+                ref={usernameInputRef}
+                type="text"
+                value={editedUsername}
+                onChange={(e) => setEditedUsername(e.target.value)}
+                onKeyDown={handleUsernameKeyDown}
+                disabled={isSavingUsername}
+                maxLength={50}
+                className="text-[17px] font-medium text-foreground bg-transparent border-b border-foreground outline-none flex-1 min-w-0 py-0.5"
+              />
+              <button
+                onClick={handleSaveUsername}
+                disabled={isSavingUsername}
+                className="text-foreground hover:text-foreground/70 transition-colors p-1"
+              >
+                <Check size={18} weight="bold" />
+              </button>
+              <button
+                onClick={handleCancelEditUsername}
+                disabled={isSavingUsername}
+                className="text-muted-foreground hover:text-foreground transition-colors p-1"
+              >
+                <X size={18} />
+              </button>
+            </div>
+          ) : (
+            <>
+              <h1 className="text-[17px] font-medium text-foreground">{userAccount.username}</h1>
+              <button
+                onClick={handleStartEditUsername}
+                className="text-muted-foreground hover:text-foreground transition-colors p-1"
+              >
+                <PencilSimple size={16} />
+              </button>
+            </>
+          )}
+        </div>
+        <p className="text-[13px] text-muted-foreground mt-1">{userAccount.email}</p>
+      </div>
+
+      {/* Business Section */}
+      <div className="px-4 py-4 border-b border-border">
+        <h2 className="text-[11px] font-medium text-muted-foreground uppercase tracking-wide mb-3">
+          Business
+        </h2>
+        <h3 className="text-[15px] font-medium text-foreground mb-1">{business.businessName}</h3>
+        <div className="flex items-center gap-2 mb-1">
           <p className="text-[13px] text-muted-foreground font-mono">{business.zeltoId}</p>
           <button
             onClick={handleShare}
@@ -109,11 +231,17 @@ export function ProfileScreen({ currentBusinessId, onLogout, onNavigateToBusines
             Share
           </button>
         </div>
-        <p className="text-[13px] text-muted-foreground mt-2">
-          Managing connections and orders
-        </p>
+        {(userAccount.role || locationStr) && (
+          <p className="text-[13px] text-muted-foreground">
+            {[
+              userAccount.role ? userAccount.role.charAt(0).toUpperCase() + userAccount.role.slice(1) : null,
+              locationStr,
+            ].filter(Boolean).join(' · ')}
+          </p>
+        )}
       </div>
 
+      {/* Business Details Section */}
       <div className="px-4 py-4 border-b border-border">
         {!hasBusinessDetails ? (
           <button
@@ -151,6 +279,14 @@ export function ProfileScreen({ currentBusinessId, onLogout, onNavigateToBusines
         )}
       </div>
 
+      {/* Manage Members (owner only) */}
+      {userAccount.role === 'owner' && (
+        <div className="px-4 py-4 border-b border-border">
+          <SettingsItem title="Manage Members" onPress={() => {}} showDivider={false} />
+        </div>
+      )}
+
+      {/* Settings Section */}
       <div className="px-4 py-4">
         <h2 className="text-[11px] font-medium text-muted-foreground uppercase tracking-wide mb-3">
           Settings
@@ -162,6 +298,7 @@ export function ProfileScreen({ currentBusinessId, onLogout, onNavigateToBusines
         </div>
       </div>
 
+      {/* Footer Links */}
       <div className="px-4 py-4 border-t border-border">
         <div className="flex items-center justify-center gap-6">
           <a
@@ -180,6 +317,7 @@ export function ProfileScreen({ currentBusinessId, onLogout, onNavigateToBusines
         </div>
       </div>
 
+      {/* Logout */}
       <div className="px-4 pb-8 pt-4">
         <button
           onClick={onLogout}

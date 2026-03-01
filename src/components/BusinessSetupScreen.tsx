@@ -95,13 +95,14 @@ export function BusinessSetupScreen({ email, onComplete }: BusinessSetupScreenPr
         phone: phone.trim() || undefined,
       })
 
-      await dataStore.createUserAccount(email, business.id, {
+      const userAccount = await dataStore.createUserAccount(email, business.id, {
         username: username.trim() || undefined,
         role: 'owner',
       })
 
       await setAuthSession({
         businessId: business.id,
+        userId: userAccount.id,
         email,
         createdAt: Date.now(),
       })
@@ -144,13 +145,14 @@ export function BusinessSetupScreen({ email, onComplete }: BusinessSetupScreenPr
     setIsJoining(true)
     try {
       // MVP: auto-approve — create user with member role directly
-      await dataStore.createUserAccount(email, business.id, {
+      const userAccount = await dataStore.createUserAccount(email, business.id, {
         username: username.trim() || undefined,
         role: 'member',
       })
 
       await setAuthSession({
         businessId: business.id,
+        userId: userAccount.id,
         email,
         createdAt: Date.now(),
       })
