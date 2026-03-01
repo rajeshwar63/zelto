@@ -202,7 +202,17 @@ export function ConnectionsScreen({ currentBusinessId, onSelectConnection, onAdd
         <div className="flex items-center justify-center min-h-[calc(100vh-44px)] px-4">
           {isLoading
             ? <p className="text-sm text-muted-foreground text-center">Loading...</p>
-            : <p className="text-sm text-muted-foreground text-center">Add your first buyer or supplier to get started</p>
+            : (
+              <div className="flex flex-col items-center justify-center flex-1 px-6 text-center">
+                <p className="text-base font-medium text-foreground mb-1">No connections yet</p>
+                <p className="text-sm text-muted-foreground mb-4">
+                  Add your first buyer or supplier to get started
+                </p>
+                <Button onClick={onAddConnection} variant="outline" size="sm">
+                  Add Connection
+                </Button>
+              </div>
+            )
           }
         </div>
         <button
