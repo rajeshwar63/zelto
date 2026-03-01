@@ -29,30 +29,6 @@ export async function verifyEmailOTP(email: string, token: string): Promise<void
   if (error) throw new Error(error.message)
 }
 
-export type AuthResult =
-  | { status: 'existing_user'; session: AuthSession; username: string }
-  | { status: 'new_user'; email: string }
-
-export async function authenticateUser(email: string): Promise<AuthResult> {
-  try {
-    const userAccount = await dataStore.getUserAccountByEmail(email)
-
-    if (userAccount) {
-      const session: AuthSession = {
-        businessId: userAccount.businessEntityId,
-        userId: userAccount.id,
-        email,
-        createdAt: Date.now(),
-      }
-      await setAuthSession(session)
-      return { status: 'existing_user', session, username: userAccount.username }
-    }
-  } catch (err) {
-    console.warn('User account lookup failed, treating as new user:', err)
-  }
-
-  return { status: 'new_user', email }
-}
 
 export async function getAuthSession(): Promise<AuthSession | null> {
   const sessionStr = localStorage.getItem(AUTH_SESSION_KEY)
