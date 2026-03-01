@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { sendEmailOTP, verifyEmailOTP, findOrCreateBusinessSession } from '@/lib/auth'
+import { dataStore } from '@/lib/data-store'
 import { toast } from 'sonner'
 
 interface OTPScreenProps {
@@ -16,6 +17,7 @@ export function OTPScreen({ email, onSuccess, onBack }: OTPScreenProps) {
   const [error, setError] = useState<string | null>(null)
   const [resendCooldown, setResendCooldown] = useState(30)
   const [isResending, setIsResending] = useState(false)
+  const [welcomeBackUsername, setWelcomeBackUsername] = useState<string | null>(null)
 
   useEffect(() => {
     if (resendCooldown <= 0) return
@@ -51,8 +53,14 @@ export function OTPScreen({ email, onSuccess, onBack }: OTPScreenProps) {
     setError(null)
     try {
       await verifyEmailOTP(email, otp)
+      const existingUser = await dataStore.getUserAccountByEmail(email)
       const session = await findOrCreateBusinessSession(email)
-      onSuccess(session.businessId)
+      if (existingUser) {
+        setWelcomeBackUsername(existingUser.username)
+        setTimeout(() => onSuccess(session.businessId), 1000)
+      } else {
+        onSuccess(session.businessId)
+      }
     } catch (err) {
       console.error('OTP verification error:', err)
       setError('Incorrect code, please try again')
@@ -70,12 +78,19 @@ export function OTPScreen({ email, onSuccess, onBack }: OTPScreenProps) {
           ← Back
         </button>
 
-        <div className="mb-8">
-          <h1 className="text-2xl font-semibold text-foreground mb-2">Enter the code</h1>
-          <p className="text-sm text-muted-foreground">
-            Enter the 6-digit code sent to {email}
-          </p>
-        </div>
+        {welcomeBackUsername ? (
+          <div className="mb-8">
+            <p className="text-sm text-muted-foreground">Welcome back,</p>
+            <h1 className="text-2xl font-semibold text-foreground">{welcomeBackUsername}</h1>
+          </div>
+        ) : (
+          <div className="mb-8">
+            <h1 className="text-2xl font-semibold text-foreground mb-2">Enter the code</h1>
+            <p className="text-sm text-muted-foreground">
+              Enter the 6-digit code sent to {email}
+            </p>
+          </div>
+        )}
 
         {error && (
           <div className="mb-4 p-3 rounded-md bg-destructive/10 border border-destructive/20">
