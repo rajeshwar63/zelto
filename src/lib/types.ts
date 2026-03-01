@@ -35,12 +35,21 @@ export interface BusinessEntity {
   businessAddress?: string
   businessType?: 'Restaurant' | 'Supplier' | 'Manufacturer' | 'Retailer' | 'Distributor' | 'Other'
   website?: string
+  nameNormalized?: string
+  city?: string
+  area?: string
+  phone?: string
 }
+
+export type UserRole = 'owner' | 'admin' | 'member'
 
 export interface UserAccount {
   id: string
   email: string
   businessEntityId: string
+  username: string
+  phone?: string
+  role: UserRole
 }
 
 export interface Connection {
