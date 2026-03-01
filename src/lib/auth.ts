@@ -5,6 +5,7 @@ const AUTH_SESSION_KEY = 'zelto:local-auth-session'
 
 export interface AuthSession {
   businessId: string
+  userId: string
   email: string
   createdAt: number
 }
@@ -38,6 +39,7 @@ export async function authenticateUser(email: string): Promise<AuthResult> {
   if (userAccount) {
     const session: AuthSession = {
       businessId: userAccount.businessEntityId,
+      userId: userAccount.id,
       email,
       createdAt: Date.now(),
     }
