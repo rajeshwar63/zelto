@@ -1,17 +1,17 @@
 import { useState, useEffect } from 'react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { sendEmailOTP, verifyEmailOTP, findOrCreateBusinessSession } from '@/lib/auth'
-import { dataStore } from '@/lib/data-store'
+import { sendEmailOTP, verifyEmailOTP, authenticateUser } from '@/lib/auth'
 import { toast } from 'sonner'
 
 interface OTPScreenProps {
   email: string
   onSuccess: (businessId: string) => void
+  onNewUser: (email: string) => void
   onBack: () => void
 }
 
-export function OTPScreen({ email, onSuccess, onBack }: OTPScreenProps) {
+export function OTPScreen({ email, onSuccess, onNewUser, onBack }: OTPScreenProps) {
   const [otp, setOtp] = useState('')
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -53,13 +53,12 @@ export function OTPScreen({ email, onSuccess, onBack }: OTPScreenProps) {
     setError(null)
     try {
       await verifyEmailOTP(email, otp)
-      const existingUser = await dataStore.getUserAccountByEmail(email)
-      const session = await findOrCreateBusinessSession(email)
-      if (existingUser) {
-        setWelcomeBackUsername(existingUser.username)
-        setTimeout(() => onSuccess(session.businessId), 1000)
+      const result = await authenticateUser(email)
+      if (result.status === 'existing_user') {
+        setWelcomeBackUsername(result.username)
+        setTimeout(() => onSuccess(result.session.businessId), 1000)
       } else {
-        onSuccess(session.businessId)
+        onNewUser(result.email)
       }
     } catch (err) {
       console.error('OTP verification error:', err)

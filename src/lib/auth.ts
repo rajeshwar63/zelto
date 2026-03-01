@@ -28,23 +28,24 @@ export async function verifyEmailOTP(email: string, token: string): Promise<void
   if (error) throw new Error(error.message)
 }
 
-export async function findOrCreateBusinessSession(email: string): Promise<AuthSession> {
-  const accounts = await dataStore.getAllUserAccounts()
-  const userAccount = accounts.find(a => a.email === email)
+export type AuthResult =
+  | { status: 'existing_user'; session: AuthSession; username: string }
+  | { status: 'new_user'; email: string }
 
-  let businessId: string
+export async function authenticateUser(email: string): Promise<AuthResult> {
+  const userAccount = await dataStore.getUserAccountByEmail(email)
+
   if (userAccount) {
-    businessId = userAccount.businessEntityId
-  } else {
-    const emailPrefix = email.split('@')[0]
-    const businessEntity = await dataStore.createBusinessEntity(emailPrefix)
-    await dataStore.createUserAccount(email, businessEntity.id, emailPrefix)
-    businessId = businessEntity.id
+    const session: AuthSession = {
+      businessId: userAccount.businessEntityId,
+      email,
+      createdAt: Date.now(),
+    }
+    await setAuthSession(session)
+    return { status: 'existing_user', session, username: userAccount.username }
   }
 
-  const session: AuthSession = { businessId, email, createdAt: Date.now() }
-  await setAuthSession(session)
-  return session
+  return { status: 'new_user', email }
 }
 
 export async function getAuthSession(): Promise<AuthSession | null> {
