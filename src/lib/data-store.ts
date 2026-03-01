@@ -23,6 +23,7 @@ import {
   enrichConnectionOrdersWithPaymentState,
   enrichOrderWithPaymentState,
   generateZeltoId,
+  normalizeBusinessName,
   snapshotPaymentTerms,
 } from './business-logic'
 
@@ -80,7 +81,7 @@ export class ZeltoDataStore {
     const newEntity: any = {
       zelto_id: generateZeltoId(existingZeltoIds),
       business_name: businessName,
-      name_normalized: businessName.toLowerCase().trim(),
+      name_normalized: normalizeBusinessName(businessName),
       created_at: Date.now(),
     }
 
@@ -187,7 +188,7 @@ export class ZeltoDataStore {
     name: string,
     city: string
   ): Promise<BusinessEntity[]> {
-    const normalized = name.toLowerCase().trim()
+    const normalized = normalizeBusinessName(name)
 
     const { data, error } = await supabase
       .rpc('search_businesses_by_name', {

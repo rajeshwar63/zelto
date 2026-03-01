@@ -137,6 +137,47 @@ export function enrichConnectionOrdersWithPaymentState(
   })
 }
 
+export function normalizeBusinessName(name: string): string {
+  let normalized = name.toLowerCase().trim();
+
+  // Remove common business suffixes
+  const suffixes = [
+    'pvt ltd', 'private limited', 'limited', 'ltd', 'llp',
+    'enterprises', 'enterprise', 'traders', 'trading', 'trader',
+    'industries', 'industry', 'solutions', 'services', 'service',
+    'agency', 'agencies', 'co', 'company', 'corp', 'corporation',
+    'inc', 'associates', 'associate', 'brothers', 'bros',
+    'sons', 'and sons', '& sons', 'foods', 'food',
+    'store', 'stores', 'shop', 'mart', 'emporium',
+    'suppliers', 'supplier', 'distributors', 'distributor',
+    'wholesalers', 'wholesaler', 'dealers', 'dealer'
+  ];
+  for (const suffix of suffixes) {
+    normalized = normalized.replace(new RegExp(`\\b${suffix}\\b`, 'g'), '');
+  }
+
+  // Common transliteration variants in Indian business names
+  const variants: Record<string, string> = {
+    'shri': 'sri', 'shree': 'sri', 'sree': 'sri',
+    'laxmi': 'lakshmi', 'luxmi': 'lakshmi', 'lakhsmi': 'lakshmi',
+    'ganesh': 'ganesh', 'ganesha': 'ganesh',
+    'vishnu': 'vishnu', 'visnu': 'vishnu',
+    'krishna': 'krishna', 'krsna': 'krishna',
+    'mahalakshmi': 'mahalakshmi', 'mahalaxmi': 'mahalakshmi',
+    'venkatesh': 'venkatesh', 'venkateshwara': 'venkatesh',
+    'subramanian': 'subramanian', 'subramaniam': 'subramanian',
+    'and': '&', 'nd': '&',
+  };
+  for (const [from, to] of Object.entries(variants)) {
+    normalized = normalized.replace(new RegExp(`\\b${from}\\b`, 'g'), to);
+  }
+
+  // Remove special characters, collapse spaces
+  normalized = normalized.replace(/[^a-z0-9&]/g, ' ').replace(/\s+/g, ' ').trim();
+
+  return normalized;
+}
+
 export function validateUniqueZeltoId(
   zeltoId: string,
   allZeltoIds: string[]
