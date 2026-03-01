@@ -70,14 +70,22 @@ export class ZeltoDataStore {
     return toCamelCase(data || [])
   }
 
-  async createBusinessEntity(businessName: string): Promise<BusinessEntity> {
+  async createBusinessEntity(
+    businessName: string,
+    options?: { city?: string }
+  ): Promise<BusinessEntity> {
     const entities = await this.getAllBusinessEntities()
     const existingZeltoIds = entities.map((e) => e.zeltoId)
-    
-    const newEntity = {
+
+    const newEntity: any = {
       zelto_id: generateZeltoId(existingZeltoIds),
       business_name: businessName,
+      name_normalized: businessName.toLowerCase().trim(),
       created_at: Date.now(),
+    }
+
+    if (options?.city) {
+      newEntity.city = options.city
     }
 
     const { data, error } = await supabase
@@ -85,7 +93,7 @@ export class ZeltoDataStore {
       .insert([newEntity])
       .select()
       .single()
-    
+
     if (error) throw error
     return toCamelCase(data)
   }
@@ -165,7 +173,7 @@ export class ZeltoDataStore {
       .from('business_entities')
       .select('id')
       .eq('gst_number', gstNumber)
-    
+
     if (excludeEntityId) {
       query = query.neq('id', excludeEntityId)
     }
@@ -173,6 +181,22 @@ export class ZeltoDataStore {
     const { data, error } = await query
     if (error) throw error
     return (data?.length || 0) > 0
+  }
+
+  async searchBusinessesByName(
+    name: string,
+    city: string
+  ): Promise<BusinessEntity[]> {
+    const normalized = name.toLowerCase().trim()
+
+    const { data, error } = await supabase
+      .rpc('search_businesses_by_name', {
+        search_name: normalized,
+        search_city: city,
+      })
+
+    if (error) throw error
+    return toCamelCase(data || [])
   }
 
   // ============ USER ACCOUNTS ============
@@ -188,7 +212,8 @@ export class ZeltoDataStore {
 
   async createUserAccount(
     email: string,
-    businessEntityId: string
+    businessEntityId: string,
+    username?: string
   ): Promise<UserAccount> {
     const entity = await this.getBusinessEntityById(businessEntityId)
     if (!entity) {
@@ -199,8 +224,22 @@ export class ZeltoDataStore {
       .from('user_accounts')
       .insert([{
         email,
-        business_entity_id: businessEntityId
+        business_entity_id: businessEntityId,
+        username: username || email.split('@')[0],
+        role: 'owner'
       }])
+      .select()
+      .single()
+
+    if (error) throw error
+    return toCamelCase(data)
+  }
+
+  async updateUsername(userId: string, username: string): Promise<UserAccount> {
+    const { data, error } = await supabase
+      .from('user_accounts')
+      .update({ username })
+      .eq('id', userId)
       .select()
       .single()
 

@@ -36,9 +36,9 @@ export async function findOrCreateBusinessSession(email: string): Promise<AuthSe
   if (userAccount) {
     businessId = userAccount.businessEntityId
   } else {
-    const businessName = email.split('@')[0]
-    const businessEntity = await dataStore.createBusinessEntity(businessName)
-    await dataStore.createUserAccount(email, businessEntity.id)
+    const emailPrefix = email.split('@')[0]
+    const businessEntity = await dataStore.createBusinessEntity(emailPrefix)
+    await dataStore.createUserAccount(email, businessEntity.id, emailPrefix)
     businessId = businessEntity.id
   }
 
