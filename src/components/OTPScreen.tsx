@@ -67,6 +67,17 @@ export function OTPScreen({ email, onSuccess, onNewUser, onBack }: OTPScreenProp
     }
   }
 
+  if (welcomeBackUsername) {
+    return (
+      <div className="min-h-screen flex flex-col items-center justify-center bg-background px-6">
+        <div className="text-center animate-in fade-in duration-300">
+          <p className="text-sm text-muted-foreground">Welcome back,</p>
+          <h1 className="text-2xl font-semibold text-foreground mt-1">{welcomeBackUsername}!</h1>
+        </div>
+      </div>
+    )
+  }
+
   return (
     <div className="min-h-screen flex flex-col items-center justify-center bg-background px-6">
       <div className="w-full max-w-sm">
@@ -77,19 +88,12 @@ export function OTPScreen({ email, onSuccess, onNewUser, onBack }: OTPScreenProp
           ← Back
         </button>
 
-        {welcomeBackUsername ? (
-          <div className="mb-8">
-            <p className="text-sm text-muted-foreground">Welcome back,</p>
-            <h1 className="text-2xl font-semibold text-foreground">{welcomeBackUsername}</h1>
-          </div>
-        ) : (
-          <div className="mb-8">
-            <h1 className="text-2xl font-semibold text-foreground mb-2">Enter the code</h1>
-            <p className="text-sm text-muted-foreground">
-              Enter the 6-digit code sent to {email}
-            </p>
-          </div>
-        )}
+        <div className="mb-8">
+          <h1 className="text-2xl font-semibold text-foreground mb-2">Enter the code</h1>
+          <p className="text-sm text-muted-foreground">
+            Enter the 6-digit code sent to {email}
+          </p>
+        </div>
 
         {error && (
           <div className="mb-4 p-3 rounded-md bg-destructive/10 border border-destructive/20">
