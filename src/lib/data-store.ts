@@ -1086,14 +1086,18 @@ export class ZeltoDataStore {
   // ============ UTILITY ============
 
   async clearAllData(): Promise<void> {
-    // Delete in reverse order of dependencies
+    // Must delete in dependency order: children first, parents last
+    // notifications → order_attachments → payment_events → issue_reports
+    // → role_change_requests → connection_requests → orders
+    // → connections → entity_flags → frozen_entities
+    // → user_accounts → business_entities → admin_accounts
     await supabase.from('notifications').delete().neq('id', '00000000-0000-0000-0000-000000000000')
     await supabase.from('order_attachments').delete().neq('id', '00000000-0000-0000-0000-000000000000')
     await supabase.from('payment_events').delete().neq('id', '00000000-0000-0000-0000-000000000000')
     await supabase.from('issue_reports').delete().neq('id', '00000000-0000-0000-0000-000000000000')
-    await supabase.from('orders').delete().neq('id', '00000000-0000-0000-0000-000000000000')
     await supabase.from('role_change_requests').delete().neq('id', '00000000-0000-0000-0000-000000000000')
     await supabase.from('connection_requests').delete().neq('id', '00000000-0000-0000-0000-000000000000')
+    await supabase.from('orders').delete().neq('id', '00000000-0000-0000-0000-000000000000')
     await supabase.from('connections').delete().neq('id', '00000000-0000-0000-0000-000000000000')
     await supabase.from('entity_flags').delete().neq('id', '00000000-0000-0000-0000-000000000000')
     await supabase.from('frozen_entities').delete().neq('id', '00000000-0000-0000-0000-000000000000')
