@@ -14,9 +14,10 @@ interface Props {
   onNavigateToNotificationSettings: () => void
   onNavigateToAccount: () => void
   onNavigateToSupport: () => void
+  onNavigateToManageMembers: () => void
 }
 
-export function ProfileScreen({ currentBusinessId, onLogout, onNavigateToBusinessDetails, onNavigateToNotifications, onNavigateToNotificationSettings, onNavigateToAccount, onNavigateToSupport }: Props) {
+export function ProfileScreen({ currentBusinessId, onLogout, onNavigateToBusinessDetails, onNavigateToNotifications, onNavigateToNotificationSettings, onNavigateToAccount, onNavigateToSupport, onNavigateToManageMembers }: Props) {
   const [business, setBusiness] = useState<BusinessEntity | null>(null)
   const [userAccount, setUserAccount] = useState<UserAccount | null>(null)
   const [unreadCount, setUnreadCount] = useState(0)
@@ -305,7 +306,7 @@ export function ProfileScreen({ currentBusinessId, onLogout, onNavigateToBusines
       {/* Manage Members (owner only) */}
       {userAccount.role === 'owner' && (
         <div className="px-4 py-4 border-b border-border">
-          <SettingsItem title="Manage Members" onPress={() => {}} showDivider={false} />
+          <SettingsItem title="Manage Members" onPress={onNavigateToManageMembers} showDivider={false} />
         </div>
       )}
 
