@@ -17,6 +17,7 @@ import { NotificationHistoryScreen } from '@/components/NotificationHistoryScree
 import { NotificationSettingsScreen } from '@/components/NotificationSettingsScreen'
 import { AccountScreen } from '@/components/AccountScreen'
 import { HelpSupportScreen } from '@/components/HelpSupportScreen'
+import { ManageMembersScreen } from '@/components/ManageMembersScreen'
 import { List, ChartBar, Bell, User } from '@phosphor-icons/react'
 import { getAuthSession, logout } from '@/lib/auth'
 import { setupBackButtonHandler } from '@/lib/capacitor'
@@ -35,6 +36,7 @@ type Screen =
   | { type: 'profile-notifications' }
   | { type: 'profile-account' }
   | { type: 'profile-support' }
+  | { type: 'manage-members' }
 type AuthScreen = 'welcome' | { type: 'otp'; email: string } | { type: 'business-setup'; email: string }
 
 function App() {
@@ -284,6 +286,10 @@ function App() {
     setNavigationStack(stack => [...stack, { type: 'profile-support' }])
   }
 
+  const navigateToManageMembers = () => {
+    setNavigationStack(stack => [...stack, { type: 'manage-members' }])
+  }
+
   const handleBusinessDetailsSaved = () => {
     navigateBack()
   }
@@ -291,7 +297,12 @@ function App() {
   return (
     <div className="h-full flex flex-col bg-background overflow-hidden">
       <div className="flex-1 overflow-auto pb-16">
-        {screen.type === 'profile-notifications' ? (
+        {screen.type === 'manage-members' ? (
+          <ManageMembersScreen
+            currentBusinessId={currentBusinessId}
+            onBack={navigateBack}
+          />
+        ) : screen.type === 'profile-notifications' ? (
           <NotificationSettingsScreen onBack={navigateBack} />
         ) : screen.type === 'profile-account' ? (
           <AccountScreen onBack={navigateBack} onLogout={handleLogout} />
@@ -347,14 +358,15 @@ function App() {
             onNavigateToConnection={navigateToConnection}
           />
         ) : screen.type === 'tab' && screen.tab === 'profile' ? (
-          <ProfileScreen 
-            currentBusinessId={currentBusinessId} 
+          <ProfileScreen
+            currentBusinessId={currentBusinessId}
             onLogout={handleLogout}
             onNavigateToBusinessDetails={navigateToBusinessDetails}
             onNavigateToNotifications={navigateToNotifications}
             onNavigateToNotificationSettings={navigateToProfileNotifications}
             onNavigateToAccount={navigateToProfileAccount}
             onNavigateToSupport={navigateToProfileSupport}
+            onNavigateToManageMembers={navigateToManageMembers}
           />
         ) : null}
       </div>
