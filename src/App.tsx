@@ -289,7 +289,7 @@ function App() {
   }
 
   return (
-    <div className="h-full flex flex-col bg-background">
+    <div className="h-full flex flex-col bg-background overflow-hidden">
       <div className="flex-1 overflow-auto pb-16">
         {screen.type === 'profile-notifications' ? (
           <NotificationSettingsScreen onBack={navigateBack} />
