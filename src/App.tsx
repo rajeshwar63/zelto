@@ -6,6 +6,7 @@ import { StatusScreen } from '@/components/StatusScreen'
 import { ProfileScreen } from '@/components/ProfileScreen'
 import { WelcomeScreen } from '@/components/WelcomeScreen'
 import { OTPScreen } from '@/components/OTPScreen'
+import { BusinessSetupScreen } from '@/components/BusinessSetupScreen'
 import { AdminApp } from '@/components/admin/AdminApp'
 import { PrivacyPolicyScreen } from '@/components/PrivacyPolicyScreen'
 import { TermsScreen } from '@/components/TermsScreen'
@@ -195,17 +196,13 @@ function App() {
     }
     if (typeof authScreen === 'object' && authScreen.type === 'business-setup') {
       return (
-        <div className="min-h-screen flex flex-col items-center justify-center bg-background px-6">
-          <div className="w-full max-w-sm text-center">
-            <h1 className="text-2xl font-semibold text-foreground mb-2">Setup your business</h1>
-            <p className="text-sm text-muted-foreground mb-6">
-              Welcome! Let's get your business set up on Zelto.
-            </p>
-            <p className="text-xs text-muted-foreground">
-              Signed in as {authScreen.email}
-            </p>
-          </div>
-        </div>
+        <BusinessSetupScreen
+          email={authScreen.email}
+          onComplete={(businessId) => {
+            setCurrentBusinessId(businessId)
+            setAuthScreen(null)
+          }}
+        />
       )
     }
   }

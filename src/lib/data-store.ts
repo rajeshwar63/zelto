@@ -73,7 +73,7 @@ export class ZeltoDataStore {
 
   async createBusinessEntity(
     businessName: string,
-    options?: { city?: string }
+    options?: { city?: string; phone?: string }
   ): Promise<BusinessEntity> {
     const entities = await this.getAllBusinessEntities()
     const existingZeltoIds = entities.map((e) => e.zeltoId)
@@ -87,6 +87,10 @@ export class ZeltoDataStore {
 
     if (options?.city) {
       newEntity.city = options.city
+    }
+
+    if (options?.phone) {
+      newEntity.phone = options.phone
     }
 
     const { data, error } = await supabase
@@ -214,7 +218,7 @@ export class ZeltoDataStore {
   async createUserAccount(
     email: string,
     businessEntityId: string,
-    username?: string
+    options?: { username?: string; role?: UserAccount['role'] }
   ): Promise<UserAccount> {
     const entity = await this.getBusinessEntityById(businessEntityId)
     if (!entity) {
@@ -226,8 +230,8 @@ export class ZeltoDataStore {
       .insert([{
         email,
         business_entity_id: businessEntityId,
-        username: username || email.split('@')[0],
-        role: 'owner'
+        username: options?.username || email.split('@')[0],
+        role: options?.role || 'owner'
       }])
       .select()
       .single()
