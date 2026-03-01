@@ -1,23 +1,22 @@
 import { useState, useEffect } from 'react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { sendEmailOTP, verifyEmailOTP, authenticateUser } from '@/lib/auth'
+import { sendEmailOTP, verifyEmailOTP, findOrCreateBusinessSession } from '@/lib/auth'
 import { toast } from 'sonner'
 
 interface OTPScreenProps {
   email: string
+  signupData?: { name: string; businessName: string }
   onSuccess: (businessId: string) => void
-  onNewUser: (email: string) => void
   onBack: () => void
 }
 
-export function OTPScreen({ email, onSuccess, onNewUser, onBack }: OTPScreenProps) {
+export function OTPScreen({ email, signupData, onSuccess, onBack }: OTPScreenProps) {
   const [otp, setOtp] = useState('')
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [resendCooldown, setResendCooldown] = useState(30)
   const [isResending, setIsResending] = useState(false)
-  const [welcomeBackUsername, setWelcomeBackUsername] = useState<string | null>(null)
 
   useEffect(() => {
     if (resendCooldown <= 0) return
@@ -53,29 +52,13 @@ export function OTPScreen({ email, onSuccess, onNewUser, onBack }: OTPScreenProp
     setError(null)
     try {
       await verifyEmailOTP(email, otp)
-      const result = await authenticateUser(email)
-      if (result.status === 'existing_user') {
-        setWelcomeBackUsername(result.username)
-        setTimeout(() => onSuccess(result.session.businessId), 1000)
-      } else {
-        onNewUser(result.email)
-      }
+      const session = await findOrCreateBusinessSession(email, signupData)
+      onSuccess(session.businessId)
     } catch (err) {
       console.error('OTP verification error:', err)
       setError('Incorrect code, please try again')
       setIsLoading(false)
     }
-  }
-
-  if (welcomeBackUsername) {
-    return (
-      <div className="min-h-screen flex flex-col items-center justify-center bg-background px-6">
-        <div className="text-center animate-in fade-in duration-300">
-          <p className="text-sm text-muted-foreground">Welcome back,</p>
-          <h1 className="text-2xl font-semibold text-foreground mt-1">{welcomeBackUsername}!</h1>
-        </div>
-      </div>
-    )
   }
 
   return (

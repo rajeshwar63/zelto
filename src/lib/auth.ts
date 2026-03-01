@@ -29,30 +29,6 @@ export async function verifyEmailOTP(email: string, token: string): Promise<void
   if (error) throw new Error(error.message)
 }
 
-export type AuthResult =
-  | { status: 'existing_user'; session: AuthSession; username: string }
-  | { status: 'new_user'; email: string }
-
-export async function authenticateUser(email: string): Promise<AuthResult> {
-  try {
-    const userAccount = await dataStore.getUserAccountByEmail(email)
-
-    if (userAccount) {
-      const session: AuthSession = {
-        businessId: userAccount.businessEntityId,
-        userId: userAccount.id,
-        email,
-        createdAt: Date.now(),
-      }
-      await setAuthSession(session)
-      return { status: 'existing_user', session, username: userAccount.username }
-    }
-  } catch (err) {
-    console.warn('User account lookup failed, treating as new user:', err)
-  }
-
-  return { status: 'new_user', email }
-}
 
 export async function getAuthSession(): Promise<AuthSession | null> {
   const sessionStr = localStorage.getItem(AUTH_SESSION_KEY)
@@ -70,6 +46,44 @@ export async function setAuthSession(session: AuthSession): Promise<void> {
 
 export async function clearAuthSession(): Promise<void> {
   localStorage.removeItem(AUTH_SESSION_KEY)
+}
+
+export async function findOrCreateBusinessSession(
+  email: string,
+  signupData?: { name: string; businessName: string }
+): Promise<AuthSession> {
+  const userAccount = await dataStore.getUserAccountByEmail(email).catch((err) => {
+    console.warn('User account lookup failed:', err)
+    return undefined
+  })
+
+  let businessId: string
+  let userId: string
+
+  if (userAccount) {
+    businessId = userAccount.businessEntityId
+    userId = userAccount.id
+  } else {
+    const businessName = signupData?.businessName || email.split('@')[0]
+    const username = signupData?.name || email.split('@')[0]
+
+    const businessEntity = await dataStore.createBusinessEntity(businessName)
+    const newAccount = await dataStore.createUserAccount(email, businessEntity.id, {
+      username,
+      role: 'owner',
+    })
+    businessId = businessEntity.id
+    userId = newAccount.id
+  }
+
+  const session: AuthSession = {
+    businessId,
+    userId,
+    email,
+    createdAt: Date.now(),
+  }
+  await setAuthSession(session)
+  return session
 }
 
 export async function logout(): Promise<void> {

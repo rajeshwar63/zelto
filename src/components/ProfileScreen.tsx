@@ -14,14 +14,12 @@ interface Props {
   onNavigateToNotificationSettings: () => void
   onNavigateToAccount: () => void
   onNavigateToSupport: () => void
-  onNavigateToManageMembers: () => void
 }
 
-export function ProfileScreen({ currentBusinessId, onLogout, onNavigateToBusinessDetails, onNavigateToNotifications, onNavigateToNotificationSettings, onNavigateToAccount, onNavigateToSupport, onNavigateToManageMembers }: Props) {
+export function ProfileScreen({ currentBusinessId, onLogout, onNavigateToBusinessDetails, onNavigateToNotifications, onNavigateToNotificationSettings, onNavigateToAccount, onNavigateToSupport }: Props) {
   const [business, setBusiness] = useState<BusinessEntity | null>(null)
   const [userAccount, setUserAccount] = useState<UserAccount | null>(null)
   const [unreadCount, setUnreadCount] = useState(0)
-  const [members, setMembers] = useState<UserAccount[]>([])
   const [loading, setLoading] = useState(true)
   const [refreshTimestamp, setRefreshTimestamp] = useState(Date.now())
 
@@ -35,17 +33,15 @@ export function ProfileScreen({ currentBusinessId, onLogout, onNavigateToBusines
       const session = await getAuthSession()
       if (!session) return
 
-      const [biz, user, count, membersList] = await Promise.all([
+      const [biz, user, count] = await Promise.all([
         dataStore.getBusinessEntityById(currentBusinessId),
         dataStore.getUserAccountByEmail(session.email),
         dataStore.getUnreadNotificationCountByBusinessId(currentBusinessId),
-        dataStore.getUserAccountsByBusinessId(currentBusinessId),
       ])
 
       setBusiness(biz || null)
       setUserAccount(user || null)
       setUnreadCount(count)
-      setMembers(membersList)
       setLoading(false)
     }
 
@@ -149,9 +145,6 @@ export function ProfileScreen({ currentBusinessId, onLogout, onNavigateToBusines
     }
   }
 
-  const locationParts = [business.area, business.city].filter(Boolean)
-  const locationStr = locationParts.join(', ')
-
   return (
     <div>
       {/* Header */}
@@ -235,34 +228,6 @@ export function ProfileScreen({ currentBusinessId, onLogout, onNavigateToBusines
             Share
           </button>
         </div>
-        {(userAccount.role || locationStr) && (
-          <p className="text-[13px] text-muted-foreground">
-            {[
-              userAccount.role ? (userAccount.role === 'owner' ? 'Manager' : userAccount.role.charAt(0).toUpperCase() + userAccount.role.slice(1)) : null,
-              locationStr,
-            ].filter(Boolean).join(' · ')}
-          </p>
-        )}
-        {members.length > 0 && (
-          <div className="mt-4">
-            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-2">
-              Team Members
-            </p>
-            <div className="space-y-2">
-              {members.map(member => (
-                <div key={member.id} className="flex items-center justify-between py-1">
-                  <div>
-                    <p className="text-sm font-medium text-foreground">{member.username}</p>
-                    <p className="text-xs text-muted-foreground">{member.email}</p>
-                  </div>
-                  <span className="text-xs text-muted-foreground capitalize">
-                    {member.role === 'owner' ? 'Manager' : member.role}
-                  </span>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
       </div>
 
       {/* Business Details Section */}
@@ -302,13 +267,6 @@ export function ProfileScreen({ currentBusinessId, onLogout, onNavigateToBusines
           </div>
         )}
       </div>
-
-      {/* Manage Members (owner only) */}
-      {userAccount.role === 'owner' && (
-        <div className="px-4 py-4 border-b border-border">
-          <SettingsItem title="Manage Members" onPress={onNavigateToManageMembers} showDivider={false} />
-        </div>
-      )}
 
       {/* Settings Section */}
       <div className="px-4 py-4">
