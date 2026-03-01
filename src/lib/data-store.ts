@@ -267,13 +267,10 @@ export class ZeltoDataStore {
       .from('user_accounts')
       .select('*')
       .eq('email', email)
-      .single()
+      .maybeSingle()
 
-    if (error) {
-      if (error.code === 'PGRST116') return undefined
-      throw error
-    }
-    return toCamelCase(data)
+    if (error) throw error
+    return data ? toCamelCase(data) : undefined
   }
   // ============ CONNECTIONS ============
 
