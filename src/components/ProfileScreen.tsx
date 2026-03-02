@@ -1,6 +1,7 @@
 import { useEffect, useState, useRef } from 'react'
 import { dataStore } from '@/lib/data-store'
 import { getAuthSession } from '@/lib/auth'
+import { calculateCredibility, getBusinessActivityCounts, type CredibilityBreakdown } from '@/lib/credibility'
 import type { BusinessEntity, UserAccount } from '@/lib/types'
 import { CaretRight, Bell, PencilSimple, Check, X } from '@phosphor-icons/react'
 import { SettingsItem } from './SettingsItem'
@@ -22,6 +23,8 @@ export function ProfileScreen({ currentBusinessId, onLogout, onNavigateToBusines
   const [unreadCount, setUnreadCount] = useState(0)
   const [loading, setLoading] = useState(true)
   const [refreshTimestamp, setRefreshTimestamp] = useState(Date.now())
+  const [credibility, setCredibility] = useState<CredibilityBreakdown | null>(null)
+  const [activityCounts, setActivityCounts] = useState<{ connectionCount: number; orderCount: number } | null>(null)
 
   const [isEditingUsername, setIsEditingUsername] = useState(false)
   const [editedUsername, setEditedUsername] = useState('')
@@ -42,6 +45,14 @@ export function ProfileScreen({ currentBusinessId, onLogout, onNavigateToBusines
       setBusiness(biz || null)
       setUserAccount(user || null)
       setUnreadCount(count)
+
+      const [cred, activity] = await Promise.all([
+        calculateCredibility(currentBusinessId),
+        getBusinessActivityCounts(currentBusinessId),
+      ])
+      setCredibility(cred)
+      setActivityCounts(activity)
+
       setLoading(false)
     }
 
@@ -218,7 +229,15 @@ export function ProfileScreen({ currentBusinessId, onLogout, onNavigateToBusines
         <h2 className="text-[11px] font-medium text-muted-foreground uppercase tracking-wide mb-3">
           Business
         </h2>
-        <h3 className="text-[15px] font-medium text-foreground mb-1">{business.businessName}</h3>
+        <div className="flex items-center gap-1.5 mb-1">
+          <h3 className="text-[15px] font-medium text-foreground">{business.businessName}</h3>
+          {credibility && credibility.level === 'trusted' && (
+            <span title="Trusted Business" className="text-green-500 text-[14px]">✓</span>
+          )}
+          {credibility && credibility.level === 'verified' && (
+            <span title="Verified" className="text-blue-500 text-[14px]">✓</span>
+          )}
+        </div>
         <div className="flex items-center gap-2 mb-1">
           <p className="text-[13px] text-muted-foreground font-mono">{business.zeltoId}</p>
           <button
@@ -228,6 +247,21 @@ export function ProfileScreen({ currentBusinessId, onLogout, onNavigateToBusines
             Share
           </button>
         </div>
+        {activityCounts && (
+          <p className="text-[12px] text-muted-foreground mt-1">
+            {activityCounts.connectionCount} connection{activityCounts.connectionCount !== 1 ? 's' : ''} · {activityCounts.orderCount} order{activityCounts.orderCount !== 1 ? 's' : ''}
+          </p>
+        )}
+        {business.formattedAddress && (
+          <p className="text-[12px] text-muted-foreground mt-0.5">
+            {business.formattedAddress}
+          </p>
+        )}
+        {business.phone && (
+          <p className="text-[12px] text-muted-foreground mt-0.5">
+            {business.phone}
+          </p>
+        )}
       </div>
 
       {/* Business Details Section */}
@@ -237,9 +271,16 @@ export function ProfileScreen({ currentBusinessId, onLogout, onNavigateToBusines
             onClick={onNavigateToBusinessDetails}
             className="w-full flex items-center justify-between py-2"
           >
-            <span className="text-[13px]" style={{ color: '#E8A020' }}>
-              Add business details to build credibility
-            </span>
+            <div>
+              <span className="text-[13px]" style={{ color: '#E8A020' }}>
+                Add business details to build credibility
+              </span>
+              {credibility && (
+                <span className="text-[11px] text-muted-foreground ml-2">
+                  {credibility.score}/100
+                </span>
+              )}
+            </div>
             <CaretRight size={16} style={{ color: '#E8A020' }} />
           </button>
         ) : (
@@ -258,9 +299,25 @@ export function ProfileScreen({ currentBusinessId, onLogout, onNavigateToBusines
                 <p className="text-[12px] text-muted-foreground">Website: {business.website}</p>
               )}
             </div>
+            {credibility && (
+              <div className="mt-2 flex items-center gap-2">
+                <div className="flex-1 h-1.5 bg-muted rounded-full overflow-hidden">
+                  <div
+                    className="h-full rounded-full"
+                    style={{
+                      width: `${credibility.score}%`,
+                      backgroundColor: credibility.level === 'trusted' ? '#22C55E'
+                        : credibility.level === 'verified' ? '#3B82F6'
+                        : '#F59E0B'
+                    }}
+                  />
+                </div>
+                <span className="text-[11px] text-muted-foreground">{credibility.score}/100</span>
+              </div>
+            )}
             <button
               onClick={onNavigateToBusinessDetails}
-              className="text-[12px] text-muted-foreground hover:text-foreground transition-colors"
+              className="text-[12px] text-muted-foreground hover:text-foreground transition-colors mt-2"
             >
               Edit business details
             </button>

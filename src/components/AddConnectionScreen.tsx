@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { dataStore } from '@/lib/data-store'
+import { calculateCredibility, getBusinessActivityCounts, type CredibilityBreakdown } from '@/lib/credibility'
 import { ArrowLeft } from '@phosphor-icons/react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -14,6 +15,8 @@ interface Props {
 export function AddConnectionScreen({ currentBusinessId, onBack, onSuccess }: Props) {
   const [zeltoId, setZeltoId] = useState('')
   const [foundBusiness, setFoundBusiness] = useState<BusinessEntity | null>(null)
+  const [foundCredibility, setFoundCredibility] = useState<CredibilityBreakdown | null>(null)
+  const [foundActivity, setFoundActivity] = useState<{ connectionCount: number; orderCount: number } | null>(null)
   const [selectedRole, setSelectedRole] = useState<'buyer' | 'supplier' | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [searching, setSearching] = useState(false)
@@ -22,6 +25,8 @@ export function AddConnectionScreen({ currentBusinessId, onBack, onSuccess }: Pr
   const handleFindBusiness = async () => {
     setError(null)
     setFoundBusiness(null)
+    setFoundCredibility(null)
+    setFoundActivity(null)
     setSelectedRole(null)
     setSearching(true)
 
@@ -42,6 +47,14 @@ export function AddConnectionScreen({ currentBusinessId, onBack, onSuccess }: Pr
     }
 
     setFoundBusiness(business)
+
+    const [cred, activity] = await Promise.all([
+      calculateCredibility(business.id),
+      getBusinessActivityCounts(business.id),
+    ])
+    setFoundCredibility(cred)
+    setFoundActivity(activity)
+
     setSearching(false)
   }
 
@@ -145,10 +158,78 @@ export function AddConnectionScreen({ currentBusinessId, onBack, onSuccess }: Pr
         {error && <p className="text-sm text-[#D64545] mb-4">{error}</p>}
 
         {foundBusiness && (
-          <div className="space-y-4">
-            <p className="text-sm text-foreground">{foundBusiness.businessName}</p>
+          <div className="rounded-lg border border-border p-4 space-y-3 mt-4">
+            {/* Business name + verified badge */}
+            <div className="flex items-center gap-1.5">
+              <p className="text-base font-medium text-foreground">{foundBusiness.businessName}</p>
+              {foundCredibility?.level === 'trusted' && <span className="text-green-500">✓</span>}
+              {foundCredibility?.level === 'verified' && <span className="text-blue-500">✓</span>}
+            </div>
 
-            <div className="space-y-2">
+            {/* Zelto ID */}
+            <p className="text-xs text-muted-foreground font-mono">{foundBusiness.zeltoId}</p>
+
+            {/* Details (only show what exists) */}
+            <div className="space-y-1">
+              {foundBusiness.formattedAddress && (
+                <p className="text-xs text-muted-foreground">{foundBusiness.formattedAddress}</p>
+              )}
+              {foundBusiness.phone && (
+                <p className="text-xs text-muted-foreground">{foundBusiness.phone}</p>
+              )}
+              {foundBusiness.gstNumber && (
+                <p className="text-xs text-muted-foreground">GST: {foundBusiness.gstNumber}</p>
+              )}
+              {foundBusiness.businessType && (
+                <p className="text-xs text-muted-foreground">{foundBusiness.businessType}</p>
+              )}
+              {!foundBusiness.phone && !foundBusiness.gstNumber && !foundBusiness.formattedAddress && (
+                <p className="text-xs text-muted-foreground italic">No details added</p>
+              )}
+            </div>
+
+            {/* Activity counts */}
+            {foundActivity && (
+              <p className="text-xs text-muted-foreground">
+                {foundActivity.connectionCount} connection{foundActivity.connectionCount !== 1 ? 's' : ''} · {foundActivity.orderCount} order{foundActivity.orderCount !== 1 ? 's' : ''}
+              </p>
+            )}
+
+            {/* Credibility bar */}
+            {foundCredibility && (
+              <div className="flex items-center gap-2">
+                <div className="flex-1 h-1.5 bg-muted rounded-full overflow-hidden">
+                  <div
+                    className="h-full rounded-full"
+                    style={{
+                      width: `${foundCredibility.score}%`,
+                      backgroundColor: foundCredibility.level === 'trusted' ? '#22C55E'
+                        : foundCredibility.level === 'verified' ? '#3B82F6'
+                        : foundCredibility.level === 'basic' ? '#F59E0B'
+                        : '#D1D5DB'
+                    }}
+                  />
+                </div>
+                <span className="text-[11px] text-muted-foreground">
+                  {foundCredibility.level === 'trusted' ? 'Trusted'
+                    : foundCredibility.level === 'verified' ? 'Verified'
+                    : foundCredibility.level === 'basic' ? 'Basic'
+                    : 'New'} ({foundCredibility.score}/100)
+                </span>
+              </div>
+            )}
+
+            {/* Warning for low credibility */}
+            {foundCredibility && foundCredibility.score < 20 && (
+              <div className="p-2 rounded bg-amber-50 border border-amber-200">
+                <p className="text-xs text-amber-700">
+                  This business hasn't added details yet. Verify before connecting.
+                </p>
+              </div>
+            )}
+
+            {/* Role selection + send button */}
+            <div className="space-y-2 pt-2">
               <p className="text-sm text-muted-foreground">Select your role:</p>
               <div className="flex gap-2">
                 <Button

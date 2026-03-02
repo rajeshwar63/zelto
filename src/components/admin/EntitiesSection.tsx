@@ -40,6 +40,7 @@ export function EntitiesSection() {
             <tr className="bg-gray-50 border-b border-gray-200">
               <th className="px-4 py-3 text-left text-xs font-medium text-gray-700 uppercase">Business Name</th>
               <th className="px-4 py-3 text-left text-xs font-medium text-gray-700 uppercase">Zelto ID</th>
+              <th className="px-4 py-3 text-left text-xs font-medium text-gray-700 uppercase">Credibility</th>
               <th className="px-4 py-3 text-left text-xs font-medium text-gray-700 uppercase">Created</th>
               <th className="px-4 py-3 text-left text-xs font-medium text-gray-700 uppercase">Flag Status</th>
             </tr>
@@ -54,7 +55,7 @@ export function EntitiesSection() {
             ))}
             {entities.length === 0 && (
               <tr>
-                <td colSpan={4} className="px-4 py-8 text-center text-sm text-gray-500">
+                <td colSpan={5} className="px-4 py-8 text-center text-sm text-gray-500">
                   No entities found
                 </td>
               </tr>
@@ -101,6 +102,7 @@ function EntityRow({
     >
       <td className="px-4 py-3 text-sm text-gray-900">{entity.businessName}</td>
       <td className="px-4 py-3 text-sm text-gray-600 font-mono">{entity.zeltoId}</td>
+      <td className="px-4 py-3 text-sm text-gray-600">{entity.credibilityScore}/100</td>
       <td className="px-4 py-3 text-sm text-gray-600">
         {formatDistanceToNow(entity.createdAt, { addSuffix: true })}
       </td>

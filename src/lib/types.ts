@@ -35,10 +35,16 @@ export interface BusinessEntity {
   businessAddress?: string
   businessType?: 'Restaurant' | 'Supplier' | 'Manufacturer' | 'Retailer' | 'Distributor' | 'Other'
   website?: string
-  nameNormalized?: string
+  phone?: string
+  latitude?: number
+  longitude?: number
+  googleMapsPlaceId?: string
+  googleMapsUrl?: string
+  formattedAddress?: string
+  credibilityScore: number
   city?: string
   area?: string
-  phone?: string
+  nameNormalized?: string
 }
 
 export type UserRole = 'owner' | 'admin' | 'member'
