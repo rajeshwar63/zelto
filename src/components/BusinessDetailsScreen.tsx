@@ -1,7 +1,8 @@
-import { useState, useEffect } from 'react'
-import { ArrowLeft } from '@phosphor-icons/react'
+import { useState, useEffect, useRef } from 'react'
+import { ArrowLeft, MagnifyingGlass } from '@phosphor-icons/react'
 import { dataStore } from '@/lib/data-store'
 import { calculateCredibility, type CredibilityBreakdown } from '@/lib/credibility'
+import { CredibilityBadge } from './CredibilityBadge'
 import { toast } from 'sonner'
 
 interface Props {
@@ -11,6 +12,38 @@ interface Props {
 }
 
 const BUSINESS_TYPES = ['Restaurant', 'Supplier', 'Manufacturer', 'Retailer', 'Distributor', 'Other']
+
+interface PlaceSuggestion {
+  displayName: string
+  lat: number
+  lng: number
+  placeId: string
+}
+
+interface NominatimResult {
+  display_name: string
+  lat: string
+  lon: string
+  place_id: number
+}
+
+async function searchPlaces(query: string): Promise<PlaceSuggestion[]> {
+  if (!query.trim()) return []
+  try {
+    const url = `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(query)}&format=json&limit=5&addressdetails=1`
+    const res = await fetch(url, { headers: { 'Accept-Language': 'en' } })
+    if (!res.ok) return []
+    const data: NominatimResult[] = await res.json()
+    return data.map((item) => ({
+      displayName: item.display_name,
+      lat: parseFloat(item.lat),
+      lng: parseFloat(item.lon),
+      placeId: item.place_id?.toString() ?? '',
+    }))
+  } catch {
+    return []
+  }
+}
 
 function parseGoogleMapsUrl(url: string): { lat: number; lng: number } | null {
   // Format: https://www.google.com/maps?q=17.4372,78.4483
@@ -40,13 +73,18 @@ export function BusinessDetailsScreen({ currentBusinessId, onBack, onSave }: Pro
   const [website, setWebsite] = useState('')
   const [phone, setPhone] = useState('')
   const [mapsUrl, setMapsUrl] = useState('')
-  const [parsedLocation, setParsedLocation] = useState<{ lat: number; lng: number } | null>(null)
-  const [existingLocation, setExistingLocation] = useState<{ lat: number; lng: number; url?: string } | null>(null)
+  const [parsedLocation, setParsedLocation] = useState<{ lat: number; lng: number; formattedAddress?: string; placeId?: string } | null>(null)
+  const [existingLocation, setExistingLocation] = useState<{ lat: number; lng: number; url?: string; formattedAddress?: string } | null>(null)
   const [locationError, setLocationError] = useState('')
   const [gstError, setGstError] = useState('')
   const [saving, setSaving] = useState(false)
-  const [saved, setSaved] = useState(false)
   const [credibility, setCredibility] = useState<CredibilityBreakdown | null>(null)
+
+  // Place search state
+  const [placeQuery, setPlaceQuery] = useState('')
+  const [placeSuggestions, setPlaceSuggestions] = useState<PlaceSuggestion[]>([])
+  const [isSearchingPlaces, setIsSearchingPlaces] = useState(false)
+  const searchTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   useEffect(() => {
     async function loadExisting() {
@@ -62,6 +100,7 @@ export function BusinessDetailsScreen({ currentBusinessId, onBack, onSave }: Pro
           lat: entity.latitude,
           lng: entity.longitude,
           url: entity.googleMapsUrl,
+          formattedAddress: entity.formattedAddress,
         })
       }
       if (entity.googleMapsUrl) setMapsUrl(entity.googleMapsUrl)
@@ -77,6 +116,27 @@ export function BusinessDetailsScreen({ currentBusinessId, onBack, onSave }: Pro
     loadCredibility()
   }, [currentBusinessId])
 
+  const handlePlaceQueryChange = (value: string) => {
+    setPlaceQuery(value)
+    setPlaceSuggestions([])
+    if (searchTimeoutRef.current) clearTimeout(searchTimeoutRef.current)
+    if (!value.trim()) return
+    searchTimeoutRef.current = setTimeout(async () => {
+      setIsSearchingPlaces(true)
+      const results = await searchPlaces(value)
+      setPlaceSuggestions(results)
+      setIsSearchingPlaces(false)
+    }, 400)
+  }
+
+  const handleSelectPlace = (place: PlaceSuggestion) => {
+    setParsedLocation({ lat: place.lat, lng: place.lng, formattedAddress: place.displayName, placeId: place.placeId })
+    setExistingLocation(null)
+    setPlaceQuery('')
+    setPlaceSuggestions([])
+    setLocationError('')
+  }
+
   const handleVerifyLocation = () => {
     setLocationError('')
     const trimmed = mapsUrl.trim()
@@ -87,11 +147,11 @@ export function BusinessDetailsScreen({ currentBusinessId, onBack, onSave }: Pro
 
     const parsed = parseGoogleMapsUrl(trimmed)
     if (!parsed) {
-      setLocationError('Could not extract location. Please use the full Google Maps URL (not the short link). Open your location in Google Maps on a browser and copy the URL from the address bar.')
+      setLocationError('Could not extract location from URL. Try searching by name above.')
       return
     }
 
-    setParsedLocation(parsed)
+    setParsedLocation({ lat: parsed.lat, lng: parsed.lng })
     setExistingLocation(null)
   }
 
@@ -100,6 +160,8 @@ export function BusinessDetailsScreen({ currentBusinessId, onBack, onSave }: Pro
     setExistingLocation(null)
     setMapsUrl('')
     setLocationError('')
+    setPlaceQuery('')
+    setPlaceSuggestions([])
   }
 
   const handleSave = async () => {
@@ -131,18 +193,18 @@ export function BusinessDetailsScreen({ currentBusinessId, onBack, onSave }: Pro
         await dataStore.updateBusinessLocation(currentBusinessId, {
           latitude: parsedLocation.lat,
           longitude: parsedLocation.lng,
-          googleMapsUrl: mapsUrl.trim(),
+          googleMapsPlaceId: parsedLocation.placeId,
+          googleMapsUrl: mapsUrl.trim() || undefined,
+          formattedAddress: parsedLocation.formattedAddress,
         })
       }
 
       // Recalculate credibility after saving
       await calculateCredibility(currentBusinessId)
 
-      setSaved(true)
-      setTimeout(() => {
-        if (onSave) onSave()
-        else onBack()
-      }, 800)
+      toast.success('Saved')
+      if (onSave) onSave()
+      else onBack()
     } catch (err) {
       console.error(err)
       toast.error('Failed to save details')
@@ -169,18 +231,21 @@ export function BusinessDetailsScreen({ currentBusinessId, onBack, onSave }: Pro
 
         {/* Credibility Progress */}
         {credibility && (
-          <div style={{ marginBottom: '24px', padding: '16px', borderRadius: '8px', border: '1px solid #e0e0e0', backgroundColor: '#fafafa' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
-              <span style={{ fontSize: '11px', fontWeight: '500', color: '#888', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-                Credibility
-              </span>
-              <span style={{ fontSize: '13px', fontWeight: '600', color: '#222' }}>
+          <div style={{ marginBottom: '16px', padding: '12px 16px', borderRadius: '8px', border: '1px solid #e0e0e0', backgroundColor: '#fafafa' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <span style={{ fontSize: '11px', fontWeight: '500', color: '#888', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                  Credibility
+                </span>
+                {credibility.level !== 'none' && <CredibilityBadge level={credibility.level} />}
+              </div>
+              <span style={{ fontSize: '12px', fontWeight: '600', color: '#222' }}>
                 {credibility.score}/100
               </span>
             </div>
 
             {/* Progress bar */}
-            <div style={{ height: '8px', backgroundColor: '#e8e8e8', borderRadius: '4px', overflow: 'hidden', marginBottom: '12px' }}>
+            <div style={{ height: '4px', backgroundColor: '#e8e8e8', borderRadius: '4px', overflow: 'hidden', marginBottom: '8px' }}>
               <div
                 style={{
                   height: '100%',
@@ -194,14 +259,6 @@ export function BusinessDetailsScreen({ currentBusinessId, onBack, onSave }: Pro
                 }}
               />
             </div>
-
-            {/* Level label */}
-            <p style={{ fontSize: '12px', color: '#888', marginBottom: '8px' }}>
-              {credibility.level === 'trusted' ? 'Trusted Business'
-                : credibility.level === 'verified' ? 'Verified'
-                : credibility.level === 'basic' ? 'Basic Profile'
-                : 'New Business'}
-            </p>
 
             {/* Missing items as hints */}
             {credibility.missingItems.length > 0 && (
@@ -263,14 +320,17 @@ export function BusinessDetailsScreen({ currentBusinessId, onBack, onSave }: Pro
           />
         </div>
 
-        {/* Google Maps Location */}
+        {/* Map Location – Search Place */}
         <div style={{ marginBottom: '20px' }}>
           <label style={{ fontSize: '13px', color: '#444', display: 'block', marginBottom: '6px' }}>Map Location</label>
 
           {locationDisplay ? (
             <div style={{ padding: '12px', backgroundColor: '#f0fdf4', border: '1px solid #bbf7d0', borderRadius: '8px' }}>
-              <p style={{ fontSize: '13px', color: '#166534', marginBottom: '4px' }}>
-                Location set ({locationDisplay.lat.toFixed(4)}, {locationDisplay.lng.toFixed(4)})
+              <p style={{ fontSize: '13px', color: '#166534', marginBottom: '2px' }}>
+                {locationDisplay.formattedAddress || `${locationDisplay.lat.toFixed(5)}, ${locationDisplay.lng.toFixed(5)}`}
+              </p>
+              <p style={{ fontSize: '11px', color: '#6b7280', marginBottom: '4px' }}>
+                {locationDisplay.lat.toFixed(5)}, {locationDisplay.lng.toFixed(5)}
               </p>
               <button
                 onClick={handleClearLocation}
@@ -281,22 +341,57 @@ export function BusinessDetailsScreen({ currentBusinessId, onBack, onSave }: Pro
             </div>
           ) : (
             <div>
-              <p style={{ fontSize: '12px', color: '#888', marginBottom: '8px' }}>
-                Open Google Maps, find your business or drop a pin, tap Share and copy the link.
-              </p>
-              <input
-                type="text"
-                value={mapsUrl}
-                onChange={e => { setMapsUrl(e.target.value); setLocationError('') }}
-                placeholder="Paste Google Maps link here"
-                style={{ width: '100%', padding: '10px 12px', fontSize: '14px', border: '1px solid #e0e0e0', borderRadius: '8px', boxSizing: 'border-box', marginBottom: '8px' }}
-              />
-              <button
-                onClick={handleVerifyLocation}
-                style={{ padding: '8px 16px', fontSize: '13px', backgroundColor: '#f0f0f0', border: '1px solid #e0e0e0', borderRadius: '6px', cursor: 'pointer' }}
-              >
-                Verify Location
-              </button>
+              {/* Search by name */}
+              <div style={{ position: 'relative', marginBottom: '8px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', border: '1px solid #e0e0e0', borderRadius: '8px', overflow: 'hidden' }}>
+                  <span style={{ padding: '0 10px', color: '#aaa', display: 'flex', alignItems: 'center' }}>
+                    <MagnifyingGlass size={16} />
+                  </span>
+                  <input
+                    type="text"
+                    value={placeQuery}
+                    onChange={e => handlePlaceQueryChange(e.target.value)}
+                    placeholder="Search your business or address"
+                    style={{ flex: 1, padding: '10px 12px 10px 0', fontSize: '14px', border: 'none', outline: 'none', fontFamily: 'inherit' }}
+                  />
+                  {isSearchingPlaces && (
+                    <span style={{ padding: '0 10px', fontSize: '12px', color: '#aaa' }}>…</span>
+                  )}
+                </div>
+                {placeSuggestions.length > 0 && (
+                  <div style={{ position: 'absolute', top: '100%', left: 0, right: 0, backgroundColor: '#fff', border: '1px solid #e0e0e0', borderRadius: '8px', boxShadow: '0 4px 12px rgba(0,0,0,0.08)', zIndex: 10, marginTop: '2px' }}>
+                    {placeSuggestions.map((place, i) => (
+                      <button
+                        key={i}
+                        onClick={() => handleSelectPlace(place)}
+                        style={{ display: 'block', width: '100%', textAlign: 'left', padding: '10px 14px', fontSize: '13px', color: '#222', background: 'none', border: 'none', cursor: 'pointer', borderBottom: i < placeSuggestions.length - 1 ? '1px solid #f0f0f0' : 'none' }}
+                      >
+                        {place.displayName}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {/* Optional Maps URL paste */}
+              <details style={{ marginTop: '4px' }}>
+                <summary style={{ fontSize: '12px', color: '#888', cursor: 'pointer', userSelect: 'none', marginBottom: '6px' }}>
+                  Or paste a Google Maps link (optional)
+                </summary>
+                <input
+                  type="text"
+                  value={mapsUrl}
+                  onChange={e => { setMapsUrl(e.target.value); setLocationError('') }}
+                  placeholder="Paste Google Maps link here"
+                  style={{ width: '100%', padding: '10px 12px', fontSize: '14px', border: '1px solid #e0e0e0', borderRadius: '8px', boxSizing: 'border-box', marginBottom: '8px' }}
+                />
+                <button
+                  onClick={handleVerifyLocation}
+                  style={{ padding: '8px 16px', fontSize: '13px', backgroundColor: '#f0f0f0', border: '1px solid #e0e0e0', borderRadius: '6px', cursor: 'pointer' }}
+                >
+                  Use this link
+                </button>
+              </details>
               {locationError && <p style={{ color: '#D64545', fontSize: '12px', marginTop: '4px' }}>{locationError}</p>}
             </div>
           )}
@@ -318,9 +413,9 @@ export function BusinessDetailsScreen({ currentBusinessId, onBack, onSave }: Pro
         <button
           onClick={handleSave}
           disabled={saving}
-          style={{ width: '100%', padding: '14px', backgroundColor: saved ? '#4CAF50' : '#1A1A2E', color: '#fff', border: 'none', borderRadius: '8px', fontSize: '15px', fontWeight: '500', cursor: saving ? 'not-allowed' : 'pointer' }}
+          style={{ width: '100%', padding: '14px', backgroundColor: '#1A1A2E', color: '#fff', border: 'none', borderRadius: '8px', fontSize: '15px', fontWeight: '500', cursor: saving ? 'not-allowed' : 'pointer', opacity: saving ? 0.7 : 1 }}
         >
-          {saved ? 'Saved' : saving ? 'Saving...' : 'Save Details'}
+          {saving ? 'Saving…' : 'Save Details'}
         </button>
       </div>
     </div>
