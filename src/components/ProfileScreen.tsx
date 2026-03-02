@@ -5,6 +5,7 @@ import { calculateCredibility, getBusinessActivityCounts, type CredibilityBreakd
 import type { BusinessEntity, UserAccount } from '@/lib/types'
 import { CaretRight, Bell, PencilSimple, Check, X } from '@phosphor-icons/react'
 import { SettingsItem } from './SettingsItem'
+import { CredibilityBadge } from './CredibilityBadge'
 import { toast } from 'sonner'
 
 interface Props {
@@ -231,11 +232,8 @@ export function ProfileScreen({ currentBusinessId, onLogout, onNavigateToBusines
         </h2>
         <div className="flex items-center gap-1.5 mb-1">
           <h3 className="text-[15px] font-medium text-foreground">{business.businessName}</h3>
-          {credibility && credibility.level === 'trusted' && (
-            <span title="Trusted Business" className="text-green-500 text-[14px]">✓</span>
-          )}
-          {credibility && credibility.level === 'verified' && (
-            <span title="Verified" className="text-blue-500 text-[14px]">✓</span>
+          {credibility && credibility.level !== 'none' && (
+            <CredibilityBadge level={credibility.level} />
           )}
         </div>
         <div className="flex items-center gap-2 mb-1">
