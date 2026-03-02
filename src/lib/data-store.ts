@@ -209,6 +209,14 @@ export class ZeltoDataStore {
     return toCamelCase(data)
   }
 
+  async updateBusinessMapsUrl(businessId: string, googleMapsUrl: string): Promise<void> {
+    const { error } = await supabase
+      .from('business_entities')
+      .update({ google_maps_url: googleMapsUrl })
+      .eq('id', businessId)
+    if (error) throw error
+  }
+
   async updateBusinessPhone(businessId: string, phone: string): Promise<void> {
     const { error } = await supabase
       .from('business_entities')
