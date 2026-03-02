@@ -173,6 +173,50 @@ export class ZeltoDataStore {
     return toCamelCase(data)
   }
 
+  async updateCredibilityScore(businessId: string, score: number): Promise<void> {
+    const { error } = await supabase
+      .from('business_entities')
+      .update({ credibility_score: score })
+      .eq('id', businessId)
+
+    if (error) throw error
+  }
+
+  async updateBusinessLocation(
+    businessId: string,
+    location: {
+      latitude: number
+      longitude: number
+      googleMapsPlaceId?: string
+      googleMapsUrl?: string
+      formattedAddress?: string
+    }
+  ): Promise<BusinessEntity> {
+    const { data, error } = await supabase
+      .from('business_entities')
+      .update({
+        latitude: location.latitude,
+        longitude: location.longitude,
+        google_maps_place_id: location.googleMapsPlaceId || null,
+        google_maps_url: location.googleMapsUrl || null,
+        formatted_address: location.formattedAddress || null,
+      })
+      .eq('id', businessId)
+      .select()
+      .single()
+
+    if (error) throw error
+    return toCamelCase(data)
+  }
+
+  async updateBusinessPhone(businessId: string, phone: string): Promise<void> {
+    const { error } = await supabase
+      .from('business_entities')
+      .update({ phone })
+      .eq('id', businessId)
+    if (error) throw error
+  }
+
   async checkGSTExists(gstNumber: string, excludeEntityId?: string): Promise<boolean> {
     let query = supabase
       .from('business_entities')

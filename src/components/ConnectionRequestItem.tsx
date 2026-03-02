@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react'
 import { dataStore } from '@/lib/data-store'
 import { createConnection } from '@/lib/interactions'
-import type { ConnectionRequest, PaymentTermType } from '@/lib/types'
+import { calculateCredibility, getBusinessActivityCounts, type CredibilityBreakdown } from '@/lib/credibility'
+import type { BusinessEntity, ConnectionRequest, PaymentTermType } from '@/lib/types'
 import { Button } from '@/components/ui/button'
 import { formatDistanceToNow } from 'date-fns'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
@@ -16,8 +17,9 @@ interface Props {
 }
 
 export function ConnectionRequestItem({ request, currentBusinessId, onUpdate, onNavigateToConnections }: Props) {
-  const [requesterBusiness, setRequesterBusiness] = useState<string>('')
-  const [requesterZeltoId, setRequesterZeltoId] = useState<string>('')
+  const [requesterBusiness, setRequesterBusiness] = useState<BusinessEntity | null>(null)
+  const [requesterCredibility, setRequesterCredibility] = useState<CredibilityBreakdown | null>(null)
+  const [requesterActivity, setRequesterActivity] = useState<{ connectionCount: number; orderCount: number } | null>(null)
   const [showRoleConfirm, setShowRoleConfirm] = useState(false)
   const [receiverRole, setReceiverRole] = useState<'buyer' | 'supplier'>(request.receiverRole)
   const [error, setError] = useState<string | null>(null)
@@ -27,9 +29,15 @@ export function ConnectionRequestItem({ request, currentBusinessId, onUpdate, on
     const loadRequester = async () => {
       const business = await dataStore.getBusinessEntityById(request.requesterBusinessId)
       if (business) {
-        setRequesterBusiness(business.businessName)
-        setRequesterZeltoId(business.zeltoId)
+        setRequesterBusiness(business)
       }
+
+      const [cred, activity] = await Promise.all([
+        calculateCredibility(request.requesterBusinessId),
+        getBusinessActivityCounts(request.requesterBusinessId),
+      ])
+      setRequesterCredibility(cred)
+      setRequesterActivity(activity)
     }
     loadRequester()
   }, [request.requesterBusinessId])
@@ -60,11 +68,11 @@ export function ConnectionRequestItem({ request, currentBusinessId, onUpdate, on
       const supplierBusinessId = receiverRole === 'supplier' ? currentBusinessId : request.requesterBusinessId
 
       const paymentTerms: PaymentTermType | null = receiverRole === 'supplier' ? null : { type: 'Payment on Delivery' }
-      
+
       const connection = await createConnection(buyerBusinessId, supplierBusinessId, paymentTerms)
-      
+
       await dataStore.updateConnectionRequestStatus(request.id, 'Accepted')
-      
+
       await dataStore.createNotification(
         request.requesterBusinessId,
         'ConnectionAccepted',
@@ -72,10 +80,10 @@ export function ConnectionRequestItem({ request, currentBusinessId, onUpdate, on
         connection.id,
         `Your connection request has been accepted`
       )
-      
+
       setShowRoleConfirm(false)
       setProcessing(false)
-      
+
       onUpdate()
       onNavigateToConnections()
     } catch (err) {
@@ -91,12 +99,84 @@ export function ConnectionRequestItem({ request, currentBusinessId, onUpdate, on
   return (
     <>
       <div className="px-4 py-2">
-        <p className="text-sm text-foreground font-normal mb-0.5">
-          {requesterBusiness || 'Loading...'}
-        </p>
-        <p className="text-xs text-muted-foreground mb-0.5">
-          {requesterZeltoId || 'Loading...'}
-        </p>
+        {/* Rich business card */}
+        <div className="rounded-lg border border-border p-3 space-y-2 mb-3">
+          {/* Business name + badge */}
+          <div className="flex items-center gap-1.5">
+            <p className="text-sm text-foreground font-medium">
+              {requesterBusiness?.businessName || 'Loading...'}
+            </p>
+            {requesterCredibility?.level === 'trusted' && <span className="text-green-500 text-[13px]">✓</span>}
+            {requesterCredibility?.level === 'verified' && <span className="text-blue-500 text-[13px]">✓</span>}
+          </div>
+
+          {/* Zelto ID */}
+          <p className="text-xs text-muted-foreground font-mono">
+            {requesterBusiness?.zeltoId || 'Loading...'}
+          </p>
+
+          {/* Details */}
+          {requesterBusiness && (
+            <div className="space-y-0.5">
+              {requesterBusiness.formattedAddress && (
+                <p className="text-xs text-muted-foreground">{requesterBusiness.formattedAddress}</p>
+              )}
+              {requesterBusiness.phone && (
+                <p className="text-xs text-muted-foreground">{requesterBusiness.phone}</p>
+              )}
+              {requesterBusiness.gstNumber && (
+                <p className="text-xs text-muted-foreground">GST: {requesterBusiness.gstNumber}</p>
+              )}
+              {requesterBusiness.businessType && (
+                <p className="text-xs text-muted-foreground">{requesterBusiness.businessType}</p>
+              )}
+              {!requesterBusiness.phone && !requesterBusiness.gstNumber && !requesterBusiness.formattedAddress && (
+                <p className="text-xs text-muted-foreground italic">No details added</p>
+              )}
+            </div>
+          )}
+
+          {/* Activity counts */}
+          {requesterActivity && (
+            <p className="text-xs text-muted-foreground">
+              {requesterActivity.connectionCount} connection{requesterActivity.connectionCount !== 1 ? 's' : ''} · {requesterActivity.orderCount} order{requesterActivity.orderCount !== 1 ? 's' : ''}
+            </p>
+          )}
+
+          {/* Credibility bar */}
+          {requesterCredibility && (
+            <div className="flex items-center gap-2">
+              <div className="flex-1 h-1.5 bg-muted rounded-full overflow-hidden">
+                <div
+                  className="h-full rounded-full"
+                  style={{
+                    width: `${requesterCredibility.score}%`,
+                    backgroundColor: requesterCredibility.level === 'trusted' ? '#22C55E'
+                      : requesterCredibility.level === 'verified' ? '#3B82F6'
+                      : requesterCredibility.level === 'basic' ? '#F59E0B'
+                      : '#D1D5DB'
+                  }}
+                />
+              </div>
+              <span className="text-[11px] text-muted-foreground">
+                {requesterCredibility.level === 'trusted' ? 'Trusted'
+                  : requesterCredibility.level === 'verified' ? 'Verified'
+                  : requesterCredibility.level === 'basic' ? 'Basic'
+                  : 'New'} ({requesterCredibility.score}/100)
+              </span>
+            </div>
+          )}
+
+          {/* Warning for low credibility */}
+          {requesterCredibility && requesterCredibility.score < 20 && (
+            <div className="p-2 rounded bg-amber-50 border border-amber-200">
+              <p className="text-xs text-amber-700">
+                This business hasn't added details yet. Verify before connecting.
+              </p>
+            </div>
+          )}
+        </div>
+
         <p className="text-xs text-muted-foreground mb-2">
           {roleDescription}
         </p>
@@ -104,16 +184,16 @@ export function ConnectionRequestItem({ request, currentBusinessId, onUpdate, on
           {formatDistanceToNow(request.createdAt, { addSuffix: true })}
         </p>
         <div className="flex gap-2">
-          <Button 
-            onClick={handleAccept} 
+          <Button
+            onClick={handleAccept}
             disabled={processing}
             size="sm"
             className="flex-1"
           >
             Accept
           </Button>
-          <Button 
-            onClick={handleDecline} 
+          <Button
+            onClick={handleDecline}
             disabled={processing}
             size="sm"
             variant="outline"
@@ -131,7 +211,7 @@ export function ConnectionRequestItem({ request, currentBusinessId, onUpdate, on
           </DialogHeader>
           <div className="space-y-4 py-4">
             <p className="text-sm text-muted-foreground">
-              {requesterBusiness} is requesting to be the {request.requesterRole === 'buyer' ? 'Buyer' : 'Supplier'}
+              {requesterBusiness?.businessName} is requesting to be the {request.requesterRole === 'buyer' ? 'Buyer' : 'Supplier'}
             </p>
             <div>
               <Label>Your role in this connection</Label>
