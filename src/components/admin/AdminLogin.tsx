@@ -1,6 +1,4 @@
 import { useState } from 'react'
-import bcrypt from 'bcryptjs'
-import { dataStore } from '@/lib/data-store'
 
 interface AdminLoginProps {
   onLoginSuccess: (username: string) => void
@@ -12,8 +10,12 @@ export function AdminLogin({ onLoginSuccess }: AdminLoginProps) {
   const [error, setError] = useState('')
 
   async function handleLogin() {
-    const account = await dataStore.getAdminAccountByUsername(username)
-    if (account && await bcrypt.compare(password, account.password)) {
+    // Temporary: admin credentials validated locally
+    // TODO: Replace with Supabase Edge Function or server-side auth
+    const ADMIN_USER = import.meta.env.VITE_ADMIN_USERNAME || 'zelto-admin'
+    const ADMIN_PASS = import.meta.env.VITE_ADMIN_PASSWORD || ''
+
+    if (username === ADMIN_USER && password === ADMIN_PASS) {
       onLoginSuccess(username)
     } else {
       setError('Invalid username or password')
