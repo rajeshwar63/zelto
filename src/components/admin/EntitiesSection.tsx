@@ -4,18 +4,28 @@ import { dataStore } from '@/lib/data-store'
 import { BusinessEntity, Connection, EntityFlag } from '@/lib/types'
 import { formatDistanceToNow } from 'date-fns'
 import { ArrowLeft } from '@phosphor-icons/react'
+import { toast } from 'sonner'
 
 export function EntitiesSection() {
   const [entities, setEntities] = useState<BusinessEntity[]>([])
   const [selectedEntity, setSelectedEntity] = useState<string | null>(null)
+  const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
     loadEntities()
   }, [])
 
   const loadEntities = async () => {
-    const data = await dataStore.getAllBusinessEntities()
-    setEntities(data.sort((a, b) => b.createdAt - a.createdAt))
+    try {
+      const data = await dataStore.getAllBusinessEntities()
+      setEntities(data.sort((a, b) => b.createdAt - a.createdAt))
+      setError(null)
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : 'Failed to load entities'
+      console.error('EntitiesSection loadEntities:', err)
+      toast.error(msg)
+      setError(msg)
+    }
   }
 
   if (selectedEntity) {
@@ -33,6 +43,12 @@ export function EntitiesSection() {
         <h2 className="text-xl font-semibold text-gray-900">Entities</h2>
         <p className="text-sm text-gray-500 mt-1">All business entities in the system</p>
       </div>
+
+      {error && (
+        <div className="mb-4 p-3 rounded-lg bg-red-50 border border-red-200 text-sm text-red-700">
+          {error}
+        </div>
+      )}
 
       <div className="bg-white border border-gray-200 rounded-lg overflow-hidden">
         <table className="w-full">
@@ -56,7 +72,7 @@ export function EntitiesSection() {
             {entities.length === 0 && (
               <tr>
                 <td colSpan={5} className="px-4 py-8 text-center text-sm text-gray-500">
-                  No entities found
+                  {error ? 'Failed to load entities' : 'No entities found'}
                 </td>
               </tr>
             )}

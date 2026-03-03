@@ -41,15 +41,27 @@ export function FlagsSection({ adminUsername }: FlagsSectionProps) {
   }, [selectedEntityId, selectedRole])
 
   const loadEntities = async () => {
-    const data = await dataStore.getAllBusinessEntities()
-    setEntities(data.sort((a, b) => a.businessName.localeCompare(b.businessName)))
+    try {
+      const data = await dataStore.getAllBusinessEntities()
+      setEntities(data.sort((a, b) => a.businessName.localeCompare(b.businessName)))
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : 'Failed to load entities'
+      console.error('FlagsSection loadEntities:', err)
+      toast.error(msg)
+    }
   }
 
   const loadFlagHistory = async () => {
     if (!selectedEntityId) return
-    const flags = await dataStore.getEntityFlagsByEntityId(selectedEntityId)
-    const filtered = flags.filter((f) => f.roleContext === selectedRole)
-    setFlagHistory(filtered.sort((a, b) => b.timestamp - a.timestamp))
+    try {
+      const flags = await dataStore.getEntityFlagsByEntityId(selectedEntityId)
+      const filtered = flags.filter((f) => f.roleContext === selectedRole)
+      setFlagHistory(filtered.sort((a, b) => b.timestamp - a.timestamp))
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : 'Failed to load flag history'
+      console.error('FlagsSection loadFlagHistory:', err)
+      toast.error(msg)
+    }
   }
 
   const handleSave = async () => {

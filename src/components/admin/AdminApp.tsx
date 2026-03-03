@@ -9,8 +9,40 @@ import { dataStore } from '@/lib/data-store'
 
 type Section = 'entities' | 'connections' | 'flags' | 'system'
 
+const ADMIN_SESSION_KEY = 'zelto:admin-session'
+const ADMIN_SESSION_TTL_MS = 24 * 60 * 60 * 1000 // 24 hours
+
+interface AdminSession {
+  username: string
+  expiresAt: number
+}
+
+function getStoredAdminSession(): string | null {
+  try {
+    const raw = localStorage.getItem(ADMIN_SESSION_KEY)
+    if (!raw) return null
+    const session: AdminSession = JSON.parse(raw)
+    if (Date.now() > session.expiresAt) {
+      localStorage.removeItem(ADMIN_SESSION_KEY)
+      return null
+    }
+    return session.username
+  } catch {
+    return null
+  }
+}
+
+function storeAdminSession(username: string): void {
+  const session: AdminSession = { username, expiresAt: Date.now() + ADMIN_SESSION_TTL_MS }
+  localStorage.setItem(ADMIN_SESSION_KEY, JSON.stringify(session))
+}
+
+function clearAdminSession(): void {
+  localStorage.removeItem(ADMIN_SESSION_KEY)
+}
+
 export function AdminApp() {
-  const [loggedInAdmin, setLoggedInAdmin] = useState<string | null>(null)
+  const [loggedInAdmin, setLoggedInAdmin] = useState<string | null>(() => getStoredAdminSession())
   const [currentSection, setCurrentSection] = useState<Section>('entities')
 
   useEffect(() => {
@@ -24,13 +56,19 @@ export function AdminApp() {
     }
   }
 
+  const handleLoginSuccess = (username: string) => {
+    storeAdminSession(username)
+    setLoggedInAdmin(username)
+  }
+
   const handleLogout = () => {
+    clearAdminSession()
     setLoggedInAdmin(null)
     setCurrentSection('entities')
   }
 
   if (!loggedInAdmin) {
-    return <AdminLogin onLoginSuccess={setLoggedInAdmin} />
+    return <AdminLogin onLoginSuccess={handleLoginSuccess} />
   }
 
   return (

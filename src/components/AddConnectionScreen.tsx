@@ -5,6 +5,7 @@ import { ArrowLeft } from '@phosphor-icons/react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import type { BusinessEntity } from '@/lib/types'
+import { CredibilityBadge } from '@/components/CredibilityBadge'
 
 interface Props {
   currentBusinessId: string
@@ -159,11 +160,10 @@ export function AddConnectionScreen({ currentBusinessId, onBack, onSuccess }: Pr
 
         {foundBusiness && (
           <div className="rounded-lg border border-border p-4 space-y-3 mt-4">
-            {/* Business name + verified badge */}
+            {/* Business name + badge */}
             <div className="flex items-center gap-1.5">
               <p className="text-base font-medium text-foreground">{foundBusiness.businessName}</p>
-              {foundCredibility?.level === 'trusted' && <span className="text-green-500">✓</span>}
-              {foundCredibility?.level === 'verified' && <span className="text-blue-500">✓</span>}
+              {foundCredibility && <CredibilityBadge level={foundCredibility.level} />}
             </div>
 
             {/* Zelto ID */}
