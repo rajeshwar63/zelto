@@ -56,6 +56,7 @@ export interface UserAccount {
   username: string
   phone?: string
   role: UserRole
+  authUserId?: string
 }
 
 export interface Connection {

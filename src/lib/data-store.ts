@@ -270,7 +270,7 @@ export class ZeltoDataStore {
   async createUserAccount(
     email: string,
     businessEntityId: string,
-    options?: { username?: string; role?: UserAccount['role'] }
+    options?: { username?: string; role?: UserAccount['role']; authUserId?: string }
   ): Promise<UserAccount> {
     const entity = await this.getBusinessEntityById(businessEntityId)
     if (!entity) {
@@ -283,7 +283,8 @@ export class ZeltoDataStore {
         email,
         business_entity_id: businessEntityId,
         username: options?.username || email.split('@')[0],
-        role: options?.role || 'owner'
+        role: options?.role || 'owner',
+        auth_user_id: options?.authUserId || null,
       }])
       .select()
       .single()
@@ -1155,7 +1156,6 @@ export class ZeltoDataStore {
     await supabase.from('frozen_entities').delete().neq('id', '00000000-0000-0000-0000-000000000000')
     await supabase.from('user_accounts').delete().neq('id', '00000000-0000-0000-0000-000000000000')
     await supabase.from('business_entities').delete().neq('id', '00000000-0000-0000-0000-000000000000')
-    await supabase.from('admin_accounts').delete().neq('id', '00000000-0000-0000-0000-000000000000')
   }
 }
 

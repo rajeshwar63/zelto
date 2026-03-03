@@ -1,29 +1,16 @@
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import { AdminLogin } from './AdminLogin'
 import { EntitiesSection } from './EntitiesSection'
 import { ConnectionsSection } from './ConnectionsSection'
 import { FlagsSection } from './FlagsSection'
 import { SystemSection } from './SystemSection'
 import { Button } from '@/components/ui/button'
-import { dataStore } from '@/lib/data-store'
 
 type Section = 'entities' | 'connections' | 'flags' | 'system'
 
 export function AdminApp() {
   const [loggedInAdmin, setLoggedInAdmin] = useState<string | null>(null)
   const [currentSection, setCurrentSection] = useState<Section>('entities')
-
-  useEffect(() => {
-    ensureAdminAccountExists()
-  }, [])
-
-  const ensureAdminAccountExists = async () => {
-    const existingAdmin = await dataStore.getAdminAccountByUsername('zelto-admin')
-    if (!existingAdmin) {
-      await dataStore.createAdminAccount('zelto-admin', 'admin2026')
-    }
-  }
-
   const handleLogout = () => {
     setLoggedInAdmin(null)
     setCurrentSection('entities')

@@ -4,6 +4,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { dataStore } from '@/lib/data-store'
 import { setAuthSession } from '@/lib/auth'
+import { supabase } from '@/lib/supabase-client'
 import { toast } from 'sonner'
 import type { BusinessEntity } from '@/lib/types'
 
@@ -144,10 +145,14 @@ export function BusinessSetupScreen({ email, onComplete }: BusinessSetupScreenPr
   const handleJoinBusiness = async (business: BusinessEntity) => {
     setIsJoining(true)
     try {
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) throw new Error('Not authenticated')
+
       // MVP: auto-approve — create user with member role directly
       const userAccount = await dataStore.createUserAccount(email, business.id, {
         username: username.trim() || undefined,
         role: 'member',
+        authUserId: user.id,
       })
 
       await setAuthSession({

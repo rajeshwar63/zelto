@@ -17,7 +17,8 @@ import { NotificationSettingsScreen } from '@/components/NotificationSettingsScr
 import { AccountScreen } from '@/components/AccountScreen'
 import { HelpSupportScreen } from '@/components/HelpSupportScreen'
 import { List, ChartBar, Bell, User } from '@phosphor-icons/react'
-import { getAuthSession, logout } from '@/lib/auth'
+import { getAuthSession, logout, clearAuthSession } from '@/lib/auth'
+import { supabase } from '@/lib/supabase-client'
 import { setupBackButtonHandler } from '@/lib/capacitor'
 import { attentionEngine } from '@/lib/attention-engine'
 import { updateTabLastSeen, updateConnectionLastSeen, hasUnreadAttentionItems, hasAnyUnreadConnections, hasUnreadConnectionActivity } from '@/lib/unread-tracker'
@@ -112,6 +113,19 @@ function App() {
     checkUnread()
     return () => { cancelled = true }
   }, [currentBusinessId, navigationStack])
+
+  useEffect(() => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      async (event, session) => {
+        if (event === 'SIGNED_OUT' || !session) {
+          await clearAuthSession()
+          setCurrentBusinessId(null)
+          setAuthScreen('welcome')
+        }
+      }
+    )
+    return () => subscription.unsubscribe()
+  }, [])
 
   useEffect(() => {
     return setupBackButtonHandler(() => {

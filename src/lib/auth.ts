@@ -31,10 +31,38 @@ export async function verifyEmailOTP(email: string, token: string): Promise<void
 
 
 export async function getAuthSession(): Promise<AuthSession | null> {
-  const sessionStr = localStorage.getItem(AUTH_SESSION_KEY)
-  if (!sessionStr) return null
+  // First check Supabase session
+  const { data: { session } } = await supabase.auth.getSession()
+  if (!session) return null
+
+  // Then check localStorage cache for businessId
+  const cached = localStorage.getItem(AUTH_SESSION_KEY)
+  if (cached) {
+    try {
+      const parsed = JSON.parse(cached) as AuthSession
+      // Validate the cached session matches the Supabase session
+      if (parsed.email === session.user.email) {
+        return parsed
+      }
+    } catch {}
+  }
+
+  // Cache miss or mismatch — resolve from database
   try {
-    return JSON.parse(sessionStr) as AuthSession
+    const email = session.user.email
+    if (!email) return null
+
+    const userAccount = await dataStore.getUserAccountByEmail(email)
+    if (!userAccount) return null
+
+    const authSession: AuthSession = {
+      businessId: userAccount.businessEntityId,
+      userId: userAccount.id,
+      email,
+      createdAt: Date.now(),
+    }
+    localStorage.setItem(AUTH_SESSION_KEY, JSON.stringify(authSession))
+    return authSession
   } catch {
     return null
   }
@@ -67,10 +95,14 @@ export async function findOrCreateBusinessSession(
     const businessName = signupData?.businessName || email.split('@')[0]
     const username = signupData?.name || email.split('@')[0]
 
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) throw new Error('Not authenticated')
+
     const businessEntity = await dataStore.createBusinessEntity(businessName)
     const newAccount = await dataStore.createUserAccount(email, businessEntity.id, {
       username,
       role: 'owner',
+      authUserId: user.id,
     })
     businessId = businessEntity.id
     userId = newAccount.id
