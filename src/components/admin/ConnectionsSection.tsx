@@ -1,8 +1,10 @@
 import { useEffect, useState } from 'react'
 import { dataStore } from '@/lib/data-store'
 import { BusinessEntity, Connection, OrderWithPaymentState, IssueReport, PaymentTermType } from '@/lib/types'
+import { toast } from 'sonner'
 
-function formatPaymentTerms(terms: PaymentTermType): string {
+function formatPaymentTerms(terms: PaymentTermType | null): string {
+  if (!terms) return '—'
   switch (terms.type) {
     case 'Advance Required':
       return 'Advance Required'
@@ -21,18 +23,27 @@ export function ConnectionsSection() {
   const [connections, setConnections] = useState<Connection[]>([])
   const [entities, setEntities] = useState<BusinessEntity[]>([])
   const [selectedConnection, setSelectedConnection] = useState<string | null>(null)
+  const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
     loadData()
   }, [])
 
   const loadData = async () => {
-    const [conns, ents] = await Promise.all([
-      dataStore.getAllConnections(),
-      dataStore.getAllBusinessEntities(),
-    ])
-    setConnections(conns)
-    setEntities(ents)
+    try {
+      const [conns, ents] = await Promise.all([
+        dataStore.getAllConnections(),
+        dataStore.getAllBusinessEntities(),
+      ])
+      setConnections(conns)
+      setEntities(ents)
+      setError(null)
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : 'Failed to load connections'
+      console.error('ConnectionsSection loadData:', err)
+      toast.error(msg)
+      setError(msg)
+    }
   }
 
   const getEntityName = (id: string) => {
@@ -54,6 +65,12 @@ export function ConnectionsSection() {
         <h2 className="text-xl font-semibold text-gray-900">Connections</h2>
         <p className="text-sm text-gray-500 mt-1">All connections in the system</p>
       </div>
+
+      {error && (
+        <div className="mb-4 p-3 rounded-lg bg-red-50 border border-red-200 text-sm text-red-700">
+          {error}
+        </div>
+      )}
 
       <div className="bg-white border border-gray-200 rounded-lg overflow-hidden">
         <table className="w-full">
@@ -87,7 +104,7 @@ export function ConnectionsSection() {
             {connections.length === 0 && (
               <tr>
                 <td colSpan={4} className="px-4 py-8 text-center text-sm text-gray-500">
-                  No connections found
+                  {error ? 'Failed to load connections' : 'No connections found'}
                 </td>
               </tr>
             )}
@@ -110,36 +127,56 @@ function ConnectionDetail({
   const [supplier, setSupplier] = useState<BusinessEntity | null>(null)
   const [orders, setOrders] = useState<OrderWithPaymentState[]>([])
   const [issues, setIssues] = useState<IssueReport[]>([])
+  const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
     loadData()
   }, [connectionId])
 
   const loadData = async () => {
-    const conn = await dataStore.getConnectionById(connectionId)
-    if (!conn) return
+    try {
+      const conn = await dataStore.getConnectionById(connectionId)
+      if (!conn) return
 
-    setConnection(conn)
+      setConnection(conn)
 
-    const [buyerEntity, supplierEntity, ordersData, allIssues] = await Promise.all([
-      dataStore.getBusinessEntityById(conn.buyerBusinessId),
-      dataStore.getBusinessEntityById(conn.supplierBusinessId),
-      dataStore.getOrdersWithPaymentStateByConnectionId(connectionId),
-      dataStore.getAllIssueReports(),
-    ])
+      const [buyerEntity, supplierEntity, ordersData, allIssues] = await Promise.all([
+        dataStore.getBusinessEntityById(conn.buyerBusinessId),
+        dataStore.getBusinessEntityById(conn.supplierBusinessId),
+        dataStore.getOrdersWithPaymentStateByConnectionId(connectionId),
+        dataStore.getAllIssueReports(),
+      ])
 
-    setBuyer(buyerEntity || null)
-    setSupplier(supplierEntity || null)
-    setOrders(prev => {
-      const map = new Map(prev.map(o => [o.id, o]))
-      for (const serverOrder of ordersData) {
-        map.set(serverOrder.id, serverOrder)
-      }
-      return Array.from(map.values()).sort((a, b) => b.createdAt - a.createdAt)
-    })
+      setBuyer(buyerEntity || null)
+      setSupplier(supplierEntity || null)
+      setOrders(prev => {
+        const map = new Map(prev.map(o => [o.id, o]))
+        for (const serverOrder of ordersData) {
+          map.set(serverOrder.id, serverOrder)
+        }
+        return Array.from(map.values()).sort((a, b) => b.createdAt - a.createdAt)
+      })
 
-    const orderIds = ordersData.map((o) => o.id)
-    setIssues(allIssues.filter((i) => orderIds.includes(i.orderId)))
+      const orderIds = ordersData.map((o) => o.id)
+      setIssues(allIssues.filter((i) => orderIds.includes(i.orderId)))
+      setError(null)
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : 'Failed to load connection details'
+      console.error('ConnectionDetail loadData:', err)
+      toast.error(msg)
+      setError(msg)
+    }
+  }
+
+  if (error) {
+    return (
+      <div>
+        <button onClick={onBack} className="text-sm text-gray-600 hover:text-gray-900 mb-4">
+          ← Back to Connections
+        </button>
+        <div className="p-3 rounded-lg bg-red-50 border border-red-200 text-sm text-red-700">{error}</div>
+      </div>
+    )
   }
 
   if (!connection || !buyer || !supplier) {

@@ -46,22 +46,28 @@ export function SystemSection({ adminUsername }: SystemSectionProps) {
   }, [])
 
   const loadData = async () => {
-    const [entities, connections, orders, issues, ordersWithPayment] = await Promise.all([
-      dataStore.getAllBusinessEntities(),
-      dataStore.getAllConnections(),
-      dataStore.getAllOrders(),
-      dataStore.getAllIssueReports(),
-      dataStore.getAllOrdersWithPaymentState(),
-    ])
+    try {
+      const [entities, connections, orders, issues, ordersWithPayment] = await Promise.all([
+        dataStore.getAllBusinessEntities(),
+        dataStore.getAllConnections(),
+        dataStore.getAllOrders(),
+        dataStore.getAllIssueReports(),
+        dataStore.getAllOrdersWithPaymentState(),
+      ])
 
-    setTotalEntities(entities.length)
-    setTotalConnections(connections.length)
-    setTotalOrders(orders.length)
-    setTotalOpenIssues(issues.filter((i: any) => i.status === 'open').length)
-    setTotalOverdueOrders(
-      ordersWithPayment.filter((o: any) => o.paymentState === 'Overdue').length
-    )
-    setEntities(entities)
+      setTotalEntities(entities.length)
+      setTotalConnections(connections.length)
+      setTotalOrders(orders.length)
+      setTotalOpenIssues(issues.filter((i: any) => i.status === 'open').length)
+      setTotalOverdueOrders(
+        ordersWithPayment.filter((o: any) => o.paymentState === 'Overdue').length
+      )
+      setEntities(entities)
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : 'Failed to load system data'
+      console.error('SystemSection loadData:', err)
+      toast.error(msg)
+    }
   }
 
   const handleFreezeAccount = async () => {

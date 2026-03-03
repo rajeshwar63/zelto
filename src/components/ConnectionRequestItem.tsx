@@ -8,6 +8,7 @@ import { formatDistanceToNow } from 'date-fns'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Label } from '@/components/ui/label'
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group'
+import { CredibilityBadge } from '@/components/CredibilityBadge'
 
 interface Props {
   request: ConnectionRequest
@@ -73,13 +74,18 @@ export function ConnectionRequestItem({ request, currentBusinessId, onUpdate, on
 
       await dataStore.updateConnectionRequestStatus(request.id, 'Accepted')
 
-      await dataStore.createNotification(
-        request.requesterBusinessId,
-        'ConnectionAccepted',
-        connection.id,
-        connection.id,
-        `Your connection request has been accepted`
-      )
+      try {
+        await dataStore.createNotification(
+          request.requesterBusinessId,
+          'ConnectionAccepted',
+          connection.id,
+          connection.id,
+          `Your connection request has been accepted`
+        )
+      } catch (notifErr) {
+        console.warn('Could not send connection accepted notification (RLS/policy issue):', notifErr)
+        setError('Connection accepted successfully. Note: the notification could not be sent due to policy restrictions.')
+      }
 
       setShowRoleConfirm(false)
       setProcessing(false)
@@ -106,8 +112,7 @@ export function ConnectionRequestItem({ request, currentBusinessId, onUpdate, on
             <p className="text-sm text-foreground font-medium">
               {requesterBusiness?.businessName || 'Loading...'}
             </p>
-            {requesterCredibility?.level === 'trusted' && <span className="text-green-500 text-[13px]">✓</span>}
-            {requesterCredibility?.level === 'verified' && <span className="text-blue-500 text-[13px]">✓</span>}
+            {requesterCredibility && <CredibilityBadge level={requesterCredibility.level} />}
           </div>
 
           {/* Zelto ID */}
