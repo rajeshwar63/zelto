@@ -32,26 +32,21 @@ export async function createConnection(
     throw new Error('Both businesses must exist')
   }
 
-  const allConnections = await dataStore.getAllConnections()
-  const existingConnection = allConnections.find(
-    (conn) =>
-      (conn.buyerBusinessId === buyerBusinessId &&
-        conn.supplierBusinessId === supplierBusinessId) ||
-      (conn.buyerBusinessId === supplierBusinessId &&
-        conn.supplierBusinessId === buyerBusinessId)
-  )
-
-  if (existingConnection) {
-    throw new Error(
-      'A connection between these two businesses already exists'
+  let newConnection
+  try {
+    newConnection = await dataStore.createConnection(
+      buyerBusinessId,
+      supplierBusinessId,
+      paymentTerms
     )
+  } catch (err) {
+    // Unique index violation = duplicate connection
+    const msg = err instanceof Error ? err.message : String(err)
+    if (msg.includes('idx_unique_connection_pair') || msg.includes('duplicate key')) {
+      throw new Error('A connection between these two businesses already exists')
+    }
+    throw err
   }
-
-  const newConnection = await dataStore.createConnection(
-    buyerBusinessId,
-    supplierBusinessId,
-    paymentTerms
-  )
 
   await recalculateConnectionState(newConnection.id)
 
