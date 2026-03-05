@@ -2,6 +2,7 @@ import { useEffect, useState, useRef, type TouchEvent } from 'react'
 import { dataStore } from '@/lib/data-store'
 import { insightEngine } from '@/lib/insight-engine'
 import { transitionOrderState, recordPayment, createIssue, createOrder, addAttachment, deleteAttachment } from '@/lib/interactions'
+import { useDataListener } from '@/lib/data-events'
 import { formatDistanceToNow, differenceInDays, format } from 'date-fns'
 import type { Connection, OrderWithPaymentState, BusinessEntity, PaymentEvent, OrderAttachment, AttachmentType } from '@/lib/types'
 import { CaretLeft, CaretDown, CaretRight, Paperclip } from '@phosphor-icons/react'
@@ -140,6 +141,11 @@ export function ConnectionDetailScreen({ connectionId, currentBusinessId, select
   }
 
   useEffect(() => { loadHeaderData(); loadOrders(); refreshArchivedIds() }, [connectionId, currentBusinessId])
+
+  useDataListener(
+    ['orders:changed', 'payments:changed', 'issues:changed', 'attachments:changed'],
+    () => { loadOrders() }
+  )
 
   const handleArchiveOrder = (orderId: string) => {
     doArchiveOrder(currentBusinessId, orderId)

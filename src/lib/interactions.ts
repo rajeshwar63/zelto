@@ -1,5 +1,6 @@
 import { dataStore } from './data-store'
 import { behaviourEngine } from './behaviour-engine'
+import { emitDataChange } from './data-events'
 import type {
   PaymentTermType,
   OrderLifecycleState,
@@ -54,6 +55,7 @@ export async function createConnection(
 
   await recalculateConnectionState(newConnection.id)
 
+  emitDataChange('connections:changed')
   return newConnection
 }
 
@@ -79,6 +81,7 @@ export async function updatePaymentTerms(
 
   await recalculateConnectionState(connectionId)
 
+  emitDataChange('connections:changed')
   return updatedConnection
 }
 
@@ -117,6 +120,7 @@ export async function createOrder(
     `New order received: ${itemSummary}`
   )
 
+  emitDataChange('orders:changed', 'notifications:changed')
   return newOrder
 }
 
@@ -206,6 +210,7 @@ export async function transitionOrderState(
     )
   }
 
+  emitDataChange('orders:changed', 'notifications:changed')
   return updatedOrder
 }
 
@@ -270,6 +275,7 @@ export async function recordPayment(
     `Payment of ₹${amount.toLocaleString('en-IN')} recorded`
   )
 
+  emitDataChange('payments:changed', 'orders:changed', 'notifications:changed')
   return newPayment
 }
 
@@ -319,6 +325,7 @@ export async function createIssue(
     `Issue raised: ${issueType}`
   )
 
+  emitDataChange('issues:changed', 'notifications:changed')
   return newIssue
 }
 
@@ -356,6 +363,7 @@ export async function resolveIssue(
 
   const updatedIssue = await dataStore.updateIssueStatus(issueId, 'Resolved')
 
+  emitDataChange('issues:changed')
   return updatedIssue
 }
 
@@ -424,7 +432,9 @@ export async function addAttachment(
     throw new Error('Only the buyer or supplier may add attachments')
   }
 
-  return dataStore.createOrderAttachment(orderId, type, requestingBusinessId, options)
+  const newAttachment = await dataStore.createOrderAttachment(orderId, type, requestingBusinessId, options)
+  emitDataChange('attachments:changed')
+  return newAttachment
 }
 
 export async function deleteAttachment(

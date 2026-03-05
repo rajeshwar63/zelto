@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { dataStore } from '@/lib/data-store'
 import { createConnection } from '@/lib/interactions'
+import { emitDataChange } from '@/lib/data-events'
 import { calculateCredibility, getBusinessActivityCounts, type CredibilityBreakdown } from '@/lib/credibility'
 import type { BusinessEntity, ConnectionRequest, PaymentTermType } from '@/lib/types'
 import { Button } from '@/components/ui/button'
@@ -50,6 +51,7 @@ export function ConnectionRequestItem({ request, currentBusinessId, onUpdate, on
   const handleDecline = async () => {
     setProcessing(true)
     await dataStore.updateConnectionRequestStatus(request.id, 'Declined')
+    emitDataChange('connection-requests:changed')
     setProcessing(false)
     onUpdate()
   }
@@ -84,6 +86,7 @@ export function ConnectionRequestItem({ request, currentBusinessId, onUpdate, on
       setShowRoleConfirm(false)
       setProcessing(false)
 
+      emitDataChange('connections:changed', 'connection-requests:changed', 'notifications:changed')
       onUpdate()
       onNavigateToConnections()
     } catch (err) {
