@@ -10,6 +10,12 @@ export interface AuthSession {
   createdAt: number
 }
 
+// Three possible auth states on app load
+export type AuthState =
+  | { status: 'authenticated'; session: AuthSession }
+  | { status: 'needs_business_setup'; email: string }
+  | { status: 'unauthenticated' }
+
 export async function sendEmailOTP(email: string): Promise<void> {
   const { error } = await supabase.auth.signInWithOtp({
     email,
@@ -29,31 +35,32 @@ export async function verifyEmailOTP(email: string, token: string): Promise<void
   if (error) throw new Error(error.message)
 }
 
-
-export async function getAuthSession(): Promise<AuthSession | null> {
-  // First check Supabase session
+// NEW: Replaces getAuthSession() — detects the desync state
+export async function getAuthState(): Promise<AuthState> {
   const { data: { session } } = await supabase.auth.getSession()
-  if (!session) return null
+  if (!session) return { status: 'unauthenticated' }
 
-  // Then check localStorage cache for businessId
+  const email = session.user.email
+  if (!email) return { status: 'unauthenticated' }
+
+  // Check localStorage cache first
   const cached = localStorage.getItem(AUTH_SESSION_KEY)
   if (cached) {
     try {
       const parsed = JSON.parse(cached) as AuthSession
-      // Validate the cached session matches the Supabase session
-      if (parsed.email === session.user.email) {
-        return parsed
+      if (parsed.email === email && parsed.businessId) {
+        return { status: 'authenticated', session: parsed }
       }
     } catch {}
   }
 
-  // Cache miss or mismatch — resolve from database
+  // Cache miss — check database
   try {
-    const email = session.user.email
-    if (!email) return null
-
     const userAccount = await dataStore.getUserAccountByEmail(email)
-    if (!userAccount) return null
+    if (!userAccount || !userAccount.businessEntityId) {
+      // DESYNC STATE: Supabase auth exists but no user account / no business
+      return { status: 'needs_business_setup', email }
+    }
 
     const authSession: AuthSession = {
       businessId: userAccount.businessEntityId,
@@ -62,10 +69,18 @@ export async function getAuthSession(): Promise<AuthSession | null> {
       createdAt: Date.now(),
     }
     localStorage.setItem(AUTH_SESSION_KEY, JSON.stringify(authSession))
-    return authSession
+    return { status: 'authenticated', session: authSession }
   } catch {
-    return null
+    // DB query failed — still have Supabase auth, route to setup
+    return { status: 'needs_business_setup', email }
   }
+}
+
+// KEPT for backward compat — components that just need the session
+export async function getAuthSession(): Promise<AuthSession | null> {
+  const state = await getAuthState()
+  if (state.status === 'authenticated') return state.session
+  return null
 }
 
 export async function setAuthSession(session: AuthSession): Promise<void> {
