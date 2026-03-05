@@ -107,13 +107,13 @@ export async function createOrder(
   )
 
   // Notify supplier that a new order was placed
-  await dataStore.createNotification(
+  dataStore.createNotification(
     connection.supplierBusinessId,
     'OrderPlaced',
     newOrder.id,
     connectionId,
     `New order received: ${itemSummary}`
-  )
+  ).catch((err) => console.warn('Notification failed:', err))
 
   emitDataChange('orders:changed', 'notifications:changed')
   return newOrder
@@ -187,22 +187,22 @@ export async function transitionOrderState(
   })
 
   if (newState === 'Dispatched') {
-    await dataStore.createNotification(
+    dataStore.createNotification(
       connection.buyerBusinessId,
       'OrderDispatched',
       orderId,
       order.connectionId,
       `Your order has been dispatched`
-    )
+    ).catch((err) => console.warn('Notification failed:', err))
   }
   if (newState === 'Declined') {
-    await dataStore.createNotification(
+    dataStore.createNotification(
       connection.buyerBusinessId,
       'OrderDeclined',
       orderId,
       order.connectionId,
       `Your order was declined`
-    )
+    ).catch((err) => console.warn('Notification failed:', err))
   }
 
   emitDataChange('orders:changed', 'notifications:changed')
@@ -262,13 +262,13 @@ export async function recordPayment(
   const otherPartyId = requestingBusinessId === connection.buyerBusinessId
     ? connection.supplierBusinessId
     : connection.buyerBusinessId
-  await dataStore.createNotification(
+  dataStore.createNotification(
     otherPartyId,
     'PaymentRecorded',
     orderId,
     order.connectionId,
     `Payment of ₹${amount.toLocaleString('en-IN')} recorded`
-  )
+  ).catch((err) => console.warn('Notification failed:', err))
 
   emitDataChange('payments:changed', 'orders:changed', 'notifications:changed')
   return newPayment
@@ -312,13 +312,13 @@ export async function createIssue(
   const otherPartyId = requestingBusinessId === connection.buyerBusinessId
     ? connection.supplierBusinessId
     : connection.buyerBusinessId
-  await dataStore.createNotification(
+  dataStore.createNotification(
     otherPartyId,
     'IssueRaised',
     newIssue.id,
     order.connectionId,
     `Issue raised: ${issueType}`
-  )
+  ).catch((err) => console.warn('Notification failed:', err))
 
   emitDataChange('issues:changed', 'notifications:changed')
   return newIssue
@@ -328,9 +328,7 @@ export async function resolveIssue(
   issueId: string,
   requestingBusinessId: string
 ): Promise<IssueReport> {
-  const issue = await dataStore.getIssueReportsByOrderId('')
-  const allIssues = await dataStore.getAllIssueReports()
-  const targetIssue = allIssues.find((i) => i.id === issueId)
+  const targetIssue = await dataStore.getIssueReportById(issueId)
 
   if (!targetIssue) {
     throw new Error('Issue does not exist')
