@@ -27,18 +27,32 @@ import {
   snapshotPaymentTerms,
 } from './business-logic'
 
+// JSONB columns that should NOT have their internal keys converted
+const JSONB_COLUMNS = new Set([
+  'payment_terms',
+  'payment_term_snapshot',
+  'behaviour_history',
+  'paymentTerms',
+  'paymentTermSnapshot',
+  'behaviourHistory',
+])
+
 // Helper to convert snake_case DB columns to camelCase TypeScript
-function toCamelCase(obj: any): any {
+function toCamelCase(obj: any, parentKey?: string): any {
   if (Array.isArray(obj)) {
-    return obj.map(toCamelCase)
+    return obj.map((item) => toCamelCase(item, parentKey))
   }
   if (obj === null || typeof obj !== 'object') {
+    return obj
+  }
+  // Don't recurse into JSONB column values
+  if (parentKey && JSONB_COLUMNS.has(parentKey)) {
     return obj
   }
   const result: any = {}
   for (const key in obj) {
     const camelKey = key.replace(/_([a-z])/g, (_, letter) => letter.toUpperCase())
-    result[camelKey] = toCamelCase(obj[key])
+    result[camelKey] = toCamelCase(obj[key], key)
   }
   return result
 }
@@ -689,12 +703,23 @@ export class ZeltoDataStore {
     return toCamelCase(data)
   }
 
+  async getIssueReportById(id: string): Promise<IssueReport | undefined> {
+    const { data, error } = await supabase
+      .from('issue_reports')
+      .select('*')
+      .eq('id', id)
+      .maybeSingle()
+
+    if (error) throw error
+    return data ? toCamelCase(data) : undefined
+  }
+
   async getIssueReportsByOrderId(orderId: string): Promise<IssueReport[]> {
     const { data, error } = await supabase
       .from('issue_reports')
       .select('*')
       .eq('order_id', orderId)
-    
+
     if (error) throw error
     return toCamelCase(data || [])
   }

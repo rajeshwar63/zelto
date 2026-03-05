@@ -23,6 +23,7 @@ import { setupBackButtonHandler } from '@/lib/capacitor'
 import { attentionEngine } from '@/lib/attention-engine'
 import { updateTabLastSeen, updateConnectionLastSeen, hasUnreadAttentionItems, hasAnyUnreadConnections, hasUnreadConnectionActivity } from '@/lib/unread-tracker'
 import { dataStore } from '@/lib/data-store'
+import { behaviourEngine } from '@/lib/behaviour-engine'
 import { BusinessSetupScreen } from '@/components/BusinessSetupScreen'
 import { useDataListener } from '@/lib/data-events'
 
@@ -119,6 +120,20 @@ const initializeApp = async () => {
     if (!currentBusinessId) return
     void checkUnread()
   }, [currentBusinessId, navigationStack])
+
+  // Periodic behaviour engine recalculation (every 20 minutes)
+  useEffect(() => {
+    if (!currentBusinessId) return
+
+    // Run once on login
+    behaviourEngine.recalculateAllConnectionStates().catch(console.error)
+
+    const interval = setInterval(() => {
+      behaviourEngine.recalculateAllConnectionStates().catch(console.error)
+    }, 20 * 60 * 1000)
+
+    return () => clearInterval(interval)
+  }, [currentBusinessId])
 
   useDataListener(
     ['orders:changed', 'payments:changed', 'connections:changed', 'connection-requests:changed', 'notifications:changed'],
