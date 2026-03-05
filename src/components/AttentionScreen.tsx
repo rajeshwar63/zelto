@@ -7,6 +7,7 @@ import type { ConnectionRequest } from '@/lib/types'
 import { getAttentionHeadingColor } from '@/lib/semantic-colors'
 import { ConnectionRequestItem } from '@/components/ConnectionRequestItem'
 import { markOrderSeen, isOrderNew } from '@/lib/unread-tracker'
+import { useDataListener } from '@/lib/data-events'
 
 interface Props {
   currentBusinessId: string
@@ -71,6 +72,11 @@ export function AttentionScreen({ currentBusinessId, onNavigateToConnections, on
   useEffect(() => {
     loadData()
   }, [currentBusinessId])
+
+  useDataListener(
+    ['orders:changed', 'payments:changed', 'issues:changed', 'connections:changed', 'connection-requests:changed'],
+    () => { loadData() }
+  )
 
   useEffect(() => {
     if (items.length === 0) return

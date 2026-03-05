@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useRef } from 'react'
 import { ConnectionsScreen } from '@/components/ConnectionsScreen'
 import { ConnectionDetailScreen } from '@/components/ConnectionDetailScreen'
 import { AttentionScreen } from '@/components/AttentionScreen'
@@ -24,6 +24,7 @@ import { attentionEngine } from '@/lib/attention-engine'
 import { updateTabLastSeen, updateConnectionLastSeen, hasUnreadAttentionItems, hasAnyUnreadConnections, hasUnreadConnectionActivity } from '@/lib/unread-tracker'
 import { dataStore } from '@/lib/data-store'
 import { BusinessSetupScreen } from '@/components/BusinessSetupScreen'
+import { useDataListener } from '@/lib/data-events'
 
 
 type Tab = 'status' | 'connections' | 'attention' | 'profile'
@@ -90,33 +91,39 @@ const initializeApp = async () => {
     setIsTermsRoute(window.location.pathname === '/terms')
   }
 
-  useEffect(() => {
+  async function checkUnread() {
     if (!currentBusinessId) return
-    let cancelled = false
     const currentScreen = navigationStack[navigationStack.length - 1]
     const isOnAttention = currentScreen.type === 'tab' && currentScreen.tab === 'attention'
     const isOnConnections = currentScreen.type === 'tab' && currentScreen.tab === 'connections'
-    async function checkUnread() {
-      const items = await attentionEngine.getAttentionItems(currentBusinessId!)
-      if (cancelled) return
-      const allRequests = await dataStore.getAllConnectionRequests()
-      if (cancelled) return
-      const hasPendingRequests = allRequests.some(
-        r => r.receiverBusinessId === currentBusinessId && r.status === 'Pending'
-      )
-      if (!isOnAttention) {
-        setHasUnreadAttention(hasUnreadAttentionItems(currentBusinessId!, items) || hasPendingRequests)
-      }
-      if (!isOnConnections) {
-        setHasUnreadConnections(hasAnyUnreadConnections(currentBusinessId!, items))
-      }
-      const connIds = [...new Set(items.map(item => item.connectionId))]
-      const unread = new Set(connIds.filter(id => hasUnreadConnectionActivity(currentBusinessId!, id, items)))
-      setUnreadConnectionIds(unread)
+    const items = await attentionEngine.getAttentionItems(currentBusinessId)
+    const allRequests = await dataStore.getAllConnectionRequests()
+    const hasPendingRequests = allRequests.some(
+      r => r.receiverBusinessId === currentBusinessId && r.status === 'Pending'
+    )
+    if (!isOnAttention) {
+      setHasUnreadAttention(hasUnreadAttentionItems(currentBusinessId, items) || hasPendingRequests)
     }
-    checkUnread()
-    return () => { cancelled = true }
+    if (!isOnConnections) {
+      setHasUnreadConnections(hasAnyUnreadConnections(currentBusinessId, items))
+    }
+    const connIds = [...new Set(items.map(item => item.connectionId))]
+    const unread = new Set(connIds.filter(id => hasUnreadConnectionActivity(currentBusinessId, id, items)))
+    setUnreadConnectionIds(unread)
+  }
+
+  const checkUnreadRef = useRef(checkUnread)
+  checkUnreadRef.current = checkUnread
+
+  useEffect(() => {
+    if (!currentBusinessId) return
+    void checkUnread()
   }, [currentBusinessId, navigationStack])
+
+  useDataListener(
+    ['orders:changed', 'payments:changed', 'connections:changed', 'connection-requests:changed', 'notifications:changed'],
+    () => { checkUnreadRef.current() }
+  )
 
   useEffect(() => {
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
@@ -201,7 +208,17 @@ const initializeApp = async () => {
     if (authScreen === 'welcome') {
       return <WelcomeScreen onContinue={handleWelcomeSubmit} onLoginOnly={handleLoginOnly} />
     }
-if (typeof authScreen === 'object' && authScreen.type === 'business_setup') {
+    if (typeof authScreen === 'object' && authScreen.type === 'otp') {
+      return (
+        <OTPScreen
+          email={authScreen.email}
+          signupData={authScreen.signupData}
+          onSuccess={handleOTPSuccess}
+          onBack={handleOTPBack}
+        />
+      )
+    }
+    if (typeof authScreen === 'object' && authScreen.type === 'business_setup') {
       return (
         <BusinessSetupScreen
           email={authScreen.email}
@@ -212,6 +229,8 @@ if (typeof authScreen === 'object' && authScreen.type === 'business_setup') {
         />
       )
     }
+    return null
+  }
 
   if (!currentBusinessId) {
     return (
