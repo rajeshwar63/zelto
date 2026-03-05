@@ -17,12 +17,14 @@ import { NotificationSettingsScreen } from '@/components/NotificationSettingsScr
 import { AccountScreen } from '@/components/AccountScreen'
 import { HelpSupportScreen } from '@/components/HelpSupportScreen'
 import { List, ChartBar, Bell, User } from '@phosphor-icons/react'
-import { getAuthSession, logout, clearAuthSession } from '@/lib/auth'
+import { getAuthSession, getAuthState, logout, clearAuthSession } from '@/lib/auth'
 import { supabase } from '@/lib/supabase-client'
 import { setupBackButtonHandler } from '@/lib/capacitor'
 import { attentionEngine } from '@/lib/attention-engine'
 import { updateTabLastSeen, updateConnectionLastSeen, hasUnreadAttentionItems, hasAnyUnreadConnections, hasUnreadConnectionActivity } from '@/lib/unread-tracker'
 import { dataStore } from '@/lib/data-store'
+import { BusinessSetupScreen } from '@/components/BusinessSetupScreen'
+
 
 type Tab = 'status' | 'connections' | 'attention' | 'profile'
 type Screen = 
@@ -35,7 +37,7 @@ type Screen =
   | { type: 'profile-notifications' }
   | { type: 'profile-account' }
   | { type: 'profile-support' }
-type AuthScreen = 'welcome' | { type: 'otp'; email: string; signupData?: { name: string; businessName: string } }
+type AuthScreen = 'welcome' | { type: 'otp'; email: string; signupData?: { name: string; businessName: string } } | { type: 'business_setup'; email: string }
 
 function App() {
   const [isAdminRoute, setIsAdminRoute] = useState(false)
@@ -60,12 +62,14 @@ function App() {
 
   useEffect(() => {
     if (!isAdminRoute) {
-      const initializeApp = async () => {
+const initializeApp = async () => {
         try {
-          const session = await getAuthSession()
-          if (session) {
-            setCurrentBusinessId(session.businessId)
+          const authState = await getAuthState()
+          if (authState.status === 'authenticated') {
+            setCurrentBusinessId(authState.session.businessId)
             setAuthScreen(null)
+          } else if (authState.status === 'needs_business_setup') {
+            setAuthScreen({ type: 'business_setup', email: authState.email })
           } else {
             setAuthScreen('welcome')
           }
@@ -197,17 +201,17 @@ function App() {
     if (authScreen === 'welcome') {
       return <WelcomeScreen onContinue={handleWelcomeSubmit} onLoginOnly={handleLoginOnly} />
     }
-    if (typeof authScreen === 'object' && authScreen.type === 'otp') {
+if (typeof authScreen === 'object' && authScreen.type === 'business_setup') {
       return (
-        <OTPScreen
+        <BusinessSetupScreen
           email={authScreen.email}
-          signupData={authScreen.signupData}
-          onSuccess={handleOTPSuccess}
-          onBack={handleOTPBack}
+          onComplete={(businessId) => {
+            setCurrentBusinessId(businessId)
+            setAuthScreen(null)
+          }}
         />
       )
     }
-  }
 
   if (!currentBusinessId) {
     return (
