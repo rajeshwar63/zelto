@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "1087219191711",
+    "project_id": "zelto-87b9f",
+    "storage_bucket": "zelto-87b9f.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:1087219191711:android:857f042a120957413077aa",
+        "android_client_info": {
+          "package_name": "com.zeltoapp.app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDi88lmNnBmbBQ_kKuL6L2PsQ8cMb1aIQk"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
