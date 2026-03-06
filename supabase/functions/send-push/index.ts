@@ -8,6 +8,33 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!
 const SUPABASE_SERVICE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
 
+import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+
+serve(async (req) => {
+  const { token, title, body, data } = await req.json();
+
+  const fcmUrl = "https://fcm.googleapis.com/fcm/send";
+  const serverKey = Deno.env.get("FCM_SERVER_KEY");
+
+  const response = await fetch(fcmUrl, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `key=${serverKey}`,
+    },
+    body: JSON.stringify({
+      to: token,
+      notification: { title, body },
+      data: data ?? {},
+    }),
+  });
+
+  const result = await response.json();
+  return new Response(JSON.stringify(result), {
+    headers: { "Content-Type": "application/json" },
+  });
+});
+
 // Firebase service account from env
 const FCM_PROJECT_ID = Deno.env.get('FCM_PROJECT_ID')!
 const FCM_CLIENT_EMAIL = Deno.env.get('FCM_CLIENT_EMAIL')!
