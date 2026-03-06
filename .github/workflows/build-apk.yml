@@ -33,6 +33,11 @@ jobs:
       - name: Sync Capacitor
         run: npx cap sync android
 
+      - name: Update Gradle wrapper to 8.7
+        working-directory: android
+        run: |
+          sed -i 's|distributionUrl=.*|distributionUrl=https\\://services.gradle.org/distributions/gradle-8.7-bin.zip|' gradle/wrapper/gradle-wrapper.properties
+
       - name: Decode keystore
         run: |
           echo "${{ secrets.KEYSTORE_BASE64 }}" | base64 --decode > android/app/zelto-keystore.jks
