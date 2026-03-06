@@ -16,6 +16,7 @@ import { NotificationHistoryScreen } from '@/components/NotificationHistoryScree
 import { NotificationSettingsScreen } from '@/components/NotificationSettingsScreen'
 import { AccountScreen } from '@/components/AccountScreen'
 import { HelpSupportScreen } from '@/components/HelpSupportScreen'
+import { ReportIssueScreen } from '@/components/ReportIssueScreen'
 import { List, ChartBar, Bell, User } from '@phosphor-icons/react'
 import { getAuthSession, getAuthState, logout, clearAuthSession } from '@/lib/auth'
 import { supabase } from '@/lib/supabase-client'
@@ -39,6 +40,7 @@ type Screen =
   | { type: 'profile-notifications' }
   | { type: 'profile-account' }
   | { type: 'profile-support' }
+  | { type: 'report-issue'; orderId: string; connectionId: string }
 type AuthScreen = 'welcome' | { type: 'otp'; email: string; signupData?: { name: string; businessName: string } } | { type: 'business_setup'; email: string }
 
 function App() {
@@ -324,6 +326,10 @@ const initializeApp = async () => {
     setNavigationStack(stack => [...stack, { type: 'profile-support' }])
   }
 
+  const navigateToReportIssue = (orderId: string, connectionId: string) => {
+    setNavigationStack(stack => [...stack, { type: 'report-issue', orderId, connectionId }])
+  }
+
   const handleBusinessDetailsSaved = () => {
     navigateBack()
   }
@@ -363,6 +369,15 @@ const initializeApp = async () => {
             onSave={handlePaymentTermsSaved}
             onBack={handlePaymentTermsBack}
           />
+        ) : screen.type === 'report-issue' ? (
+          <ReportIssueScreen
+            orderId={screen.orderId}
+            currentBusinessId={currentBusinessId}
+            onBack={navigateBack}
+            onSuccess={() => {
+              navigateBack()
+            }}
+          />
         ) : screen.type === 'connection-detail' ? (
           <ConnectionDetailScreen
             connectionId={screen.connectionId}
@@ -370,6 +385,7 @@ const initializeApp = async () => {
             selectedOrderId={screen.selectedOrderId}
             onBack={navigateBack}
             onNavigateToPaymentTermsSetup={navigateToPaymentTermsSetup}
+            onReportIssue={navigateToReportIssue}
           />
         ) : screen.type === 'tab' && screen.tab === 'status' ? (
           <StatusScreen currentBusinessId={currentBusinessId} onNavigateToConnection={navigateToConnection} />

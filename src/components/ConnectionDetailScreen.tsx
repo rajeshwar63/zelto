@@ -24,6 +24,7 @@ interface Props {
   selectedOrderId?: string
   onBack: () => void
   onNavigateToPaymentTermsSetup: (connectionId: string, businessName: string) => void
+  onReportIssue?: (orderId: string, connectionId: string) => void
 }
 
 type TimeFilter = '7d' | '30d' | '90d' | '1y'
@@ -74,7 +75,7 @@ const filterDurations: Record<TimeFilter, number> = {
   '1y': 365 * 24 * 60 * 60 * 1000,
 }
 
-export function ConnectionDetailScreen({ connectionId, currentBusinessId, selectedOrderId, onBack, onNavigateToPaymentTermsSetup }: Props) {
+export function ConnectionDetailScreen({ connectionId, currentBusinessId, selectedOrderId, onBack, onNavigateToPaymentTermsSetup, onReportIssue }: Props) {
   const [connection, setConnection] = useState<Connection | null>(null)
   const [otherBusiness, setOtherBusiness] = useState<BusinessEntity | null>(null)
   const [orders, setOrders] = useState<OrderWithPaymentState[]>([])
@@ -253,6 +254,7 @@ export function ConnectionDetailScreen({ connectionId, currentBusinessId, select
         currentBusinessId={currentBusinessId}
         onBack={() => setViewingOrderId(null)}
         onRefreshOrders={loadOrders}
+        onReportIssue={onReportIssue}
       />
     )
   }
@@ -584,9 +586,10 @@ interface OrderDetailViewProps {
   currentBusinessId: string
   onBack: () => void
   onRefreshOrders: () => Promise<void>
+  onReportIssue?: (orderId: string, connectionId: string) => void
 }
 
-function OrderDetailView({ order: orderProp, connection, currentBusinessId, onBack, onRefreshOrders }: OrderDetailViewProps) {
+function OrderDetailView({ order: orderProp, connection, currentBusinessId, onBack, onRefreshOrders, onReportIssue }: OrderDetailViewProps) {
   const order = orderProp
 
   const [buyerBusiness, setBuyerBusiness] = useState<BusinessEntity | null>(null)
@@ -1070,6 +1073,15 @@ function OrderDetailView({ order: orderProp, connection, currentBusinessId, onBa
               Record Payment
             </Button>
           </div>
+        )}
+
+        {(lifecycleState === 'Dispatched' || lifecycleState === 'Delivered') && onReportIssue && (
+          <button
+            onClick={() => onReportIssue(order.id, connection.id)}
+            className="w-full py-2.5 text-[14px] font-medium rounded-lg border border-red-200 text-red-600 hover:bg-red-50 transition-colors"
+          >
+            Raise Issue
+          </button>
         )}
 
         {(lifecycleState === 'Declined' || (lifecycleState === 'Placed' && order.declinedAt)) && (
