@@ -23,6 +23,7 @@
     "@capacitor/haptics": "^6.0.0",
     "@capacitor/ios": "^6.0.0",
     "@capacitor/keyboard": "^6.0.0",
+    "@capacitor/push-notifications": "^8.0.1",
     "@capacitor/splash-screen": "^6.0.0",
     "@capacitor/status-bar": "^6.0.0",
     "@github/spark": "^0.39.0",
