@@ -27,16 +27,16 @@ jobs:
       - name: Set up JDK 17
         uses: actions/setup-java@v4
         with:
-          java-version: '17'
+          java-version: '21'
           distribution: 'temurin'
 
       - name: Sync Capacitor
         run: npx cap sync android
 
-      - name: Update Gradle wrapper to 8.7
+      - name: Update Gradle wrapper to 8.10
         working-directory: android
         run: |
-          sed -i 's|distributionUrl=.*|distributionUrl=https\\://services.gradle.org/distributions/gradle-8.7-bin.zip|' gradle/wrapper/gradle-wrapper.properties
+          sed -i 's|distributionUrl=.*|distributionUrl=https\\://services.gradle.org/distributions/gradle-8.10-bin.zip|' gradle/wrapper/gradle-wrapper.properties
 
       - name: Decode keystore
         run: |
