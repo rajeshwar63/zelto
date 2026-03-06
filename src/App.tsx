@@ -19,6 +19,7 @@ import { HelpSupportScreen } from '@/components/HelpSupportScreen'
 import { ReportIssueScreen } from '@/components/ReportIssueScreen'
 import { List, ChartBar, Bell, User } from '@phosphor-icons/react'
 import { getAuthSession, getAuthState, logout, clearAuthSession } from '@/lib/auth'
+import { initPushNotifications, removeDeviceToken } from '@/lib/push-notifications'
 import { supabase } from '@/lib/supabase-client'
 import { setupBackButtonHandler } from '@/lib/capacitor'
 import { attentionEngine } from '@/lib/attention-engine'
@@ -72,6 +73,7 @@ const initializeApp = async () => {
           if (authState.status === 'authenticated') {
             setCurrentBusinessId(authState.session.businessId)
             setAuthScreen(null)
+            initPushNotifications().catch(console.error)
           } else if (authState.status === 'needs_business_setup') {
             setAuthScreen({ type: 'business_setup', email: authState.email })
           } else {
@@ -167,6 +169,7 @@ const initializeApp = async () => {
   }, [])
 
   const handleLogout = async () => {
+    await removeDeviceToken()
     await logout()
     setCurrentBusinessId(null)
     setAuthScreen('welcome')
@@ -184,6 +187,7 @@ const initializeApp = async () => {
   const handleOTPSuccess = async (businessId: string) => {
     setCurrentBusinessId(businessId)
     setAuthScreen(null)
+    initPushNotifications().catch(console.error)
   }
 
   const handleOTPBack = () => {
