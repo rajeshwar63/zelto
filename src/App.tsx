@@ -22,6 +22,8 @@ import { getAuthSession, getAuthState, logout, clearAuthSession } from '@/lib/au
 import { initPushNotifications, removeDeviceTokens } from '@/lib/push-notifications'
 import { supabase } from '@/lib/supabase-client'
 import { setupBackButtonHandler } from '@/lib/capacitor'
+import { PushNotifications } from '@capacitor/push-notifications'
+import { Capacitor } from '@capacitor/core'
 import { attentionEngine } from '@/lib/attention-engine'
 import { updateTabLastSeen, updateConnectionLastSeen, hasUnreadAttentionItems, hasAnyUnreadConnections, hasUnreadConnectionActivity } from '@/lib/unread-tracker'
 import { dataStore } from '@/lib/data-store'
@@ -143,6 +145,20 @@ const initializeApp = async () => {
     ['orders:changed', 'payments:changed', 'connections:changed', 'connection-requests:changed', 'notifications:changed'],
     () => { checkUnreadRef.current() }
   )
+
+  // Refresh notification count when a push notification arrives while the app is open
+  useEffect(() => {
+    if (!currentBusinessId || !Capacitor.isNativePlatform()) return
+
+    let handle: Awaited<ReturnType<typeof PushNotifications.addListener>> | null = null
+
+    PushNotifications.addListener('pushNotificationReceived', (notification) => {
+      console.log('Push received:', notification)
+      checkUnreadRef.current()
+    }).then(h => { handle = h })
+
+    return () => { handle?.remove() }
+  }, [currentBusinessId])
 
   useEffect(() => {
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
