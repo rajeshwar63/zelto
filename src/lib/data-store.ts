@@ -1,7 +1,5 @@
-import bcrypt from 'bcryptjs'
 import { supabase } from './supabase-client'
 import {
-  AdminAccount,
   AttachmentType,
   BusinessEntity,
   Connection,
@@ -724,6 +722,113 @@ export class ZeltoDataStore {
     return toCamelCase(data || [])
   }
 
+  // ============ SCOPED QUERIES FOR ENGINES ============
+
+  async getIssueReportsByConnectionId(connectionId: string): Promise<IssueReport[]> {
+    const orders = await this.getOrdersByConnectionId(connectionId)
+    const orderIds = orders.map(o => o.id)
+    if (orderIds.length === 0) return []
+
+    const { data, error } = await supabase
+      .from('issue_reports')
+      .select('*')
+      .in('order_id', orderIds)
+
+    if (error) throw error
+    return toCamelCase(data || [])
+  }
+
+  async getOpenIssueReportsByBusinessId(businessId: string): Promise<IssueReport[]> {
+    const connections = await this.getConnectionsByBusinessId(businessId)
+    const connectionIds = connections.map(c => c.id)
+    if (connectionIds.length === 0) return []
+
+    const { data: orders, error: ordersErr } = await supabase
+      .from('orders')
+      .select('id')
+      .in('connection_id', connectionIds)
+
+    if (ordersErr) throw ordersErr
+    const orderIds = (orders || []).map((o: any) => o.id)
+    if (orderIds.length === 0) return []
+
+    const { data, error } = await supabase
+      .from('issue_reports')
+      .select('*')
+      .in('order_id', orderIds)
+      .eq('status', 'Open')
+
+    if (error) throw error
+    return toCamelCase(data || [])
+  }
+
+  async getOrdersByBusinessId(businessId: string): Promise<Order[]> {
+    const connections = await this.getConnectionsByBusinessId(businessId)
+    const connectionIds = connections.map(c => c.id)
+    if (connectionIds.length === 0) return []
+
+    const { data, error } = await supabase
+      .from('orders')
+      .select('*')
+      .in('connection_id', connectionIds)
+      .order('created_at', { ascending: false })
+
+    if (error) throw error
+    return toCamelCase(data || [])
+  }
+
+  async getOrdersWithPaymentStateByBusinessId(
+    businessId: string
+  ): Promise<OrderWithPaymentState[]> {
+    const connections = await this.getConnectionsByBusinessId(businessId)
+    const connectionIds = connections.map(c => c.id)
+    if (connectionIds.length === 0) return []
+
+    const { data: ordersData, error: ordersErr } = await supabase
+      .from('orders')
+      .select('*')
+      .in('connection_id', connectionIds)
+
+    if (ordersErr) throw ordersErr
+    const orders = toCamelCase(ordersData || []) as Order[]
+    if (orders.length === 0) return []
+
+    const orderIds = orders.map(o => o.id)
+    const { data: paymentsData, error: paymentsErr } = await supabase
+      .from('payment_events')
+      .select('*')
+      .in('order_id', orderIds)
+
+    if (paymentsErr) throw paymentsErr
+    const allPayments = toCamelCase(paymentsData || []) as PaymentEvent[]
+
+    return enrichConnectionOrdersWithPaymentState(orders, allPayments)
+  }
+
+  async getIssueReportsByOrderIds(orderIds: string[]): Promise<IssueReport[]> {
+    if (orderIds.length === 0) return []
+
+    const { data, error } = await supabase
+      .from('issue_reports')
+      .select('*')
+      .in('order_id', orderIds)
+
+    if (error) throw error
+    return toCamelCase(data || [])
+  }
+
+  async getPaymentEventsByOrderIds(orderIds: string[]): Promise<PaymentEvent[]> {
+    if (orderIds.length === 0) return []
+
+    const { data, error } = await supabase
+      .from('payment_events')
+      .select('*')
+      .in('order_id', orderIds)
+
+    if (error) throw error
+    return toCamelCase(data || [])
+  }
+
   // ============ CONNECTION REQUESTS ============
 
   async getAllConnectionRequests(): Promise<ConnectionRequest[]> {
@@ -845,43 +950,6 @@ export class ZeltoDataStore {
     if (error) throw error
     return toCamelCase(data)
   }
-  // ============ ADMIN ACCOUNTS ============
-
-  async getAllAdminAccounts(): Promise<AdminAccount[]> {
-    const { data, error } = await supabase
-      .from('admin_accounts')
-      .select('*')
-    
-    if (error) throw error
-    return toCamelCase(data || [])
-  }
-
-  async createAdminAccount(username: string, password: string): Promise<AdminAccount> {
-    const hashedPassword = await bcrypt.hash(password, 10)
-    const { data, error } = await supabase
-      .from('admin_accounts')
-      .insert([{ username, password: hashedPassword }])
-      .select()
-      .single()
-
-    if (error) throw error
-    return toCamelCase(data)
-  }
-
-  async getAdminAccountByUsername(username: string): Promise<AdminAccount | undefined> {
-    const { data, error } = await supabase
-      .from('admin_accounts')
-      .select('*')
-      .eq('username', username)
-      .single()
-    
-    if (error) {
-      if (error.code === 'PGRST116') return undefined
-      throw error
-    }
-    return toCamelCase(data)
-  }
-
   // ============ ENTITY FLAGS ============
 
   async getAllEntityFlags(): Promise<EntityFlag[]> {

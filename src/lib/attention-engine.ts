@@ -129,7 +129,8 @@ export class AttentionEngine {
   ): Promise<AttentionItem[]> {
     const items: AttentionItem[] = []
     const now = Date.now()
-    const allIssues = await dataStore.getAllIssueReports()
+    const orderIds = orders.map(o => o.id)
+    const allIssues = await dataStore.getIssueReportsByOrderIds(orderIds)
     const openIssuesByOrderId = new Map<string, IssueReport[]>()
 
     allIssues
@@ -171,13 +172,15 @@ export class AttentionEngine {
     return items
   }
 
-  private async generateDisputeItems(): Promise<AttentionItem[]> {
+  private async generateDisputeItems(orders: OrderWithPaymentState[]): Promise<AttentionItem[]> {
     const items: AttentionItem[] = []
-    const allIssues = await dataStore.getAllIssueReports()
+    const orderIds = orders.map(o => o.id)
+    const allIssues = await dataStore.getIssueReportsByOrderIds(orderIds)
     const openIssues = allIssues.filter((issue) => issue.status === 'Open')
+    const orderMap = new Map(orders.map(o => [o.id, o]))
 
     for (const issue of openIssues) {
-      const order = await dataStore.getOrderById(issue.orderId)
+      const order = orderMap.get(issue.orderId)
       if (!order) continue
 
       items.push({
@@ -199,12 +202,11 @@ export class AttentionEngine {
     return items
   }
 
-  private async generateApprovalNeededItems(): Promise<AttentionItem[]> {
+  private async generateApprovalNeededItems(orders: OrderWithPaymentState[]): Promise<AttentionItem[]> {
     const items: AttentionItem[] = []
-    const allOrders = await dataStore.getAllOrders()
     const now = Date.now()
 
-    for (const order of allOrders) {
+    for (const order of orders) {
       if (!order.acceptedAt) {
         items.push({
           id: crypto.randomUUID(),
@@ -255,18 +257,15 @@ export class AttentionEngine {
     const connections = await dataStore.getConnectionsByBusinessId(businessId)
     const connectionIds = connections.map((c) => c.id)
 
-    const allOrdersWithPaymentState = await dataStore.getAllOrdersWithPaymentState()
-    const relevantOrders = allOrdersWithPaymentState.filter((order) =>
-      connectionIds.includes(order.connectionId)
-    )
+    const relevantOrders = await dataStore.getOrdersWithPaymentStateByBusinessId(businessId)
 
     const [pendingPayments, dueToday, overdue, disputes, approvalNeeded] =
       await Promise.all([
         this.generatePendingPaymentItems(relevantOrders),
         this.generateDueTodayItems(relevantOrders),
         this.generateOverdueItems(relevantOrders),
-        this.generateDisputeItems(),
-        this.generateApprovalNeededItems(),
+        this.generateDisputeItems(relevantOrders),
+        this.generateApprovalNeededItems(relevantOrders),
       ])
 
     const allItems = [
@@ -294,8 +293,8 @@ export class AttentionEngine {
         this.generatePendingPaymentItems(ordersWithPaymentState),
         this.generateDueTodayItems(ordersWithPaymentState),
         this.generateOverdueItems(ordersWithPaymentState),
-        this.generateDisputeItems(),
-        this.generateApprovalNeededItems(),
+        this.generateDisputeItems(ordersWithPaymentState),
+        this.generateApprovalNeededItems(ordersWithPaymentState),
       ])
 
     const allItems = [

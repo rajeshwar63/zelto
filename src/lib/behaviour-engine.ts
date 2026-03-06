@@ -182,10 +182,7 @@ export class BehaviourEngine {
     const allOrders = await dataStore.getOrdersByConnectionId(connectionId)
     const orderIds = allOrders.map((o) => o.id)
 
-    const allIssues = await dataStore.getAllIssueReports()
-    const connectionIssues = allIssues.filter((issue) =>
-      orderIds.includes(issue.orderId)
-    )
+    const connectionIssues = await dataStore.getIssueReportsByOrderIds(orderIds)
 
     const total_open_issues = connectionIssues.filter(
       (i) => i.status === 'Open'
