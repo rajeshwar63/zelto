@@ -1,3 +1,6 @@
+// src/lib/push-notifications.ts
+// Registers device for push notifications and saves FCM token to DB
+
 import { PushNotifications } from '@capacitor/push-notifications'
 import { Capacitor } from '@capacitor/core'
 import { supabase } from './supabase-client'
@@ -6,36 +9,31 @@ import { getAuthSession } from './auth'
 export async function initPushNotifications(): Promise<void> {
   if (!Capacitor.isNativePlatform()) return
 
-  // Request permission
   const permission = await PushNotifications.requestPermissions()
   if (permission.receive !== 'granted') {
     console.warn('Push notification permission not granted')
     return
   }
 
-  // Register with FCM
   await PushNotifications.register()
 
-  // Listen for token
   PushNotifications.addListener('registration', async (token) => {
     console.log('FCM Token:', token.value)
     await saveDeviceToken(token.value)
   })
 
-  // Listen for push received while app is open
   PushNotifications.addListener('pushNotificationReceived', (notification) => {
-    console.log('Push received:', notification)
-    // Could trigger data-events to refresh UI
+    // App is open — could refresh data via event bus
+    console.log('Push received in foreground:', notification)
   })
 
-  // Listen for push tap (app opened from notification)
   PushNotifications.addListener('pushNotificationActionPerformed', (action) => {
-    console.log('Push action:', action)
-    // Navigate to relevant screen based on action.notification.data
+    // User tapped notification — could navigate to relevant screen
+    console.log('Push tapped:', action.notification.data)
   })
 
   PushNotifications.addListener('registrationError', (error) => {
-    console.error('Push registration error:', error)
+    console.error('Push registration failed:', error)
   })
 }
 
@@ -43,9 +41,8 @@ async function saveDeviceToken(fcmToken: string): Promise<void> {
   const session = await getAuthSession()
   if (!session) return
 
-  const platform = Capacitor.getPlatform() as 'android' | 'ios' | 'web'
+  const platform = Capacitor.getPlatform()
 
-  // Upsert token
   const { error } = await supabase
     .from('device_tokens')
     .upsert({
@@ -61,10 +58,9 @@ async function saveDeviceToken(fcmToken: string): Promise<void> {
   if (error) console.error('Failed to save device token:', error)
 }
 
-export async function removeDeviceToken(): Promise<void> {
+export async function removeDeviceTokens(): Promise<void> {
   if (!Capacitor.isNativePlatform()) return
 
-  // Called on logout — remove this device's token
   const session = await getAuthSession()
   if (!session) return
 
@@ -73,5 +69,5 @@ export async function removeDeviceToken(): Promise<void> {
     .delete()
     .eq('user_id', session.userId)
 
-  if (error) console.error('Failed to remove device token:', error)
+  if (error) console.error('Failed to remove device tokens:', error)
 }
