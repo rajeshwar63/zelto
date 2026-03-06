@@ -1,65 +1,169 @@
+// supabase/functions/send-push/index.ts
+// Triggered by DB webhook when a notification row is inserted
+// Sends push via Firebase Cloud Messaging V1 API
+
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts'
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!
 const SUPABASE_SERVICE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
-const FCM_SERVER_KEY = Deno.env.get('FCM_SERVER_KEY')!
 
-serve(async (req) => {
-  const { record } = await req.json()
+// Firebase service account from env
+const FCM_PROJECT_ID = Deno.env.get('FCM_PROJECT_ID')!
+const FCM_CLIENT_EMAIL = Deno.env.get('FCM_CLIENT_EMAIL')!
+const FCM_PRIVATE_KEY = Deno.env.get('FCM_PRIVATE_KEY')!
 
-  // record = the new notification row
-  const recipientBusinessId = record.recipient_business_id
-  const message = record.message
-  const type = record.type
+// Get OAuth2 access token for FCM V1 API
+async function getAccessToken(): Promise<string> {
+  const now = Math.floor(Date.now() / 1000)
+  const header = btoa(JSON.stringify({ alg: 'RS256', typ: 'JWT' }))
+  const payload = btoa(JSON.stringify({
+    iss: FCM_CLIENT_EMAIL,
+    scope: 'https://www.googleapis.com/auth/firebase.messaging',
+    aud: 'https://oauth2.googleapis.com/token',
+    iat: now,
+    exp: now + 3600,
+  }))
 
-  // Get all device tokens for this business
-  const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_KEY)
-  const { data: tokens, error } = await supabase
-    .from('device_tokens')
-    .select('fcm_token')
-    .eq('business_entity_id', recipientBusinessId)
+  const signInput = `${header}.${payload}`
 
-  if (error || !tokens || tokens.length === 0) {
-    return new Response(JSON.stringify({ sent: 0 }), { status: 200 })
-  }
+  // Import private key
+  const pemContents = FCM_PRIVATE_KEY
+    .replace(/\\n/g, '\n')
+    .replace('-----BEGIN PRIVATE KEY-----', '')
+    .replace('-----END PRIVATE KEY-----', '')
+    .replace(/\s/g, '')
 
-  // Send to all devices via FCM
-  const fcmTokens = tokens.map((t: { fcm_token: string }) => t.fcm_token)
+  const binaryKey = Uint8Array.from(atob(pemContents), c => c.charCodeAt(0))
+  const cryptoKey = await crypto.subtle.importKey(
+    'pkcs8',
+    binaryKey,
+    { name: 'RSASSA-PKCS1-v1_5', hash: 'SHA-256' },
+    false,
+    ['sign']
+  )
 
-  const fcmResponse = await fetch('https://fcm.googleapis.com/fcm/send', {
+  const signature = await crypto.subtle.sign(
+    'RSASSA-PKCS1-v1_5',
+    cryptoKey,
+    new TextEncoder().encode(signInput)
+  )
+
+  const jwt = `${signInput}.${btoa(String.fromCharCode(...new Uint8Array(signature)))
+    .replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '')}`
+
+  // Exchange JWT for access token
+  const tokenResponse = await fetch('https://oauth2.googleapis.com/token', {
     method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'Authorization': `key=${FCM_SERVER_KEY}`,
-    },
-    body: JSON.stringify({
-      registration_ids: fcmTokens,
-      notification: {
-        title: getNotificationTitle(type),
-        body: message,
-      },
-      data: {
-        type: record.type,
-        connection_id: record.connection_id,
-        related_entity_id: record.related_entity_id,
-      },
-    }),
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    body: `grant_type=urn:ietf:params:oauth:grant-type:jwt-bearer&assertion=${jwt}`,
   })
 
-  const result = await fcmResponse.json()
-  return new Response(JSON.stringify({ sent: result.success }), { status: 200 })
-})
-
-function getNotificationTitle(type: string): string {
-  const titles: Record<string, string> = {
-    'OrderPlaced': 'New Order',
-    'OrderDispatched': 'Order Dispatched',
-    'OrderDeclined': 'Order Declined',
-    'PaymentRecorded': 'Payment Received',
-    'PaymentDisputed': 'Payment Disputed',
-    'IssueRaised': 'Issue Reported',
-    'ConnectionAccepted': 'Connection Accepted',
-  }
-  return titles[type] || 'Zelto'
+  const tokenData = await tokenResponse.json()
+  return tokenData.access_token
 }
+
+const NOTIFICATION_TITLES: Record<string, string> = {
+  'OrderPlaced': 'New Order',
+  'OrderDispatched': 'Order Dispatched',
+  'OrderDeclined': 'Order Declined',
+  'PaymentRecorded': 'Payment Received',
+  'PaymentDisputed': 'Payment Disputed',
+  'IssueRaised': 'Issue Reported',
+  'ConnectionAccepted': 'Connection Accepted',
+}
+
+serve(async (req) => {
+  try {
+    const { record } = await req.json()
+
+    const recipientBusinessId = record.recipient_business_id
+    const message = record.message
+    const type = record.type
+
+    // Get device tokens for recipient business
+    const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_KEY)
+    const { data: tokens, error } = await supabase
+      .from('device_tokens')
+      .select('fcm_token')
+      .eq('business_entity_id', recipientBusinessId)
+
+    if (error || !tokens || tokens.length === 0) {
+      return new Response(JSON.stringify({ sent: 0, reason: 'no_tokens' }), {
+        status: 200,
+        headers: { 'Content-Type': 'application/json' },
+      })
+    }
+
+    const accessToken = await getAccessToken()
+    const title = NOTIFICATION_TITLES[type] || 'Zelto'
+    let successCount = 0
+
+    // Send to each device individually (FCM V1 requires individual sends)
+    for (const { fcm_token } of tokens) {
+      try {
+        const response = await fetch(
+          `https://fcm.googleapis.com/v1/projects/${FCM_PROJECT_ID}/messages:send`,
+          {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${accessToken}`,
+            },
+            body: JSON.stringify({
+              message: {
+                token: fcm_token,
+                notification: {
+                  title,
+                  body: message,
+                },
+                data: {
+                  type: type,
+                  connection_id: record.connection_id,
+                  related_entity_id: record.related_entity_id,
+                },
+                android: {
+                  priority: 'high',
+                  notification: {
+                    channel_id: 'zelto_default',
+                    sound: 'default',
+                  },
+                },
+              },
+            }),
+          }
+        )
+
+        if (response.ok) {
+          successCount++
+        } else {
+          const err = await response.json()
+          console.error('FCM send failed:', err)
+
+          // Remove invalid tokens
+          if (err?.error?.details?.some((d: any) =>
+            d.errorCode === 'UNREGISTERED' || d.errorCode === 'INVALID_ARGUMENT'
+          )) {
+            await supabase
+              .from('device_tokens')
+              .delete()
+              .eq('fcm_token', fcm_token)
+          }
+        }
+      } catch (sendErr) {
+        console.error('FCM send error:', sendErr)
+      }
+    }
+
+    return new Response(
+      JSON.stringify({ sent: successCount, total: tokens.length }),
+      { status: 200, headers: { 'Content-Type': 'application/json' } }
+    )
+  } catch (err) {
+    console.error('Edge function error:', err)
+    return new Response(
+      JSON.stringify({ error: String(err) }),
+      { status: 500, headers: { 'Content-Type': 'application/json' } }
+    )
+  }
+})

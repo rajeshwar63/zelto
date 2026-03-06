@@ -19,7 +19,7 @@ import { HelpSupportScreen } from '@/components/HelpSupportScreen'
 import { ReportIssueScreen } from '@/components/ReportIssueScreen'
 import { List, ChartBar, Bell, User } from '@phosphor-icons/react'
 import { getAuthSession, getAuthState, logout, clearAuthSession } from '@/lib/auth'
-import { initPushNotifications, removeDeviceToken } from '@/lib/push-notifications'
+import { initPushNotifications, removeDeviceTokens } from '@/lib/push-notifications'
 import { supabase } from '@/lib/supabase-client'
 import { setupBackButtonHandler } from '@/lib/capacitor'
 import { attentionEngine } from '@/lib/attention-engine'
@@ -169,7 +169,7 @@ const initializeApp = async () => {
   }, [])
 
   const handleLogout = async () => {
-    await removeDeviceToken()
+    await removeDeviceTokens()
     await logout()
     setCurrentBusinessId(null)
     setAuthScreen('welcome')

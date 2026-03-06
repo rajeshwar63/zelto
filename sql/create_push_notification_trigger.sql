@@ -11,7 +11,7 @@ SECURITY DEFINER
 AS $$
 BEGIN
   PERFORM net.http_post(
-    url := 'YOUR_SUPABASE_URL/functions/v1/send-push',
+    url := 'https://cncimuwunjjxrlsnjstm.supabase.co/functions/v1/send-push',
     headers := jsonb_build_object(
       'Content-Type', 'application/json',
       'Authorization', 'Bearer ' || 'YOUR_SUPABASE_SERVICE_ROLE_KEY'
