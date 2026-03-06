@@ -1084,7 +1084,6 @@ export class ZeltoDataStore {
         connection_id: connectionId,
         message,
         created_at: Date.now(),
-        read_at: null
       }])
       .select()
       .single()
