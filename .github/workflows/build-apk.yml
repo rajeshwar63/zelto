@@ -33,6 +33,11 @@ jobs:
       - name: Sync Capacitor
         run: npx cap sync android
 
+      - name: Check synced assets
+        run: |
+          cat android/app/src/main/assets/public/index.html
+          ls android/app/src/main/assets/public/assets/
+
       - name: Update Gradle wrapper to 8.10
         working-directory: android
         run: |
