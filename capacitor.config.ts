@@ -5,7 +5,7 @@ const config: CapacitorConfig = {
   appName: 'Zelto',
   webDir: 'dist',
   server: {
-    androidScheme: 'https',
+    androidScheme: 'http',
     cleartext: true,
   },
   plugins: {
