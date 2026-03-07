@@ -604,6 +604,20 @@ export class ZeltoDataStore {
     return toCamelCase(data)
   }
 
+  async getPaymentEventById(id: string): Promise<PaymentEvent | undefined> {
+    const { data, error } = await supabase
+      .from('payment_events')
+      .select('*')
+      .eq('id', id)
+      .single()
+    
+    if (error) {
+      if (error.code === 'PGRST116') return undefined
+      throw error
+    }
+    return toCamelCase(data)
+  }
+
   async getPaymentEventsByOrderId(orderId: string): Promise<PaymentEvent[]> {
     const { data, error } = await supabase
       .from('payment_events')
