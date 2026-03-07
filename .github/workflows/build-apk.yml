@@ -20,7 +20,12 @@ jobs:
 
       - name: Install dependencies
         run: npm ci
-
+        
+      - name: Create .env file
+        run: |
+          echo "VITE_SUPABASE_URL=${{ secrets.https://cncimuwunjjxrlsnjstm.supabase.co }}" >> .env
+          echo "VITE_SUPABASE_ANON_KEY=${{ secrets.eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNuY2ltdXd1bmpqeHJsc25qc3RtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzE3NTY5OTcsImV4cCI6MjA4NzMzMjk5N30.AIH4pTVzGTSDS354EI-Un9vMfWzPeHQdn-6k4XvL3WY }}" >> .env
+      
       - name: Build web app
         run: npm run build
 
