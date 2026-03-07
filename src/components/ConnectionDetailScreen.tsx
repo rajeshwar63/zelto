@@ -1,7 +1,7 @@
 import { useEffect, useState, useRef, type TouchEvent } from 'react'
 import { dataStore } from '@/lib/data-store'
 import { insightEngine } from '@/lib/insight-engine'
-import { transitionOrderState, recordPayment, createIssue, createOrder, addAttachment, deleteAttachment } from '@/lib/interactions'
+import { transitionOrderState, recordPayment, createIssue, createOrder, addAttachment, deleteAttachment, disputePayment } from '@/lib/interactions'
 import { useDataListener } from '@/lib/data-events'
 import { formatDistanceToNow, differenceInDays, format } from 'date-fns'
 import type { Connection, OrderWithPaymentState, BusinessEntity, PaymentEvent, OrderAttachment, AttachmentType } from '@/lib/types'
@@ -785,23 +785,8 @@ function OrderDetailView({ order: orderProp, connection, currentBusinessId, onBa
     if (processing) return
     setProcessing(true)
     try {
-      await dataStore.updatePaymentEventDispute(paymentId, true)
+      await disputePayment(paymentId, currentBusinessId)
       await createIssue(order.id, 'Billing Mismatch', 'Medium', currentBusinessId)
-
-      // Notify the OTHER party about the dispute
-      const paymentEvent = paymentEvents.find(p => p.id === paymentId)
-      if (paymentEvent) {
-        const otherPartyId = currentBusinessId === connection.buyerBusinessId
-          ? connection.supplierBusinessId
-          : connection.buyerBusinessId
-        await dataStore.createNotification(
-          otherPartyId,
-          'PaymentDisputed',
-          paymentEvent.id,
-          order.connectionId,
-          `A payment has been disputed`
-        )
-      }
 
       setDisputingPaymentId(null)
       toast.success('Dispute raised. This has been added to your Attention tab.')

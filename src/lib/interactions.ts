@@ -107,13 +107,17 @@ export async function createOrder(
   )
 
   // Notify supplier that a new order was placed
-  dataStore.createNotification(
-    connection.supplierBusinessId,
-    'OrderPlaced',
-    newOrder.id,
-    connectionId,
-    `New order received: ${itemSummary}`
-  ).catch((err) => console.warn('Notification failed:', err))
+  try {
+    await dataStore.createNotification(
+      connection.supplierBusinessId,
+      'OrderPlaced',
+      newOrder.id,
+      connectionId,
+      `New order: ${itemSummary}`
+    )
+  } catch (err) {
+    console.error('Notification failed:', err)
+  }
 
   emitDataChange('orders:changed', 'notifications:changed')
   return newOrder
@@ -186,23 +190,44 @@ export async function transitionOrderState(
     setAcceptedAt: newState === 'Dispatched' && currentState === 'Placed',
   })
 
+  if (newState === 'Accepted') {
+    try {
+      await dataStore.createNotification(
+        connection.buyerBusinessId,
+        'OrderAccepted',
+        orderId,
+        order.connectionId,
+        `Your order has been accepted`
+      )
+    } catch (err) {
+      console.error('Notification failed:', err)
+    }
+  }
   if (newState === 'Dispatched') {
-    dataStore.createNotification(
-      connection.buyerBusinessId,
-      'OrderDispatched',
-      orderId,
-      order.connectionId,
-      `Your order has been dispatched`
-    ).catch((err) => console.warn('Notification failed:', err))
+    try {
+      await dataStore.createNotification(
+        connection.buyerBusinessId,
+        'OrderDispatched',
+        orderId,
+        order.connectionId,
+        `Your order has been dispatched`
+      )
+    } catch (err) {
+      console.error('Notification failed:', err)
+    }
   }
   if (newState === 'Declined') {
-    dataStore.createNotification(
-      connection.buyerBusinessId,
-      'OrderDeclined',
-      orderId,
-      order.connectionId,
-      `Your order was declined`
-    ).catch((err) => console.warn('Notification failed:', err))
+    try {
+      await dataStore.createNotification(
+        connection.buyerBusinessId,
+        'OrderDeclined',
+        orderId,
+        order.connectionId,
+        `Your order has been declined`
+      )
+    } catch (err) {
+      console.error('Notification failed:', err)
+    }
   }
 
   emitDataChange('orders:changed', 'notifications:changed')
@@ -262,16 +287,72 @@ export async function recordPayment(
   const otherPartyId = requestingBusinessId === connection.buyerBusinessId
     ? connection.supplierBusinessId
     : connection.buyerBusinessId
-  dataStore.createNotification(
-    otherPartyId,
-    'PaymentRecorded',
-    orderId,
-    order.connectionId,
-    `Payment of ₹${amount.toLocaleString('en-IN')} recorded`
-  ).catch((err) => console.warn('Notification failed:', err))
+  try {
+    await dataStore.createNotification(
+      otherPartyId,
+      'PaymentRecorded',
+      orderId,
+      order.connectionId,
+      `Payment of ₹${amount.toLocaleString('en-IN')} recorded`
+    )
+  } catch (err) {
+    console.error('Notification failed:', err)
+  }
 
   emitDataChange('payments:changed', 'orders:changed', 'notifications:changed')
   return newPayment
+}
+
+export async function disputePayment(
+  paymentEventId: string,
+  requestingBusinessId: string
+): Promise<PaymentEvent> {
+  const paymentEvent = await dataStore.getPaymentEventById(paymentEventId)
+
+  if (!paymentEvent) {
+    throw new Error('Payment event does not exist')
+  }
+
+  const order = await dataStore.getOrderById(paymentEvent.orderId)
+
+  if (!order) {
+    throw new Error('Order not found')
+  }
+
+  const connection = await dataStore.getConnectionById(order.connectionId)
+
+  if (!connection) {
+    throw new Error('Connection not found')
+  }
+
+  const isAuthorized =
+    requestingBusinessId === connection.buyerBusinessId ||
+    requestingBusinessId === connection.supplierBusinessId
+
+  if (!isAuthorized) {
+    throw new Error('Either party may dispute a payment')
+  }
+
+  const updatedPayment = await dataStore.updatePaymentEventDispute(paymentEventId, true)
+
+  // Notify the OTHER party about the dispute
+  const otherPartyId = requestingBusinessId === connection.buyerBusinessId
+    ? connection.supplierBusinessId
+    : connection.buyerBusinessId
+  try {
+    await dataStore.createNotification(
+      otherPartyId,
+      'PaymentDisputed',
+      paymentEventId,
+      order.connectionId,
+      `A payment has been disputed`
+    )
+  } catch (err) {
+    console.error('Notification failed:', err)
+  }
+
+  emitDataChange('payments:changed', 'notifications:changed')
+  return updatedPayment
 }
 
 export async function createIssue(
@@ -312,13 +393,17 @@ export async function createIssue(
   const otherPartyId = requestingBusinessId === connection.buyerBusinessId
     ? connection.supplierBusinessId
     : connection.buyerBusinessId
-  dataStore.createNotification(
-    otherPartyId,
-    'IssueRaised',
-    newIssue.id,
-    order.connectionId,
-    `Issue raised: ${issueType}`
-  ).catch((err) => console.warn('Notification failed:', err))
+  try {
+    await dataStore.createNotification(
+      otherPartyId,
+      'IssueRaised',
+      newIssue.id,
+      order.connectionId,
+      `New issue reported: ${issueType}`
+    )
+  } catch (err) {
+    console.error('Notification failed:', err)
+  }
 
   emitDataChange('issues:changed', 'notifications:changed')
   return newIssue

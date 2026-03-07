@@ -163,6 +163,7 @@ export interface RoleChangeRequest {
 
 export type NotificationType =
   | 'OrderPlaced'
+  | 'OrderAccepted'
   | 'OrderDispatched'
   | 'OrderDeclined'
   | 'PaymentRecorded'
