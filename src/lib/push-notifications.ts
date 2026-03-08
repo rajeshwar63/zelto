@@ -23,7 +23,7 @@ export async function registerPushNotifications(businessEntityId: string): Promi
     return
   }
 
-  await PushNotifications.register()
+  await PushNotifications.removeAllListeners()
 
   PushNotifications.addListener('registration', async (token) => {
     console.log('FCM token received:', token.value)
@@ -76,6 +76,8 @@ export async function registerPushNotifications(businessEntityId: string): Promi
     // User tapped notification — could navigate to relevant screen
     console.log('Push tapped:', action.notification.data)
   })
+
+  await PushNotifications.register()
 }
 
 async function saveDeviceToken(fcmToken: string): Promise<void> {
