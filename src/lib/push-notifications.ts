@@ -5,51 +5,76 @@ import { PushNotifications } from '@capacitor/push-notifications'
 import { Capacitor } from '@capacitor/core'
 import { supabase } from './supabase-client'
 import { getAuthSession } from './auth'
+import { getMessaging, getToken } from 'firebase/messaging'
+import { getApp, initializeApp } from 'firebase/app'
 
-export async function registerPushNotifications(businessEntityId: string): Promise<void> {
-  alert('Step 1: Starting registration for: ' + businessEntityId)
-
-  await PushNotifications.removeAllListeners()
-  alert('Step 2: Listeners cleared')
-
-  PushNotifications.addListener('registration', async (token) => {
-    alert('Step 5: Token received: ' + token.value.substring(0, 20))
-  })
-
-  PushNotifications.addListener('registrationError', (err) => {
-    alert('Step 5 ERROR: ' + JSON.stringify(err))
-  })
-
-  alert('Step 3: Listeners added, calling requestPermissions')
-
-  const permission = await PushNotifications.requestPermissions()
-  alert('Step 4: Permission result: ' + permission.receive)
-
-  if (permission.receive !== 'granted') return
-
-  await PushNotifications.register()
-  alert('Step 4b: register() called')
+const firebaseConfig = {
+  apiKey: 'AIzaSyDi88lmNnBmbBQ_kKuL6L2PsQ8cMb1aIQk',
+  projectId: 'zelto-87b9f',
+  messagingSenderId: '1087219191711',
+  appId: '1:1087219191711:android:857f042a120957413077aa',
+  storageBucket: 'zelto-87b9f.firebasestorage.app',
 }
 
-async function saveDeviceToken(fcmToken: string): Promise<void> {
-  const session = await getAuthSession()
-  if (!session) return
+function getFirebaseApp() {
+  try {
+    return getApp()
+  } catch {
+    return initializeApp(firebaseConfig)
+  }
+}
 
-  const platform = Capacitor.getPlatform()
+export async function registerPushNotifications(businessEntityId: string): Promise<void> {
+  if (!Capacitor.isNativePlatform()) return
 
-  const { error } = await supabase
-    .from('device_tokens')
-    .upsert({
-      user_id: session.userId,
-      business_entity_id: session.businessId,
-      fcm_token: fcmToken,
-      platform,
+  try {
+    const messaging = getMessaging(getFirebaseApp())
+
+    const token = await getToken(messaging)
+
+    if (!token) {
+      console.error('No FCM token received')
+      return
+    }
+
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) return
+
+    const { data: userAccount, error: userError } = await supabase
+      .from('user_accounts')
+      .select('id, business_entity_id')
+      .eq('auth_user_id', user.id)
+      .single()
+
+    if (userError || !userAccount) return
+
+    const { error } = await supabase.from('device_tokens').upsert({
+      user_id: userAccount.id,
+      business_entity_id: userAccount.business_entity_id,
+      fcm_token: token,
+      platform: 'android',
       updated_at: Date.now(),
-    }, {
-      onConflict: 'user_id,fcm_token'
+      created_at: Date.now(),
+    }, { onConflict: 'fcm_token' })
+
+    if (error) {
+      console.error('Failed to save device token:', error)
+    } else {
+      console.log('Device token saved successfully:', token.substring(0, 20))
+    }
+
+    // Still use Capacitor for receiving notifications in foreground
+    PushNotifications.addListener('pushNotificationReceived', (notification) => {
+      console.log('Push received:', notification)
     })
 
-  if (error) console.error('Failed to save device token:', error)
+    PushNotifications.addListener('pushNotificationActionPerformed', (action) => {
+      console.log('Push tapped:', action)
+    })
+
+  } catch (e) {
+    console.error('Push registration error:', e)
+  }
 }
 
 export async function removeDeviceTokens(): Promise<void> {
