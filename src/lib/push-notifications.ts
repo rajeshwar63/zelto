@@ -7,77 +7,28 @@ import { supabase } from './supabase-client'
 import { getAuthSession } from './auth'
 
 export async function registerPushNotifications(businessEntityId: string): Promise<void> {
-  console.log('Registering push notifications for:', businessEntityId)
-
-  if (!businessEntityId) {
-    console.error('No businessEntityId provided for push registration')
-    return
-  }
-
-  alert('Platform: ' + Capacitor.getPlatform() + ' isNative: ' + Capacitor.isNativePlatform())
-
-  const permission = await PushNotifications.requestPermissions()
-  console.log('Push permission:', permission.receive)
-  if (permission.receive !== 'granted') {
-    console.warn('Push notification permission not granted')
-    return
-  }
+  alert('Step 1: Starting registration for: ' + businessEntityId)
 
   await PushNotifications.removeAllListeners()
+  alert('Step 2: Listeners cleared')
 
   PushNotifications.addListener('registration', async (token) => {
-    console.log('FCM token received:', token.value)
-
-    // Get the current auth user ID
-    const { data: { user } } = await supabase.auth.getUser()
-    if (!user) {
-      console.error('No authenticated user found')
-      return
-    }
-
-    // Get the user_account id for this auth user
-    const { data: userAccount, error: userError } = await supabase
-      .from('user_accounts')
-      .select('id, business_entity_id')
-      .eq('auth_user_id', user.id)
-      .single()
-
-    if (userError || !userAccount) {
-      console.error('Failed to get user account:', userError)
-      return
-    }
-
-    const { error } = await supabase.from('device_tokens').upsert({
-      user_id: userAccount.id,
-      business_entity_id: userAccount.business_entity_id,
-      fcm_token: token.value,
-      platform: 'android',
-      updated_at: Date.now(),
-      created_at: Date.now(),
-    }, { onConflict: 'fcm_token' })
-
-    if (error) {
-      console.error('Failed to save device token:', error)
-    } else {
-      console.log('Device token saved successfully')
-    }
+    alert('Step 5: Token received: ' + token.value.substring(0, 20))
   })
 
-  PushNotifications.addListener('registrationError', (error) => {
-    console.error('Push registration error:', JSON.stringify(error))
+  PushNotifications.addListener('registrationError', (err) => {
+    alert('Step 5 ERROR: ' + JSON.stringify(err))
   })
 
-  PushNotifications.addListener('pushNotificationReceived', (notification) => {
-    // App is open — could refresh data via event bus
-    console.log('Push received in foreground:', notification)
-  })
+  alert('Step 3: Listeners added, calling requestPermissions')
 
-  PushNotifications.addListener('pushNotificationActionPerformed', (action) => {
-    // User tapped notification — could navigate to relevant screen
-    console.log('Push tapped:', action.notification.data)
-  })
+  const permission = await PushNotifications.requestPermissions()
+  alert('Step 4: Permission result: ' + permission.receive)
+
+  if (permission.receive !== 'granted') return
 
   await PushNotifications.register()
+  alert('Step 4b: register() called')
 }
 
 async function saveDeviceToken(fcmToken: string): Promise<void> {
