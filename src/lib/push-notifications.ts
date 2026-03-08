@@ -14,7 +14,7 @@ export async function registerPushNotifications(businessEntityId: string): Promi
     return
   }
 
-  if (!Capacitor.isNativePlatform()) return
+  alert('Platform: ' + Capacitor.getPlatform() + ' isNative: ' + Capacitor.isNativePlatform())
 
   const permission = await PushNotifications.requestPermissions()
   console.log('Push permission:', permission.receive)
