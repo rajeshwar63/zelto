@@ -6,10 +6,18 @@ import { Capacitor } from '@capacitor/core'
 import { supabase } from './supabase-client'
 import { getAuthSession } from './auth'
 
-export async function initPushNotifications(): Promise<void> {
+export async function registerPushNotifications(businessEntityId: string): Promise<void> {
+  console.log('Registering push notifications for:', businessEntityId)
+
+  if (!businessEntityId) {
+    console.error('No businessEntityId provided for push registration')
+    return
+  }
+
   if (!Capacitor.isNativePlatform()) return
 
   const permission = await PushNotifications.requestPermissions()
+  console.log('Push permission:', permission.receive)
   if (permission.receive !== 'granted') {
     console.warn('Push notification permission not granted')
     return
@@ -18,8 +26,20 @@ export async function initPushNotifications(): Promise<void> {
   await PushNotifications.register()
 
   PushNotifications.addListener('registration', async (token) => {
-    console.log('FCM Token:', token.value)
-    await saveDeviceToken(token.value)
+    console.log('FCM token received:', token.value)
+    const { error } = await supabase.from('device_tokens').upsert({
+      business_entity_id: businessEntityId,
+      fcm_token: token.value,
+    }, { onConflict: 'fcm_token' })
+    if (error) {
+      console.error('Failed to save device token:', error)
+    } else {
+      console.log('Device token saved successfully')
+    }
+  })
+
+  PushNotifications.addListener('registrationError', (error) => {
+    console.error('Push registration error:', JSON.stringify(error))
   })
 
   PushNotifications.addListener('pushNotificationReceived', (notification) => {
@@ -30,10 +50,6 @@ export async function initPushNotifications(): Promise<void> {
   PushNotifications.addListener('pushNotificationActionPerformed', (action) => {
     // User tapped notification — could navigate to relevant screen
     console.log('Push tapped:', action.notification.data)
-  })
-
-  PushNotifications.addListener('registrationError', (error) => {
-    console.error('Push registration failed:', error)
   })
 }
 
