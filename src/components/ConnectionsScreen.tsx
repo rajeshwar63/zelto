@@ -13,6 +13,8 @@ import { toast } from 'sonner'
 interface ConnectionWithState extends Connection {
   otherBusinessName: string
   computedState: ConnectionState
+  outstandingBalance: number
+  totalOrders: number
 }
 
 interface Props {
@@ -54,6 +56,8 @@ function isSameConnections(a: ConnectionWithState[], b: ConnectionWithState[]) {
       conn.id === other.id &&
       conn.otherBusinessName === other.otherBusinessName &&
       conn.computedState === other.computedState &&
+      conn.outstandingBalance === other.outstandingBalance &&
+      conn.totalOrders === other.totalOrders &&
       isSamePaymentTerms(conn.paymentTerms, other.paymentTerms)
     )
   })
@@ -93,16 +97,36 @@ export function ConnectionsScreen({ currentBusinessId, onSelectConnection, onAdd
             : conn.buyerBusinessId
         const otherBusiness = entityMap.get(otherId)
         const computedState = await behaviourEngine.computeConnectionState(conn.id)
+        const orders = await dataStore.getOrdersWithPaymentStateByConnectionId(conn.id)
+        const outstandingBalance = orders.reduce((sum, o) => {
+          if (o.declinedAt) return sum
+          return sum + o.pendingAmount
+        }, 0)
 
         return {
           ...conn,
           otherBusinessName: otherBusiness?.businessName || 'Unknown',
           computedState,
+          outstandingBalance,
+          totalOrders: orders.filter(o => !o.declinedAt).length,
         }
       })
     )
 
     console.debug('[ConnectionsScreen] fetch end', Date.now(), { currentBusinessId })
+
+    // Sort by: outstanding amount desc, overdue risk (Friction Rising/Under Stress first), recent activity
+    connectionsWithState.sort((a, b) => {
+      // Outstanding amount first
+      if (a.outstandingBalance !== b.outstandingBalance) return b.outstandingBalance - a.outstandingBalance
+      // Overdue risk (Under Stress > Friction Rising > others)
+      const riskOrder: Record<ConnectionState, number> = { 'Under Stress': 3, 'Friction Rising': 2, 'Active': 1, 'Stable': 0 }
+      const riskA = riskOrder[a.computedState] ?? 0
+      const riskB = riskOrder[b.computedState] ?? 0
+      if (riskA !== riskB) return riskB - riskA
+      // Recent activity
+      return b.createdAt - a.createdAt
+    })
 
     if (!cachedConnections || !isSameConnections(cachedConnections, connectionsWithState)) {
       if (!cachedConnectionsByBusiness.has(currentBusinessId) && cachedConnectionsByBusiness.size >= MAX_CACHED_BUSINESSES) {
@@ -135,7 +159,7 @@ export function ConnectionsScreen({ currentBusinessId, onSelectConnection, onAdd
   }, [currentBusinessId])
 
   useDataListener(
-    ['connections:changed', 'connection-requests:changed'],
+    ['connections:changed', 'connection-requests:changed', 'orders:changed', 'payments:changed'],
     () => { loadConnections() }
   )
 
@@ -240,15 +264,22 @@ export function ConnectionsScreen({ currentBusinessId, onSelectConnection, onAdd
       {connections.map((conn) => {
         const formattedTerms = formatPaymentTerms(conn.paymentTerms)
         const isSupplier = conn.supplierBusinessId === currentBusinessId
-        
-        const statusLabel = !formattedTerms 
-          ? (isSupplier ? 'Payment terms needed' : 'Awaiting payment terms')
-          : conn.computedState
-        
+
+        const relationshipLabel = (() => {
+          if (!formattedTerms) return isSupplier ? 'Payment terms needed' : 'Awaiting payment terms'
+          switch (conn.computedState) {
+            case 'Active': return 'Healthy'
+            case 'Stable': return 'Stable'
+            case 'Friction Rising': return 'Friction Rising'
+            case 'Under Stress': return 'High Risk'
+            default: return conn.computedState
+          }
+        })()
+
         const statusColor = !formattedTerms
           ? (isSupplier ? '#E8A020' : '#888888')
           : getConnectionStateColor(conn.computedState)
-        
+
         return (
           <button
             key={conn.id}
@@ -260,21 +291,29 @@ export function ConnectionsScreen({ currentBusinessId, onSelectConnection, onAdd
             }`}
           >
             <div className="flex items-baseline justify-between">
-              <div className="flex items-center gap-1.5">
-                <p className="text-[15px] text-foreground font-normal">{conn.otherBusinessName}</p>
-              </div>
+              <p className="text-[15px] text-foreground font-normal">{conn.otherBusinessName}</p>
+              {conn.outstandingBalance > 0 && (
+                <p className="text-[14px] font-semibold text-foreground">
+                  ₹{conn.outstandingBalance.toLocaleString('en-IN')}
+                </p>
+              )}
             </div>
             <div className="flex items-center gap-2 mt-0.5">
+              <p className="text-[13px] text-muted-foreground">
+                {conn.totalOrders} Order{conn.totalOrders !== 1 ? 's' : ''}
+              </p>
               {formattedTerms && (
                 <>
+                  <span className="text-[13px] text-muted-foreground">·</span>
                   <p className="text-[13px] text-muted-foreground">
                     {formattedTerms}
                   </p>
-                  <span className="text-[13px] text-muted-foreground">·</span>
                 </>
               )}
-              <p className="text-[13px]" style={{ color: statusColor }}>
-                {statusLabel}
+            </div>
+            <div className="mt-0.5">
+              <p className="text-[12px]" style={{ color: statusColor }}>
+                {conn.computedState === 'Friction Rising' || conn.computedState === 'Under Stress' ? '⚠ ' : ''}{relationshipLabel}
               </p>
             </div>
           </button>

@@ -289,34 +289,43 @@ export function ConnectionDetailScreen({ connectionId, currentBusinessId, select
         onTouchEnd={handleListTouchEnd}
         onTouchCancel={handleListTouchEnd}
       >
-        <div className="px-4 py-2">
-          <div className="flex items-center gap-2">
-            <p className="text-[13px] text-muted-foreground">{formatPaymentTerms(connection.paymentTerms)}</p>
-            <span className="text-[13px] text-muted-foreground">·</span>
-            <p className="text-[13px]" style={{ color: getConnectionStateColor(connection.connectionState) }}>
-              {connection.connectionState}
-            </p>
+        {/* Relationship Summary Card */}
+        <div className="px-4 py-3 border-b border-border">
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <p className="text-[11px] text-muted-foreground uppercase tracking-wide">Outstanding</p>
+              <p className="text-[18px] font-semibold text-foreground">
+                ₹{outstandingBalance.toLocaleString('en-IN')}
+              </p>
+            </div>
+            <div>
+              <p className="text-[11px] text-muted-foreground uppercase tracking-wide">Total Orders</p>
+              <p className="text-[18px] font-semibold text-foreground">{totalOrders}</p>
+            </div>
+            <div>
+              <p className="text-[11px] text-muted-foreground uppercase tracking-wide">Total Value</p>
+              <p className="text-[18px] font-semibold text-foreground">
+                ₹{totalValue.toLocaleString('en-IN')}
+              </p>
+            </div>
+            <div>
+              <p className="text-[11px] text-muted-foreground uppercase tracking-wide">Payment Terms</p>
+              <p className="text-[13px] text-foreground mt-0.5">{formatPaymentTerms(connection.paymentTerms)}</p>
+            </div>
           </div>
-          {isSupplier && (
-            <button
-              onClick={() => onNavigateToPaymentTermsSetup(connectionId, otherBusiness.businessName)}
-              className="text-[12px] text-muted-foreground hover:text-foreground mt-1"
-            >
-              Edit payment terms
-            </button>
-          )}
-        </div>
-
-        <div className="px-4 py-2 text-[13px] text-muted-foreground">
-          <span>{totalOrders} order{totalOrders !== 1 ? 's' : ''}</span>
-          <span className="mx-1.5">·</span>
-          <span>₹{totalValue.toLocaleString('en-IN')} total</span>
-          {outstandingBalance > 0 && (
-            <>
-              <span className="mx-1.5">·</span>
-              <span style={{ color: '#E8A020' }}>₹{outstandingBalance.toLocaleString('en-IN')} outstanding</span>
-            </>
-          )}
+          <div className="flex items-center justify-between mt-3">
+            <p className="text-[12px]" style={{ color: getConnectionStateColor(connection.connectionState) }}>
+              {connection.connectionState === 'Active' ? 'Healthy' : connection.connectionState === 'Under Stress' ? '⚠ High Risk' : connection.connectionState === 'Friction Rising' ? '⚠ Friction Rising' : connection.connectionState}
+            </p>
+            {isSupplier && (
+              <button
+                onClick={() => onNavigateToPaymentTermsSetup(connectionId, otherBusiness.businessName)}
+                className="text-[12px] text-muted-foreground hover:text-foreground"
+              >
+                Edit terms
+              </button>
+            )}
+          </div>
         </div>
 
         <div
