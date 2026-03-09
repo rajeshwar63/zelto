@@ -144,6 +144,8 @@ export function AttentionScreen({ currentBusinessId, onNavigateToConnections, on
           <div className="border-b border-border py-2 px-4">
             <div className="flex gap-3 overflow-x-auto scrollbar-hide">
               {availableCategories.map(category => {
+                const categoryItems = itemsByCategory.get(category) || []
+                const totalCount = categoryItems.length
                 const newCount = items.filter(
                   item => item.category === category &&
                   item.orderId != null &&
@@ -159,7 +161,7 @@ export function AttentionScreen({ currentBusinessId, onNavigateToConnections, on
                         : 'text-muted-foreground'
                     }`}
                   >
-                    {CATEGORY_LABELS[category]}
+                    {CATEGORY_LABELS[category]} ({totalCount})
                     {newCount > 0 && (
                       <span className="text-[9px] font-semibold px-1.5 py-0.5 rounded-full text-white bg-amber-400">
                         {newCount}
