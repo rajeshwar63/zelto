@@ -142,7 +142,7 @@ export function DashboardScreen({ currentBusinessId, onNavigateToOrders, onNavig
 
         {/* Dispatch Pending */}
         <button
-          onClick={() => onNavigateToOrders('awaiting_dispatch')}
+          onClick={() => onNavigateToOrders('placed')}
           className="w-full bg-white border border-border rounded-xl px-4 py-4 text-left"
         >
           <div className="flex items-center justify-between">
@@ -181,7 +181,7 @@ export function DashboardScreen({ currentBusinessId, onNavigateToOrders, onNavig
         {/* To Receive */}
         {data.toReceive > 0 && (
           <button
-            onClick={() => onNavigateToAttention()}
+            onClick={() => onNavigateToOrders('payment_pending')}
             className="w-full bg-white border border-border rounded-xl px-4 py-4 text-left"
           >
             <div className="flex items-center justify-between">
@@ -197,7 +197,7 @@ export function DashboardScreen({ currentBusinessId, onNavigateToOrders, onNavig
         {/* To Pay */}
         {data.toPay > 0 && (
           <button
-            onClick={() => onNavigateToAttention()}
+            onClick={() => onNavigateToOrders('payment_pending')}
             className="w-full bg-white border border-border rounded-xl px-4 py-4 text-left"
           >
             <div className="flex items-center justify-between">

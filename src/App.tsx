@@ -548,24 +548,15 @@ function TabButton({
         {unreadCount != null && unreadCount > 0 && !active && (
           <span
             style={{
-              position: 'absolute',
-              top: '-4px',
-              right: '-6px',
-              minWidth: '14px',
-              height: '14px',
-              borderRadius: '7px',
-              backgroundColor: '#D64545',
-              color: 'white',
-              fontSize: '8px',
-              fontWeight: 700,
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
+              fontSize: '0.6em',
+              verticalAlign: 'super',
+              fontWeight: 500,
+              color: 'inherit',
+              marginLeft: '2px',
               lineHeight: 1,
-              padding: '0 2px',
             }}
           >
-            {unreadCount > 9 ? '9+' : unreadCount}
+            {unreadCount}
           </span>
         )}
       </span>
