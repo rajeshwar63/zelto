@@ -290,9 +290,7 @@ const initializeApp = async () => {
 
   const navigateToTab = (tab: Tab) => {
     if (currentBusinessId) {
-      if (tab === 'attention') {
-        updateTabLastSeen(currentBusinessId, 'attention')
-      } else if (tab === 'connections') {
+      if (tab === 'connections') {
         updateTabLastSeen(currentBusinessId, 'connections')
         setHasUnreadConnections(false)
       }
@@ -350,9 +348,7 @@ const initializeApp = async () => {
 
   const navigateToTabWithFilter = (tab: Tab, filter?: string) => {
     if (currentBusinessId) {
-      if (tab === 'attention') {
-        updateTabLastSeen(currentBusinessId, 'attention')
-      } else if (tab === 'connections') {
+      if (tab === 'connections') {
         updateTabLastSeen(currentBusinessId, 'connections')
         setHasUnreadConnections(false)
       }

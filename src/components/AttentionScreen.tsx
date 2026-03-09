@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useRef } from 'react'
 import { attentionEngine } from '@/lib/attention-engine'
 import { dataStore } from '@/lib/data-store'
 import { formatDistanceToNow } from 'date-fns'
@@ -6,7 +6,7 @@ import type { AttentionItem, AttentionCategory } from '@/lib/attention-engine'
 import type { ConnectionRequest } from '@/lib/types'
 import { getAttentionHeadingColor } from '@/lib/semantic-colors'
 import { ConnectionRequestItem } from '@/components/ConnectionRequestItem'
-import { markOrderSeen, isOrderNew } from '@/lib/unread-tracker'
+import { markOrderSeen, getUnreadState, updateTabLastSeen } from '@/lib/unread-tracker'
 import { useDataListener } from '@/lib/data-events'
 
 interface Props {
@@ -40,6 +40,24 @@ export function AttentionScreen({ currentBusinessId, onNavigateToConnections, on
   const [connectionRequests, setConnectionRequests] = useState<ConnectionRequest[]>([])
   const [loading, setLoading] = useState(true)
   const [selectedFilter, setSelectedFilter] = useState<AttentionCategory | null>(null)
+
+  // Snapshot the lastSeen timestamp before updating it, so we can show unread counts
+  const lastSeenRef = useRef<number | null>(null)
+  if (lastSeenRef.current === null) {
+    const state = getUnreadState(currentBusinessId)
+    lastSeenRef.current = state.attentionLastSeen
+    // Now mark the tab as seen for next time
+    updateTabLastSeen(currentBusinessId, 'attention')
+  }
+
+  const [seenOrders, setSeenOrders] = useState<Set<string>>(new Set())
+
+  const isItemNew = (orderId: string, frictionStartedAt: number): boolean => {
+    if (seenOrders.has(orderId)) return false
+    const state = getUnreadState(currentBusinessId)
+    if (state.orderSeen[orderId]) return false
+    return frictionStartedAt > (lastSeenRef.current ?? 0)
+  }
 
   const loadData = async () => {
     const attentionItems = await attentionEngine.getAttentionItems(currentBusinessId)
@@ -84,7 +102,7 @@ export function AttentionScreen({ currentBusinessId, onNavigateToConnections, on
       items.some(
         item => item.category === cat &&
         item.orderId != null &&
-        isOrderNew(currentBusinessId, item.orderId, item.frictionStartedAt)
+        isItemNew(item.orderId, item.frictionStartedAt)
       )
     )
     const firstAvailableCategory = CATEGORY_ORDER.find(cat =>
@@ -147,7 +165,7 @@ export function AttentionScreen({ currentBusinessId, onNavigateToConnections, on
                 const newCount = items.filter(
                   item => item.category === category &&
                   item.orderId != null &&
-                  isOrderNew(currentBusinessId, item.orderId, item.frictionStartedAt)
+                  isItemNew(item.orderId, item.frictionStartedAt)
                 ).length
                 return (
                   <button
@@ -206,12 +224,12 @@ export function AttentionScreen({ currentBusinessId, onNavigateToConnections, on
           const categoryColor = getAttentionHeadingColor(category)
 
           const newCount = categoryItems.filter(item =>
-            item.orderId != null && isOrderNew(currentBusinessId, item.orderId, item.frictionStartedAt)
+            item.orderId != null && isItemNew(item.orderId, item.frictionStartedAt)
           ).length
 
           const sortedItems = [...categoryItems].sort((a, b) => {
-            const aNew = a.orderId != null && isOrderNew(currentBusinessId, a.orderId, a.frictionStartedAt)
-            const bNew = b.orderId != null && isOrderNew(currentBusinessId, b.orderId, b.frictionStartedAt)
+            const aNew = a.orderId != null && isItemNew(a.orderId, a.frictionStartedAt)
+            const bNew = b.orderId != null && isItemNew(b.orderId, b.frictionStartedAt)
             if (aNew && !bNew) return -1
             if (!aNew && bNew) return 1
             return b.frictionStartedAt - a.frictionStartedAt
@@ -253,13 +271,16 @@ export function AttentionScreen({ currentBusinessId, onNavigateToConnections, on
                   'Approval Needed': '#E8A020',
                 } as Record<string, string>)[item.category]
 
-                const isNew = item.orderId != null && isOrderNew(currentBusinessId, item.orderId, item.frictionStartedAt)
+                const isNew = item.orderId != null && isItemNew(item.orderId, item.frictionStartedAt)
 
                 return (
                   <button
                     key={item.id}
                     onClick={() => {
-                      if (item.orderId) markOrderSeen(currentBusinessId, item.orderId)
+                      if (item.orderId) {
+                        markOrderSeen(currentBusinessId, item.orderId)
+                        setSeenOrders(prev => new Set(prev).add(item.orderId!))
+                      }
                       onNavigateToConnection(item.connectionId, item.orderId)
                     }}
                     className={`w-full px-4 py-3 text-left transition-colors ${
