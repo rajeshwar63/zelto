@@ -1,7 +1,6 @@
 import { useEffect, useState, useRef } from 'react'
 import { ConnectionsScreen } from '@/components/ConnectionsScreen'
 import { ConnectionDetailScreen } from '@/components/ConnectionDetailScreen'
-import { AttentionScreen } from '@/components/AttentionScreen'
 import { DashboardScreen } from '@/components/DashboardScreen'
 import { OrdersScreen } from '@/components/OrdersScreen'
 import { OrderDetailScreen } from '@/components/OrderDetailScreen'
@@ -19,7 +18,7 @@ import { NotificationSettingsScreen } from '@/components/NotificationSettingsScr
 import { AccountScreen } from '@/components/AccountScreen'
 import { HelpSupportScreen } from '@/components/HelpSupportScreen'
 import { ReportIssueScreen } from '@/components/ReportIssueScreen'
-import { House, Users, Package, Bell, User } from '@phosphor-icons/react'
+import { House, Users, Package, User } from '@phosphor-icons/react'
 import { getAuthSession, getAuthState, logout, clearAuthSession } from '@/lib/auth'
 import { registerPushNotifications, removeDeviceTokens } from '@/lib/push-notifications'
 import { supabase } from '@/lib/supabase-client'
@@ -34,7 +33,7 @@ import { BusinessSetupScreen } from '@/components/BusinessSetupScreen'
 import { useDataListener } from '@/lib/data-events'
 
 
-type Tab = 'dashboard' | 'connections' | 'orders' | 'attention' | 'profile'
+type Tab = 'dashboard' | 'orders' | 'connections' | 'profile'
 type Screen =
   | { type: 'tab'; tab: Tab; filter?: string }
   | { type: 'connection-detail'; connectionId: string; selectedOrderId?: string }
@@ -425,7 +424,8 @@ const initializeApp = async () => {
           <DashboardScreen
             currentBusinessId={currentBusinessId}
             onNavigateToOrders={(filter) => navigateToTabWithFilter('orders', filter)}
-            onNavigateToAttention={(filter) => navigateToTabWithFilter('attention', filter)}
+            onNavigateToConnection={navigateToConnection}
+            onNavigateToProfile={() => navigateToTab('profile')}
           />
         ) : screen.type === 'tab' && screen.tab === 'connections' ? (
           <ConnectionsScreen
@@ -439,12 +439,6 @@ const initializeApp = async () => {
             currentBusinessId={currentBusinessId}
             onSelectOrder={navigateToOrderDetail}
             initialFilter={screen.filter}
-          />
-        ) : screen.type === 'tab' && screen.tab === 'attention' ? (
-          <AttentionScreen 
-            currentBusinessId={currentBusinessId} 
-            onNavigateToConnections={() => navigateToTab('connections')}
-            onNavigateToConnection={navigateToConnection}
           />
         ) : screen.type === 'tab' && screen.tab === 'profile' ? (
           <ProfileScreen
@@ -463,17 +457,10 @@ const initializeApp = async () => {
         <div className="bottom-nav fixed bottom-0 left-0 right-0 bg-background border-t border-border">
           <div className="flex items-center justify-around h-14">
             <TabButton
-              label="Dashboard"
+              label="Home"
               icon={<House weight="regular" size={22} />}
               active={screen.tab === 'dashboard'}
               onClick={() => navigateToTab('dashboard')}
-            />
-            <TabButton
-              label="Connections"
-              icon={<Users weight="regular" size={22} />}
-              active={screen.tab === 'connections'}
-              onClick={() => navigateToTab('connections')}
-              hasUnread={hasUnreadConnections}
             />
             <TabButton
               label="Orders"
@@ -482,11 +469,11 @@ const initializeApp = async () => {
               onClick={() => navigateToTab('orders')}
             />
             <TabButton
-              label="Attention"
-              icon={<Bell weight="regular" size={22} />}
-              active={screen.tab === 'attention'}
-              onClick={() => navigateToTab('attention')}
-
+              label="Connections"
+              icon={<Users weight="regular" size={22} />}
+              active={screen.tab === 'connections'}
+              onClick={() => navigateToTab('connections')}
+              hasUnread={hasUnreadConnections}
             />
             <TabButton
               label="Profile"
