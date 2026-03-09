@@ -252,7 +252,7 @@ export function ConnectionDetailScreen({ connectionId, currentBusinessId, select
         order={viewingOrder}
         connection={connection}
         currentBusinessId={currentBusinessId}
-        onBack={() => setViewingOrderId(null)}
+        onBack={() => selectedOrderId ? onBack() : setViewingOrderId(null)}
         onRefreshOrders={loadOrders}
         onReportIssue={onReportIssue}
       />
@@ -290,10 +290,10 @@ export function ConnectionDetailScreen({ connectionId, currentBusinessId, select
         onTouchCancel={handleListTouchEnd}
       >
         {/* Relationship Summary Card */}
-        <div className="px-4 py-3 border-b border-border">
+        <div className="sticky top-0 z-10 bg-white px-4 py-3 border-b border-border">
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <p className="text-[11px] text-muted-foreground uppercase tracking-wide">Outstanding</p>
+              <p className="text-[11px] text-muted-foreground uppercase tracking-wide">{isSupplier ? 'To Receive' : 'To Pay'}</p>
               <p className="text-[18px] font-semibold text-foreground">
                 ₹{outstandingBalance.toLocaleString('en-IN')}
               </p>
@@ -372,7 +372,7 @@ export function ConnectionDetailScreen({ connectionId, currentBusinessId, select
           )}
         </div>
 
-        <div className="pb-4">
+        <div className="pb-4 divide-y divide-border">
           {filteredOrders.length === 0 ? (
             <div className="px-4 py-8 text-center">
               <p className="text-[13px] text-muted-foreground">
@@ -407,7 +407,11 @@ export function ConnectionDetailScreen({ connectionId, currentBusinessId, select
                         {order.itemSummary}
                       </p>
                       <div className="ml-3 flex-shrink-0 text-right">
-                        {order.settlementState === 'Paid' ? (
+                        {order.orderValue === 0 && lifecycleState === 'Placed' ? (
+                          <p className="text-[14px] font-medium" style={{ color: '#E8A020' }}>Awaiting amount</p>
+                        ) : order.orderValue === 0 ? (
+                          <p className="text-[13px] text-muted-foreground">Amount not recorded</p>
+                        ) : order.settlementState === 'Paid' ? (
                           <div>
                             <p className="text-[14px] font-medium" style={{ color: '#4CAF50' }}>₹{order.orderValue.toLocaleString('en-IN')}</p>
                             <p className="text-[11px]" style={{ color: '#4CAF50' }}>Paid</p>

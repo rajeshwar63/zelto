@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { dataStore } from '@/lib/data-store'
 import { useDataListener } from '@/lib/data-events'
-import type { OrderWithPaymentState } from '@/lib/types'
+import type { Connection } from '@/lib/types'
 import { isToday } from 'date-fns'
 import { CaretRight } from '@phosphor-icons/react'
 
@@ -15,9 +15,9 @@ interface DashboardData {
   ordersToday: number
   ordersTodayValue: number
   dispatchPending: number
-  paymentsExpected: number
-  overdueAmount: number
-  overdueConnections: number
+  deliveryPending: number
+  toReceive: number
+  toPay: number
 }
 
 export function DashboardScreen({ currentBusinessId, onNavigateToOrders, onNavigateToAttention }: Props) {
@@ -35,17 +35,20 @@ export function DashboardScreen({ currentBusinessId, onNavigateToOrders, onNavig
     const biz = entities.find(e => e.id === currentBusinessId)
     if (biz) setBusinessName(biz.businessName)
 
+    const connectionMap = new Map<string, Connection>(connections.map(c => [c.id, c]))
+
     let ordersToday = 0
     let ordersTodayValue = 0
     let dispatchPending = 0
-    let paymentsExpected = 0
-    let overdueAmount = 0
-    const overdueConnectionIds = new Set<string>()
-
-    const now = Date.now()
+    let deliveryPending = 0
+    let toReceive = 0
+    let toPay = 0
 
     for (const order of orders) {
       if (order.declinedAt) continue
+
+      const conn = connectionMap.get(order.connectionId)
+      const isSupplierForOrder = conn?.supplierBusinessId === currentBusinessId
 
       // Orders today
       if (isToday(order.createdAt)) {
@@ -53,20 +56,24 @@ export function DashboardScreen({ currentBusinessId, onNavigateToOrders, onNavig
         ordersTodayValue += order.orderValue
       }
 
-      // Dispatch pending (placed but not dispatched)
-      if (!order.dispatchedAt && !order.declinedAt) {
+      // Dispatch pending: user is supplier, order not yet dispatched
+      if (isSupplierForOrder && !order.dispatchedAt && !order.declinedAt) {
         dispatchPending++
       }
 
-      // Payment expected (delivered, not fully paid)
-      if (order.deliveredAt && order.settlementState !== 'Paid') {
-        paymentsExpected += order.pendingAmount
+      // Delivery pending: user is buyer, order dispatched but not delivered
+      if (!isSupplierForOrder && order.dispatchedAt && !order.deliveredAt && !order.declinedAt) {
+        deliveryPending++
+      }
 
-        // Overdue (has due date and past it)
-        if (order.calculatedDueDate && now > order.calculatedDueDate) {
-          overdueAmount += order.pendingAmount
-          overdueConnectionIds.add(order.connectionId)
-        }
+      // To Receive: user is supplier, pending amount > 0
+      if (isSupplierForOrder && order.pendingAmount > 0) {
+        toReceive += order.pendingAmount
+      }
+
+      // To Pay: user is buyer, pending amount > 0
+      if (!isSupplierForOrder && order.pendingAmount > 0) {
+        toPay += order.pendingAmount
       }
     }
 
@@ -74,9 +81,9 @@ export function DashboardScreen({ currentBusinessId, onNavigateToOrders, onNavig
       ordersToday,
       ordersTodayValue,
       dispatchPending,
-      paymentsExpected,
-      overdueAmount,
-      overdueConnections: overdueConnectionIds.size,
+      deliveryPending,
+      toReceive,
+      toPay,
     })
     setLoading(false)
   }
@@ -152,39 +159,52 @@ export function DashboardScreen({ currentBusinessId, onNavigateToOrders, onNavig
           </div>
         </button>
 
-        {/* Payments Expected */}
+        {/* Delivery Pending */}
+        <button
+          onClick={() => onNavigateToOrders()}
+          className="w-full bg-white border border-border rounded-xl px-4 py-4 text-left"
+        >
+          <div className="flex items-center justify-between">
+            <p className="text-[13px] text-muted-foreground">Delivery Pending</p>
+            <CaretRight size={16} className="text-muted-foreground" />
+          </div>
+          <div className="flex items-baseline gap-3 mt-1.5">
+            <p className="text-[28px] font-semibold leading-tight" style={{ color: data.deliveryPending > 0 ? '#E8A020' : undefined }}>
+              {data.deliveryPending}
+            </p>
+            <p className="text-[13px] text-muted-foreground">
+              order{data.deliveryPending !== 1 ? 's' : ''}
+            </p>
+          </div>
+        </button>
+
+        {/* To Receive */}
         <button
           onClick={() => onNavigateToOrders('payment_pending')}
           className="w-full bg-white border border-border rounded-xl px-4 py-4 text-left"
         >
           <div className="flex items-center justify-between">
-            <p className="text-[13px] text-muted-foreground">Payments Expected</p>
+            <p className="text-[13px] text-muted-foreground">To Receive</p>
             <CaretRight size={16} className="text-muted-foreground" />
           </div>
           <p className="text-[28px] font-semibold text-foreground leading-tight mt-1.5">
-            ₹{data.paymentsExpected.toLocaleString('en-IN')}
+            ₹{data.toReceive.toLocaleString('en-IN')}
           </p>
         </button>
 
-        {/* Overdue Payments */}
-        {data.overdueAmount > 0 && (
-          <button
-            onClick={() => onNavigateToAttention('overdue')}
-            className="w-full bg-white border rounded-xl px-4 py-4 text-left"
-            style={{ borderColor: '#D64545' }}
-          >
-            <div className="flex items-center justify-between">
-              <p className="text-[13px]" style={{ color: '#D64545' }}>Overdue</p>
-              <CaretRight size={16} style={{ color: '#D64545' }} />
-            </div>
-            <p className="text-[28px] font-semibold leading-tight mt-1.5" style={{ color: '#D64545' }}>
-              ₹{data.overdueAmount.toLocaleString('en-IN')}
-            </p>
-            <p className="text-[13px] text-muted-foreground mt-0.5">
-              {data.overdueConnections} connection{data.overdueConnections !== 1 ? 's' : ''}
-            </p>
-          </button>
-        )}
+        {/* To Pay */}
+        <button
+          onClick={() => onNavigateToOrders('payment_pending')}
+          className="w-full bg-white border border-border rounded-xl px-4 py-4 text-left"
+        >
+          <div className="flex items-center justify-between">
+            <p className="text-[13px] text-muted-foreground">To Pay</p>
+            <CaretRight size={16} className="text-muted-foreground" />
+          </div>
+          <p className="text-[28px] font-semibold text-foreground leading-tight mt-1.5">
+            ₹{data.toPay.toLocaleString('en-IN')}
+          </p>
+        </button>
       </div>
     </div>
   )

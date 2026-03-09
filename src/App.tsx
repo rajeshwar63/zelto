@@ -350,7 +350,7 @@ const initializeApp = async () => {
   }
 
   const navigateToOrderDetail = (orderId: string, connectionId: string) => {
-    setNavigationStack(stack => [...stack, { type: 'order-detail', orderId, connectionId }])
+    navigateToConnection(connectionId, orderId)
   }
 
   const navigateToReportIssue = (orderId: string, connectionId: string) => {
