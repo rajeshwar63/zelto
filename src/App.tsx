@@ -2,7 +2,9 @@ import { useEffect, useState, useRef } from 'react'
 import { ConnectionsScreen } from '@/components/ConnectionsScreen'
 import { ConnectionDetailScreen } from '@/components/ConnectionDetailScreen'
 import { AttentionScreen } from '@/components/AttentionScreen'
-import { StatusScreen } from '@/components/StatusScreen'
+import { DashboardScreen } from '@/components/DashboardScreen'
+import { OrdersScreen } from '@/components/OrdersScreen'
+import { OrderDetailScreen } from '@/components/OrderDetailScreen'
 import { ProfileScreen } from '@/components/ProfileScreen'
 import { WelcomeScreen } from '@/components/WelcomeScreen'
 import { OTPScreen } from '@/components/OTPScreen'
@@ -17,7 +19,7 @@ import { NotificationSettingsScreen } from '@/components/NotificationSettingsScr
 import { AccountScreen } from '@/components/AccountScreen'
 import { HelpSupportScreen } from '@/components/HelpSupportScreen'
 import { ReportIssueScreen } from '@/components/ReportIssueScreen'
-import { List, ChartBar, Bell, User } from '@phosphor-icons/react'
+import { House, Users, Package, Bell, User } from '@phosphor-icons/react'
 import { getAuthSession, getAuthState, logout, clearAuthSession } from '@/lib/auth'
 import { registerPushNotifications, removeDeviceTokens } from '@/lib/push-notifications'
 import { supabase } from '@/lib/supabase-client'
@@ -32,10 +34,11 @@ import { BusinessSetupScreen } from '@/components/BusinessSetupScreen'
 import { useDataListener } from '@/lib/data-events'
 
 
-type Tab = 'status' | 'connections' | 'attention' | 'profile'
-type Screen = 
-  | { type: 'tab'; tab: Tab } 
-  | { type: 'connection-detail'; connectionId: string; selectedOrderId?: string } 
+type Tab = 'dashboard' | 'connections' | 'orders' | 'attention' | 'profile'
+type Screen =
+  | { type: 'tab'; tab: Tab; filter?: string }
+  | { type: 'connection-detail'; connectionId: string; selectedOrderId?: string }
+  | { type: 'order-detail'; orderId: string; connectionId: string }
   | { type: 'add-connection' }
   | { type: 'payment-terms-setup'; connectionId: string; businessName: string; returnTo?: 'connection-detail' | 'connections' }
   | { type: 'business-details' }
@@ -51,7 +54,7 @@ function App() {
   const [isPrivacyRoute, setIsPrivacyRoute] = useState(false)
   const [isTermsRoute, setIsTermsRoute] = useState(false)
   const [currentBusinessId, setCurrentBusinessId] = useState<string | null>(null)
-  const [navigationStack, setNavigationStack] = useState<Screen[]>([{ type: 'tab', tab: 'connections' }])
+  const [navigationStack, setNavigationStack] = useState<Screen[]>([{ type: 'tab', tab: 'dashboard' }])
   const [authScreen, setAuthScreen] = useState<AuthScreen | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [isCheckingAuth, setIsCheckingAuth] = useState(true)
@@ -189,7 +192,7 @@ const initializeApp = async () => {
     await logout()
     setCurrentBusinessId(null)
     setAuthScreen('welcome')
-    setNavigationStack([{ type: 'tab', tab: 'connections' }])
+    setNavigationStack([{ type: 'tab', tab: 'dashboard' }])
   }
 
   const handleWelcomeSubmit = (data: { name: string; businessName: string; email: string }) => {
@@ -346,8 +349,25 @@ const initializeApp = async () => {
     setNavigationStack(stack => [...stack, { type: 'profile-support' }])
   }
 
+  const navigateToOrderDetail = (orderId: string, connectionId: string) => {
+    setNavigationStack(stack => [...stack, { type: 'order-detail', orderId, connectionId }])
+  }
+
   const navigateToReportIssue = (orderId: string, connectionId: string) => {
     setNavigationStack(stack => [...stack, { type: 'report-issue', orderId, connectionId }])
+  }
+
+  const navigateToTabWithFilter = (tab: Tab, filter?: string) => {
+    if (currentBusinessId) {
+      if (tab === 'attention') {
+        updateTabLastSeen(currentBusinessId, 'attention')
+        setHasUnreadAttention(false)
+      } else if (tab === 'connections') {
+        updateTabLastSeen(currentBusinessId, 'connections')
+        setHasUnreadConnections(false)
+      }
+    }
+    setNavigationStack([{ type: 'tab', tab, filter }])
   }
 
   const handleBusinessDetailsSaved = () => {
@@ -398,6 +418,14 @@ const initializeApp = async () => {
               navigateBack()
             }}
           />
+        ) : screen.type === 'order-detail' ? (
+          <OrderDetailScreen
+            orderId={screen.orderId}
+            connectionId={screen.connectionId}
+            currentBusinessId={currentBusinessId}
+            onBack={navigateBack}
+            onReportIssue={navigateToReportIssue}
+          />
         ) : screen.type === 'connection-detail' ? (
           <ConnectionDetailScreen
             connectionId={screen.connectionId}
@@ -407,14 +435,24 @@ const initializeApp = async () => {
             onNavigateToPaymentTermsSetup={navigateToPaymentTermsSetup}
             onReportIssue={navigateToReportIssue}
           />
-        ) : screen.type === 'tab' && screen.tab === 'status' ? (
-          <StatusScreen currentBusinessId={currentBusinessId} onNavigateToConnection={navigateToConnection} />
+        ) : screen.type === 'tab' && screen.tab === 'dashboard' ? (
+          <DashboardScreen
+            currentBusinessId={currentBusinessId}
+            onNavigateToOrders={(filter) => navigateToTabWithFilter('orders', filter)}
+            onNavigateToAttention={(filter) => navigateToTabWithFilter('attention', filter)}
+          />
         ) : screen.type === 'tab' && screen.tab === 'connections' ? (
           <ConnectionsScreen
             currentBusinessId={currentBusinessId}
             onSelectConnection={navigateToConnection}
             onAddConnection={navigateToAddConnection}
             unreadConnectionIds={unreadConnectionIds}
+          />
+        ) : screen.type === 'tab' && screen.tab === 'orders' ? (
+          <OrdersScreen
+            currentBusinessId={currentBusinessId}
+            onSelectOrder={navigateToOrderDetail}
+            initialFilter={screen.filter}
           />
         ) : screen.type === 'tab' && screen.tab === 'attention' ? (
           <AttentionScreen 
@@ -439,17 +477,23 @@ const initializeApp = async () => {
         <div className="bottom-nav fixed bottom-0 left-0 right-0 bg-background border-t border-border">
           <div className="flex items-center justify-around h-14">
             <TabButton
-              label="Status"
-              icon={<ChartBar weight="regular" size={22} />}
-              active={screen.tab === 'status'}
-              onClick={() => navigateToTab('status')}
+              label="Dashboard"
+              icon={<House weight="regular" size={22} />}
+              active={screen.tab === 'dashboard'}
+              onClick={() => navigateToTab('dashboard')}
             />
             <TabButton
               label="Connections"
-              icon={<List weight="regular" size={22} />}
+              icon={<Users weight="regular" size={22} />}
               active={screen.tab === 'connections'}
               onClick={() => navigateToTab('connections')}
               hasUnread={hasUnreadConnections}
+            />
+            <TabButton
+              label="Orders"
+              icon={<Package weight="regular" size={22} />}
+              active={screen.tab === 'orders'}
+              onClick={() => navigateToTab('orders')}
             />
             <TabButton
               label="Attention"
