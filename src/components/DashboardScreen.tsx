@@ -161,7 +161,7 @@ export function DashboardScreen({ currentBusinessId, onNavigateToOrders, onNavig
 
         {/* Delivery Pending */}
         <button
-          onClick={() => onNavigateToOrders()}
+          onClick={() => onNavigateToOrders('dispatched')}
           className="w-full bg-white border border-border rounded-xl px-4 py-4 text-left"
         >
           <div className="flex items-center justify-between">
@@ -179,32 +179,36 @@ export function DashboardScreen({ currentBusinessId, onNavigateToOrders, onNavig
         </button>
 
         {/* To Receive */}
-        <button
-          onClick={() => onNavigateToOrders('payment_pending')}
-          className="w-full bg-white border border-border rounded-xl px-4 py-4 text-left"
-        >
-          <div className="flex items-center justify-between">
-            <p className="text-[13px] text-muted-foreground">To Receive</p>
-            <CaretRight size={16} className="text-muted-foreground" />
-          </div>
-          <p className="text-[28px] font-semibold text-foreground leading-tight mt-1.5">
-            ₹{data.toReceive.toLocaleString('en-IN')}
-          </p>
-        </button>
+        {data.toReceive > 0 && (
+          <button
+            onClick={() => onNavigateToAttention()}
+            className="w-full bg-white border border-border rounded-xl px-4 py-4 text-left"
+          >
+            <div className="flex items-center justify-between">
+              <p className="text-[13px] text-muted-foreground">To Receive</p>
+              <CaretRight size={16} className="text-muted-foreground" />
+            </div>
+            <p className="text-[28px] font-semibold text-foreground leading-tight mt-1.5">
+              ₹{data.toReceive.toLocaleString('en-IN')}
+            </p>
+          </button>
+        )}
 
         {/* To Pay */}
-        <button
-          onClick={() => onNavigateToOrders('payment_pending')}
-          className="w-full bg-white border border-border rounded-xl px-4 py-4 text-left"
-        >
-          <div className="flex items-center justify-between">
-            <p className="text-[13px] text-muted-foreground">To Pay</p>
-            <CaretRight size={16} className="text-muted-foreground" />
-          </div>
-          <p className="text-[28px] font-semibold text-foreground leading-tight mt-1.5">
-            ₹{data.toPay.toLocaleString('en-IN')}
-          </p>
-        </button>
+        {data.toPay > 0 && (
+          <button
+            onClick={() => onNavigateToAttention()}
+            className="w-full bg-white border border-border rounded-xl px-4 py-4 text-left"
+          >
+            <div className="flex items-center justify-between">
+              <p className="text-[13px] text-muted-foreground">To Pay</p>
+              <CaretRight size={16} className="text-muted-foreground" />
+            </div>
+            <p className="text-[28px] font-semibold text-foreground leading-tight mt-1.5">
+              ₹{data.toPay.toLocaleString('en-IN')}
+            </p>
+          </button>
+        )}
       </div>
     </div>
   )

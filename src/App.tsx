@@ -27,7 +27,7 @@ import { setupBackButtonHandler } from '@/lib/capacitor'
 import { PushNotifications } from '@capacitor/push-notifications'
 import { Capacitor } from '@capacitor/core'
 import { attentionEngine } from '@/lib/attention-engine'
-import { updateTabLastSeen, updateConnectionLastSeen, hasUnreadAttentionItems, hasAnyUnreadConnections, hasUnreadConnectionActivity } from '@/lib/unread-tracker'
+import { updateTabLastSeen, updateConnectionLastSeen, hasAnyUnreadConnections, hasUnreadConnectionActivity, getNewAttentionItems } from '@/lib/unread-tracker'
 import { dataStore } from '@/lib/data-store'
 import { behaviourEngine } from '@/lib/behaviour-engine'
 import { BusinessSetupScreen } from '@/components/BusinessSetupScreen'
@@ -58,7 +58,7 @@ function App() {
   const [authScreen, setAuthScreen] = useState<AuthScreen | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [isCheckingAuth, setIsCheckingAuth] = useState(true)
-  const [hasUnreadAttention, setHasUnreadAttention] = useState(false)
+  const [unreadAttentionCount, setUnreadAttentionCount] = useState(0)
   const [hasUnreadConnections, setHasUnreadConnections] = useState(false)
   const [unreadConnectionIds, setUnreadConnectionIds] = useState<Set<string>>(new Set())
   
@@ -112,7 +112,9 @@ const initializeApp = async () => {
       r => r.receiverBusinessId === currentBusinessId && r.status === 'Pending'
     )
     if (!isOnAttention) {
-      setHasUnreadAttention(hasUnreadAttentionItems(currentBusinessId, items) || hasPendingRequests)
+      const newItems = getNewAttentionItems(currentBusinessId, items)
+      const count = newItems.length + (hasPendingRequests ? 1 : 0)
+      setUnreadAttentionCount(count)
     }
     if (!isOnConnections) {
       setHasUnreadConnections(hasAnyUnreadConnections(currentBusinessId, items))
@@ -300,7 +302,7 @@ const initializeApp = async () => {
     if (currentBusinessId) {
       if (tab === 'attention') {
         updateTabLastSeen(currentBusinessId, 'attention')
-        setHasUnreadAttention(false)
+        setUnreadAttentionCount(0)
       } else if (tab === 'connections') {
         updateTabLastSeen(currentBusinessId, 'connections')
         setHasUnreadConnections(false)
@@ -361,7 +363,7 @@ const initializeApp = async () => {
     if (currentBusinessId) {
       if (tab === 'attention') {
         updateTabLastSeen(currentBusinessId, 'attention')
-        setHasUnreadAttention(false)
+        setUnreadAttentionCount(0)
       } else if (tab === 'connections') {
         updateTabLastSeen(currentBusinessId, 'connections')
         setHasUnreadConnections(false)
@@ -500,7 +502,7 @@ const initializeApp = async () => {
               icon={<Bell weight="regular" size={22} />}
               active={screen.tab === 'attention'}
               onClick={() => navigateToTab('attention')}
-              hasUnread={hasUnreadAttention}
+              unreadCount={unreadAttentionCount}
             />
             <TabButton
               label="Profile"
@@ -521,25 +523,50 @@ function TabButton({
   active,
   onClick,
   hasUnread,
+  unreadCount,
 }: {
   label: string
   icon: React.ReactNode
   active: boolean
   onClick: () => void
   hasUnread?: boolean
+  unreadCount?: number
 }) {
   return (
     <button
       onClick={onClick}
       className="flex flex-col items-center justify-center gap-0.5 py-1 px-3 min-w-[70px] relative"
     >
-      <span className={active ? 'text-foreground' : 'text-muted-foreground'}>
+      <span className={`relative ${active ? 'text-foreground' : 'text-muted-foreground'}`}>
         {icon}
         {hasUnread && !active && (
           <span
-            className="absolute top-0.5 right-4 w-2 h-2 rounded-full"
-            style={{ backgroundColor: '#D64545' }}
+            className="absolute w-2 h-2 rounded-full"
+            style={{ backgroundColor: '#D64545', top: '-2px', right: '-4px' }}
           />
+        )}
+        {unreadCount != null && unreadCount > 0 && !active && (
+          <span
+            style={{
+              position: 'absolute',
+              top: '-4px',
+              right: '-6px',
+              minWidth: '14px',
+              height: '14px',
+              borderRadius: '7px',
+              backgroundColor: '#D64545',
+              color: 'white',
+              fontSize: '8px',
+              fontWeight: 700,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              lineHeight: 1,
+              padding: '0 2px',
+            }}
+          >
+            {unreadCount > 9 ? '9+' : unreadCount}
+          </span>
         )}
       </span>
       <span

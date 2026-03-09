@@ -417,10 +417,7 @@ export function ConnectionDetailScreen({ connectionId, currentBusinessId, select
                             <p className="text-[11px]" style={{ color: '#4CAF50' }}>Paid</p>
                           </div>
                         ) : order.settlementState === 'Partial Payment' ? (
-                          <div>
-                            <p className="text-[14px] font-medium" style={{ color: '#E8A020' }}>₹{order.pendingAmount.toLocaleString('en-IN')} remaining</p>
-                            <p className="text-[11px] text-muted-foreground">of ₹{order.orderValue.toLocaleString('en-IN')}</p>
-                          </div>
+                          <p className="text-[14px] font-medium" style={{ color: '#E8A020' }}>₹{order.pendingAmount.toLocaleString('en-IN')} remaining</p>
                         ) : (
                           <p className={`text-[14px] font-medium ${isOld ? 'text-muted-foreground/80 text-[13px]' : 'text-foreground'}`}>
                             ₹{order.orderValue.toLocaleString('en-IN')}
