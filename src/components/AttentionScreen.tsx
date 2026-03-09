@@ -144,8 +144,6 @@ export function AttentionScreen({ currentBusinessId, onNavigateToConnections, on
           <div className="border-b border-border py-2 px-4">
             <div className="flex gap-3 overflow-x-auto scrollbar-hide">
               {availableCategories.map(category => {
-                const categoryItems = itemsByCategory.get(category) || []
-                const totalCount = categoryItems.length
                 const newCount = items.filter(
                   item => item.category === category &&
                   item.orderId != null &&

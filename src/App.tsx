@@ -27,8 +27,8 @@ import { setupBackButtonHandler } from '@/lib/capacitor'
 import { PushNotifications } from '@capacitor/push-notifications'
 import { Capacitor } from '@capacitor/core'
 import { attentionEngine } from '@/lib/attention-engine'
-import { updateTabLastSeen, updateConnectionLastSeen, hasAnyUnreadConnections, hasUnreadConnectionActivity, getNewAttentionItems } from '@/lib/unread-tracker'
-import { dataStore } from '@/lib/data-store'
+import { updateTabLastSeen, updateConnectionLastSeen, hasAnyUnreadConnections, hasUnreadConnectionActivity } from '@/lib/unread-tracker'
+
 import { behaviourEngine } from '@/lib/behaviour-engine'
 import { BusinessSetupScreen } from '@/components/BusinessSetupScreen'
 import { useDataListener } from '@/lib/data-events'
@@ -58,7 +58,7 @@ function App() {
   const [authScreen, setAuthScreen] = useState<AuthScreen | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [isCheckingAuth, setIsCheckingAuth] = useState(true)
-  const [unreadAttentionCount, setUnreadAttentionCount] = useState(0)
+
   const [hasUnreadConnections, setHasUnreadConnections] = useState(false)
   const [unreadConnectionIds, setUnreadConnectionIds] = useState<Set<string>>(new Set())
   
@@ -104,18 +104,8 @@ const initializeApp = async () => {
   async function checkUnread() {
     if (!currentBusinessId) return
     const currentScreen = navigationStack[navigationStack.length - 1]
-    const isOnAttention = currentScreen.type === 'tab' && currentScreen.tab === 'attention'
     const isOnConnections = currentScreen.type === 'tab' && currentScreen.tab === 'connections'
     const items = await attentionEngine.getAttentionItems(currentBusinessId)
-    const allRequests = await dataStore.getAllConnectionRequests()
-    const hasPendingRequests = allRequests.some(
-      r => r.receiverBusinessId === currentBusinessId && r.status === 'Pending'
-    )
-    if (!isOnAttention) {
-      const newItems = getNewAttentionItems(currentBusinessId, items)
-      const count = newItems.length + (hasPendingRequests ? 1 : 0)
-      setUnreadAttentionCount(count)
-    }
     if (!isOnConnections) {
       setHasUnreadConnections(hasAnyUnreadConnections(currentBusinessId, items))
     }
@@ -302,7 +292,6 @@ const initializeApp = async () => {
     if (currentBusinessId) {
       if (tab === 'attention') {
         updateTabLastSeen(currentBusinessId, 'attention')
-        setUnreadAttentionCount(0)
       } else if (tab === 'connections') {
         updateTabLastSeen(currentBusinessId, 'connections')
         setHasUnreadConnections(false)
@@ -363,7 +352,6 @@ const initializeApp = async () => {
     if (currentBusinessId) {
       if (tab === 'attention') {
         updateTabLastSeen(currentBusinessId, 'attention')
-        setUnreadAttentionCount(0)
       } else if (tab === 'connections') {
         updateTabLastSeen(currentBusinessId, 'connections')
         setHasUnreadConnections(false)
@@ -502,7 +490,7 @@ const initializeApp = async () => {
               icon={<Bell weight="regular" size={22} />}
               active={screen.tab === 'attention'}
               onClick={() => navigateToTab('attention')}
-              unreadCount={unreadAttentionCount}
+
             />
             <TabButton
               label="Profile"
@@ -523,14 +511,12 @@ function TabButton({
   active,
   onClick,
   hasUnread,
-  unreadCount,
 }: {
   label: string
   icon: React.ReactNode
   active: boolean
   onClick: () => void
   hasUnread?: boolean
-  unreadCount?: number
 }) {
   return (
     <button
@@ -544,20 +530,6 @@ function TabButton({
             className="absolute w-2 h-2 rounded-full"
             style={{ backgroundColor: '#D64545', top: '-2px', right: '-4px' }}
           />
-        )}
-        {unreadCount != null && unreadCount > 0 && !active && (
-          <span
-            style={{
-              fontSize: '0.6em',
-              verticalAlign: 'super',
-              fontWeight: 500,
-              color: 'inherit',
-              marginLeft: '2px',
-              lineHeight: 1,
-            }}
-          >
-            {unreadCount}
-          </span>
         )}
       </span>
       <span
