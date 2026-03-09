@@ -231,18 +231,21 @@ export function OrdersScreen({ currentBusinessId, onSelectOrder, initialFilter }
                 className="w-full text-left px-4 py-3 border-b border-border/50"
               >
                 <div className="flex items-start justify-between">
-                  <div className="flex-1 mr-3">
-                    <p className="text-[14px] text-foreground font-normal leading-snug">
-                      {order.itemSummary}
-                    </p>
-                    <p className="text-[13px] text-muted-foreground mt-0.5">
-                      {order.connectionName}
-                    </p>
-                  </div>
+                  <p className="text-[14px] text-foreground font-normal leading-snug flex-1 mr-3">
+                    {order.itemSummary}
+                  </p>
                   {order.orderValue > 0 && (
                     <p className="text-[15px] font-semibold text-foreground flex-shrink-0">
                       ₹{order.orderValue.toLocaleString('en-IN')}
                     </p>
+                  )}
+                </div>
+                <div className="flex items-center justify-between mt-0.5">
+                  <p className="text-[13px] text-muted-foreground">
+                    {order.connectionName}
+                  </p>
+                  {isOverdue && (
+                    <span style={{ color: '#D64545', fontSize: '12px', fontWeight: 500 }}>Overdue</span>
                   )}
                 </div>
                 <div className="flex items-center gap-1.5 mt-1 text-[12px]">
@@ -251,12 +254,6 @@ export function OrdersScreen({ currentBusinessId, onSelectOrder, initialFilter }
                   <span className="text-muted-foreground">
                     {formatDistanceToNow(order.latestActivity, { addSuffix: true })}
                   </span>
-                  {isOverdue && (
-                    <>
-                      <span className="text-muted-foreground">·</span>
-                      <span style={{ color: '#D64545' }}>Overdue</span>
-                    </>
-                  )}
                 </div>
               </button>
             )
