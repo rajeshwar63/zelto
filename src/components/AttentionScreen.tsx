@@ -155,15 +155,22 @@ export function AttentionScreen({ currentBusinessId, onNavigateToConnections, on
                   <button
                     key={category}
                     onClick={() => setSelectedFilter(category)}
-                    className={`text-sm whitespace-nowrap pb-1 flex items-center gap-1.5 ${
+                    className={`text-sm whitespace-nowrap pb-1 ${
                       selectedFilter === category
                         ? 'text-foreground border-b-2 border-foreground'
                         : 'text-muted-foreground'
                     }`}
                   >
-                    {CATEGORY_LABELS[category]} ({totalCount})
+                    {CATEGORY_LABELS[category]}
                     {newCount > 0 && (
-                      <span className="text-[9px] font-semibold px-1.5 py-0.5 rounded-full text-white bg-amber-400">
+                      <span style={{
+                        fontSize: '0.6em',
+                        verticalAlign: 'super',
+                        fontWeight: 500,
+                        color: 'inherit',
+                        marginLeft: '2px',
+                        lineHeight: 1,
+                      }}>
                         {newCount}
                       </span>
                     )}
