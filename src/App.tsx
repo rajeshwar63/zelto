@@ -66,7 +66,6 @@ function App() {
   const screen = navigationStack[navigationStack.length - 1]
   const activeTabScreen = [...navigationStack].reverse().find((stackScreen): stackScreen is Extract<Screen, { type: 'tab' }> => stackScreen.type === 'tab')
   const activeTab = activeTabScreen?.tab ?? 'dashboard'
-  const ordersInitialFilter = activeTabScreen?.tab === 'orders' ? activeTabScreen.filter : undefined
 
   useEffect(() => {
     checkRoute()
@@ -387,7 +386,7 @@ function App() {
   return (
     <div className="h-full flex flex-col overflow-hidden" style={{ backgroundColor: 'var(--bg-screen)' }}>
       <div className="flex-1 overflow-auto pb-16">
-        {activeTab === 'dashboard' ? (
+        <div style={{ display: activeTab === 'dashboard' ? 'block' : 'none', height: '100%' }}>
           <DashboardScreen
             currentBusinessId={currentBusinessId}
             isActive={activeTab === 'dashboard'}
@@ -396,14 +395,18 @@ function App() {
             onNavigateToProfile={() => navigateToTab('profile')}
             onNavigateToAttention={(filter) => navigateToTabWithFilter('attention', filter)}
           />
-        ) : activeTab === 'attention' ? (
+        </div>
+
+        <div style={{ display: activeTab === 'attention' ? 'block' : 'none', height: '100%' }}>
           <AttentionScreen
             currentBusinessId={currentBusinessId}
             isActive={activeTab === 'attention'}
             onNavigateToConnections={() => navigateToTab('connections')}
             onNavigateToIssue={navigateToIssueDetail}
           />
-        ) : activeTab === 'connections' ? (
+        </div>
+
+        <div style={{ display: activeTab === 'connections' ? 'block' : 'none', height: '100%' }}>
           <ConnectionsScreen
             currentBusinessId={currentBusinessId}
             isActive={activeTab === 'connections'}
@@ -411,14 +414,18 @@ function App() {
             onAddConnection={navigateToAddConnection}
             unreadConnectionIds={unreadConnectionIds}
           />
-        ) : activeTab === 'orders' ? (
+        </div>
+
+        <div style={{ display: activeTab === 'orders' ? 'block' : 'none', height: '100%' }}>
           <OrdersScreen
             currentBusinessId={currentBusinessId}
             isActive={activeTab === 'orders'}
             onSelectOrder={navigateToOrderDetail}
-            initialFilter={ordersInitialFilter}
+            initialFilter={activeTabScreen?.tab === 'orders' ? activeTabScreen.filter : undefined}
           />
-        ) : (
+        </div>
+
+        <div style={{ display: activeTab === 'profile' ? 'block' : 'none', height: '100%' }}>
           <ProfileScreen
             currentBusinessId={currentBusinessId}
             onLogout={handleLogout}
@@ -428,7 +435,7 @@ function App() {
             onNavigateToAccount={navigateToProfileAccount}
             onNavigateToSupport={navigateToProfileSupport}
           />
-        )}
+        </div>
 
         {screen.type === 'profile-notifications' ? (
           <NotificationSettingsScreen onBack={navigateBack} />
