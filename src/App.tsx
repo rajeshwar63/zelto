@@ -48,6 +48,8 @@ type Screen =
   | { type: 'profile-support' }
   | { type: 'report-issue'; orderId: string; connectionId: string }
 type AuthScreen = 'welcome' | { type: 'otp'; email: string; signupData?: { name: string; businessName: string } } | { type: 'business_setup'; email: string }
+type TabShellScreen = Extract<Screen, { type: 'tab' }>
+type DetailScreen = Exclude<Screen, { type: 'tab' }>
 
 function App() {
   const [isAdminRoute, setIsAdminRoute] = useState(false)
@@ -64,8 +66,7 @@ function App() {
   const [unreadConnectionIds, setUnreadConnectionIds] = useState<Set<string>>(new Set())
   
   const screen = navigationStack[navigationStack.length - 1]
-  const activeTabScreen = [...navigationStack].reverse().find((stackScreen): stackScreen is Extract<Screen, { type: 'tab' }> => stackScreen.type === 'tab')
-  const activeTab = activeTabScreen?.tab ?? 'dashboard'
+  const activeTabScreen = [...navigationStack].reverse().find((stackScreen): stackScreen is TabShellScreen => stackScreen.type === 'tab')
 
   useEffect(() => {
     checkRoute()
@@ -383,160 +384,236 @@ function App() {
     navigateBack()
   }
 
+  const renderDetailScreen = (detailScreen: DetailScreen) => {
+    if (detailScreen.type === 'profile-notifications') {
+      return <NotificationSettingsScreen onBack={navigateBack} />
+    }
+    if (detailScreen.type === 'profile-account') {
+      return <AccountScreen onBack={navigateBack} onLogout={handleLogout} />
+    }
+    if (detailScreen.type === 'profile-support') {
+      return <HelpSupportScreen onBack={navigateBack} />
+    }
+    if (detailScreen.type === 'notifications') {
+      return (
+        <NotificationHistoryScreen
+          currentBusinessId={currentBusinessId}
+          onBack={navigateBack}
+          onNavigateToConnection={navigateToConnection}
+        />
+      )
+    }
+    if (detailScreen.type === 'business-details') {
+      return (
+        <BusinessDetailsScreen
+          currentBusinessId={currentBusinessId}
+          onBack={navigateBack}
+          onSave={handleBusinessDetailsSaved}
+        />
+      )
+    }
+    if (detailScreen.type === 'add-connection') {
+      return (
+        <AddConnectionScreen
+          currentBusinessId={currentBusinessId}
+          onBack={navigateBack}
+          onSuccess={handleAddConnectionSuccess}
+        />
+      )
+    }
+    if (detailScreen.type === 'payment-terms-setup') {
+      return (
+        <PaymentTermsSetupScreen
+          connectionId={detailScreen.connectionId}
+          businessName={detailScreen.businessName}
+          currentBusinessId={currentBusinessId}
+          onSave={handlePaymentTermsSaved}
+          onBack={handlePaymentTermsBack}
+        />
+      )
+    }
+    if (detailScreen.type === 'report-issue') {
+      return (
+        <ReportIssueScreen
+          orderId={detailScreen.orderId}
+          currentBusinessId={currentBusinessId}
+          onBack={navigateBack}
+          onSuccess={() => {
+            navigateBack()
+          }}
+        />
+      )
+    }
+    if (detailScreen.type === 'order-detail') {
+      return (
+        <OrderDetailScreen
+          orderId={detailScreen.orderId}
+          connectionId={detailScreen.connectionId}
+          currentBusinessId={currentBusinessId}
+          onBack={navigateBack}
+          onReportIssue={navigateToReportIssue}
+          initialIssueId={detailScreen.initialIssueId}
+        />
+      )
+    }
+    return (
+      <ConnectionDetailScreen
+        connectionId={detailScreen.connectionId}
+        currentBusinessId={currentBusinessId}
+        selectedOrderId={detailScreen.selectedOrderId}
+        onBack={navigateBack}
+        onNavigateToPaymentTermsSetup={navigateToPaymentTermsSetup}
+        onReportIssue={navigateToReportIssue}
+      />
+    )
+  }
+
   return (
     <div className="h-full flex flex-col overflow-hidden" style={{ backgroundColor: 'var(--bg-screen)' }}>
-      <div className="flex-1 overflow-auto pb-16">
-        <div style={{ display: activeTab === 'dashboard' ? 'block' : 'none', height: '100%' }}>
-          <DashboardScreen
-            currentBusinessId={currentBusinessId}
-            isActive={activeTab === 'dashboard'}
-            onNavigateToOrders={(filter) => navigateToTabWithFilter('orders', filter)}
-            onNavigateToConnection={navigateToConnection}
-            onNavigateToProfile={() => navigateToTab('profile')}
-            onNavigateToAttention={(filter) => navigateToTabWithFilter('attention', filter)}
-          />
-        </div>
-
-        <div style={{ display: activeTab === 'attention' ? 'block' : 'none', height: '100%' }}>
-          <AttentionScreen
-            currentBusinessId={currentBusinessId}
-            isActive={activeTab === 'attention'}
-            onNavigateToConnections={() => navigateToTab('connections')}
-            onNavigateToIssue={navigateToIssueDetail}
-          />
-        </div>
-
-        <div style={{ display: activeTab === 'connections' ? 'block' : 'none', height: '100%' }}>
-          <ConnectionsScreen
-            currentBusinessId={currentBusinessId}
-            isActive={activeTab === 'connections'}
-            onSelectConnection={navigateToConnection}
-            onAddConnection={navigateToAddConnection}
-            unreadConnectionIds={unreadConnectionIds}
-          />
-        </div>
-
-        <div style={{ display: activeTab === 'orders' ? 'block' : 'none', height: '100%' }}>
-          <OrdersScreen
-            currentBusinessId={currentBusinessId}
-            isActive={activeTab === 'orders'}
-            onSelectOrder={navigateToOrderDetail}
-            initialFilter={activeTabScreen?.tab === 'orders' ? activeTabScreen.filter : undefined}
-          />
-        </div>
-
-        <div style={{ display: activeTab === 'profile' ? 'block' : 'none', height: '100%' }}>
-          <ProfileScreen
-            currentBusinessId={currentBusinessId}
-            onLogout={handleLogout}
-            onNavigateToBusinessDetails={navigateToBusinessDetails}
-            onNavigateToNotifications={navigateToNotifications}
-            onNavigateToNotificationSettings={navigateToProfileNotifications}
-            onNavigateToAccount={navigateToProfileAccount}
-            onNavigateToSupport={navigateToProfileSupport}
-          />
-        </div>
-
-        {screen.type === 'profile-notifications' ? (
-          <NotificationSettingsScreen onBack={navigateBack} />
-        ) : screen.type === 'profile-account' ? (
-          <AccountScreen onBack={navigateBack} onLogout={handleLogout} />
-        ) : screen.type === 'profile-support' ? (
-          <HelpSupportScreen onBack={navigateBack} />
-        ) : screen.type === 'notifications' ? (
-          <NotificationHistoryScreen
-            currentBusinessId={currentBusinessId}
-            onBack={navigateBack}
-            onNavigateToConnection={navigateToConnection}
-          />
-        ) : screen.type === 'business-details' ? (
-          <BusinessDetailsScreen
-            currentBusinessId={currentBusinessId}
-            onBack={navigateBack}
-            onSave={handleBusinessDetailsSaved}
-          />
-        ) : screen.type === 'add-connection' ? (
-          <AddConnectionScreen
-            currentBusinessId={currentBusinessId}
-            onBack={navigateBack}
-            onSuccess={handleAddConnectionSuccess}
-          />
-        ) : screen.type === 'payment-terms-setup' ? (
-          <PaymentTermsSetupScreen
-            connectionId={screen.connectionId}
-            businessName={screen.businessName}
-            currentBusinessId={currentBusinessId}
-            onSave={handlePaymentTermsSaved}
-            onBack={handlePaymentTermsBack}
-          />
-        ) : screen.type === 'report-issue' ? (
-          <ReportIssueScreen
-            orderId={screen.orderId}
-            currentBusinessId={currentBusinessId}
-            onBack={navigateBack}
-            onSuccess={() => {
-              navigateBack()
-            }}
-          />
-        ) : screen.type === 'order-detail' ? (
-          <OrderDetailScreen
-            orderId={screen.orderId}
-            connectionId={screen.connectionId}
-            currentBusinessId={currentBusinessId}
-            onBack={navigateBack}
-            onReportIssue={navigateToReportIssue}
-            initialIssueId={screen.initialIssueId}
-          />
-        ) : screen.type === 'connection-detail' ? (
-          <ConnectionDetailScreen
-            connectionId={screen.connectionId}
-            currentBusinessId={currentBusinessId}
-            selectedOrderId={screen.selectedOrderId}
-            onBack={navigateBack}
-            onNavigateToPaymentTermsSetup={navigateToPaymentTermsSetup}
-            onReportIssue={navigateToReportIssue}
-          />
-        ) : null}
-      </div>
-
-      {screen.type === 'tab' && (
-        <div className="bottom-nav fixed bottom-0 left-0 right-0" style={{ backgroundColor: 'var(--bg-card)', borderTop: '1px solid var(--border-light)' }}>
-          <div className="flex items-center justify-around" style={{ height: '80px', paddingTop: '10px' }}>
-            <TabButton
-              label="Home"
-              icon={<House weight="regular" size={22} />}
-              active={activeTab === 'dashboard'}
-              onClick={() => navigateToTab('dashboard')}
-            />
-            <TabButton
-              label="Connections"
-              icon={<Users weight="regular" size={22} />}
-              active={activeTab === 'connections'}
-              onClick={() => navigateToTab('connections')}
-              hasUnread={hasUnreadConnections}
-            />
-            <TabButton
-              label="Orders"
-              icon={<Package weight="regular" size={22} />}
-              active={activeTab === 'orders'}
-              onClick={() => navigateToTab('orders')}
-            />
-            <TabButton
-              label="Disputes"
-              icon={<Bell weight="regular" size={22} />}
-              active={activeTab === 'attention'}
-              onClick={() => navigateToTab('attention')}
-            />
-            <TabButton
-              label="Profile"
-              icon={<User weight="regular" size={22} />}
-              active={activeTab === 'profile'}
-              onClick={() => navigateToTab('profile')}
-            />
-          </div>
-        </div>
+      {screen.type === 'tab' ? (
+        <TabShell
+          currentBusinessId={currentBusinessId}
+          activeTabScreen={screen}
+          hasUnreadConnections={hasUnreadConnections}
+          unreadConnectionIds={unreadConnectionIds}
+          onNavigateToTab={navigateToTab}
+          onNavigateToTabWithFilter={navigateToTabWithFilter}
+          onNavigateToConnection={navigateToConnection}
+          onNavigateToOrderDetail={navigateToOrderDetail}
+          onNavigateToIssueDetail={navigateToIssueDetail}
+          onNavigateToAddConnection={navigateToAddConnection}
+          onLogout={handleLogout}
+          onNavigateToBusinessDetails={navigateToBusinessDetails}
+          onNavigateToNotifications={navigateToNotifications}
+          onNavigateToProfileNotifications={navigateToProfileNotifications}
+          onNavigateToProfileAccount={navigateToProfileAccount}
+          onNavigateToProfileSupport={navigateToProfileSupport}
+        />
+      ) : (
+        <div className="h-full flex flex-col">{renderDetailScreen(screen)}</div>
       )}
     </div>
+  )
+}
+
+function TabShell({
+  currentBusinessId,
+  activeTabScreen,
+  hasUnreadConnections,
+  unreadConnectionIds,
+  onNavigateToTab,
+  onNavigateToTabWithFilter,
+  onNavigateToConnection,
+  onNavigateToOrderDetail,
+  onNavigateToIssueDetail,
+  onNavigateToAddConnection,
+  onLogout,
+  onNavigateToBusinessDetails,
+  onNavigateToNotifications,
+  onNavigateToProfileNotifications,
+  onNavigateToProfileAccount,
+  onNavigateToProfileSupport,
+}: {
+  currentBusinessId: string
+  activeTabScreen: TabShellScreen
+  hasUnreadConnections: boolean
+  unreadConnectionIds: Set<string>
+  onNavigateToTab: (tab: Tab) => void
+  onNavigateToTabWithFilter: (tab: Tab, filter?: string) => void
+  onNavigateToConnection: (connectionId: string, orderId?: string) => void
+  onNavigateToOrderDetail: (orderId: string, connectionId: string) => void
+  onNavigateToIssueDetail: (connectionId: string, orderId: string, issueId: string) => void
+  onNavigateToAddConnection: () => void
+  onLogout: () => Promise<void>
+  onNavigateToBusinessDetails: () => void
+  onNavigateToNotifications: () => void
+  onNavigateToProfileNotifications: () => void
+  onNavigateToProfileAccount: () => void
+  onNavigateToProfileSupport: () => void
+}) {
+  return (
+    <>
+      <div className="flex-1 overflow-auto pb-16">
+        {activeTabScreen.tab === 'dashboard' ? (
+          <DashboardScreen
+            currentBusinessId={currentBusinessId}
+            isActive
+            onNavigateToOrders={(filter) => onNavigateToTabWithFilter('orders', filter)}
+            onNavigateToConnection={onNavigateToConnection}
+            onNavigateToProfile={() => onNavigateToTab('profile')}
+            onNavigateToAttention={(filter) => onNavigateToTabWithFilter('attention', filter)}
+          />
+        ) : activeTabScreen.tab === 'attention' ? (
+          <AttentionScreen
+            currentBusinessId={currentBusinessId}
+            isActive
+            onNavigateToConnections={() => onNavigateToTab('connections')}
+            onNavigateToIssue={onNavigateToIssueDetail}
+          />
+        ) : activeTabScreen.tab === 'connections' ? (
+          <ConnectionsScreen
+            currentBusinessId={currentBusinessId}
+            isActive
+            onSelectConnection={onNavigateToConnection}
+            onAddConnection={onNavigateToAddConnection}
+            unreadConnectionIds={unreadConnectionIds}
+          />
+        ) : activeTabScreen.tab === 'orders' ? (
+          <OrdersScreen
+            currentBusinessId={currentBusinessId}
+            isActive
+            onSelectOrder={onNavigateToOrderDetail}
+            initialFilter={activeTabScreen.filter}
+          />
+        ) : (
+          <ProfileScreen
+            currentBusinessId={currentBusinessId}
+            onLogout={onLogout}
+            onNavigateToBusinessDetails={onNavigateToBusinessDetails}
+            onNavigateToNotifications={onNavigateToNotifications}
+            onNavigateToNotificationSettings={onNavigateToProfileNotifications}
+            onNavigateToAccount={onNavigateToProfileAccount}
+            onNavigateToSupport={onNavigateToProfileSupport}
+          />
+        )}
+      </div>
+
+      <div className="bottom-nav fixed bottom-0 left-0 right-0" style={{ backgroundColor: 'var(--bg-card)', borderTop: '1px solid var(--border-light)' }}>
+        <div className="flex items-center justify-around" style={{ height: '80px', paddingTop: '10px' }}>
+          <TabButton
+            label="Home"
+            icon={<House weight="regular" size={22} />}
+            active={activeTabScreen.tab === 'dashboard'}
+            onClick={() => onNavigateToTab('dashboard')}
+          />
+          <TabButton
+            label="Connections"
+            icon={<Users weight="regular" size={22} />}
+            active={activeTabScreen.tab === 'connections'}
+            onClick={() => onNavigateToTab('connections')}
+            hasUnread={hasUnreadConnections}
+          />
+          <TabButton
+            label="Orders"
+            icon={<Package weight="regular" size={22} />}
+            active={activeTabScreen.tab === 'orders'}
+            onClick={() => onNavigateToTab('orders')}
+          />
+          <TabButton
+            label="Disputes"
+            icon={<Bell weight="regular" size={22} />}
+            active={activeTabScreen.tab === 'attention'}
+            onClick={() => onNavigateToTab('attention')}
+          />
+          <TabButton
+            label="Profile"
+            icon={<User weight="regular" size={22} />}
+            active={activeTabScreen.tab === 'profile'}
+            onClick={() => onNavigateToTab('profile')}
+          />
+        </div>
+      </div>
+    </>
   )
 }
 
