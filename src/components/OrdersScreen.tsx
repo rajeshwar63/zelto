@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { dataStore } from '@/lib/data-store'
 import { createOrder } from '@/lib/interactions'
 import { useDataListener } from '@/lib/data-events'
@@ -98,7 +98,7 @@ export function OrdersScreen({ currentBusinessId, onSelectOrder, initialFilter }
   const [isSending, setIsSending] = useState(false)
   const [sendError, setSendError] = useState<string | null>(null)
 
-  const loadOrders = async () => {
+  const loadOrders = useCallback(async () => {
     await runWithLoadState(async () => {
       const [allOrders, connections, entities] = await Promise.all([
         dataStore.getOrdersWithPaymentStateByBusinessId(currentBusinessId),
@@ -129,11 +129,11 @@ export function OrdersScreen({ currentBusinessId, onSelectOrder, initialFilter }
       enriched.sort((a, b) => b.latestActivity - a.latestActivity)
       setOrders(enriched)
     })
-  }
+  }, [currentBusinessId, runWithLoadState])
 
   useEffect(() => {
     loadOrders()
-  }, [currentBusinessId])
+  }, [loadOrders])
 
   useEffect(() => {
     if (initialFilter) {
@@ -210,12 +210,12 @@ export function OrdersScreen({ currentBusinessId, onSelectOrder, initialFilter }
   if (initialLoading) {
     return (
       <div className="flex flex-col h-full" style={{ backgroundColor: 'var(--bg-screen)' }}>
-      <div className="sticky top-0 z-10" style={{ backgroundColor: 'var(--bg-header)', paddingTop: 'env(safe-area-inset-top)' }}>
-        <div className="h-11 flex items-center px-4">
-          <h1 style={{ fontSize: '22px', fontWeight: 700, color: 'var(--text-primary)', letterSpacing: '-0.02em' }}>Orders</h1>
+        <div className="sticky top-0 z-10" style={{ backgroundColor: 'var(--bg-header)', paddingTop: 'env(safe-area-inset-top)' }}>
+          <div className="h-11 flex items-center px-4">
+            <h1 style={{ fontSize: '22px', fontWeight: 700, color: 'var(--text-primary)', letterSpacing: '-0.02em' }}>Orders</h1>
+          </div>
+          <ScreenRefreshIndicator refreshing={refreshing} />
         </div>
-        <ScreenRefreshIndicator refreshing={false} />
-      </div>
         <div className="flex-1 px-4 pt-4 space-y-2">
           {[1, 2, 3].map(i => (
             <div key={i} className="animate-pulse" style={{ backgroundColor: 'var(--border-light)', borderRadius: 'var(--radius-card)', height: '80px' }} />
