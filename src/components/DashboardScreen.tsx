@@ -511,14 +511,14 @@ export function DashboardScreen({ currentBusinessId, onNavigateToOrders, onNavig
                 label="Issues Raised"
                 count={attention.issues}
                 color={COLORS.issues}
-                onTap={() => onNavigateToOrders('all')}
+                onTap={() => onNavigateToOrders('has_issues')}
               />
               <AttentionRow
                 icon={<Scales size={18} weight="fill" />}
                 label="Disputes"
                 count={attention.disputes}
                 color={COLORS.disputes}
-                onTap={() => onNavigateToOrders('all')}
+                onTap={() => onNavigateToOrders('has_issues')}
               />
               <AttentionRow
                 icon={<CreditCard size={18} weight="fill" />}
