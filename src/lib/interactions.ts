@@ -120,6 +120,8 @@ export async function createOrder(
     console.error('Notification failed:', err)
   }
 
+  await recalculateConnectionState(connectionId)
+
   emitDataChange('orders:changed', 'notifications:changed')
   return newOrder
 }
@@ -231,6 +233,8 @@ export async function transitionOrderState(
     }
   }
 
+  await recalculateConnectionState(order.connectionId)
+
   emitDataChange('orders:changed', 'notifications:changed')
   return updatedOrder
 }
@@ -300,6 +304,8 @@ export async function recordPayment(
     console.error('Notification failed:', err)
   }
 
+  await recalculateConnectionState(order.connectionId)
+
   emitDataChange('payments:changed', 'orders:changed', 'notifications:changed')
   return newPayment
 }
@@ -351,6 +357,8 @@ export async function disputePayment(
   } catch (err) {
     console.error('Notification failed:', err)
   }
+
+  await recalculateConnectionState(order.connectionId)
 
   emitDataChange('payments:changed', 'notifications:changed')
   return updatedPayment
@@ -407,6 +415,8 @@ export async function createIssue(
   } catch (err) {
     console.error('Notification failed:', err)
   }
+
+  await recalculateConnectionState(order.connectionId)
 
   emitDataChange('issues:changed', 'notifications:changed')
   return newIssue
@@ -470,6 +480,8 @@ export async function acknowledgeIssue(
   } catch (err) {
     console.error('Notification failed:', err)
   }
+
+  await recalculateConnectionState(order.connectionId)
 
   emitDataChange('issues:changed', 'notifications:changed')
   return updatedIssue
@@ -541,6 +553,8 @@ export async function resolveIssue(
     }
   }
 
+  await recalculateConnectionState(order.connectionId)
+
   emitDataChange('issues:changed', 'payments:changed', 'notifications:changed')
   return updatedIssue
 }
@@ -593,6 +607,8 @@ export async function closeIssue(
   } catch (err) {
     console.error('Notification failed:', err)
   }
+
+  await recalculateConnectionState(order.connectionId)
 
   emitDataChange('issues:changed', 'notifications:changed')
   return updatedIssue
@@ -655,6 +671,8 @@ export async function addIssueComment(
   } catch (err) {
     console.error('Notification failed:', err)
   }
+
+  await recalculateConnectionState(order.connectionId)
 
   emitDataChange('issues:changed', 'notifications:changed')
   return comment
