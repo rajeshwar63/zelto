@@ -541,6 +541,7 @@ function TabShell({
             onNavigateToOrders={(filter) => onNavigateToTabWithFilter('orders', filter)}
             onNavigateToConnection={onNavigateToConnection}
             onNavigateToProfile={() => onNavigateToTab('profile')}
+            onNavigateToConnections={(filter) => onNavigateToTabWithFilter('connections', filter)}
             onNavigateToAttention={(filter) => onNavigateToTabWithFilter('attention', filter)}
           />
         ) : activeTabScreen.tab === 'attention' ? (

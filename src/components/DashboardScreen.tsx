@@ -1,5 +1,5 @@
 import { useMemo } from 'react'
-import { CaretRight, CheckCircle, ClockClockwise, Package, ShieldWarning, Truck } from '@phosphor-icons/react'
+import { CaretRight, CheckCircle, ClockClockwise, Info, Package, ShieldWarning, Truck, WarningCircle } from '@phosphor-icons/react'
 import { useBusinessOverviewData } from '@/hooks/data/use-business-data'
 import { getLifecycleStatusColor } from '@/lib/semantic-colors'
 
@@ -8,17 +8,22 @@ interface Props {
   onNavigateToOrders: (filter?: string) => void
   onNavigateToConnection: (connectionId: string, orderId?: string) => void
   onNavigateToProfile: () => void
+  onNavigateToConnections: (filter?: string) => void
   onNavigateToAttention: (filter?: string) => void
   isActive?: boolean
 }
 
-export function DashboardScreen({ currentBusinessId, onNavigateToOrders, onNavigateToConnection, onNavigateToAttention, isActive = true }: Props) {
+export function DashboardScreen({ currentBusinessId, onNavigateToOrders, onNavigateToConnection, onNavigateToConnections, onNavigateToAttention, isActive = true }: Props) {
   const { data: overview, isInitialLoading } = useBusinessOverviewData(currentBusinessId, isActive)
   const data = useMemo(() => overview && ({
+    username: overview.username,
     toPay: overview.toPay,
     toReceive: overview.toReceive,
     ordersToday: overview.ordersToday,
     overdue: overview.overdue,
+    overdueOrdersCount: overview.overdueOrdersCount,
+    overdueAverageDelayDays: overview.overdueAverageDelayDays,
+    overdueChangeFromYesterday: overview.overdueChangeFromYesterday,
   }), [overview])
   const recentOrders = overview?.recentOrders ?? []
   const attentionCounts = overview?.attentionCounts ?? {
@@ -36,44 +41,69 @@ export function DashboardScreen({ currentBusinessId, onNavigateToOrders, onNavig
   return (
     <div className="flex flex-col h-full">
       <div className="sticky top-0 bg-white z-10" style={{ paddingTop: 'env(safe-area-inset-top)' }}>
-        <div className="h-11 flex items-center px-4">
-          <h1 className="text-[17px] text-foreground font-normal">Home</h1>
+        <div className="px-4" style={{ paddingTop: '20px', paddingBottom: '16px' }}>
+          <h1 className="text-[20px] font-semibold" style={{ color: '#111' }}>Welcome back, {data.username}</h1>
+          <p className="text-[13px] font-normal mt-1" style={{ color: '#8A8A8A' }}>Your trade snapshot today</p>
         </div>
       </div>
 
       <div className="flex-1 overflow-y-auto px-4 py-3 space-y-6 pb-24" style={{ backgroundColor: 'var(--bg-screen)' }}>
         <div>
-          <h2 className="text-[10px] uppercase tracking-wide text-muted-foreground/60 mb-3">
+          <h2 className="text-[11px] uppercase mb-[10px]" style={{ letterSpacing: '0.8px', color: '#9A9A9A', fontWeight: 500 }}>
             Business Pulse
           </h2>
-          <div className="grid grid-cols-2 gap-3">
-            <div className="bg-white border rounded-xl px-4 py-4" style={{ borderColor: '#F0F4FF' }}>
-              <p className="text-[12px] text-muted-foreground">Orders Today</p>
-              <p className="text-[20px] font-extrabold leading-tight mt-1" style={{ color: '#4A6CF7' }}>
-                {data.ordersToday}
-              </p>
-            </div>
 
-            <div className="bg-white border rounded-xl px-4 py-4" style={{ borderColor: '#FFF0F0' }}>
-              <p className="text-[12px] text-muted-foreground">Over Due</p>
-              <p className="text-[20px] font-extrabold leading-tight mt-1" style={{ color: '#FF6B6B' }}>
-                ₹{data.overdue.toLocaleString('en-IN')}
-              </p>
+          <button
+            onClick={() => onNavigateToOrders('overdue')}
+            className="w-full text-left rounded-2xl"
+            style={{ backgroundColor: '#FFF5F5', border: '1px solid #FFD6D6', borderRadius: '16px', padding: '18px', marginBottom: '14px' }}
+          >
+            <div className="flex items-center gap-2">
+              <WarningCircle size={18} color="#E53935" weight="fill" />
+              <p className="text-[14px] font-semibold" style={{ color: '#333' }}>Overdue Payments</p>
             </div>
+            <p className="text-[30px] font-bold leading-tight mt-2" style={{ color: '#E53935' }}>
+              ₹{data.overdue.toLocaleString('en-IN')}
+            </p>
+            <p className="text-[12px] mt-2" style={{ color: '#777' }}>
+              {data.overdueOrdersCount} orders overdue • Avg delay {data.overdueAverageDelayDays} days
+            </p>
+          </button>
 
-            <div className="bg-white border rounded-xl px-4 py-4" style={{ borderColor: '#FFF0F0' }}>
-              <p className="text-[12px] text-muted-foreground">To Pay</p>
-              <p className="text-[20px] font-extrabold leading-tight mt-1" style={{ color: '#FF6B6B' }}>
-                ₹{data.toPay.toLocaleString('en-IN')}
-              </p>
-            </div>
+          <div className="grid grid-cols-3 gap-[10px]">
+            <button
+              onClick={() => onNavigateToOrders('today')}
+              className="text-left"
+              style={{ backgroundColor: '#F7F7F7', borderRadius: '14px', padding: '16px', minHeight: '80px', boxShadow: '0px 2px 6px rgba(0,0,0,0.05)' }}
+            >
+              <p className="text-[12px] font-medium" style={{ color: '#666' }}>📦 Orders Today</p>
+              <p className="text-[24px] font-bold leading-tight mt-1" style={{ color: '#2563EB' }}>{data.ordersToday}</p>
+            </button>
 
-            <div className="bg-white border rounded-xl px-4 py-4" style={{ borderColor: '#F0FFF6' }}>
-              <p className="text-[12px] text-muted-foreground">To Recieve</p>
-              <p className="text-[20px] font-extrabold leading-tight mt-1" style={{ color: '#22B573' }}>
-                ₹{data.toReceive.toLocaleString('en-IN')}
-              </p>
-            </div>
+            <button
+              onClick={() => onNavigateToConnections('receivables')}
+              className="text-left"
+              style={{ backgroundColor: '#F1FAF5', borderRadius: '14px', padding: '16px', minHeight: '80px', boxShadow: '0px 2px 6px rgba(0,0,0,0.05)' }}
+            >
+              <p className="text-[12px] font-medium" style={{ color: '#666' }}>💰 To Receive</p>
+              <p className="text-[24px] font-bold leading-tight mt-1" style={{ color: '#16A34A' }}>₹{data.toReceive.toLocaleString('en-IN')}</p>
+            </button>
+
+            <button
+              onClick={() => onNavigateToOrders('payment_pending')}
+              className="text-left"
+              style={{ backgroundColor: '#F8F8F8', borderRadius: '14px', padding: '16px', minHeight: '80px', boxShadow: '0px 2px 6px rgba(0,0,0,0.05)' }}
+            >
+              <p className="text-[12px] font-medium" style={{ color: '#666' }}>💳 To Pay</p>
+              <p className="text-[24px] font-bold leading-tight mt-1" style={{ color: '#333' }}>₹{data.toPay.toLocaleString('en-IN')}</p>
+            </button>
+          </div>
+
+          <div className="flex items-center gap-2 mt-[14px]" style={{ padding: '12px', backgroundColor: '#F6F8FF', borderRadius: '12px' }}>
+            <Info size={14} color="#64748B" weight="fill" />
+            <p className="text-[12px]" style={{ color: '#4A5568' }}>
+              Insight: Your overdue {data.overdueChangeFromYesterday >= 0 ? 'increased' : 'decreased'} by ₹{Math.abs(data.overdueChangeFromYesterday).toLocaleString('en-IN')} since yesterday.
+            </p>
           </div>
         </div>
 

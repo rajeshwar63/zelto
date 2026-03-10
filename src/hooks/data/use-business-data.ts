@@ -21,10 +21,14 @@ interface AttentionCounts {
 }
 
 interface BusinessOverviewData {
+  username: string
   toPay: number
   toReceive: number
   ordersToday: number
   overdue: number
+  overdueOrdersCount: number
+  overdueAverageDelayDays: number
+  overdueChangeFromYesterday: number
   recentOrders: EnrichedOrder[]
   attentionCounts: AttentionCounts
 }
@@ -99,12 +103,15 @@ export function useBusinessOverviewData(currentBusinessId: string, isActive = tr
     isActive,
     events: ['orders:changed', 'payments:changed', 'connections:changed', 'issues:changed'],
     fetcher: async () => {
-      const [orders, connections, entities, attentionItems] = await Promise.all([
+      const [orders, connections, entities, attentionItems, session] = await Promise.all([
         dataStore.getOrdersWithPaymentStateByBusinessId(currentBusinessId),
         dataStore.getConnectionsByBusinessId(currentBusinessId),
         dataStore.getAllBusinessEntities(),
         attentionEngine.getAttentionItems(currentBusinessId),
+        getAuthSession(),
       ])
+
+      const username = session?.userAccount?.username || 'there'
 
       const connMap = new Map<string, Connection>(connections.map(conn => [conn.id, conn]))
       const entityMap = new Map(entities.map(entity => [entity.id, entity]))
@@ -113,17 +120,29 @@ export function useBusinessOverviewData(currentBusinessId: string, isActive = tr
       let toReceive = 0
       let ordersToday = 0
       let overdue = 0
+      let overdueYesterday = 0
+      let overdueOrdersCount = 0
+      let totalOverdueDelayDays = 0
       let dispatched = 0
       let delivered = 0
       let paymentPending = 0
+
+      const now = Date.now()
+      const yesterday = now - (24 * 60 * 60 * 1000)
 
       for (const order of orders) {
         if (order.declinedAt) continue
 
         if (isToday(order.createdAt)) ordersToday += 1
 
-        if (order.calculatedDueDate != null && order.calculatedDueDate < Date.now() && order.pendingAmount > 0 && order.settlementState !== 'Paid') {
+        if (order.calculatedDueDate != null && order.calculatedDueDate < now && order.pendingAmount > 0 && order.settlementState !== 'Paid') {
           overdue += order.pendingAmount
+          overdueOrdersCount += 1
+          totalOverdueDelayDays += Math.max(0, Math.ceil((now - order.calculatedDueDate) / (24 * 60 * 60 * 1000)))
+        }
+
+        if (order.calculatedDueDate != null && order.calculatedDueDate < yesterday && order.pendingAmount > 0 && order.settlementState !== 'Paid') {
+          overdueYesterday += order.pendingAmount
         }
 
         const connection = connMap.get(order.connectionId)
@@ -165,10 +184,14 @@ export function useBusinessOverviewData(currentBusinessId: string, isActive = tr
         .slice(0, 6)
 
       return {
+        username,
         toPay,
         toReceive,
         ordersToday,
         overdue,
+        overdueOrdersCount,
+        overdueAverageDelayDays: overdueOrdersCount > 0 ? Math.round(totalOverdueDelayDays / overdueOrdersCount) : 0,
+        overdueChangeFromYesterday: overdue - overdueYesterday,
         recentOrders,
         attentionCounts: {
           approvalNeeded,
