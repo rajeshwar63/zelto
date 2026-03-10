@@ -1,9 +1,10 @@
-import { useState, useRef } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { CaretRight, ShieldWarning } from '@phosphor-icons/react'
 import { formatDistanceToNow } from 'date-fns'
 import { ConnectionRequestItem } from '@/components/ConnectionRequestItem'
 import { markOrderSeen, getUnreadState, updateTabLastSeen } from '@/lib/unread-tracker'
 import { useAttentionData } from '@/hooks/data/use-business-data'
+import { InlineRefreshSpinner, ScreenRefreshIndicator, useScreenLoadState } from '@/components/ScreenLoadState'
 
 interface Props {
   currentBusinessId: string
@@ -13,18 +14,25 @@ interface Props {
 
 
 export function AttentionScreen({ currentBusinessId, onNavigateToConnections, onNavigateToIssue }: Props) {
-  const { data, isInitialLoading: loading, refresh } = useAttentionData(currentBusinessId)
+  const { data, isInitialLoading, isRefreshing, refresh } = useAttentionData(currentBusinessId)
   const items = data?.items ?? []
   const connectionRequests = data?.connectionRequests ?? []
 
+  const { initialLoading, refreshing } = useScreenLoadState({
+    hasData: items.length > 0 || connectionRequests.length > 0,
+    isInitialLoading,
+    isRefreshing,
+  })
+
   const lastSeenRef = useRef<number | null>(null)
-  if (lastSeenRef.current === null) {
+  const [seenOrders, setSeenOrders] = useState<Set<string>>(new Set())
+
+  useEffect(() => {
     const state = getUnreadState(currentBusinessId)
     lastSeenRef.current = state.attentionLastSeen
+    setSeenOrders(new Set())
     updateTabLastSeen(currentBusinessId, 'attention')
-  }
-
-  const [seenOrders, setSeenOrders] = useState<Set<string>>(new Set())
+  }, [currentBusinessId])
 
   const isItemNew = (orderId: string, frictionStartedAt: number): boolean => {
     if (seenOrders.has(orderId)) return false
@@ -34,10 +42,19 @@ export function AttentionScreen({ currentBusinessId, onNavigateToConnections, on
   }
 
 
-  if (loading) {
+  if (initialLoading) {
     return (
-      <div className="flex items-center justify-center min-h-screen">
-        <p className="text-sm text-muted-foreground">Loading...</p>
+      <div className="flex flex-col h-full" style={{ backgroundColor: 'var(--bg-screen)' }}>
+        <div className="sticky top-0 bg-white z-10" style={{ paddingTop: 'env(safe-area-inset-top)' }}>
+          <div className="h-11 flex items-center px-4">
+            <h1 className="text-[17px] text-foreground font-normal">Disputes</h1>
+          </div>
+        </div>
+        <div className="flex-1 overflow-y-auto px-4 pt-4 space-y-2">
+          {[1, 2, 3].map((i) => (
+            <div key={i} className="animate-pulse rounded-xl h-[84px] bg-muted/50" />
+          ))}
+        </div>
       </div>
     )
   }
@@ -49,6 +66,7 @@ export function AttentionScreen({ currentBusinessId, onNavigateToConnections, on
           <div className="h-11 flex items-center px-4">
             <h1 className="text-[17px] text-foreground font-normal">Disputes</h1>
           </div>
+          <ScreenRefreshIndicator refreshing={refreshing} />
         </div>
         <div className="flex-1 flex items-center justify-center">
           <div className="text-center px-6">
@@ -84,7 +102,9 @@ export function AttentionScreen({ currentBusinessId, onNavigateToConnections, on
               {newCount} new
             </span>
           )}
+          <InlineRefreshSpinner refreshing={refreshing} />
         </div>
+        <ScreenRefreshIndicator refreshing={refreshing} />
       </div>
 
       <div className="flex-1 overflow-y-auto px-4 pb-24">

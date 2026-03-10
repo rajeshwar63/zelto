@@ -9,6 +9,7 @@ import { PencilSimple, MagnifyingGlass, X, PaperPlaneTilt } from '@phosphor-icon
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import { toast } from 'sonner'
+import { InlineRefreshSpinner, ScreenRefreshIndicator, useScreenLoadState } from '@/components/ScreenLoadState'
 
 type OrderFilter = 'all' | 'today' | 'placed' | 'dispatched' | 'delivered' | 'payment_pending' | 'paid' | 'awaiting_dispatch' | 'overdue' | 'due_today'
 
@@ -60,7 +61,12 @@ function formatPaymentTerms(terms: Connection['paymentTerms']): string | null {
 }
 
 export function OrdersScreen({ currentBusinessId, onSelectOrder, initialFilter }: Props) {
-  const { data: orders = [], isInitialLoading: loading } = useOrdersData(currentBusinessId)
+  const { data: orders = [], isInitialLoading, isRefreshing } = useOrdersData(currentBusinessId)
+  const { initialLoading, refreshing } = useScreenLoadState({
+    hasData: orders.length > 0,
+    isInitialLoading,
+    isRefreshing,
+  })
   const [filter, setFilter] = useState<OrderFilter>((initialFilter as OrderFilter) || 'all')
 
   // Order creation modal state
@@ -140,7 +146,7 @@ export function OrdersScreen({ currentBusinessId, onSelectOrder, initialFilter }
       : eligibleConnections
   ), [businesses, eligibleConnections, search])
 
-  if (loading) {
+  if (initialLoading) {
     return (
       <div className="flex flex-col h-full" style={{ backgroundColor: 'var(--bg-screen)' }}>
         <div className="sticky top-0 z-10" style={{ backgroundColor: 'var(--bg-header)', paddingTop: 'env(safe-area-inset-top)' }}>
@@ -163,6 +169,7 @@ export function OrdersScreen({ currentBusinessId, onSelectOrder, initialFilter }
         <div className="h-11 flex items-center px-4">
           <h1 style={{ fontSize: '22px', fontWeight: 700, color: 'var(--text-primary)', letterSpacing: '-0.02em' }}>Orders</h1>
         </div>
+        <ScreenRefreshIndicator refreshing={refreshing} />
         <div style={{ borderBottom: '1px solid var(--border-light)', padding: '8px 16px' }}>
           <div className="flex gap-2 overflow-x-auto scrollbar-hide">
             {FILTER_LABELS.map(({ key, label }) => {
@@ -193,9 +200,12 @@ export function OrdersScreen({ currentBusinessId, onSelectOrder, initialFilter }
       </div>
 
       <div className="flex-1 overflow-y-auto px-4 pt-3 pb-24">
-        <p style={{ fontSize: '13px', fontWeight: 700, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '10px' }}>
-          {filter === 'all' ? 'ALL ORDERS' : (FILTER_LABELS.find(f => f.key === filter)?.label.toUpperCase() || 'ORDERS')}
-        </p>
+        <div className="flex items-center justify-between mb-[10px]">
+          <p style={{ fontSize: '13px', fontWeight: 700, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.08em' }}>
+            {filter === 'all' ? 'ALL ORDERS' : (FILTER_LABELS.find(f => f.key === filter)?.label.toUpperCase() || 'ORDERS')}
+          </p>
+          <InlineRefreshSpinner refreshing={refreshing} />
+        </div>
         {filteredOrders.length === 0 ? (
           <div className="flex items-center justify-center py-16">
             <p style={{ fontSize: '14px', fontWeight: 500, color: 'var(--text-secondary)' }}>No orders found</p>
