@@ -5,6 +5,7 @@ import {
   Connection,
   ConnectionRequest,
   ConnectionRequestStatus,
+  AcceptConnectionRequestResult,
   EntityFlag,
   FrozenEntity,
   IssueComment,
@@ -951,6 +952,30 @@ export class ZeltoDataStore {
     
     if (error) throw error
     return toCamelCase(data || [])
+  }
+
+
+  async acceptConnectionRequest(
+    requestId: string,
+    receiverRole: 'buyer' | 'supplier',
+    actorBusinessId: string
+  ): Promise<AcceptConnectionRequestResult> {
+    const { data, error } = await supabase
+      .rpc('accept_connection_request', {
+        p_request_id: requestId,
+        p_receiver_role: receiverRole,
+        p_actor_business_id: actorBusinessId,
+      })
+
+    if (error) throw error
+
+    const row = Array.isArray(data) ? data[0] : data
+
+    if (!row) {
+      throw new Error('Failed to accept connection request')
+    }
+
+    return toCamelCase(row)
   }
 
   async updateConnectionRequestStatus(
