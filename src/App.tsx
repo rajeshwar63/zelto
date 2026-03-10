@@ -63,6 +63,8 @@ function App() {
   const [unreadConnectionIds, setUnreadConnectionIds] = useState<Set<string>>(new Set())
   
   const screen = navigationStack[navigationStack.length - 1]
+  const activeTabScreen = [...navigationStack].reverse().find((stackScreen): stackScreen is Extract<Screen, { type: 'tab' }> => stackScreen.type === 'tab')
+  const activeTab = activeTabScreen?.tab ?? 'dashboard'
 
   useEffect(() => {
     checkRoute()
@@ -367,6 +369,53 @@ const initializeApp = async () => {
   return (
     <div className="h-full flex flex-col overflow-hidden" style={{ backgroundColor: 'var(--bg-screen)' }}>
       <div className="flex-1 overflow-auto pb-16">
+        <div style={{ display: activeTab === 'dashboard' ? 'block' : 'none', height: '100%' }}>
+          <DashboardScreen
+            currentBusinessId={currentBusinessId}
+            onNavigateToOrders={(filter) => navigateToTabWithFilter('orders', filter)}
+            onNavigateToConnection={navigateToConnection}
+            onNavigateToProfile={() => navigateToTab('profile')}
+            onNavigateToAttention={(filter) => navigateToTabWithFilter('attention', filter)}
+          />
+        </div>
+
+        <div style={{ display: activeTab === 'attention' ? 'block' : 'none', height: '100%' }}>
+          <AttentionScreen
+            currentBusinessId={currentBusinessId}
+            onNavigateToConnections={() => navigateToTab('connections')}
+            onNavigateToIssue={navigateToIssueDetail}
+          />
+        </div>
+
+        <div style={{ display: activeTab === 'connections' ? 'block' : 'none', height: '100%' }}>
+          <ConnectionsScreen
+            currentBusinessId={currentBusinessId}
+            onSelectConnection={navigateToConnection}
+            onAddConnection={navigateToAddConnection}
+            unreadConnectionIds={unreadConnectionIds}
+          />
+        </div>
+
+        <div style={{ display: activeTab === 'orders' ? 'block' : 'none', height: '100%' }}>
+          <OrdersScreen
+            currentBusinessId={currentBusinessId}
+            onSelectOrder={navigateToOrderDetail}
+            initialFilter={activeTabScreen?.tab === 'orders' ? activeTabScreen.filter : undefined}
+          />
+        </div>
+
+        <div style={{ display: activeTab === 'profile' ? 'block' : 'none', height: '100%' }}>
+          <ProfileScreen
+            currentBusinessId={currentBusinessId}
+            onLogout={handleLogout}
+            onNavigateToBusinessDetails={navigateToBusinessDetails}
+            onNavigateToNotifications={navigateToNotifications}
+            onNavigateToNotificationSettings={navigateToProfileNotifications}
+            onNavigateToAccount={navigateToProfileAccount}
+            onNavigateToSupport={navigateToProfileSupport}
+          />
+        </div>
+
         {screen.type === 'profile-notifications' ? (
           <NotificationSettingsScreen onBack={navigateBack} />
         ) : screen.type === 'profile-account' ? (
@@ -426,43 +475,6 @@ const initializeApp = async () => {
             onNavigateToPaymentTermsSetup={navigateToPaymentTermsSetup}
             onReportIssue={navigateToReportIssue}
           />
-        ) : screen.type === 'tab' && screen.tab === 'dashboard' ? (
-          <DashboardScreen
-            currentBusinessId={currentBusinessId}
-            onNavigateToOrders={(filter) => navigateToTabWithFilter('orders', filter)}
-            onNavigateToConnection={navigateToConnection}
-            onNavigateToProfile={() => navigateToTab('profile')}
-            onNavigateToAttention={(filter) => navigateToTabWithFilter('attention', filter)}
-          />
-        ) : screen.type === 'tab' && screen.tab === 'attention' ? (
-          <AttentionScreen
-            currentBusinessId={currentBusinessId}
-            onNavigateToConnections={() => navigateToTab('connections')}
-            onNavigateToIssue={navigateToIssueDetail}
-          />
-        ) : screen.type === 'tab' && screen.tab === 'connections' ? (
-          <ConnectionsScreen
-            currentBusinessId={currentBusinessId}
-            onSelectConnection={navigateToConnection}
-            onAddConnection={navigateToAddConnection}
-            unreadConnectionIds={unreadConnectionIds}
-          />
-        ) : screen.type === 'tab' && screen.tab === 'orders' ? (
-          <OrdersScreen
-            currentBusinessId={currentBusinessId}
-            onSelectOrder={navigateToOrderDetail}
-            initialFilter={screen.filter}
-          />
-        ) : screen.type === 'tab' && screen.tab === 'profile' ? (
-          <ProfileScreen
-            currentBusinessId={currentBusinessId}
-            onLogout={handleLogout}
-            onNavigateToBusinessDetails={navigateToBusinessDetails}
-            onNavigateToNotifications={navigateToNotifications}
-            onNavigateToNotificationSettings={navigateToProfileNotifications}
-            onNavigateToAccount={navigateToProfileAccount}
-            onNavigateToSupport={navigateToProfileSupport}
-          />
         ) : null}
       </div>
 
@@ -472,32 +484,32 @@ const initializeApp = async () => {
             <TabButton
               label="Home"
               icon={<House weight="regular" size={22} />}
-              active={screen.tab === 'dashboard'}
+              active={activeTab === 'dashboard'}
               onClick={() => navigateToTab('dashboard')}
             />
             <TabButton
               label="Connections"
               icon={<Users weight="regular" size={22} />}
-              active={screen.tab === 'connections'}
+              active={activeTab === 'connections'}
               onClick={() => navigateToTab('connections')}
               hasUnread={hasUnreadConnections}
             />
             <TabButton
               label="Orders"
               icon={<Package weight="regular" size={22} />}
-              active={screen.tab === 'orders'}
+              active={activeTab === 'orders'}
               onClick={() => navigateToTab('orders')}
             />
             <TabButton
               label="Disputes"
               icon={<Bell weight="regular" size={22} />}
-              active={screen.tab === 'attention'}
+              active={activeTab === 'attention'}
               onClick={() => navigateToTab('attention')}
             />
             <TabButton
               label="Profile"
               icon={<User weight="regular" size={22} />}
-              active={screen.tab === 'profile'}
+              active={activeTab === 'profile'}
               onClick={() => navigateToTab('profile')}
             />
           </div>
