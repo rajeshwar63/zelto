@@ -311,7 +311,8 @@ export function ConnectionsScreen({ currentBusinessId, onSelectConnection, onAdd
                   backgroundColor: 'var(--bg-card)',
                   borderRadius: 'var(--radius-card)',
                   padding: '14px 16px',
-                  borderLeft: isUnread ? '3px solid var(--status-new)' : '3px solid transparent',
+                  border: isUnread ? '1px solid color-mix(in srgb, var(--status-new) 35%, white)' : '1px solid var(--border-light)',
+                  boxShadow: '0 1px 2px rgba(16,24,40,0.04)',
                   minHeight: '44px',
                 }}
               >
