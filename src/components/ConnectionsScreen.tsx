@@ -9,6 +9,8 @@ import { Plus, Users, PencilSimple, MagnifyingGlass, X, PaperPlaneTilt } from '@
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import { toast } from 'sonner'
+import { ConnectionRequestItem } from '@/components/ConnectionRequestItem'
+import { useConnectionRequestsData } from '@/hooks/data/use-business-data'
 
 interface ConnectionWithState extends Connection {
   otherBusinessName: string
@@ -77,6 +79,8 @@ export function ConnectionsScreen({ currentBusinessId, onSelectConnection, onAdd
   const [message, setMessage] = useState('')
   const [isSending, setIsSending] = useState(false)
   const [sendError, setSendError] = useState<string | null>(null)
+
+  const { data: connectionRequests = [], refresh: refreshConnectionRequests } = useConnectionRequestsData(currentBusinessId, isActive)
 
   useEffect(() => {
     console.debug('[ConnectionsScreen] mount', Date.now(), { currentBusinessId })
@@ -209,7 +213,7 @@ export function ConnectionsScreen({ currentBusinessId, onSelectConnection, onAdd
       : eligibleConnections
   ), [businesses, eligibleConnections, search])
 
-  if (connections.length === 0) {
+  if (connections.length === 0 && connectionRequests.length === 0) {
     return (
       <div style={{ backgroundColor: 'var(--bg-screen)', minHeight: '100%' }}>
         <div className="sticky top-0 z-10" style={{ backgroundColor: 'var(--bg-header)', paddingTop: 'env(safe-area-inset-top)' }}>
@@ -282,6 +286,28 @@ export function ConnectionsScreen({ currentBusinessId, onSelectConnection, onAdd
       </div>
 
       <div className="px-4 pt-3 pb-24">
+        {connectionRequests.length > 0 && (
+          <div className="mb-4">
+            <p style={{ fontSize: '13px', fontWeight: 700, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '10px' }}>
+              PENDING REQUESTS
+            </p>
+            <div className="space-y-2">
+              {connectionRequests.map(request => (
+                <ConnectionRequestItem
+                  key={request.id}
+                  request={request}
+                  currentBusinessId={currentBusinessId}
+                  onUpdate={() => {
+                    void refreshConnectionRequests(true)
+                    void loadConnections()
+                  }}
+                  onNavigateToConnections={() => undefined}
+                />
+              ))}
+            </div>
+          </div>
+        )}
+
         <p style={{ fontSize: '13px', fontWeight: 700, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '10px' }}>
           ALL CONNECTIONS
         </p>

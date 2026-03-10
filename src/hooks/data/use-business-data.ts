@@ -39,7 +39,6 @@ interface AttentionItemWithConnection extends AttentionItem {
 
 interface AttentionData {
   items: AttentionItemWithConnection[]
-  connectionRequests: ConnectionRequest[]
 }
 
 interface ProfileData {
@@ -209,13 +208,12 @@ export function useAttentionData(currentBusinessId: string, isActive = true) {
   return useCachedQuery<AttentionData>({
     key: `attention:${currentBusinessId}`,
     isActive,
-    events: ['orders:changed', 'payments:changed', 'issues:changed', 'connections:changed', 'connection-requests:changed'],
+    events: ['orders:changed', 'payments:changed', 'issues:changed', 'connections:changed'],
     fetcher: async () => {
-      const [attentionItems, connections, entities, allRequests] = await Promise.all([
+      const [attentionItems, connections, entities] = await Promise.all([
         attentionEngine.getAttentionItems(currentBusinessId),
         dataStore.getConnectionsByBusinessId(currentBusinessId),
         dataStore.getAllBusinessEntities(),
-        dataStore.getAllConnectionRequests(),
       ])
 
       const entityMap = new Map(entities.map(entity => [entity.id, entity]))
@@ -234,14 +232,23 @@ export function useAttentionData(currentBusinessId: string, isActive = true) {
           }
         })
 
-      const connectionRequests = allRequests.filter(
-        request => request.receiverBusinessId === currentBusinessId && request.status === 'Pending',
-      )
-
       return {
         items,
-        connectionRequests,
       }
+    },
+  })
+}
+
+export function useConnectionRequestsData(currentBusinessId: string, isActive = true) {
+  return useCachedQuery<ConnectionRequest[]>({
+    key: `connection-requests:${currentBusinessId}`,
+    isActive,
+    events: ['connection-requests:changed'],
+    fetcher: async () => {
+      const allRequests = await dataStore.getAllConnectionRequests()
+      return allRequests.filter(
+        request => request.receiverBusinessId === currentBusinessId && request.status === 'Pending',
+      )
     },
   })
 }
