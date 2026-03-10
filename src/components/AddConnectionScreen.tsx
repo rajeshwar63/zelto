@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { dataStore } from '@/lib/data-store'
+import { emitDataChange } from '@/lib/data-events'
 import { calculateCredibility, getBusinessActivityCounts, type CredibilityBreakdown } from '@/lib/credibility'
 import { ArrowLeft } from '@phosphor-icons/react'
 import { Button } from '@/components/ui/button'
@@ -118,6 +119,7 @@ export function AddConnectionScreen({ currentBusinessId, onBack, onSuccess }: Pr
         requesterRole,
         receiverRole
       })
+      emitDataChange('connection-requests:changed', 'notifications:changed')
       setSending(false)
       onSuccess()
     } catch (err) {

@@ -53,7 +53,7 @@ export function ConnectionRequestItem({ request, currentBusinessId, onUpdate, on
   const handleDecline = async () => {
     setProcessing(true)
     await dataStore.updateConnectionRequestStatus(request.id, 'Declined')
-    emitDataChange('connection-requests:changed')
+    emitDataChange('connection-requests:changed', 'notifications:changed')
     setProcessing(false)
     onUpdate()
   }
