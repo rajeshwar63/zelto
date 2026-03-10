@@ -132,6 +132,24 @@
 | severity | varchar | NO | — |
 | raised_by | varchar | NO | — |
 | status | varchar | NO | 'Open' |
+| description | text | YES | — |
+| acknowledged_at | bigint | YES | — |
+| resolved_at | bigint | YES | — |
+| resolved_by | text | YES | — |
+| created_at | bigint | NO | epoch ms |
+
+> **Columns added by migrations:** `add_issue_resolution_fields.sql` (acknowledged_at, resolved_at, resolved_by) and `add_issue_description_and_comments.sql` (description). Run these if missing.
+
+---
+
+### `issue_comments`
+| Column | Type | Nullable | Default |
+|--------|------|----------|---------|
+| id | uuid | NO | gen_random_uuid() |
+| issue_id | uuid | NO | FK → issue_reports(id) CASCADE |
+| author_business_id | uuid | NO | FK → business_entities(id) |
+| author_role | varchar(10) | NO | — |
+| message | text | NO | — |
 | created_at | bigint | NO | epoch ms |
 
 ---

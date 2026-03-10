@@ -7,6 +7,7 @@ import {
   ConnectionRequestStatus,
   EntityFlag,
   FrozenEntity,
+  IssueComment,
   IssueReport,
   Notification,
   NotificationType,
@@ -688,26 +689,32 @@ export class ZeltoDataStore {
     orderId: string,
     issueType: IssueReport['issueType'],
     severity: IssueReport['severity'],
-    raisedBy: IssueReport['raisedBy']
+    raisedBy: IssueReport['raisedBy'],
+    description?: string
   ): Promise<IssueReport> {
     const order = await this.getOrderById(orderId)
     if (!order) {
       throw new Error('Order does not exist')
     }
 
+    const insertData: Record<string, unknown> = {
+      order_id: orderId,
+      issue_type: issueType,
+      severity,
+      raised_by: raisedBy,
+      status: 'Open',
+      created_at: Date.now()
+    }
+    if (description) {
+      insertData.description = description
+    }
+
     const { data, error } = await supabase
       .from('issue_reports')
-      .insert([{
-        order_id: orderId,
-        issue_type: issueType,
-        severity,
-        raised_by: raisedBy,
-        status: 'Open',
-        created_at: Date.now()
-      }])
+      .insert([insertData])
       .select()
       .single()
-    
+
     if (error) throw error
     return toCamelCase(data)
   }
@@ -758,6 +765,41 @@ export class ZeltoDataStore {
 
     if (error) throw error
     return toCamelCase(data || [])
+  }
+
+  // ============ ISSUE COMMENTS ============
+
+  async getIssueCommentsByIssueId(issueId: string): Promise<IssueComment[]> {
+    const { data, error } = await supabase
+      .from('issue_comments')
+      .select('*')
+      .eq('issue_id', issueId)
+      .order('created_at', { ascending: true })
+
+    if (error) throw error
+    return toCamelCase(data || [])
+  }
+
+  async createIssueComment(
+    issueId: string,
+    authorBusinessId: string,
+    authorRole: RaisedBy,
+    message: string
+  ): Promise<IssueComment> {
+    const { data, error } = await supabase
+      .from('issue_comments')
+      .insert([{
+        issue_id: issueId,
+        author_business_id: authorBusinessId,
+        author_role: authorRole,
+        message,
+        created_at: Date.now()
+      }])
+      .select()
+      .single()
+
+    if (error) throw error
+    return toCamelCase(data)
   }
 
   // ============ SCOPED QUERIES FOR ENGINES ============

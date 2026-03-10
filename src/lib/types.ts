@@ -12,7 +12,7 @@ export type SettlementState = 'Paid' | 'Partial Payment' | 'Awaiting Payment' | 
 
 export type IssueSeverity = 'Low' | 'Medium' | 'High'
 
-export type IssueStatus = 'Open' | 'Acknowledged' | 'Resolved'
+export type IssueStatus = 'Open' | 'Acknowledged' | 'Resolved' | 'Closed'
 
 export type IssueType = 
   | 'Damaged Product'
@@ -101,10 +101,20 @@ export interface IssueReport {
   severity: IssueSeverity
   raisedBy: RaisedBy
   status: IssueStatus
+  description?: string
   createdAt: number
   acknowledgedAt?: number
   resolvedAt?: number
   resolvedBy?: RaisedBy
+}
+
+export interface IssueComment {
+  id: string
+  issueId: string
+  authorBusinessId: string
+  authorRole: RaisedBy
+  message: string
+  createdAt: number
 }
 
 export interface OrderWithPaymentState extends Order {
