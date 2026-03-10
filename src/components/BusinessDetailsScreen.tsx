@@ -273,7 +273,7 @@ export function BusinessDetailsScreen({ currentBusinessId, onBack, onSave }: Pro
             placeholder="e.g. 22AAAAA0000A1Z5"
             style={{ width: '100%', padding: '10px 12px', fontSize: '14px', border: '1px solid #e0e0e0', borderRadius: '8px', boxSizing: 'border-box' }}
           />
-          {gstError && <p style={{ color: '#D64545', fontSize: '12px', marginTop: '4px' }}>{gstError}</p>}
+          {gstError && <p style={{ color: 'var(--status-overdue)', fontSize: '12px', marginTop: '4px' }}>{gstError}</p>}
         </div>
 
         <div style={{ marginBottom: '20px' }}>
@@ -349,7 +349,7 @@ export function BusinessDetailsScreen({ currentBusinessId, onBack, onSave }: Pro
                   Link saved (coordinates could not be extracted)
                 </p>
               )}
-              {locationError && <p style={{ color: '#D64545', fontSize: '12px', marginTop: '4px' }}>{locationError}</p>}
+              {locationError && <p style={{ color: 'var(--status-overdue)', fontSize: '12px', marginTop: '4px' }}>{locationError}</p>}
             </div>
           )}
         </div>

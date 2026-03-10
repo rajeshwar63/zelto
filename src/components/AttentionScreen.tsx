@@ -264,11 +264,11 @@ export function AttentionScreen({ currentBusinessId, onNavigateToConnections, on
                 } as Record<string, string>)[item.category] || item.description
 
                 const statusColor = ({
-                  'Overdue': '#D64545',
-                  'Due Today': '#E8A020',
+                  'Overdue': 'var(--status-overdue)',
+                  'Due Today': 'var(--status-dispatched)',
                   'Pending Payments': '#444444',
-                  'Disputes': '#D64545',
-                  'Approval Needed': '#E8A020',
+                  'Disputes': 'var(--status-overdue)',
+                  'Approval Needed': 'var(--status-dispatched)',
                 } as Record<string, string>)[item.category]
 
                 const isNew = item.orderId != null && isItemNew(item.orderId, item.frictionStartedAt)

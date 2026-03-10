@@ -360,7 +360,7 @@ const initializeApp = async () => {
   }
 
   return (
-    <div className="h-full flex flex-col bg-background overflow-hidden">
+    <div className="h-full flex flex-col overflow-hidden" style={{ backgroundColor: 'var(--bg-screen)' }}>
       <div className="flex-1 overflow-auto pb-16">
         {screen.type === 'profile-notifications' ? (
           <NotificationSettingsScreen onBack={navigateBack} />
@@ -454,13 +454,14 @@ const initializeApp = async () => {
       </div>
 
       {screen.type === 'tab' && (
-        <div className="bottom-nav fixed bottom-0 left-0 right-0 bg-background border-t border-border">
-          <div className="flex items-center justify-around h-14">
+        <div className="bottom-nav fixed bottom-0 left-0 right-0" style={{ backgroundColor: 'var(--bg-card)', borderTop: '1px solid var(--border-light)' }}>
+          <div className="flex items-center justify-around" style={{ height: '80px', paddingTop: '10px' }}>
             <TabButton
               label="Home"
               icon={<House weight="regular" size={22} />}
               active={screen.tab === 'dashboard'}
               onClick={() => navigateToTab('dashboard')}
+              hasUnread={hasUnreadConnections}
             />
             <TabButton
               label="Orders"
@@ -473,7 +474,6 @@ const initializeApp = async () => {
               icon={<Users weight="regular" size={22} />}
               active={screen.tab === 'connections'}
               onClick={() => navigateToTab('connections')}
-              hasUnread={hasUnreadConnections}
             />
             <TabButton
               label="Profile"
@@ -504,21 +504,24 @@ function TabButton({
   return (
     <button
       onClick={onClick}
-      className="flex flex-col items-center justify-center gap-0.5 py-1 px-3 min-w-[70px] relative"
+      className="flex flex-col items-center justify-center gap-0.5 py-1 px-3 relative"
+      style={{ minWidth: '70px', minHeight: '44px' }}
     >
-      <span className={`relative ${active ? 'text-foreground' : 'text-muted-foreground'}`}>
+      <span className="relative" style={{ color: active ? 'var(--brand-primary)' : 'var(--text-secondary)', filter: active ? 'none' : 'grayscale(1)', opacity: active ? 1 : 0.5 }}>
         {icon}
         {hasUnread && !active && (
           <span
-            className="absolute w-2 h-2 rounded-full"
-            style={{ backgroundColor: '#D64545', top: '-2px', right: '-4px' }}
+            className="absolute rounded-full"
+            style={{ width: '8px', height: '8px', backgroundColor: 'var(--status-overdue)', top: '-2px', right: '-4px', border: '2px solid var(--bg-card)' }}
           />
         )}
       </span>
       <span
-        className={`text-[10px] ${
-          active ? 'text-foreground font-medium' : 'text-muted-foreground'
-        }`}
+        style={{
+          fontSize: '10px',
+          fontWeight: active ? 700 : 500,
+          color: active ? 'var(--brand-primary)' : 'var(--text-secondary)',
+        }}
       >
         {label}
       </span>

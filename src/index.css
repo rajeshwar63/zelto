@@ -47,6 +47,54 @@ html, body, #root {
   --ring: oklch(0.708 0 0);
 
   --radius: 0.5rem;
+
+  /* Zelto Design System */
+  /* Brand */
+  --brand-primary: #4A6CF7;
+  --brand-primary-light: #6B8AFF;
+  --brand-primary-bg: #F0F4FF;
+
+  /* Status */
+  --status-new: #4A6CF7;
+  --status-dispatched: #FF8C42;
+  --status-delivered: #22B573;
+  --status-issue: #FFB020;
+  --status-dispute: #8B5CF6;
+  --status-payment: #EC4899;
+  --status-overdue: #FF6B6B;
+  --status-success: #22B573;
+
+  /* Text */
+  --text-primary: #1A1A2E;
+  --text-secondary: #8492A6;
+  --text-tertiary: #B0B8C4;
+  --text-muted: #C0C8D4;
+
+  /* Backgrounds */
+  --bg-screen: #F2F4F8;
+  --bg-card: #FFFFFF;
+  --bg-header: #FFFFFF;
+  --border-light: #E8ECF2;
+  --border-section: #F2F4F8;
+
+  /* Spacing */
+  --sp-xs: 4px;
+  --sp-sm: 8px;
+  --sp-md: 12px;
+  --sp-lg: 16px;
+  --sp-xl: 20px;
+  --sp-2xl: 24px;
+
+  /* Radius */
+  --radius-card: 14px;
+  --radius-avatar: 12px;
+  --radius-button: 12px;
+  --radius-button-sm: 8px;
+  --radius-chip: 6px;
+  --radius-badge: 11px;
+  --radius-icon: 8px;
+  --radius-input: 10px;
+  --radius-modal: 20px;
 }
 
 @theme {

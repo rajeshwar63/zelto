@@ -37,7 +37,7 @@ export function AccountScreen({ onBack, onLogout }: Props) {
           onClick={onLogout}
           className="w-full text-left py-3"
         >
-          <p className="text-[14px]" style={{ color: '#D64545' }}>Log out</p>
+          <p className="text-[14px]" style={{ color: 'var(--status-overdue)' }}>Log out</p>
         </button>
       </div>
 
@@ -47,7 +47,7 @@ export function AccountScreen({ onBack, onLogout }: Props) {
           onClick={() => setShowDeleteModal(true)}
           className="w-full flex items-center justify-between py-3 hover:bg-muted/30 transition-colors"
         >
-          <p className="text-[14px]" style={{ color: '#D64545' }}>Delete Account</p>
+          <p className="text-[14px]" style={{ color: 'var(--status-overdue)' }}>Delete Account</p>
           <span className="text-muted-foreground text-[14px]">›</span>
         </button>
       </div>
@@ -123,7 +123,7 @@ function DeleteAccountModal({ onClose, onConfirm }: { onClose: () => void; onCon
         <button
           onClick={onConfirm}
           className="w-full py-2.5 rounded-lg text-white text-[14px] font-medium mb-3"
-          style={{ backgroundColor: '#D64545' }}
+          style={{ backgroundColor: 'var(--status-overdue)' }}
         >
           Delete Account
         </button>

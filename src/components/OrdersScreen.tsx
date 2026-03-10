@@ -4,8 +4,8 @@ import { createOrder } from '@/lib/interactions'
 import { useDataListener } from '@/lib/data-events'
 import { formatDistanceToNow, isToday } from 'date-fns'
 import type { Connection, OrderWithPaymentState, BusinessEntity } from '@/lib/types'
-import { getLifecycleStatusColor, getDueDateColor } from '@/lib/semantic-colors'
-import { Plus, PencilSimple, MagnifyingGlass, X, PaperPlaneTilt } from '@phosphor-icons/react'
+import { getLifecycleStatusColor } from '@/lib/semantic-colors'
+import { PencilSimple, MagnifyingGlass, X, PaperPlaneTilt } from '@phosphor-icons/react'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import { toast } from 'sonner'
@@ -49,6 +49,28 @@ const FILTER_LABELS: { key: OrderFilter; label: string }[] = [
   { key: 'payment_pending', label: 'Payment Pending' },
   { key: 'paid', label: 'Paid' },
 ]
+
+function getFilterColor(key: OrderFilter): string {
+  switch (key) {
+    case 'placed': return 'var(--status-new)'
+    case 'dispatched': return 'var(--status-dispatched)'
+    case 'delivered': return 'var(--status-delivered)'
+    case 'payment_pending': return 'var(--status-overdue)'
+    case 'paid': return 'var(--status-success)'
+    default: return 'var(--brand-primary)'
+  }
+}
+
+function getFilterBg(key: OrderFilter): string {
+  switch (key) {
+    case 'placed': return '#F0F4FF'
+    case 'dispatched': return '#FFF6F0'
+    case 'delivered': return '#F0FFF6'
+    case 'payment_pending': return '#FFF0F0'
+    case 'paid': return '#F0FFF6'
+    default: return 'var(--brand-primary-bg)'
+  }
+}
 
 function formatPaymentTerms(terms: Connection['paymentTerms']): string | null {
   if (!terms) return null
@@ -183,89 +205,136 @@ export function OrdersScreen({ currentBusinessId, onSelectOrder, initialFilter }
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center min-h-screen">
-        <p className="text-sm text-muted-foreground">Loading...</p>
+      <div className="flex flex-col h-full" style={{ backgroundColor: 'var(--bg-screen)' }}>
+        <div className="sticky top-0 z-10" style={{ backgroundColor: 'var(--bg-header)', paddingTop: 'env(safe-area-inset-top)' }}>
+          <div className="h-11 flex items-center px-4">
+            <h1 style={{ fontSize: '22px', fontWeight: 700, color: 'var(--text-primary)', letterSpacing: '-0.02em' }}>Orders</h1>
+          </div>
+        </div>
+        <div className="flex-1 px-4 pt-4 space-y-2">
+          {[1, 2, 3].map(i => (
+            <div key={i} className="animate-pulse" style={{ backgroundColor: 'var(--border-light)', borderRadius: 'var(--radius-card)', height: '80px' }} />
+          ))}
+        </div>
       </div>
     )
   }
 
   return (
-    <div className="flex flex-col h-full bg-background relative">
-      <div className="sticky top-0 bg-white z-10" style={{ paddingTop: 'env(safe-area-inset-top)' }}>
+    <div className="flex flex-col h-full" style={{ backgroundColor: 'var(--bg-screen)' }}>
+      <div className="sticky top-0 z-10" style={{ backgroundColor: 'var(--bg-header)', paddingTop: 'env(safe-area-inset-top)' }}>
         <div className="h-11 flex items-center px-4">
-          <h1 className="text-[17px] text-foreground font-normal">Orders</h1>
+          <h1 style={{ fontSize: '22px', fontWeight: 700, color: 'var(--text-primary)', letterSpacing: '-0.02em' }}>Orders</h1>
         </div>
-        <div className="border-b border-border py-2 px-4">
+        <div style={{ borderBottom: '1px solid var(--border-light)', padding: '8px 16px' }}>
           <div className="flex gap-2 overflow-x-auto scrollbar-hide">
-            {FILTER_LABELS.map(({ key, label }) => (
-              <button
-                key={key}
-                onClick={() => setFilter(key)}
-                className={`text-[12px] whitespace-nowrap px-3 py-1.5 rounded-full transition-colors ${
-                  filter === key
-                    ? 'bg-foreground text-background'
-                    : 'bg-muted text-muted-foreground'
-                }`}
-              >
-                {label}
-              </button>
-            ))}
+            {FILTER_LABELS.map(({ key, label }) => {
+              const isActive = filter === key
+              return (
+                <button
+                  key={key}
+                  onClick={() => setFilter(key)}
+                  className="whitespace-nowrap transition-colors"
+                  style={{
+                    fontSize: '13px',
+                    fontWeight: 600,
+                    padding: '8px 14px',
+                    borderRadius: 'var(--radius-chip)',
+                    backgroundColor: isActive ? 'var(--brand-primary)' : getFilterBg(key),
+                    color: isActive ? '#FFFFFF' : getFilterColor(key),
+                    minHeight: '44px',
+                    display: 'flex',
+                    alignItems: 'center',
+                  }}
+                >
+                  {label}
+                </button>
+              )
+            })}
           </div>
         </div>
       </div>
 
-      <div className="flex-1 overflow-y-auto">
+      <div className="flex-1 overflow-y-auto px-4 pt-3 pb-24">
+        <p style={{ fontSize: '13px', fontWeight: 700, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '10px' }}>
+          {filter === 'all' ? 'ALL ORDERS' : (FILTER_LABELS.find(f => f.key === filter)?.label.toUpperCase() || 'ORDERS')}
+        </p>
         {filteredOrders.length === 0 ? (
           <div className="flex items-center justify-center py-16">
-            <p className="text-sm text-muted-foreground">No orders found</p>
+            <p style={{ fontSize: '14px', fontWeight: 500, color: 'var(--text-secondary)' }}>No orders found</p>
           </div>
         ) : (
-          filteredOrders.map(order => {
-            const statusColor = getLifecycleStatusColor(order.lifecycleState)
-            const isOverdue = order.deliveredAt && order.calculatedDueDate && Date.now() > order.calculatedDueDate && order.settlementState !== 'Paid'
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--sp-sm)' }}>
+            {filteredOrders.map(order => {
+              const statusColor = getLifecycleStatusColor(order.lifecycleState)
+              const isOverdue = order.deliveredAt && order.calculatedDueDate && Date.now() > order.calculatedDueDate && order.settlementState !== 'Paid'
 
-            return (
-              <button
-                key={order.id}
-                onClick={() => onSelectOrder(order.id, order.connectionId)}
-                className="w-full text-left px-4 py-3 border-b border-border/50"
-              >
-                <div className="flex items-start justify-between">
-                  <p className="text-[14px] text-foreground font-normal leading-snug flex-1 mr-3">
+              return (
+                <button
+                  key={order.id}
+                  onClick={() => onSelectOrder(order.id, order.connectionId)}
+                  className="w-full text-left"
+                  style={{
+                    backgroundColor: 'var(--bg-card)',
+                    borderRadius: 'var(--radius-card)',
+                    padding: '14px 16px',
+                    borderLeft: `3px solid ${statusColor}`,
+                    minHeight: '44px',
+                  }}
+                >
+                  <div className="flex items-start justify-between">
+                    <p style={{ fontSize: '15px', fontWeight: 700, color: 'var(--text-primary)', flex: 1, marginRight: '12px' }}>
+                      {order.connectionName}
+                    </p>
+                    {order.orderValue > 0 && (
+                      <p style={{ fontSize: '15px', fontWeight: 700, color: 'var(--text-primary)', flexShrink: 0 }}>
+                        {order.orderValue.toLocaleString('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 })}
+                      </p>
+                    )}
+                  </div>
+                  <div className="flex items-center gap-1.5 mt-1" style={{ fontSize: '12px' }}>
+                    <span
+                      style={{
+                        fontSize: '11px',
+                        fontWeight: 600,
+                        color: statusColor,
+                        backgroundColor: `${statusColor}26`,
+                        padding: '2px 8px',
+                        borderRadius: 'var(--radius-chip)',
+                      }}
+                    >
+                      {order.lifecycleState}
+                    </span>
+                    <span style={{ color: 'var(--text-secondary)' }}>·</span>
+                    <span style={{ color: 'var(--text-secondary)', fontSize: '12px', fontWeight: 500 }}>
+                      {formatDistanceToNow(order.latestActivity, { addSuffix: true })}
+                    </span>
+                    {isOverdue && (
+                      <>
+                        <span style={{ color: 'var(--text-secondary)' }}>·</span>
+                        <span style={{ color: 'var(--status-overdue)', fontSize: '11px', fontWeight: 600 }}>Overdue</span>
+                      </>
+                    )}
+                  </div>
+                  <p style={{ fontSize: '12px', fontWeight: 500, color: 'var(--text-secondary)', marginTop: '4px' }} className="truncate">
                     {order.itemSummary}
                   </p>
-                  {order.orderValue > 0 && (
-                    <p className="text-[15px] font-semibold text-foreground flex-shrink-0">
-                      ₹{order.orderValue.toLocaleString('en-IN')}
-                    </p>
-                  )}
-                </div>
-                <div className="flex items-center justify-between mt-0.5">
-                  <p className="text-[13px] text-muted-foreground">
-                    {order.connectionName}
-                  </p>
-                  {isOverdue && (
-                    <span style={{ color: '#D64545', fontSize: '12px', fontWeight: 500 }}>Overdue</span>
-                  )}
-                </div>
-                <div className="flex items-center gap-1.5 mt-1 text-[12px]">
-                  <span style={{ color: statusColor }}>{order.lifecycleState}</span>
-                  <span className="text-muted-foreground">·</span>
-                  <span className="text-muted-foreground">
-                    {formatDistanceToNow(order.latestActivity, { addSuffix: true })}
-                  </span>
-                </div>
-              </button>
-            )
-          })
+                </button>
+              )
+            })}
+          </div>
         )}
       </div>
 
       {/* FAB */}
       <button
         onClick={handleOpenOrderModal}
-        className="fixed bottom-20 right-4 w-14 h-14 rounded-full flex items-center justify-center shadow-lg z-20"
-        style={{ backgroundColor: '#1A1A2E' }}
+        className="fixed bottom-20 right-4 w-14 h-14 flex items-center justify-center z-20"
+        style={{
+          backgroundColor: 'var(--brand-primary)',
+          borderRadius: 'var(--radius-card)',
+          boxShadow: '0 4px 16px rgba(74,108,247,0.4)',
+        }}
       >
         <PencilSimple size={24} weight="regular" color="#FFFFFF" />
       </button>
@@ -273,53 +342,55 @@ export function OrdersScreen({ currentBusinessId, onSelectOrder, initialFilter }
       {/* Order Creation Modal */}
       {showOrderModal && (
         <div className="fixed inset-0 bg-black/50 z-50 flex items-end">
-          <div className="bg-white w-full rounded-t-2xl max-h-[90vh] flex flex-col">
-            <div className="sticky top-0 bg-white border-b border-border px-4 py-4 flex items-center justify-between rounded-t-2xl">
-              <h2 className="text-lg font-medium">New Order</h2>
+          <div className="w-full max-h-[90vh] flex flex-col" style={{ backgroundColor: 'var(--bg-card)', borderTopLeftRadius: 'var(--radius-modal)', borderTopRightRadius: 'var(--radius-modal)' }}>
+            <div className="sticky top-0 px-4 py-4 flex items-center justify-between" style={{ backgroundColor: 'var(--bg-card)', borderBottom: '1px solid var(--border-light)', borderTopLeftRadius: 'var(--radius-modal)', borderTopRightRadius: 'var(--radius-modal)' }}>
+              <h2 style={{ fontSize: '17px', fontWeight: 700, color: 'var(--text-primary)' }}>New Order</h2>
               <button onClick={() => {
                 setShowOrderModal(false)
                 setSelectedConnection(null)
                 setMessage('')
                 setSearch('')
-              }}>
-                <X size={24} weight="regular" />
+              }} style={{ minWidth: '44px', minHeight: '44px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <X size={24} weight="regular" color="var(--text-primary)" />
               </button>
             </div>
 
             {!selectedConnection ? (
               <>
-                <div className="px-4 py-3 border-b border-border">
+                <div className="px-4 py-3" style={{ borderBottom: '1px solid var(--border-light)' }}>
                   <div className="relative">
-                    <MagnifyingGlass size={20} weight="regular" className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+                    <MagnifyingGlass size={20} weight="regular" className="absolute left-3 top-1/2 -translate-y-1/2" style={{ color: 'var(--text-secondary)' }} />
                     <Input
                       placeholder="Search suppliers..."
                       value={search}
                       onChange={(e) => setSearch(e.target.value)}
                       className="pl-10"
+                      style={{ borderRadius: 'var(--radius-input)' }}
                     />
                   </div>
                 </div>
                 <div className="flex-1 overflow-y-auto">
                   {searchedConnections.length === 0 ? (
                     <div className="px-4 py-8 text-center">
-                      <p className="text-sm text-muted-foreground">
+                      <p style={{ fontSize: '14px', fontWeight: 500, color: 'var(--text-secondary)' }}>
                         {eligibleConnections.length === 0
                           ? 'No suppliers with payment terms set'
                           : 'No suppliers found'}
                       </p>
                     </div>
                   ) : (
-                    <div className="divide-y divide-border">
+                    <div>
                       {searchedConnections.map(conn => {
                         const supplier = businesses.get(conn.supplierBusinessId)
                         return (
                           <button
                             key={conn.id}
                             onClick={() => setSelectedConnection(conn)}
-                            className="w-full text-left px-4 py-3 hover:bg-muted/30 transition-colors"
+                            className="w-full text-left px-4 py-3"
+                            style={{ borderBottom: '1px solid var(--border-section)', minHeight: '44px' }}
                           >
-                            <p className="text-[15px] font-medium">{supplier?.businessName || 'Unknown'}</p>
-                            <p className="text-[13px] text-muted-foreground mt-0.5">
+                            <p style={{ fontSize: '15px', fontWeight: 600, color: 'var(--text-primary)' }}>{supplier?.businessName || 'Unknown'}</p>
+                            <p style={{ fontSize: '12px', fontWeight: 500, color: 'var(--text-secondary)', marginTop: '2px' }}>
                               {formatPaymentTerms(conn.paymentTerms)}
                             </p>
                           </button>
@@ -331,12 +402,12 @@ export function OrdersScreen({ currentBusinessId, onSelectOrder, initialFilter }
               </>
             ) : (
               <>
-                <div className="px-4 py-3 border-b border-border">
-                  <button onClick={() => setSelectedConnection(null)} className="flex items-center gap-2 text-sm text-muted-foreground">
+                <div className="px-4 py-3" style={{ borderBottom: '1px solid var(--border-light)' }}>
+                  <button onClick={() => setSelectedConnection(null)} className="flex items-center gap-2" style={{ fontSize: '14px', fontWeight: 500, color: 'var(--text-secondary)', minHeight: '44px' }}>
                     <span>←</span>
                     <span>Back to suppliers</span>
                   </button>
-                  <p className="text-lg font-medium mt-2">
+                  <p style={{ fontSize: '17px', fontWeight: 700, color: 'var(--text-primary)', marginTop: '8px' }}>
                     {businesses.get(selectedConnection.supplierBusinessId)?.businessName || 'Unknown'}
                   </p>
                 </div>
@@ -346,16 +417,18 @@ export function OrdersScreen({ currentBusinessId, onSelectOrder, initialFilter }
                     value={message}
                     onChange={(e) => setMessage(e.target.value)}
                     className="w-full"
+                    style={{ borderRadius: 'var(--radius-input)' }}
                   />
                 </div>
-                <div className="px-4 py-4 border-t border-border">
+                <div className="px-4 py-4" style={{ borderTop: '1px solid var(--border-light)' }}>
                   {sendError && (
-                    <p className="text-sm text-destructive mb-3">{sendError}</p>
+                    <p style={{ fontSize: '13px', fontWeight: 500, color: 'var(--status-overdue)', marginBottom: '12px' }}>{sendError}</p>
                   )}
                   <Button
                     onClick={handleSendOrder}
                     disabled={!message.trim() || isSending}
                     className="w-full"
+                    style={{ backgroundColor: 'var(--brand-primary)', borderRadius: 'var(--radius-button)', minHeight: '44px', color: '#FFFFFF', fontWeight: 600 }}
                   >
                     <PaperPlaneTilt size={20} weight="regular" className="mr-2" />
                     {isSending ? 'Sending...' : 'Send Order'}

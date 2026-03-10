@@ -159,13 +159,24 @@ export function OrderDetailScreen({ orderId, connectionId, currentBusinessId, on
 
   if (loading || !order || !connection) {
     return (
-      <div className="flex items-center justify-center min-h-screen">
-        <p className="text-sm text-muted-foreground">Loading...</p>
+      <div className="flex flex-col h-full" style={{ backgroundColor: 'var(--bg-screen)' }}>
+        <div className="sticky top-0 z-10" style={{ backgroundColor: 'var(--bg-header)', paddingTop: 'env(safe-area-inset-top)' }}>
+          <div className="h-11 flex items-center px-4 gap-3">
+            <button onClick={onBack} style={{ color: 'var(--text-primary)', minWidth: '44px', minHeight: '44px', display: 'flex', alignItems: 'center' }}>
+              <CaretLeft size={22} weight="regular" />
+            </button>
+            <h1 style={{ fontSize: '17px', fontWeight: 700, color: 'var(--text-primary)' }}>Order</h1>
+          </div>
+        </div>
+        <div className="flex items-center justify-center py-16">
+          <p style={{ fontSize: '14px', fontWeight: 500, color: 'var(--text-secondary)' }}>Loading...</p>
+        </div>
       </div>
     )
   }
 
   const lifecycleState = getLifecycleState(order)
+  const statusColor = getLifecycleStatusColor(lifecycleState)
   const dueDateLabel = formatDueDate(order)
   const dueDateColor = getDueDateColor(dueDateLabel)
   const isSupplier = connection.supplierBusinessId === currentBusinessId
@@ -219,81 +230,104 @@ export function OrderDetailScreen({ orderId, connectionId, currentBusinessId, on
   }
 
   return (
-    <div className="flex flex-col h-full">
+    <div className="flex flex-col h-full" style={{ backgroundColor: 'var(--bg-screen)' }}>
       {/* Header */}
-      <div className="sticky top-0 bg-white z-10" style={{ paddingTop: 'env(safe-area-inset-top)' }}>
+      <div className="sticky top-0 z-10" style={{ backgroundColor: 'var(--bg-header)', paddingTop: 'env(safe-area-inset-top)' }}>
         <div className="h-11 flex items-center px-4 gap-3">
-          <button onClick={onBack} className="text-foreground">
+          <button onClick={onBack} style={{ color: 'var(--text-primary)', minWidth: '44px', minHeight: '44px', display: 'flex', alignItems: 'center' }}>
             <CaretLeft size={22} weight="regular" />
           </button>
-          <h1 className="text-[17px] text-foreground font-normal">Order</h1>
+          <h1 style={{ fontSize: '17px', fontWeight: 700, color: 'var(--text-primary)' }}>Order</h1>
         </div>
       </div>
 
-      <div className="flex-1 overflow-y-auto">
-        {/* Order Summary */}
-        <div className="px-4 py-4 border-b border-border">
-          <p className="text-[17px] font-medium text-foreground">{order.itemSummary}</p>
-          {order.orderValue > 0 && (
-            <p className="text-[24px] font-semibold text-foreground mt-1">
-              ₹{order.orderValue.toLocaleString('en-IN')}
-            </p>
-          )}
-          <p className="text-[13px] text-muted-foreground mt-1">
-            {otherBusiness?.businessName || 'Unknown'}
-          </p>
+      <div className="flex-1 overflow-y-auto pb-24">
+        {/* Status Header Chip */}
+        <div className="px-4 pt-4 pb-2">
+          <span
+            style={{
+              fontSize: '13px',
+              fontWeight: 600,
+              color: statusColor,
+              backgroundColor: `${statusColor}26`,
+              padding: '8px 14px',
+              borderRadius: 'var(--radius-chip)',
+              display: 'inline-block',
+            }}
+          >
+            {lifecycleState}
+          </span>
         </div>
 
-        {/* Payment Status */}
-        <div className="px-4 py-4 border-b border-border">
-          <h2 className="text-[11px] font-medium text-muted-foreground uppercase tracking-wide mb-2">
-            Payment
-          </h2>
-          <div className="flex items-center justify-between">
-            <p className="text-[13px] text-muted-foreground">
-              {formatPaymentTerms(order.paymentTermSnapshot)}
-            </p>
-            <p className="text-[13px] font-medium" style={{ color: dueDateColor }}>
-              {dueDateLabel}
+        {/* Order Summary Card */}
+        <div className="px-4 mb-3">
+          <div style={{ backgroundColor: 'var(--bg-card)', borderRadius: 'var(--radius-card)', padding: '14px 16px' }}>
+            <p style={{ fontSize: '15px', fontWeight: 600, color: 'var(--text-primary)' }}>{order.itemSummary}</p>
+            {order.orderValue > 0 && (
+              <p style={{ fontSize: '20px', fontWeight: 800, color: 'var(--text-primary)', marginTop: '4px', letterSpacing: '-0.02em' }}>
+                {order.orderValue.toLocaleString('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 })}
+              </p>
+            )}
+            <p style={{ fontSize: '12px', fontWeight: 500, color: 'var(--text-secondary)', marginTop: '4px' }}>
+              {otherBusiness?.businessName || 'Unknown'}
             </p>
           </div>
+        </div>
+
+        {/* Payment Summary - Metric Cards */}
+        <div className="px-4 mb-3">
+          <p style={{ fontSize: '13px', fontWeight: 700, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '10px' }}>
+            PAYMENT
+          </p>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+            <div style={{ backgroundColor: 'var(--bg-card)', borderRadius: 'var(--radius-card)', padding: '14px', border: '1px solid var(--border-light)' }}>
+              <p style={{ fontSize: '12px', fontWeight: 600, color: 'var(--text-secondary)' }}>Terms</p>
+              <p style={{ fontSize: '13px', fontWeight: 600, color: 'var(--text-primary)', marginTop: '4px' }}>
+                {formatPaymentTerms(order.paymentTermSnapshot)}
+              </p>
+            </div>
+            <div style={{ backgroundColor: 'var(--bg-card)', borderRadius: 'var(--radius-card)', padding: '14px', border: '1px solid var(--border-light)' }}>
+              <p style={{ fontSize: '12px', fontWeight: 600, color: 'var(--text-secondary)' }}>Status</p>
+              <p style={{ fontSize: '13px', fontWeight: 600, color: dueDateColor, marginTop: '4px' }}>
+                {dueDateLabel}
+              </p>
+            </div>
+          </div>
           {order.totalPaid > 0 && order.settlementState !== 'Paid' && (
-            <p className="text-[12px] text-muted-foreground mt-1">
-              ₹{order.totalPaid.toLocaleString('en-IN')} paid · ₹{order.pendingAmount.toLocaleString('en-IN')} pending
+            <p style={{ fontSize: '12px', fontWeight: 500, color: 'var(--text-secondary)', marginTop: '8px' }}>
+              {order.totalPaid.toLocaleString('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 })} paid · {order.pendingAmount.toLocaleString('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 })} pending
             </p>
           )}
         </div>
 
         {/* Timeline */}
-        <div className="px-4 py-4 border-b border-border">
-          <h2 className="text-[11px] font-medium text-muted-foreground uppercase tracking-wide mb-3">
-            Timeline
-          </h2>
-          <div className="space-y-0">
+        <div className="px-4 mb-3">
+          <p style={{ fontSize: '13px', fontWeight: 700, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '10px' }}>
+            TIMELINE
+          </p>
+          <div style={{ backgroundColor: 'var(--bg-card)', borderRadius: 'var(--radius-card)', padding: '14px 16px' }}>
             {timeline.map((event, index) => {
               const isLast = index === timeline.length - 1
-              const stateColor = event.completed ? getLifecycleStatusColor(event.label) : '#CCCCCC'
+              const eventColor = event.completed ? getLifecycleStatusColor(event.label) : 'var(--text-tertiary)'
 
               return (
                 <div key={`${event.label}-${index}`} className="flex gap-3">
-                  {/* Timeline connector */}
                   <div className="flex flex-col items-center">
                     <div
-                      className="w-2.5 h-2.5 rounded-full flex-shrink-0 mt-1"
-                      style={{ backgroundColor: stateColor }}
+                      className="flex-shrink-0 mt-1"
+                      style={{ width: '10px', height: '10px', borderRadius: '50%', backgroundColor: eventColor }}
                     />
                     {!isLast && (
-                      <div className="w-px flex-1 min-h-[24px] bg-border" />
+                      <div style={{ width: '2px', flex: 1, minHeight: '24px', backgroundColor: eventColor, opacity: 0.3 }} />
                     )}
                   </div>
-                  {/* Event content */}
-                  <div className="pb-4">
-                    <p className="text-[14px] text-foreground">{event.label}</p>
+                  <div style={{ paddingBottom: '16px' }}>
+                    <p style={{ fontSize: '14px', fontWeight: 600, color: 'var(--text-primary)' }}>{event.label}</p>
                     {event.actor && (
-                      <p className="text-[12px] text-muted-foreground">{event.actor}</p>
+                      <p style={{ fontSize: '12px', fontWeight: 500, color: 'var(--text-secondary)' }}>{event.actor}</p>
                     )}
                     {event.timestamp && (
-                      <p className="text-[12px] text-muted-foreground">
+                      <p style={{ fontSize: '11px', fontWeight: 500, color: 'var(--text-tertiary)' }}>
                         {formatDistanceToNow(event.timestamp, { addSuffix: true })}
                       </p>
                     )}
@@ -305,87 +339,105 @@ export function OrderDetailScreen({ orderId, connectionId, currentBusinessId, on
         </div>
 
         {/* Attachments */}
-        <div className="px-4 py-4 border-b border-border">
-          <h2 className="text-[11px] font-medium text-muted-foreground uppercase tracking-wide mb-2">
-            Attachments
-          </h2>
-          {attachments.length > 0 && myBusiness && otherBusiness ? (
-            <OrderAttachments
-              attachments={attachments}
-              currentBusinessId={currentBusinessId}
-              buyerBusiness={isSupplier ? otherBusiness : myBusiness}
-              supplierBusiness={isSupplier ? myBusiness : otherBusiness}
-              onAddAttachment={() => setShowAttachmentSheet(true)}
-              onViewAttachment={(index) => setViewingAttachmentIndex(index)}
-              onDeleteAttachment={(attachment) => handleDeleteAttachment(attachment.id)}
-            />
-          ) : (
-            <p className="text-[13px] text-muted-foreground">No attachments</p>
-          )}
-          <button
-            onClick={() => setShowAttachmentSheet(true)}
-            className="text-[13px] text-foreground mt-2"
-          >
-            + Add attachment
-          </button>
+        <div className="px-4 mb-3">
+          <p style={{ fontSize: '13px', fontWeight: 700, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '10px' }}>
+            ATTACHMENTS
+          </p>
+          <div style={{ backgroundColor: 'var(--bg-card)', borderRadius: 'var(--radius-card)', padding: '14px 16px' }}>
+            {attachments.length > 0 && myBusiness && otherBusiness ? (
+              <OrderAttachments
+                attachments={attachments}
+                currentBusinessId={currentBusinessId}
+                buyerBusiness={isSupplier ? otherBusiness : myBusiness}
+                supplierBusiness={isSupplier ? myBusiness : otherBusiness}
+                onAddAttachment={() => setShowAttachmentSheet(true)}
+                onViewAttachment={(index) => setViewingAttachmentIndex(index)}
+                onDeleteAttachment={(attachment) => handleDeleteAttachment(attachment.id)}
+              />
+            ) : (
+              <p style={{ fontSize: '13px', fontWeight: 500, color: 'var(--text-secondary)' }}>No attachments</p>
+            )}
+            <button
+              onClick={() => setShowAttachmentSheet(true)}
+              style={{ fontSize: '13px', fontWeight: 600, color: 'var(--brand-primary)', marginTop: '8px', minHeight: '44px', display: 'flex', alignItems: 'center' }}
+            >
+              + Add attachment
+            </button>
+          </div>
         </div>
 
         {/* Payment Details */}
         {payments.length > 0 && (
-          <div className="px-4 py-4 border-b border-border">
-            <h2 className="text-[11px] font-medium text-muted-foreground uppercase tracking-wide mb-2">
-              Payments
-            </h2>
-            {payments.map(payment => (
-              <div key={payment.id} className="flex items-center justify-between py-1.5">
-                <div>
-                  <p className="text-[13px] text-foreground">
-                    ₹{payment.amountPaid.toLocaleString('en-IN')}
-                  </p>
-                  <p className="text-[11px] text-muted-foreground">
-                    {formatDistanceToNow(payment.timestamp, { addSuffix: true })}
-                  </p>
+          <div className="px-4 mb-3">
+            <p style={{ fontSize: '13px', fontWeight: 700, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '10px' }}>
+              PAYMENTS
+            </p>
+            <div style={{ backgroundColor: 'var(--bg-card)', borderRadius: 'var(--radius-card)', padding: '14px 16px' }}>
+              {payments.map(payment => (
+                <div key={payment.id} className="flex items-center justify-between" style={{ padding: '6px 0', borderBottom: '1px solid var(--border-section)' }}>
+                  <div>
+                    <p style={{ fontSize: '14px', fontWeight: 600, color: 'var(--text-primary)' }}>
+                      {payment.amountPaid.toLocaleString('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 })}
+                    </p>
+                    <p style={{ fontSize: '11px', fontWeight: 500, color: 'var(--text-secondary)' }}>
+                      {formatDistanceToNow(payment.timestamp, { addSuffix: true })}
+                    </p>
+                  </div>
+                  {payment.disputed && (
+                    <span
+                      style={{
+                        fontSize: '11px',
+                        fontWeight: 600,
+                        color: 'var(--status-overdue)',
+                        backgroundColor: '#FFF0F0',
+                        padding: '2px 8px',
+                        borderRadius: 'var(--radius-chip)',
+                      }}
+                    >
+                      Disputed
+                    </span>
+                  )}
                 </div>
-                {payment.disputed && (
-                  <span className="text-[11px] px-2 py-0.5 rounded-full" style={{ color: '#D64545', backgroundColor: '#FEE2E2' }}>
-                    Disputed
-                  </span>
-                )}
-              </div>
-            ))}
+              ))}
+            </div>
           </div>
         )}
 
         {/* Issues */}
         {issues.length > 0 && (
-          <div className="px-4 py-4 border-b border-border">
-            <h2 className="text-[11px] font-medium text-muted-foreground uppercase tracking-wide mb-2">
-              Issues
-            </h2>
-            {issues.map(issue => (
-              <div key={issue.id} className="py-1.5">
-                <div className="flex items-center justify-between">
-                  <p className="text-[13px] text-foreground">{issue.issueType}</p>
-                  <span
-                    className="text-[11px] px-2 py-0.5 rounded-full"
-                    style={{
-                      color: issue.status === 'Resolved' ? '#4CAF50' : '#D64545',
-                      backgroundColor: issue.status === 'Resolved' ? '#E8F5E9' : '#FEE2E2',
-                    }}
-                  >
-                    {issue.status}
-                  </span>
+          <div className="px-4 mb-3">
+            <p style={{ fontSize: '13px', fontWeight: 700, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '10px' }}>
+              ISSUES
+            </p>
+            <div style={{ backgroundColor: 'var(--bg-card)', borderRadius: 'var(--radius-card)', padding: '14px 16px' }}>
+              {issues.map(issue => (
+                <div key={issue.id} style={{ padding: '6px 0', borderBottom: '1px solid var(--border-section)' }}>
+                  <div className="flex items-center justify-between">
+                    <p style={{ fontSize: '14px', fontWeight: 600, color: 'var(--text-primary)' }}>{issue.issueType}</p>
+                    <span
+                      style={{
+                        fontSize: '11px',
+                        fontWeight: 600,
+                        color: issue.status === 'Resolved' ? 'var(--status-delivered)' : 'var(--status-overdue)',
+                        backgroundColor: issue.status === 'Resolved' ? '#F0FFF6' : '#FFF0F0',
+                        padding: '2px 8px',
+                        borderRadius: 'var(--radius-chip)',
+                      }}
+                    >
+                      {issue.status}
+                    </span>
+                  </div>
+                  <p style={{ fontSize: '11px', fontWeight: 500, color: 'var(--text-secondary)' }}>
+                    {issue.severity} · {formatDistanceToNow(issue.createdAt, { addSuffix: true })}
+                  </p>
                 </div>
-                <p className="text-[11px] text-muted-foreground">
-                  {issue.severity} · {formatDistanceToNow(issue.createdAt, { addSuffix: true })}
-                </p>
-              </div>
-            ))}
+              ))}
+            </div>
           </div>
         )}
 
         {/* Actions */}
-        <div className="px-4 py-4 space-y-3">
+        <div className="px-4 pb-4" style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
           {order.settlementState !== 'Paid' && order.deliveredAt && (
             <>
               {showPaymentInput ? (
@@ -396,11 +448,13 @@ export function OrderDetailScreen({ orderId, connectionId, currentBusinessId, on
                     value={paymentAmount}
                     onChange={(e) => setPaymentAmount(e.target.value)}
                     className="flex-1"
+                    style={{ borderRadius: 'var(--radius-input)' }}
                   />
                   <Button
                     onClick={handleRecordPayment}
                     disabled={isRecordingPayment || !paymentAmount}
                     size="sm"
+                    style={{ backgroundColor: 'var(--brand-primary)', color: '#FFFFFF', borderRadius: 'var(--radius-button-sm)', fontWeight: 600 }}
                   >
                     {isRecordingPayment ? 'Saving...' : 'Save'}
                   </Button>
@@ -408,28 +462,46 @@ export function OrderDetailScreen({ orderId, connectionId, currentBusinessId, on
                     onClick={() => { setShowPaymentInput(false); setPaymentAmount('') }}
                     variant="outline"
                     size="sm"
+                    style={{ borderRadius: 'var(--radius-button-sm)', borderColor: 'var(--border-light)', color: 'var(--text-primary)', fontWeight: 600 }}
                   >
                     Cancel
                   </Button>
                 </div>
               ) : (
-                <Button
+                <button
                   onClick={() => setShowPaymentInput(true)}
-                  variant="outline"
                   className="w-full"
+                  style={{
+                    backgroundColor: 'var(--brand-primary)',
+                    color: '#FFFFFF',
+                    borderRadius: 'var(--radius-button)',
+                    padding: '12px',
+                    fontSize: '14px',
+                    fontWeight: 600,
+                    minHeight: '44px',
+                  }}
                 >
                   Record Payment
-                </Button>
+                </button>
               )}
             </>
           )}
-          <Button
+          <button
             onClick={() => onReportIssue(orderId, connectionId)}
-            variant="outline"
             className="w-full"
+            style={{
+              border: '1px solid var(--border-light)',
+              backgroundColor: 'var(--bg-card)',
+              color: 'var(--text-primary)',
+              borderRadius: 'var(--radius-button)',
+              padding: '12px',
+              fontSize: '14px',
+              fontWeight: 600,
+              minHeight: '44px',
+            }}
           >
             Raise Issue
-          </Button>
+          </button>
         </div>
       </div>
 

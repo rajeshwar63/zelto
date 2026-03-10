@@ -84,7 +84,7 @@ export function ConnectionsScreen({ currentBusinessId, onSelectConnection, onAdd
 
   async function loadConnections() {
     console.debug('[ConnectionsScreen] fetch start', Date.now(), { currentBusinessId })
-    const cachedConnections = cachedConnectionsByBusiness.get(currentBusinessId)
+    const cachedConns = cachedConnectionsByBusiness.get(currentBusinessId)
     const rawConnections = await dataStore.getConnectionsByBusinessId(currentBusinessId)
     const entities = await dataStore.getAllBusinessEntities()
     const entityMap = new Map(entities.map((e) => [e.id, e]))
@@ -115,20 +115,16 @@ export function ConnectionsScreen({ currentBusinessId, onSelectConnection, onAdd
 
     console.debug('[ConnectionsScreen] fetch end', Date.now(), { currentBusinessId })
 
-    // Sort by: outstanding amount desc, overdue risk (Friction Rising/Under Stress first), recent activity
     connectionsWithState.sort((a, b) => {
-      // Outstanding amount first
       if (a.outstandingBalance !== b.outstandingBalance) return b.outstandingBalance - a.outstandingBalance
-      // Overdue risk (Under Stress > Friction Rising > others)
       const riskOrder: Record<ConnectionState, number> = { 'Under Stress': 3, 'Friction Rising': 2, 'Active': 1, 'Stable': 0 }
       const riskA = riskOrder[a.computedState] ?? 0
       const riskB = riskOrder[b.computedState] ?? 0
       if (riskA !== riskB) return riskB - riskA
-      // Recent activity
       return b.createdAt - a.createdAt
     })
 
-    if (!cachedConnections || !isSameConnections(cachedConnections, connectionsWithState)) {
+    if (!cachedConns || !isSameConnections(cachedConns, connectionsWithState)) {
       if (!cachedConnectionsByBusiness.has(currentBusinessId) && cachedConnectionsByBusiness.size >= MAX_CACHED_BUSINESSES) {
         const oldestBusinessId = cachedConnectionsByBusiness.keys().next().value
         if (oldestBusinessId) cachedConnectionsByBusiness.delete(oldestBusinessId)
@@ -148,9 +144,9 @@ export function ConnectionsScreen({ currentBusinessId, onSelectConnection, onAdd
   }
 
   useEffect(() => {
-    const cachedConnections = cachedConnectionsByBusiness.get(currentBusinessId)
-    if (cachedConnections) {
-      setConnections(cachedConnections)
+    const cachedConns = cachedConnectionsByBusiness.get(currentBusinessId)
+    if (cachedConns) {
+      setConnections(cachedConns)
     } else {
       setIsLoading(true)
     }
@@ -180,7 +176,6 @@ export function ConnectionsScreen({ currentBusinessId, onSelectConnection, onAdd
   const handleSendOrder = async () => {
     if (!selectedConnection || !message.trim()) return
 
-    // Save connectionId before any state mutations
     const connectionId = selectedConnection.id
 
     setIsSending(true)
@@ -192,7 +187,6 @@ export function ConnectionsScreen({ currentBusinessId, onSelectConnection, onAdd
       setSelectedConnection(null)
       setMessage('')
       setSearch('')
-      // Navigate to the connection so the user sees the new order immediately
       onSelectConnection(connectionId)
     } catch (error) {
       console.error('Failed to create order:', error)
@@ -213,11 +207,11 @@ export function ConnectionsScreen({ currentBusinessId, onSelectConnection, onAdd
 
   if (connections.length === 0) {
     return (
-      <>
-        <div className="sticky top-0 bg-white" style={{ paddingTop: 'env(safe-area-inset-top)' }}>
+      <div style={{ backgroundColor: 'var(--bg-screen)', minHeight: '100%' }}>
+        <div className="sticky top-0 z-10" style={{ backgroundColor: 'var(--bg-header)', paddingTop: 'env(safe-area-inset-top)' }}>
           <div className="h-11 flex items-center justify-between px-4">
-            <h1 className="text-[17px] text-foreground font-normal">Connections</h1>
-            <button onClick={onAddConnection} className="text-foreground flex items-center">
+            <h1 style={{ fontSize: '22px', fontWeight: 700, color: 'var(--text-primary)', letterSpacing: '-0.02em' }}>Connections</h1>
+            <button onClick={onAddConnection} className="flex items-center" style={{ color: 'var(--brand-primary)', minWidth: '44px', minHeight: '44px', justifyContent: 'center' }}>
               <Plus size={20} weight="regular" />
               <Users size={20} weight="regular" />
             </button>
@@ -225,133 +219,186 @@ export function ConnectionsScreen({ currentBusinessId, onSelectConnection, onAdd
         </div>
         <div className="flex items-center justify-center min-h-[calc(100vh-44px)] px-4">
           {isLoading
-            ? <p className="text-sm text-muted-foreground text-center">Loading...</p>
+            ? (
+              <div className="px-4 pt-4 space-y-2 w-full">
+                {[1, 2, 3].map(i => (
+                  <div key={i} className="animate-pulse" style={{ backgroundColor: 'var(--border-light)', borderRadius: 'var(--radius-card)', height: '80px' }} />
+                ))}
+              </div>
+            )
             : (
               <div className="flex flex-col items-center justify-center flex-1 px-6 text-center">
-                <p className="text-base font-medium text-foreground mb-1">No connections yet</p>
-                <p className="text-sm text-muted-foreground mb-4">
+                <p style={{ fontSize: '15px', fontWeight: 600, color: 'var(--text-primary)', marginBottom: '4px' }}>No connections yet</p>
+                <p style={{ fontSize: '14px', fontWeight: 500, color: 'var(--text-secondary)', marginBottom: '16px' }}>
                   Add your first buyer or supplier to get started
                 </p>
-                <Button onClick={onAddConnection} variant="outline" size="sm">
+                <button
+                  onClick={onAddConnection}
+                  style={{
+                    backgroundColor: 'var(--brand-primary)',
+                    color: '#FFFFFF',
+                    borderRadius: 'var(--radius-button)',
+                    padding: '10px 20px',
+                    fontSize: '14px',
+                    fontWeight: 600,
+                    minHeight: '44px',
+                  }}
+                >
                   Add Connection
-                </Button>
+                </button>
               </div>
             )
           }
         </div>
         <button
           onClick={handleOpenOrderModal}
-          className="fixed bottom-20 right-4 w-14 h-14 rounded-full flex items-center justify-center shadow-lg z-20"
-          style={{ backgroundColor: '#1A1A2E' }}
+          className="fixed bottom-20 right-4 w-14 h-14 flex items-center justify-center z-20"
+          style={{
+            backgroundColor: 'var(--brand-primary)',
+            borderRadius: 'var(--radius-card)',
+            boxShadow: '0 4px 16px rgba(74,108,247,0.4)',
+          }}
         >
           <PencilSimple size={24} weight="regular" color="#FFFFFF" />
         </button>
-      </>
+      </div>
     )
   }
 
   return (
-    <div className="bg-background relative">
-      <div className="sticky top-0 bg-white z-10" style={{ paddingTop: 'env(safe-area-inset-top)' }}>
+    <div style={{ backgroundColor: 'var(--bg-screen)', minHeight: '100%' }}>
+      <div className="sticky top-0 z-10" style={{ backgroundColor: 'var(--bg-header)', paddingTop: 'env(safe-area-inset-top)' }}>
         <div className="h-11 flex items-center justify-between px-4">
-          <h1 className="text-[17px] text-foreground font-normal">Connections</h1>
-          <button onClick={onAddConnection} className="text-foreground flex items-center">
+          <h1 style={{ fontSize: '22px', fontWeight: 700, color: 'var(--text-primary)', letterSpacing: '-0.02em' }}>Connections</h1>
+          <button onClick={onAddConnection} className="flex items-center" style={{ color: 'var(--brand-primary)', minWidth: '44px', minHeight: '44px', justifyContent: 'center' }}>
             <Plus size={20} weight="regular" />
             <Users size={20} weight="regular" />
           </button>
         </div>
       </div>
-      {connections.map((conn) => {
-        const formattedTerms = formatPaymentTerms(conn.paymentTerms)
-        const isSupplier = conn.supplierBusinessId === currentBusinessId
 
-        const relationshipLabel = (() => {
-          if (!formattedTerms) return isSupplier ? 'Payment terms needed' : 'Awaiting payment terms'
-          switch (conn.computedState) {
-            case 'Active': return 'Healthy'
-            case 'Stable': return 'Stable'
-            case 'Friction Rising': return 'Friction Rising'
-            case 'Under Stress': return 'High Risk'
-            default: return conn.computedState
-          }
-        })()
+      <div className="px-4 pt-3 pb-24">
+        <p style={{ fontSize: '13px', fontWeight: 700, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '10px' }}>
+          ALL CONNECTIONS
+        </p>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--sp-sm)' }}>
+          {connections.map((conn) => {
+            const formattedTerms = formatPaymentTerms(conn.paymentTerms)
+            const isSupplier = conn.supplierBusinessId === currentBusinessId
+            const isUnread = unreadConnectionIds?.has(conn.id)
 
-        const statusColor = !formattedTerms
-          ? (isSupplier ? '#E8A020' : '#888888')
-          : getConnectionStateColor(conn.computedState)
+            const relationshipLabel = (() => {
+              if (!formattedTerms) return isSupplier ? 'Payment terms needed' : 'Awaiting payment terms'
+              switch (conn.computedState) {
+                case 'Active': return 'Healthy'
+                case 'Stable': return 'Stable'
+                case 'Friction Rising': return 'Friction Rising'
+                case 'Under Stress': return 'High Risk'
+                default: return conn.computedState
+              }
+            })()
 
-        return (
-          <button
-            key={conn.id}
-            onClick={() => onSelectConnection(conn.id)}
-            className={`w-full text-left px-4 py-3 hover:bg-muted/30 transition-colors ${
-              unreadConnectionIds?.has(conn.id)
-                ? 'border-l-[3px] border-l-blue-400 bg-blue-50/60'
-                : 'border-l-[3px] border-l-transparent'
-            }`}
-          >
-            <div className="flex items-baseline justify-between">
-              <p className="text-[15px] text-foreground font-normal">{conn.otherBusinessName}</p>
-              {conn.outstandingBalance > 0 && (
-                <p className="text-[14px] font-semibold text-foreground">
-                  ₹{conn.outstandingBalance.toLocaleString('en-IN')}
-                </p>
-              )}
-            </div>
-            <div className="flex items-center gap-2 mt-0.5">
-              <p className="text-[13px] text-muted-foreground">
-                {conn.totalOrders} Order{conn.totalOrders !== 1 ? 's' : ''}
-              </p>
-              {formattedTerms && (
-                <>
-                  <span className="text-[13px] text-muted-foreground">·</span>
-                  <p className="text-[13px] text-muted-foreground">
-                    {formattedTerms}
+            const statusColor = !formattedTerms
+              ? (isSupplier ? 'var(--status-dispatched)' : 'var(--text-secondary)')
+              : getConnectionStateColor(conn.computedState)
+
+            return (
+              <button
+                key={conn.id}
+                onClick={() => onSelectConnection(conn.id)}
+                className="w-full text-left"
+                style={{
+                  backgroundColor: 'var(--bg-card)',
+                  borderRadius: 'var(--radius-card)',
+                  padding: '14px 16px',
+                  borderLeft: isUnread ? '3px solid var(--status-new)' : '3px solid transparent',
+                  minHeight: '44px',
+                }}
+              >
+                <div className="flex items-baseline justify-between">
+                  <div className="flex items-center gap-2 flex-1 mr-3">
+                    {isUnread && (
+                      <span style={{ width: '6px', height: '6px', borderRadius: '50%', backgroundColor: 'var(--status-new)', flexShrink: 0 }} />
+                    )}
+                    <p style={{ fontSize: '15px', fontWeight: 700, color: 'var(--text-primary)' }}>{conn.otherBusinessName}</p>
+                  </div>
+                  {conn.outstandingBalance > 0 && (
+                    <p style={{ fontSize: '15px', fontWeight: 700, color: 'var(--text-primary)' }}>
+                      {conn.outstandingBalance.toLocaleString('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 })}
+                    </p>
+                  )}
+                </div>
+                <div className="flex items-center gap-2 mt-1">
+                  <p style={{ fontSize: '12px', fontWeight: 500, color: 'var(--text-secondary)' }}>
+                    {conn.totalOrders} Order{conn.totalOrders !== 1 ? 's' : ''}
                   </p>
-                </>
-              )}
-            </div>
-            <div className="mt-0.5">
-              <p className="text-[12px]" style={{ color: statusColor }}>
-                {conn.computedState === 'Friction Rising' || conn.computedState === 'Under Stress' ? '⚠ ' : ''}{relationshipLabel}
-              </p>
-            </div>
-          </button>
-        )
-      })}
+                  {formattedTerms && (
+                    <>
+                      <span style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>·</span>
+                      <p style={{ fontSize: '12px', fontWeight: 500, color: 'var(--text-secondary)' }}>
+                        {formattedTerms}
+                      </p>
+                    </>
+                  )}
+                </div>
+                <div className="mt-1">
+                  <span
+                    style={{
+                      fontSize: '11px',
+                      fontWeight: 600,
+                      color: statusColor,
+                      backgroundColor: `${statusColor}26`,
+                      padding: '2px 8px',
+                      borderRadius: 'var(--radius-chip)',
+                    }}
+                  >
+                    {conn.computedState === 'Friction Rising' || conn.computedState === 'Under Stress' ? '⚠ ' : ''}{relationshipLabel}
+                  </span>
+                </div>
+              </button>
+            )
+          })}
+        </div>
+      </div>
+
       <button
         onClick={handleOpenOrderModal}
-        className="fixed bottom-20 right-4 w-14 h-14 rounded-full flex items-center justify-center shadow-lg z-20"
-        style={{ backgroundColor: '#1A1A2E' }}
+        className="fixed bottom-20 right-4 w-14 h-14 flex items-center justify-center z-20"
+        style={{
+          backgroundColor: 'var(--brand-primary)',
+          borderRadius: 'var(--radius-card)',
+          boxShadow: '0 4px 16px rgba(74,108,247,0.4)',
+        }}
       >
         <PencilSimple size={24} weight="regular" color="#FFFFFF" />
       </button>
 
       {showOrderModal && (
         <div className="fixed inset-0 bg-black/50 z-50 flex items-end">
-          <div className="bg-white w-full rounded-t-2xl max-h-[90vh] flex flex-col">
-            <div className="sticky top-0 bg-white border-b border-border px-4 py-4 flex items-center justify-between rounded-t-2xl">
-              <h2 className="text-lg font-medium">New Order</h2>
+          <div className="w-full max-h-[90vh] flex flex-col" style={{ backgroundColor: 'var(--bg-card)', borderTopLeftRadius: 'var(--radius-modal)', borderTopRightRadius: 'var(--radius-modal)' }}>
+            <div className="sticky top-0 px-4 py-4 flex items-center justify-between" style={{ backgroundColor: 'var(--bg-card)', borderBottom: '1px solid var(--border-light)', borderTopLeftRadius: 'var(--radius-modal)', borderTopRightRadius: 'var(--radius-modal)' }}>
+              <h2 style={{ fontSize: '17px', fontWeight: 700, color: 'var(--text-primary)' }}>New Order</h2>
               <button onClick={() => {
                 setShowOrderModal(false)
                 setSelectedConnection(null)
                 setMessage('')
                 setSearch('')
-              }}>
-                <X size={24} weight="regular" />
+              }} style={{ minWidth: '44px', minHeight: '44px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <X size={24} weight="regular" color="var(--text-primary)" />
               </button>
             </div>
 
             {!selectedConnection ? (
               <>
-                <div className="px-4 py-3 border-b border-border">
+                <div className="px-4 py-3" style={{ borderBottom: '1px solid var(--border-light)' }}>
                   <div className="relative">
-                    <MagnifyingGlass size={20} weight="regular" className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+                    <MagnifyingGlass size={20} weight="regular" className="absolute left-3 top-1/2 -translate-y-1/2" style={{ color: 'var(--text-secondary)' }} />
                     <Input
                       placeholder="Search suppliers..."
                       value={search}
                       onChange={(e) => setSearch(e.target.value)}
                       className="pl-10"
+                      style={{ borderRadius: 'var(--radius-input)' }}
                     />
                   </div>
                 </div>
@@ -359,24 +406,25 @@ export function ConnectionsScreen({ currentBusinessId, onSelectConnection, onAdd
                 <div className="flex-1 overflow-y-auto">
                   {filteredConnections.length === 0 ? (
                     <div className="px-4 py-8 text-center">
-                      <p className="text-sm text-muted-foreground">
+                      <p style={{ fontSize: '14px', fontWeight: 500, color: 'var(--text-secondary)' }}>
                         {eligibleConnections.length === 0
                           ? 'No suppliers with payment terms set'
                           : 'No suppliers found'}
                       </p>
                     </div>
                   ) : (
-                    <div className="divide-y divide-border">
+                    <div>
                       {filteredConnections.map((conn) => {
                         const supplier = businesses.get(conn.supplierBusinessId)
                         return (
                           <button
                             key={conn.id}
                             onClick={() => setSelectedConnection(conn)}
-                            className="w-full text-left px-4 py-3 hover:bg-muted/30 transition-colors"
+                            className="w-full text-left px-4 py-3"
+                            style={{ borderBottom: '1px solid var(--border-section)', minHeight: '44px' }}
                           >
-                            <p className="text-[15px] font-medium">{supplier?.businessName || 'Unknown'}</p>
-                            <p className="text-[13px] text-muted-foreground mt-0.5">
+                            <p style={{ fontSize: '15px', fontWeight: 600, color: 'var(--text-primary)' }}>{supplier?.businessName || 'Unknown'}</p>
+                            <p style={{ fontSize: '12px', fontWeight: 500, color: 'var(--text-secondary)', marginTop: '2px' }}>
                               {formatPaymentTerms(conn.paymentTerms)}
                             </p>
                           </button>
@@ -388,12 +436,12 @@ export function ConnectionsScreen({ currentBusinessId, onSelectConnection, onAdd
               </>
             ) : (
               <>
-                <div className="px-4 py-3 border-b border-border">
-                  <button onClick={() => setSelectedConnection(null)} className="flex items-center gap-2 text-sm text-muted-foreground">
+                <div className="px-4 py-3" style={{ borderBottom: '1px solid var(--border-light)' }}>
+                  <button onClick={() => setSelectedConnection(null)} className="flex items-center gap-2" style={{ fontSize: '14px', fontWeight: 500, color: 'var(--text-secondary)', minHeight: '44px' }}>
                     <span>←</span>
                     <span>Back to suppliers</span>
                   </button>
-                  <p className="text-lg font-medium mt-2">
+                  <p style={{ fontSize: '17px', fontWeight: 700, color: 'var(--text-primary)', marginTop: '8px' }}>
                     {businesses.get(selectedConnection.supplierBusinessId)?.businessName || 'Unknown'}
                   </p>
                 </div>
@@ -404,17 +452,19 @@ export function ConnectionsScreen({ currentBusinessId, onSelectConnection, onAdd
                     value={message}
                     onChange={(e) => setMessage(e.target.value)}
                     className="w-full"
+                    style={{ borderRadius: 'var(--radius-input)' }}
                   />
                 </div>
 
-                <div className="px-4 py-4 border-t border-border">
+                <div className="px-4 py-4" style={{ borderTop: '1px solid var(--border-light)' }}>
                   {sendError && (
-                    <p className="text-sm text-destructive mb-3">{sendError}</p>
+                    <p style={{ fontSize: '13px', fontWeight: 500, color: 'var(--status-overdue)', marginBottom: '12px' }}>{sendError}</p>
                   )}
                   <Button
                     onClick={handleSendOrder}
                     disabled={!message.trim() || isSending}
                     className="w-full"
+                    style={{ backgroundColor: 'var(--brand-primary)', borderRadius: 'var(--radius-button)', minHeight: '44px', color: '#FFFFFF', fontWeight: 600 }}
                   >
                     <PaperPlaneTilt size={20} weight="regular" className="mr-2" />
                     {isSending ? 'Sending...' : 'Send Order'}

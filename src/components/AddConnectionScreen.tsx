@@ -155,7 +155,7 @@ export function AddConnectionScreen({ currentBusinessId, onBack, onSuccess }: Pr
           {searching ? 'Searching...' : 'Find Business'}
         </Button>
 
-        {error && <p className="text-sm text-[#D64545] mb-4">{error}</p>}
+        {error && <p className="text-sm text-[var(--status-overdue)] mb-4">{error}</p>}
 
         {foundBusiness && (
           <div className="rounded-lg border border-border p-4 space-y-3 mt-4">
