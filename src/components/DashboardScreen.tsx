@@ -3,8 +3,9 @@ import { CaretRight } from '@phosphor-icons/react'
 import { dataStore } from '@/lib/data-store'
 import { useDataListener } from '@/lib/data-events'
 import { attentionEngine } from '@/lib/attention-engine'
-import type { Connection } from '@/lib/types'
+import type { Connection, OrderWithPaymentState } from '@/lib/types'
 import { isToday } from 'date-fns'
+import { getLifecycleStatusColor } from '@/lib/semantic-colors'
 
 interface Props {
   currentBusinessId: string
@@ -18,9 +19,13 @@ interface DashboardData {
   toPay: number
   toReceive: number
   ordersToday: number
-  ordersTodayValue: number
-  dispatchPending: number
-  deliveryPending: number
+  overdue: number
+}
+
+interface RecentOrder extends OrderWithPaymentState {
+  connectionName: string
+  lifecycleState: string
+  latestActivity: number
 }
 
 interface AttentionCounts {
@@ -32,8 +37,9 @@ interface AttentionCounts {
   disputes: number
 }
 
-export function DashboardScreen({ currentBusinessId, onNavigateToOrders, onNavigateToAttention }: Props) {
+export function DashboardScreen({ currentBusinessId, onNavigateToOrders, onNavigateToConnection, onNavigateToAttention }: Props) {
   const [data, setData] = useState<DashboardData | null>(null)
+  const [recentOrders, setRecentOrders] = useState<RecentOrder[]>([])
   const [attentionCounts, setAttentionCounts] = useState<AttentionCounts>({
     overdue: 0,
     dueToday: 0,
@@ -44,32 +50,34 @@ export function DashboardScreen({ currentBusinessId, onNavigateToOrders, onNavig
   })
 
   const loadData = async () => {
-    const [orders, connections] = await Promise.all([
+    const [orders, connections, entities] = await Promise.all([
       dataStore.getOrdersWithPaymentStateByBusinessId(currentBusinessId),
       dataStore.getConnectionsByBusinessId(currentBusinessId),
+      dataStore.getAllBusinessEntities(),
     ])
 
     const connMap = new Map<string, Connection>(connections.map(conn => [conn.id, conn]))
+    const entityMap = new Map(entities.map(entity => [entity.id, entity]))
 
     let toPay = 0
     let toReceive = 0
     let ordersToday = 0
-    let ordersTodayValue = 0
-    let dispatchPending = 0
-    let deliveryPending = 0
+    let overdue = 0
 
     for (const order of orders) {
       if (order.declinedAt) continue
 
       if (isToday(order.createdAt)) {
         ordersToday += 1
-        ordersTodayValue += order.orderValue
       }
 
-      if (!order.dispatchedAt && !order.deliveredAt) {
-        dispatchPending += 1
-      } else if (order.dispatchedAt && !order.deliveredAt) {
-        deliveryPending += 1
+      if (
+        order.calculatedDueDate != null &&
+        order.calculatedDueDate < Date.now() &&
+        order.pendingAmount > 0 &&
+        order.settlementState !== 'Paid'
+      ) {
+        overdue += order.pendingAmount
       }
 
       const connection = connMap.get(order.connectionId)
@@ -108,14 +116,43 @@ export function DashboardScreen({ currentBusinessId, onNavigateToOrders, onNavig
       disputes: disputeCount,
     })
 
-    setData({
-      toPay,
-      toReceive,
-      ordersToday,
-      ordersTodayValue,
-      dispatchPending,
-      deliveryPending,
-    })
+    const getLifecycleState = (order: OrderWithPaymentState): string => {
+      if (order.declinedAt) return 'Declined'
+      if (order.deliveredAt) return 'Delivered'
+      if (order.dispatchedAt) return 'Dispatched'
+      if (order.acceptedAt) return 'Accepted'
+      return 'Placed'
+    }
+
+    const getLatestActivity = (order: OrderWithPaymentState): number => (
+      Math.max(order.deliveredAt || 0, order.dispatchedAt || 0, order.acceptedAt || 0, order.createdAt || 0)
+    )
+
+    const enrichedOrders: RecentOrder[] = orders
+      .filter(order => !order.declinedAt)
+      .map(order => {
+        const conn = connMap.get(order.connectionId)
+        let connectionName = 'Unknown'
+        if (conn) {
+          const otherId = conn.buyerBusinessId === currentBusinessId
+            ? conn.supplierBusinessId
+            : conn.buyerBusinessId
+          connectionName = entityMap.get(otherId)?.businessName || 'Unknown'
+        }
+
+        return {
+          ...order,
+          connectionName,
+          lifecycleState: getLifecycleState(order),
+          latestActivity: getLatestActivity(order),
+        }
+      })
+      .sort((a, b) => b.latestActivity - a.latestActivity)
+      .slice(0, 6)
+
+    setRecentOrders(enrichedOrders)
+
+    setData({ toPay, toReceive, ordersToday, overdue })
   }
 
   useEffect(() => {
@@ -141,55 +178,39 @@ export function DashboardScreen({ currentBusinessId, onNavigateToOrders, onNavig
         </div>
       </div>
 
-      <div className="flex-1 overflow-y-auto px-4 py-3 space-y-6">
+      <div className="flex-1 overflow-y-auto px-4 py-3 space-y-6 pb-24" style={{ backgroundColor: 'var(--bg-screen)' }}>
         <div>
           <h2 className="text-[10px] uppercase tracking-wide text-muted-foreground/60 mb-3">
             Business Pulse
           </h2>
           <div className="grid grid-cols-2 gap-3">
-            <div className="bg-white border border-border rounded-xl px-4 py-4">
+            <div className="bg-white border rounded-xl px-4 py-4" style={{ borderColor: '#F0F4FF' }}>
               <p className="text-[12px] text-muted-foreground">Orders Today</p>
-              <p className="text-[24px] font-semibold text-foreground leading-tight mt-1">
+              <p className="text-[20px] font-extrabold leading-tight mt-1" style={{ color: '#4A6CF7' }}>
                 {data.ordersToday}
               </p>
-              {data.ordersTodayValue > 0 && (
-                <p className="text-[12px] text-muted-foreground mt-0.5">
-                  ₹{data.ordersTodayValue.toLocaleString('en-IN')}
-                </p>
-              )}
             </div>
 
-            <div className="bg-white border border-border rounded-xl px-4 py-4">
-              <p className="text-[12px] text-muted-foreground">Dispatch Pending</p>
-              <p className="text-[24px] font-semibold leading-tight mt-1" style={{ color: data.dispatchPending > 0 ? '#E8A020' : undefined }}>
-                {data.dispatchPending}
+            <div className="bg-white border rounded-xl px-4 py-4" style={{ borderColor: '#FFF0F0' }}>
+              <p className="text-[12px] text-muted-foreground">Over Due</p>
+              <p className="text-[20px] font-extrabold leading-tight mt-1" style={{ color: '#FF6B6B' }}>
+                ₹{data.overdue.toLocaleString('en-IN')}
               </p>
             </div>
 
-            <div className="bg-white border border-border rounded-xl px-4 py-4">
-              <p className="text-[12px] text-muted-foreground">Delivery Pending</p>
-              <p className="text-[24px] font-semibold leading-tight mt-1" style={{ color: data.deliveryPending > 0 ? '#E8A020' : undefined }}>
-                {data.deliveryPending}
+            <div className="bg-white border rounded-xl px-4 py-4" style={{ borderColor: '#FFF0F0' }}>
+              <p className="text-[12px] text-muted-foreground">To Pay</p>
+              <p className="text-[20px] font-extrabold leading-tight mt-1" style={{ color: '#FF6B6B' }}>
+                ₹{data.toPay.toLocaleString('en-IN')}
               </p>
             </div>
 
-            {data.toReceive > 0 && (
-              <div className="bg-white border border-border rounded-xl px-4 py-4">
-                <p className="text-[12px] text-muted-foreground">To Receive</p>
-                <p className="text-[20px] font-semibold text-foreground leading-tight mt-1">
-                  ₹{data.toReceive.toLocaleString('en-IN')}
-                </p>
-              </div>
-            )}
-
-            {data.toPay > 0 && (
-              <div className="bg-white border border-border rounded-xl px-4 py-4">
-                <p className="text-[12px] text-muted-foreground">To Pay</p>
-                <p className="text-[20px] font-semibold text-foreground leading-tight mt-1">
-                  ₹{data.toPay.toLocaleString('en-IN')}
-                </p>
-              </div>
-            )}
+            <div className="bg-white border rounded-xl px-4 py-4" style={{ borderColor: '#F0FFF6' }}>
+              <p className="text-[12px] text-muted-foreground">To Recieve</p>
+              <p className="text-[20px] font-extrabold leading-tight mt-1" style={{ color: '#22B573' }}>
+                ₹{data.toReceive.toLocaleString('en-IN')}
+              </p>
+            </div>
           </div>
         </div>
 
@@ -306,6 +327,32 @@ export function DashboardScreen({ currentBusinessId, onNavigateToOrders, onNavig
               )}
           </div>
         </div>
+
+        {recentOrders.length > 0 && (
+          <div>
+            <h2 className="text-[10px] uppercase tracking-wide text-muted-foreground/60 mb-3">Recent Activity</h2>
+            <div className="space-y-2">
+              {recentOrders.map(order => {
+                const statusColor = getLifecycleStatusColor(order.lifecycleState)
+
+                return (
+                  <button
+                    key={order.id}
+                    onClick={() => onNavigateToConnection(order.connectionId, order.id)}
+                    className="w-full text-left bg-white border border-border rounded-xl px-4 py-3"
+                    style={{ borderLeft: `3px solid ${statusColor}` }}
+                  >
+                    <div className="flex items-center justify-between gap-3">
+                      <p className="text-[15px] font-semibold text-foreground truncate">{order.connectionName}</p>
+                      <p className="text-[15px] font-semibold text-foreground">₹{order.orderValue.toLocaleString('en-IN')}</p>
+                    </div>
+                    <p className="text-[12px] text-muted-foreground mt-1">{order.lifecycleState} · {order.itemSummary}</p>
+                  </button>
+                )
+              })}
+            </div>
+          </div>
+        )}
       </div>
     </div>
   )

@@ -20,6 +20,7 @@ interface Props {
   currentBusinessId: string
   onBack: () => void
   onReportIssue: (orderId: string, connectionId: string) => void
+  initialIssueId?: string
 }
 
 function getLifecycleState(order: OrderWithPaymentState): string {
@@ -63,7 +64,7 @@ interface TimelineEvent {
   completed: boolean
 }
 
-export function OrderDetailScreen({ orderId, connectionId, currentBusinessId, onBack, onReportIssue }: Props) {
+export function OrderDetailScreen({ orderId, connectionId, currentBusinessId, onBack, onReportIssue, initialIssueId }: Props) {
   const [order, setOrder] = useState<OrderWithPaymentState | null>(null)
   const [connection, setConnection] = useState<Connection | null>(null)
   const [otherBusiness, setOtherBusiness] = useState<BusinessEntity | null>(null)
@@ -114,6 +115,10 @@ export function OrderDetailScreen({ orderId, connectionId, currentBusinessId, on
     setMyBusiness(myBiz || null)
     setPayments(paymentEvents)
     setIssues(issueReports)
+    if (initialIssueId) {
+      const targetIssue = issueReports.find(issue => issue.id === initialIssueId)
+      if (targetIssue) setSelectedIssue(targetIssue)
+    }
     setAttachments(orderAttachments)
     setLoading(false)
   }

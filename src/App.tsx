@@ -38,7 +38,7 @@ type Tab = 'dashboard' | 'orders' | 'attention' | 'connections' | 'profile'
 type Screen =
   | { type: 'tab'; tab: Tab; filter?: string }
   | { type: 'connection-detail'; connectionId: string; selectedOrderId?: string }
-  | { type: 'order-detail'; orderId: string; connectionId: string }
+  | { type: 'order-detail'; orderId: string; connectionId: string; initialIssueId?: string }
   | { type: 'add-connection' }
   | { type: 'payment-terms-setup'; connectionId: string; businessName: string; returnTo?: 'connection-detail' | 'connections' }
   | { type: 'business-details' }
@@ -346,6 +346,10 @@ const initializeApp = async () => {
     setNavigationStack(stack => [...stack, { type: 'report-issue', orderId, connectionId }])
   }
 
+  const navigateToIssueDetail = (connectionId: string, orderId: string, issueId: string) => {
+    setNavigationStack(stack => [...stack, { type: 'order-detail', orderId, connectionId, initialIssueId: issueId }])
+  }
+
   const navigateToTabWithFilter = (tab: Tab, filter?: string) => {
     if (currentBusinessId) {
       if (tab === 'connections') {
@@ -411,6 +415,7 @@ const initializeApp = async () => {
             currentBusinessId={currentBusinessId}
             onBack={navigateBack}
             onReportIssue={navigateToReportIssue}
+            initialIssueId={screen.initialIssueId}
           />
         ) : screen.type === 'connection-detail' ? (
           <ConnectionDetailScreen
@@ -433,7 +438,7 @@ const initializeApp = async () => {
           <AttentionScreen
             currentBusinessId={currentBusinessId}
             onNavigateToConnections={() => navigateToTab('connections')}
-            onNavigateToConnection={navigateToConnection}
+            onNavigateToIssue={navigateToIssueDetail}
           />
         ) : screen.type === 'tab' && screen.tab === 'connections' ? (
           <ConnectionsScreen
