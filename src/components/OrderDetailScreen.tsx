@@ -165,6 +165,7 @@ export function OrderDetailScreen({ orderId, connectionId, currentBusinessId, on
     try {
       await acknowledgeIssue(issueId, currentBusinessId)
       toast.success('Issue acknowledged')
+      await loadData()
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Failed to acknowledge issue')
     }
@@ -174,6 +175,7 @@ export function OrderDetailScreen({ orderId, connectionId, currentBusinessId, on
     try {
       await resolveIssue(issueId, currentBusinessId)
       toast.success('Issue resolved')
+      await loadData()
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Failed to resolve issue')
     }
