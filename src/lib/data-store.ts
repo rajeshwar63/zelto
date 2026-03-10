@@ -14,6 +14,7 @@ import {
   OrderAttachment,
   OrderWithPaymentState,
   PaymentEvent,
+  RaisedBy,
   RoleChangeRequest,
   UserAccount,
 } from './types'
@@ -649,6 +650,17 @@ export class ZeltoDataStore {
     return toCamelCase(data)
   }
 
+  async getDisputedPaymentsByOrderId(orderId: string): Promise<PaymentEvent[]> {
+    const { data, error } = await supabase
+      .from('payment_events')
+      .select('*')
+      .eq('order_id', orderId)
+      .eq('disputed', true)
+
+    if (error) throw error
+    return toCamelCase(data || [])
+  }
+
   async acceptPaymentEvent(paymentEventId: string): Promise<PaymentEvent> {
     const { data, error } = await supabase
       .from('payment_events')
@@ -702,15 +714,27 @@ export class ZeltoDataStore {
 
   async updateIssueStatus(
     issueId: string,
-    status: IssueReport['status']
+    status: IssueReport['status'],
+    resolvedBy?: RaisedBy
   ): Promise<IssueReport> {
+    const updates: any = { status }
+    if (status === 'Acknowledged') {
+      updates.acknowledged_at = Date.now()
+    }
+    if (status === 'Resolved') {
+      updates.resolved_at = Date.now()
+      if (resolvedBy) {
+        updates.resolved_by = resolvedBy
+      }
+    }
+
     const { data, error } = await supabase
       .from('issue_reports')
-      .update({ status })
+      .update(updates)
       .eq('id', issueId)
       .select()
       .single()
-    
+
     if (error) throw error
     return toCamelCase(data)
   }

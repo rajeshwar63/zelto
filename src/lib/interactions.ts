@@ -409,7 +409,7 @@ export async function createIssue(
   return newIssue
 }
 
-export async function resolveIssue(
+export async function acknowledgeIssue(
   issueId: string,
   requestingBusinessId: string
 ): Promise<IssueReport> {
@@ -417,6 +417,10 @@ export async function resolveIssue(
 
   if (!targetIssue) {
     throw new Error('Issue does not exist')
+  }
+
+  if (targetIssue.status !== 'Open') {
+    throw new Error('Issue is not in Open status')
   }
 
   const order = await dataStore.getOrderById(targetIssue.orderId)
@@ -431,17 +435,110 @@ export async function resolveIssue(
     throw new Error('Connection not found')
   }
 
-  const isAuthorized =
-    requestingBusinessId === connection.buyerBusinessId ||
-    requestingBusinessId === connection.supplierBusinessId
+  // Determine if requesting business is buyer or supplier
+  let requestingRole: RaisedBy
+  if (requestingBusinessId === connection.buyerBusinessId) {
+    requestingRole = 'buyer'
+  } else if (requestingBusinessId === connection.supplierBusinessId) {
+    requestingRole = 'supplier'
+  } else {
+    throw new Error('Requesting business is not part of this connection')
+  }
 
-  if (!isAuthorized) {
+  // Only the OTHER party can acknowledge (not the raiser)
+  if (requestingRole === targetIssue.raisedBy) {
+    throw new Error('Only the other party can acknowledge this issue')
+  }
+
+  const updatedIssue = await dataStore.updateIssueStatus(issueId, 'Acknowledged')
+
+  // Notify the raiser that their issue was acknowledged
+  const raiserBusinessId = targetIssue.raisedBy === 'buyer'
+    ? connection.buyerBusinessId
+    : connection.supplierBusinessId
+  try {
+    await dataStore.createNotification(
+      raiserBusinessId,
+      'IssueAcknowledged',
+      issueId,
+      order.connectionId,
+      `Issue acknowledged: ${targetIssue.issueType}`
+    )
+  } catch (err) {
+    console.error('Notification failed:', err)
+  }
+
+  emitDataChange('issues:changed', 'notifications:changed')
+  return updatedIssue
+}
+
+export async function resolveIssue(
+  issueId: string,
+  requestingBusinessId: string
+): Promise<IssueReport> {
+  const targetIssue = await dataStore.getIssueReportById(issueId)
+
+  if (!targetIssue) {
+    throw new Error('Issue does not exist')
+  }
+
+  if (targetIssue.status === 'Resolved') {
+    throw new Error('Issue is already resolved')
+  }
+
+  const order = await dataStore.getOrderById(targetIssue.orderId)
+
+  if (!order) {
+    throw new Error('Order not found')
+  }
+
+  const connection = await dataStore.getConnectionById(order.connectionId)
+
+  if (!connection) {
+    throw new Error('Connection not found')
+  }
+
+  // Determine resolvedBy role
+  let resolvedBy: RaisedBy
+  if (requestingBusinessId === connection.buyerBusinessId) {
+    resolvedBy = 'buyer'
+  } else if (requestingBusinessId === connection.supplierBusinessId) {
+    resolvedBy = 'supplier'
+  } else {
     throw new Error('Either party may resolve an issue')
   }
 
-  const updatedIssue = await dataStore.updateIssueStatus(issueId, 'Resolved')
+  const updatedIssue = await dataStore.updateIssueStatus(issueId, 'Resolved', resolvedBy)
 
-  emitDataChange('issues:changed')
+  // Notify the OTHER party
+  const otherPartyId = requestingBusinessId === connection.buyerBusinessId
+    ? connection.supplierBusinessId
+    : connection.buyerBusinessId
+  try {
+    await dataStore.createNotification(
+      otherPartyId,
+      'IssueResolved',
+      issueId,
+      order.connectionId,
+      `Issue resolved: ${targetIssue.issueType}`
+    )
+  } catch (err) {
+    console.error('Notification failed:', err)
+  }
+
+  // Payment dispute sync: unflag disputed payments when Billing Mismatch is resolved
+  if (targetIssue.issueType === 'Billing Mismatch') {
+    try {
+      const disputedPayments = await dataStore.getDisputedPaymentsByOrderId(targetIssue.orderId)
+      for (const payment of disputedPayments) {
+        await dataStore.updatePaymentEventDispute(payment.id, false)
+      }
+    } catch (err) {
+      console.error('Failed to unflag disputed payments:', err)
+    }
+  }
+
+  emitDataChange('issues:changed', 'payments:changed', 'notifications:changed')
   return updatedIssue
 }
 
