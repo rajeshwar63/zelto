@@ -72,9 +72,12 @@ interface QueryOptions<T> {
   fetcher: () => Promise<T>
   events?: DataEvent[]
   isActive?: boolean
+  staleAfterMs?: number
 }
 
-export function useCachedQuery<T>({ key, fetcher, events = [], isActive = true }: QueryOptions<T>) {
+const DEFAULT_STALE_AFTER_MS = 30_000
+
+export function useCachedQuery<T>({ key, fetcher, events = [], isActive = true, staleAfterMs = DEFAULT_STALE_AFTER_MS }: QueryOptions<T>) {
   const initialEntry = cache.get(key) as CacheEntry<T> | undefined
 
   const [data, setData] = useState<T | undefined>(initialEntry?.data)
@@ -136,13 +139,17 @@ export function useCachedQuery<T>({ key, fetcher, events = [], isActive = true }
     const entry = cache.get(key) as CacheEntry<T> | undefined
     if (!isActive) return
 
-    if (entry?.data) {
+    if (entry?.data && entry.updatedAt !== undefined) {
+      const cacheAgeMs = Date.now() - entry.updatedAt
+      if (cacheAgeMs <= staleAfterMs) {
+        return
+      }
       void refresh(true)
       return
     }
 
     void refresh(false)
-  }, [isActive, key, refresh])
+  }, [isActive, key, refresh, staleAfterMs])
 
   useDataListener(events, () => {
     invalidateCacheKey(key)

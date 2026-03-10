@@ -4,7 +4,7 @@ import { formatDistanceToNow } from 'date-fns'
 import { ConnectionRequestItem } from '@/components/ConnectionRequestItem'
 import { markOrderSeen, getUnreadState, updateTabLastSeen } from '@/lib/unread-tracker'
 import { useAttentionData } from '@/hooks/data/use-business-data'
-import { InlineRefreshSpinner, ScreenRefreshIndicator, useScreenLoadState } from '@/components/ScreenLoadState'
+import { ScreenRefreshIndicator, useScreenLoadState } from '@/components/ScreenLoadState'
 
 interface Props {
   currentBusinessId: string
@@ -27,6 +27,26 @@ export function AttentionScreen({ currentBusinessId, onNavigateToConnections, on
 
   const lastSeenRef = useRef<number | null>(null)
   const [seenOrders, setSeenOrders] = useState<Set<string>>(new Set())
+  const [lastUpdatedAt, setLastUpdatedAt] = useState<number>(() => Date.now())
+  const [showRefreshAffordance, setShowRefreshAffordance] = useState(false)
+
+  useEffect(() => {
+    if (!data) return
+    setLastUpdatedAt(Date.now())
+  }, [data])
+
+  useEffect(() => {
+    if (!refreshing) {
+      setShowRefreshAffordance(false)
+      return
+    }
+
+    const timer = window.setTimeout(() => {
+      setShowRefreshAffordance(true)
+    }, 700)
+
+    return () => window.clearTimeout(timer)
+  }, [refreshing])
 
   useEffect(() => {
     const state = getUnreadState(currentBusinessId)
@@ -41,6 +61,10 @@ export function AttentionScreen({ currentBusinessId, onNavigateToConnections, on
     if (state.orderSeen[orderId]) return false
     return frictionStartedAt > (lastSeenRef.current ?? 0)
   }
+
+  const updatedLabel = Date.now() - lastUpdatedAt < 15_000
+    ? 'Updated just now'
+    : `Updated ${formatDistanceToNow(lastUpdatedAt, { addSuffix: true })}`
 
 
   if (initialLoading) {
@@ -67,7 +91,8 @@ export function AttentionScreen({ currentBusinessId, onNavigateToConnections, on
           <div className="h-11 flex items-center px-4">
             <h1 className="text-[17px] text-foreground font-normal">Disputes</h1>
           </div>
-          <ScreenRefreshIndicator refreshing={refreshing} />
+          <div className="px-4 pb-1 text-[11px] text-muted-foreground">{updatedLabel}</div>
+          <ScreenRefreshIndicator refreshing={showRefreshAffordance} />
         </div>
         <div className="flex-1 flex items-center justify-center">
           <div className="text-center px-6">
@@ -103,9 +128,11 @@ export function AttentionScreen({ currentBusinessId, onNavigateToConnections, on
               {newCount} new
             </span>
           )}
-          <InlineRefreshSpinner refreshing={refreshing} />
+          <span className="ml-auto text-[11px] text-muted-foreground">
+            {updatedLabel}
+          </span>
         </div>
-        <ScreenRefreshIndicator refreshing={refreshing} />
+        <ScreenRefreshIndicator refreshing={showRefreshAffordance} />
       </div>
 
       <div className="flex-1 overflow-y-auto px-4 pb-24">
