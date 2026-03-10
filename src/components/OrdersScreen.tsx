@@ -1,9 +1,9 @@
 import { useEffect, useMemo, useState } from 'react'
 import { dataStore } from '@/lib/data-store'
 import { createOrder } from '@/lib/interactions'
-import { useDataListener } from '@/lib/data-events'
+import { useOrdersData } from '@/hooks/data/use-business-data'
 import { formatDistanceToNow, isToday } from 'date-fns'
-import type { Connection, OrderWithPaymentState, BusinessEntity } from '@/lib/types'
+import type { Connection, BusinessEntity } from '@/lib/types'
 import { getLifecycleStatusColor } from '@/lib/semantic-colors'
 import { PencilSimple, MagnifyingGlass, X, PaperPlaneTilt } from '@phosphor-icons/react'
 import { Input } from '@/components/ui/input'
@@ -12,33 +12,10 @@ import { toast } from 'sonner'
 
 type OrderFilter = 'all' | 'today' | 'placed' | 'dispatched' | 'delivered' | 'payment_pending' | 'paid' | 'awaiting_dispatch' | 'overdue' | 'due_today'
 
-interface EnrichedOrder extends OrderWithPaymentState {
-  connectionName: string
-  lifecycleState: string
-  latestActivity: number
-}
-
 interface Props {
   currentBusinessId: string
   onSelectOrder: (orderId: string, connectionId: string) => void
   initialFilter?: string
-}
-
-function getLifecycleState(order: OrderWithPaymentState): string {
-  if (order.declinedAt) return 'Declined'
-  if (order.deliveredAt) return 'Delivered'
-  if (order.dispatchedAt) return 'Dispatched'
-  if (order.acceptedAt) return 'Accepted'
-  return 'Placed'
-}
-
-function getLatestActivity(order: OrderWithPaymentState): number {
-  return Math.max(
-    order.deliveredAt || 0,
-    order.dispatchedAt || 0,
-    order.acceptedAt || 0,
-    order.createdAt || 0,
-  )
 }
 
 const FILTER_LABELS: { key: OrderFilter; label: string }[] = [
@@ -83,8 +60,7 @@ function formatPaymentTerms(terms: Connection['paymentTerms']): string | null {
 }
 
 export function OrdersScreen({ currentBusinessId, onSelectOrder, initialFilter }: Props) {
-  const [orders, setOrders] = useState<EnrichedOrder[]>([])
-  const [loading, setLoading] = useState(true)
+  const { data: orders = [], isInitialLoading: loading } = useOrdersData(currentBusinessId)
   const [filter, setFilter] = useState<OrderFilter>((initialFilter as OrderFilter) || 'all')
 
   // Order creation modal state
@@ -97,53 +73,11 @@ export function OrdersScreen({ currentBusinessId, onSelectOrder, initialFilter }
   const [isSending, setIsSending] = useState(false)
   const [sendError, setSendError] = useState<string | null>(null)
 
-  const loadOrders = async () => {
-    const [allOrders, connections, entities] = await Promise.all([
-      dataStore.getOrdersWithPaymentStateByBusinessId(currentBusinessId),
-      dataStore.getConnectionsByBusinessId(currentBusinessId),
-      dataStore.getAllBusinessEntities(),
-    ])
-
-    const entityMap = new Map(entities.map(e => [e.id, e]))
-    const connMap = new Map(connections.map(c => [c.id, c]))
-
-    const enriched: EnrichedOrder[] = allOrders.map(order => {
-      const conn = connMap.get(order.connectionId)
-      let connectionName = 'Unknown'
-      if (conn) {
-        const otherId = conn.buyerBusinessId === currentBusinessId
-          ? conn.supplierBusinessId
-          : conn.buyerBusinessId
-        connectionName = entityMap.get(otherId)?.businessName || 'Unknown'
-      }
-      return {
-        ...order,
-        connectionName,
-        lifecycleState: getLifecycleState(order),
-        latestActivity: getLatestActivity(order),
-      }
-    })
-
-    enriched.sort((a, b) => b.latestActivity - a.latestActivity)
-    setOrders(enriched)
-
-    setLoading(false)
-  }
-
-  useEffect(() => {
-    loadOrders()
-  }, [currentBusinessId])
-
   useEffect(() => {
     if (initialFilter) {
       setFilter(initialFilter as OrderFilter)
     }
   }, [initialFilter])
-
-  useDataListener(
-    ['orders:changed', 'payments:changed', 'issues:changed'],
-    () => { loadOrders() }
-  )
 
   const filteredOrders = useMemo(() => {
     return orders.filter(order => {

@@ -1,10 +1,6 @@
-import { useEffect, useState } from 'react'
+import { useMemo } from 'react'
 import { CaretRight, CheckCircle, ClockClockwise, Package, ShieldWarning, Truck } from '@phosphor-icons/react'
-import { dataStore } from '@/lib/data-store'
-import { useDataListener } from '@/lib/data-events'
-import { attentionEngine } from '@/lib/attention-engine'
-import type { Connection, OrderWithPaymentState } from '@/lib/types'
-import { isToday } from 'date-fns'
+import { useBusinessOverviewData } from '@/hooks/data/use-business-data'
 import { getLifecycleStatusColor } from '@/lib/semantic-colors'
 
 interface Props {
@@ -15,157 +11,24 @@ interface Props {
   onNavigateToAttention: (filter?: string) => void
 }
 
-interface DashboardData {
-  toPay: number
-  toReceive: number
-  ordersToday: number
-  overdue: number
-}
-
-interface RecentOrder extends OrderWithPaymentState {
-  connectionName: string
-  lifecycleState: string
-  latestActivity: number
-}
-
-interface AttentionCounts {
-  approvalNeeded: number
-  dispatched: number
-  delivered: number
-  paymentPending: number
-  disputes: number
-}
-
 export function DashboardScreen({ currentBusinessId, onNavigateToOrders, onNavigateToConnection, onNavigateToAttention }: Props) {
-  const [data, setData] = useState<DashboardData | null>(null)
-  const [recentOrders, setRecentOrders] = useState<RecentOrder[]>([])
-  const [attentionCounts, setAttentionCounts] = useState<AttentionCounts>({
+  const { data: overview, isInitialLoading } = useBusinessOverviewData(currentBusinessId)
+  const data = useMemo(() => overview && ({
+    toPay: overview.toPay,
+    toReceive: overview.toReceive,
+    ordersToday: overview.ordersToday,
+    overdue: overview.overdue,
+  }), [overview])
+  const recentOrders = overview?.recentOrders ?? []
+  const attentionCounts = overview?.attentionCounts ?? {
     approvalNeeded: 0,
     dispatched: 0,
     delivered: 0,
     paymentPending: 0,
     disputes: 0,
-  })
-
-  const loadData = async () => {
-    const [orders, connections, entities] = await Promise.all([
-      dataStore.getOrdersWithPaymentStateByBusinessId(currentBusinessId),
-      dataStore.getConnectionsByBusinessId(currentBusinessId),
-      dataStore.getAllBusinessEntities(),
-    ])
-
-    const connMap = new Map<string, Connection>(connections.map(conn => [conn.id, conn]))
-    const entityMap = new Map(entities.map(entity => [entity.id, entity]))
-
-    let toPay = 0
-    let toReceive = 0
-    let ordersToday = 0
-    let overdue = 0
-
-    for (const order of orders) {
-      if (order.declinedAt) continue
-
-      if (isToday(order.createdAt)) {
-        ordersToday += 1
-      }
-
-      if (
-        order.calculatedDueDate != null &&
-        order.calculatedDueDate < Date.now() &&
-        order.pendingAmount > 0 &&
-        order.settlementState !== 'Paid'
-      ) {
-        overdue += order.pendingAmount
-      }
-
-      const connection = connMap.get(order.connectionId)
-      const isSupplier = connection?.supplierBusinessId === currentBusinessId
-      if (order.pendingAmount > 0) {
-        if (isSupplier) toReceive += order.pendingAmount
-        else toPay += order.pendingAmount
-      }
-    }
-
-    let dispatchedCount = 0
-    let deliveredCount = 0
-    let paymentPendingCount = 0
-
-    for (const order of orders) {
-      if (order.declinedAt) continue
-      if (order.dispatchedAt && !order.deliveredAt) {
-        dispatchedCount++
-      }
-      if (order.deliveredAt && order.settlementState !== 'Paid') {
-        deliveredCount++
-      }
-      if (order.deliveredAt && order.pendingAmount > 0 && order.settlementState !== 'Paid') {
-        paymentPendingCount++
-      }
-    }
-
-    const attentionItems = await attentionEngine.getAttentionItems(currentBusinessId)
-    const approvalNeededCount = attentionItems.filter(i => i.category === 'Approval Needed').length
-    const disputeCount = attentionItems.filter(i => i.category === 'Disputes').length
-
-    setAttentionCounts({
-      approvalNeeded: approvalNeededCount,
-      dispatched: dispatchedCount,
-      delivered: deliveredCount,
-      paymentPending: paymentPendingCount,
-      disputes: disputeCount,
-    })
-
-    const getLifecycleState = (order: OrderWithPaymentState): string => {
-      if (order.declinedAt) return 'Declined'
-      if (order.deliveredAt) return 'Delivered'
-      if (order.dispatchedAt) return 'Dispatched'
-      if (order.acceptedAt) return 'Accepted'
-      return 'Placed'
-    }
-
-    const getLatestActivity = (order: OrderWithPaymentState): number => (
-      Math.max(order.deliveredAt || 0, order.dispatchedAt || 0, order.acceptedAt || 0, order.createdAt || 0)
-    )
-
-    const enrichedOrders: RecentOrder[] = orders
-      .filter(order => !order.declinedAt)
-      .map(order => {
-        const conn = connMap.get(order.connectionId)
-        let connectionName = 'Unknown'
-        if (conn) {
-          const otherId = conn.buyerBusinessId === currentBusinessId
-            ? conn.supplierBusinessId
-            : conn.buyerBusinessId
-          connectionName = entityMap.get(otherId)?.businessName || 'Unknown'
-        }
-
-        return {
-          ...order,
-          connectionName,
-          lifecycleState: getLifecycleState(order),
-          latestActivity: getLatestActivity(order),
-        }
-      })
-      .sort((a, b) => b.latestActivity - a.latestActivity)
-      .slice(0, 6)
-
-    setRecentOrders(enrichedOrders)
-
-    setData({ toPay, toReceive, ordersToday, overdue })
   }
 
-  useEffect(() => {
-    loadData()
-  }, [currentBusinessId])
-
-  useDataListener(
-    ['orders:changed', 'payments:changed', 'connections:changed', 'issues:changed'],
-    () => {
-      loadData()
-    }
-  )
-
-  if (!data) {
+  if (isInitialLoading || !data) {
     return <div className="p-4 text-sm text-muted-foreground">Loading...</div>
   }
 

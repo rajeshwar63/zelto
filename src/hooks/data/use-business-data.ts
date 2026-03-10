@@ -1,0 +1,256 @@
+import { isToday } from 'date-fns'
+import { attentionEngine, type AttentionItem } from '@/lib/attention-engine'
+import { getAuthSession } from '@/lib/auth'
+import { calculateCredibility, getBusinessActivityCounts, type CredibilityBreakdown } from '@/lib/credibility'
+import { dataStore } from '@/lib/data-store'
+import type { BusinessEntity, Connection, ConnectionRequest, OrderWithPaymentState, UserAccount } from '@/lib/types'
+import { useCachedQuery } from './cache'
+
+export interface EnrichedOrder extends OrderWithPaymentState {
+  connectionName: string
+  lifecycleState: string
+  latestActivity: number
+}
+
+interface AttentionCounts {
+  approvalNeeded: number
+  dispatched: number
+  delivered: number
+  paymentPending: number
+  disputes: number
+}
+
+interface BusinessOverviewData {
+  toPay: number
+  toReceive: number
+  ordersToday: number
+  overdue: number
+  recentOrders: EnrichedOrder[]
+  attentionCounts: AttentionCounts
+}
+
+interface AttentionItemWithConnection extends AttentionItem {
+  connectionName: string
+}
+
+interface AttentionData {
+  items: AttentionItemWithConnection[]
+  connectionRequests: ConnectionRequest[]
+}
+
+interface ProfileData {
+  business: BusinessEntity | null
+  userAccount: UserAccount | null
+  unreadCount: number
+  credibility: CredibilityBreakdown | null
+  activityCounts: { connectionCount: number; orderCount: number } | null
+}
+
+function getLifecycleState(order: OrderWithPaymentState): string {
+  if (order.declinedAt) return 'Declined'
+  if (order.deliveredAt) return 'Delivered'
+  if (order.dispatchedAt) return 'Dispatched'
+  if (order.acceptedAt) return 'Accepted'
+  return 'Placed'
+}
+
+function getLatestActivity(order: OrderWithPaymentState): number {
+  return Math.max(order.deliveredAt || 0, order.dispatchedAt || 0, order.acceptedAt || 0, order.createdAt || 0)
+}
+
+export function useOrdersData(currentBusinessId: string) {
+  return useCachedQuery<EnrichedOrder[]>({
+    key: `orders:${currentBusinessId}`,
+    events: ['orders:changed', 'payments:changed', 'issues:changed', 'connections:changed'],
+    fetcher: async () => {
+      const [allOrders, connections, entities] = await Promise.all([
+        dataStore.getOrdersWithPaymentStateByBusinessId(currentBusinessId),
+        dataStore.getConnectionsByBusinessId(currentBusinessId),
+        dataStore.getAllBusinessEntities(),
+      ])
+
+      const entityMap = new Map(entities.map(entity => [entity.id, entity]))
+      const connMap = new Map(connections.map(connection => [connection.id, connection]))
+
+      return allOrders
+        .map(order => {
+          const conn = connMap.get(order.connectionId)
+          let connectionName = 'Unknown'
+          if (conn) {
+            const otherId = conn.buyerBusinessId === currentBusinessId ? conn.supplierBusinessId : conn.buyerBusinessId
+            connectionName = entityMap.get(otherId)?.businessName || 'Unknown'
+          }
+          return {
+            ...order,
+            connectionName,
+            lifecycleState: getLifecycleState(order),
+            latestActivity: getLatestActivity(order),
+          }
+        })
+        .sort((a, b) => b.latestActivity - a.latestActivity)
+    },
+  })
+}
+
+export function useBusinessOverviewData(currentBusinessId: string) {
+  return useCachedQuery<BusinessOverviewData>({
+    key: `business-overview:${currentBusinessId}`,
+    events: ['orders:changed', 'payments:changed', 'connections:changed', 'issues:changed'],
+    fetcher: async () => {
+      const [orders, connections, entities, attentionItems] = await Promise.all([
+        dataStore.getOrdersWithPaymentStateByBusinessId(currentBusinessId),
+        dataStore.getConnectionsByBusinessId(currentBusinessId),
+        dataStore.getAllBusinessEntities(),
+        attentionEngine.getAttentionItems(currentBusinessId),
+      ])
+
+      const connMap = new Map<string, Connection>(connections.map(conn => [conn.id, conn]))
+      const entityMap = new Map(entities.map(entity => [entity.id, entity]))
+
+      let toPay = 0
+      let toReceive = 0
+      let ordersToday = 0
+      let overdue = 0
+      let dispatched = 0
+      let delivered = 0
+      let paymentPending = 0
+
+      for (const order of orders) {
+        if (order.declinedAt) continue
+
+        if (isToday(order.createdAt)) ordersToday += 1
+
+        if (order.calculatedDueDate != null && order.calculatedDueDate < Date.now() && order.pendingAmount > 0 && order.settlementState !== 'Paid') {
+          overdue += order.pendingAmount
+        }
+
+        const connection = connMap.get(order.connectionId)
+        const isSupplier = connection?.supplierBusinessId === currentBusinessId
+
+        if (order.pendingAmount > 0) {
+          if (isSupplier) toReceive += order.pendingAmount
+          else toPay += order.pendingAmount
+        }
+
+        if (order.dispatchedAt && !order.deliveredAt) dispatched += 1
+        if (order.deliveredAt && order.settlementState !== 'Paid') delivered += 1
+        if (order.deliveredAt && order.pendingAmount > 0 && order.settlementState !== 'Paid') paymentPending += 1
+      }
+
+      const approvalNeeded = attentionItems.filter(item => item.category === 'Approval Needed').length
+      const disputes = attentionItems.filter(item => item.category === 'Disputes').length
+
+      const recentOrders = orders
+        .filter(order => !order.declinedAt)
+        .map(order => {
+          const connection = connMap.get(order.connectionId)
+          let connectionName = 'Unknown'
+          if (connection) {
+            const otherId = connection.buyerBusinessId === currentBusinessId
+              ? connection.supplierBusinessId
+              : connection.buyerBusinessId
+            connectionName = entityMap.get(otherId)?.businessName || 'Unknown'
+          }
+
+          return {
+            ...order,
+            connectionName,
+            lifecycleState: getLifecycleState(order),
+            latestActivity: getLatestActivity(order),
+          }
+        })
+        .sort((a, b) => b.latestActivity - a.latestActivity)
+        .slice(0, 6)
+
+      return {
+        toPay,
+        toReceive,
+        ordersToday,
+        overdue,
+        recentOrders,
+        attentionCounts: {
+          approvalNeeded,
+          dispatched,
+          delivered,
+          paymentPending,
+          disputes,
+        },
+      }
+    },
+  })
+}
+
+export function useAttentionData(currentBusinessId: string) {
+  return useCachedQuery<AttentionData>({
+    key: `attention:${currentBusinessId}`,
+    events: ['orders:changed', 'payments:changed', 'issues:changed', 'connections:changed', 'connection-requests:changed'],
+    fetcher: async () => {
+      const [attentionItems, connections, entities, allRequests] = await Promise.all([
+        attentionEngine.getAttentionItems(currentBusinessId),
+        dataStore.getConnectionsByBusinessId(currentBusinessId),
+        dataStore.getAllBusinessEntities(),
+        dataStore.getAllConnectionRequests(),
+      ])
+
+      const entityMap = new Map(entities.map(entity => [entity.id, entity]))
+      const items = attentionItems
+        .filter(item => item.category === 'Disputes')
+        .map(item => {
+          const connection = connections.find(conn => conn.id === item.connectionId)
+          let connectionName = 'Unknown'
+          if (connection) {
+            const otherId = connection.buyerBusinessId === currentBusinessId ? connection.supplierBusinessId : connection.buyerBusinessId
+            connectionName = entityMap.get(otherId)?.businessName || 'Unknown'
+          }
+          return {
+            ...item,
+            connectionName,
+          }
+        })
+
+      const connectionRequests = allRequests.filter(
+        request => request.receiverBusinessId === currentBusinessId && request.status === 'Pending',
+      )
+
+      return {
+        items,
+        connectionRequests,
+      }
+    },
+  })
+}
+
+export function useProfileData(currentBusinessId: string) {
+  return useCachedQuery<ProfileData>({
+    key: `profile:${currentBusinessId}`,
+    events: ['notifications:changed', 'connections:changed', 'orders:changed', 'payments:changed'],
+    fetcher: async () => {
+      const session = await getAuthSession()
+      if (!session) {
+        return {
+          business: null,
+          userAccount: null,
+          unreadCount: 0,
+          credibility: null,
+          activityCounts: null,
+        }
+      }
+
+      const [business, userAccount, unreadCount, credibility, activityCounts] = await Promise.all([
+        dataStore.getBusinessEntityById(currentBusinessId),
+        dataStore.getUserAccountByEmail(session.email),
+        dataStore.getUnreadNotificationCountByBusinessId(currentBusinessId),
+        calculateCredibility(currentBusinessId),
+        getBusinessActivityCounts(currentBusinessId),
+      ])
+
+      return {
+        business: business || null,
+        userAccount: userAccount || null,
+        unreadCount,
+        credibility,
+        activityCounts,
+      }
+    },
+  })
+}
