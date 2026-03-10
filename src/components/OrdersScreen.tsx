@@ -17,6 +17,7 @@ interface Props {
   currentBusinessId: string
   onSelectOrder: (orderId: string, connectionId: string) => void
   initialFilter?: string
+  isActive?: boolean
 }
 
 const FILTER_LABELS: { key: OrderFilter; label: string }[] = [
@@ -60,12 +61,12 @@ function formatPaymentTerms(terms: Connection['paymentTerms']): string | null {
   }
 }
 
-export function OrdersScreen({ currentBusinessId, onSelectOrder, initialFilter }: Props) {
-  const { data: orders = [], isInitialLoading, isRefreshing } = useOrdersData(currentBusinessId)
+export function OrdersScreen({ currentBusinessId, onSelectOrder, initialFilter, isActive = true }: Props) {
+  const { data: orders = [], isInitialLoading, isRefreshing } = useOrdersData(currentBusinessId, isActive)
   const { initialLoading, refreshing } = useScreenLoadState({
     hasData: orders.length > 0,
     isInitialLoading,
-    isRefreshing,
+    isRefreshing: isActive && isRefreshing,
   })
   const [filter, setFilter] = useState<OrderFilter>((initialFilter as OrderFilter) || 'all')
 

@@ -10,18 +10,19 @@ interface Props {
   currentBusinessId: string
   onNavigateToConnections: () => void
   onNavigateToIssue: (connectionId: string, orderId: string, issueId: string) => void
+  isActive?: boolean
 }
 
 
-export function AttentionScreen({ currentBusinessId, onNavigateToConnections, onNavigateToIssue }: Props) {
-  const { data, isInitialLoading, isRefreshing, refresh } = useAttentionData(currentBusinessId)
+export function AttentionScreen({ currentBusinessId, onNavigateToConnections, onNavigateToIssue, isActive = true }: Props) {
+  const { data, isInitialLoading, isRefreshing, refresh } = useAttentionData(currentBusinessId, isActive)
   const items = data?.items ?? []
   const connectionRequests = data?.connectionRequests ?? []
 
   const { initialLoading, refreshing } = useScreenLoadState({
     hasData: items.length > 0 || connectionRequests.length > 0,
     isInitialLoading,
-    isRefreshing,
+    isRefreshing: isActive && isRefreshing,
   })
 
   const lastSeenRef = useRef<number | null>(null)

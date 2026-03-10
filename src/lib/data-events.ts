@@ -38,10 +38,14 @@ export function emitDataChange(...events: EventType[]): void {
 // React hook for convenience
 import { useEffect } from 'react'
 
-export function useDataListener(events: EventType | EventType[], callback: () => void): void {
+export function useDataListener(events: EventType | EventType[], callback: () => void, enabled = true): void {
+  const eventKey = Array.isArray(events) ? events.join('|') : events
+
   useEffect(() => {
+    if (!enabled) return
+
     const eventList = Array.isArray(events) ? events : [events]
     const unsubscribes = eventList.map((e) => onDataChange(e, callback))
     return () => unsubscribes.forEach((unsub) => unsub())
-  }, []) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [callback, enabled, eventKey])
 }

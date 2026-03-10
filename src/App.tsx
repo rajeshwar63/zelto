@@ -390,6 +390,7 @@ function App() {
         {activeTab === 'dashboard' ? (
           <DashboardScreen
             currentBusinessId={currentBusinessId}
+            isActive={activeTab === 'dashboard'}
             onNavigateToOrders={(filter) => navigateToTabWithFilter('orders', filter)}
             onNavigateToConnection={navigateToConnection}
             onNavigateToProfile={() => navigateToTab('profile')}
@@ -398,12 +399,14 @@ function App() {
         ) : activeTab === 'attention' ? (
           <AttentionScreen
             currentBusinessId={currentBusinessId}
+            isActive={activeTab === 'attention'}
             onNavigateToConnections={() => navigateToTab('connections')}
             onNavigateToIssue={navigateToIssueDetail}
           />
         ) : activeTab === 'connections' ? (
           <ConnectionsScreen
             currentBusinessId={currentBusinessId}
+            isActive={activeTab === 'connections'}
             onSelectConnection={navigateToConnection}
             onAddConnection={navigateToAddConnection}
             unreadConnectionIds={unreadConnectionIds}
@@ -411,6 +414,7 @@ function App() {
         ) : activeTab === 'orders' ? (
           <OrdersScreen
             currentBusinessId={currentBusinessId}
+            isActive={activeTab === 'orders'}
             onSelectOrder={navigateToOrderDetail}
             initialFilter={ordersInitialFilter}
           />
