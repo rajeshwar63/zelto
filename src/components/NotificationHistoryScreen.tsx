@@ -1,8 +1,10 @@
 import { useEffect, useState, useCallback } from 'react'
+import { InlineRefreshSpinner, ScreenRefreshIndicator, useScreenLoadState } from '@/components/ScreenLoadState'
 import { dataStore } from '@/lib/data-store'
 import { formatDistanceToNow } from 'date-fns'
 import type { Notification, NotificationType } from '@/lib/types'
 import { CaretLeft } from '@phosphor-icons/react'
+import { useDataListener } from '@/lib/data-events'
 
 interface Props {
   currentBusinessId: string
@@ -21,28 +23,40 @@ const ORDER_RELATED_NOTIFICATION_TYPES: NotificationType[] = [
 
 export function NotificationHistoryScreen({ currentBusinessId, onBack, onNavigateToConnection }: Props) {
   const [notifications, setNotifications] = useState<Notification[]>([])
-  const [loading, setLoading] = useState(true)
+  const [initialLoadCompleted, setInitialLoadCompleted] = useState(false)
 
   const loadNotifications = useCallback(async () => {
-    setLoading(true)
     const allNotifications = await dataStore.getNotificationsByBusinessId(currentBusinessId)
     setNotifications(allNotifications)
-    setLoading(false)
+    setInitialLoadCompleted(true)
   }, [currentBusinessId])
 
+
+  const { initialLoading, refreshing, runWithLoadState } = useScreenLoadState({
+    hasData: initialLoadCompleted || notifications.length > 0,
+  })
+
   useEffect(() => {
-    loadNotifications()
-  }, [loadNotifications])
+    void runWithLoadState(loadNotifications)
+  }, [loadNotifications, runWithLoadState])
+
+  useDataListener('notifications:changed', () => {
+    void runWithLoadState(loadNotifications)
+  })
 
   const handleMarkAllAsRead = async () => {
-    await dataStore.markAllNotificationsAsRead(currentBusinessId)
-    await loadNotifications()
+    await runWithLoadState(async () => {
+      await dataStore.markAllNotificationsAsRead(currentBusinessId)
+      await loadNotifications()
+    })
   }
 
   const handleNotificationClick = async (notification: Notification) => {
     if (!notification.readAt) {
-      await dataStore.markNotificationAsRead(notification.id)
-      await loadNotifications()
+      await runWithLoadState(async () => {
+        await dataStore.markNotificationAsRead(notification.id)
+        await loadNotifications()
+      })
     }
     
     // Navigate to the relevant connection/order
@@ -53,10 +67,22 @@ export function NotificationHistoryScreen({ currentBusinessId, onBack, onNavigat
     onNavigateToConnection(notification.connectionId, orderId)
   }
 
-  if (loading) {
+  if (initialLoading) {
     return (
-      <div className="flex items-center justify-center min-h-screen">
-        <p className="text-sm text-muted-foreground">Loading...</p>
+      <div className="h-full flex flex-col">
+        <div className="sticky top-0 bg-white z-10" style={{ paddingTop: 'env(safe-area-inset-top)' }}>
+          <div className="h-11 flex items-center px-4 gap-2">
+            <button onClick={onBack} className="flex items-center text-foreground hover:text-muted-foreground">
+              <CaretLeft size={20} weight="regular" />
+            </button>
+            <h1 className="text-[17px] text-foreground font-normal flex-1">Notifications</h1>
+          </div>
+        </div>
+        <div className="flex-1 px-4 pt-4 space-y-2">
+          {[1, 2, 3].map((i) => (
+            <div key={i} className="animate-pulse rounded-xl h-[68px] bg-muted/50" />
+          ))}
+        </div>
       </div>
     )
   }
@@ -71,6 +97,7 @@ export function NotificationHistoryScreen({ currentBusinessId, onBack, onNavigat
             <CaretLeft size={20} weight="regular" />
           </button>
           <h1 className="text-[17px] text-foreground font-normal flex-1">Notifications</h1>
+          <InlineRefreshSpinner refreshing={refreshing} />
           {unreadCount > 0 && (
             <button
               onClick={handleMarkAllAsRead}
@@ -80,6 +107,7 @@ export function NotificationHistoryScreen({ currentBusinessId, onBack, onNavigat
             </button>
           )}
         </div>
+        <ScreenRefreshIndicator refreshing={refreshing} />
       </div>
 
       <div className="flex-1 overflow-y-auto">
