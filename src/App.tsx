@@ -20,7 +20,7 @@ import { HelpSupportScreen } from '@/components/HelpSupportScreen'
 import { ReportIssueScreen } from '@/components/ReportIssueScreen'
 import { House, Users, Package, User, Bell } from '@phosphor-icons/react'
 import { AttentionScreen } from '@/components/AttentionScreen'
-import { getAuthSession, getAuthState, logout, clearAuthSession } from '@/lib/auth'
+import { getAuthState, getLocalAuthSessionSync, logout, clearAuthSession } from '@/lib/auth'
 import { registerPushNotifications, removeDeviceTokens } from '@/lib/push-notifications'
 import { supabase } from '@/lib/supabase-client'
 import { setupBackButtonHandler } from '@/lib/capacitor'
@@ -53,11 +53,12 @@ function App() {
   const [isAdminRoute, setIsAdminRoute] = useState(false)
   const [isPrivacyRoute, setIsPrivacyRoute] = useState(false)
   const [isTermsRoute, setIsTermsRoute] = useState(false)
-  const [currentBusinessId, setCurrentBusinessId] = useState<string | null>(null)
+  const [bootstrappedSession] = useState(() => getLocalAuthSessionSync())
+  const [currentBusinessId, setCurrentBusinessId] = useState<string | null>(bootstrappedSession?.businessId ?? null)
   const [navigationStack, setNavigationStack] = useState<Screen[]>([{ type: 'tab', tab: 'dashboard' }])
   const [authScreen, setAuthScreen] = useState<AuthScreen | null>(null)
   const [error, setError] = useState<string | null>(null)
-  const [isCheckingAuth, setIsCheckingAuth] = useState(true)
+  const [isCheckingAuth, setIsCheckingAuth] = useState(!bootstrappedSession)
 
   const [hasUnreadConnections, setHasUnreadConnections] = useState(false)
   const [unreadConnectionIds, setUnreadConnectionIds] = useState<Set<string>>(new Set())
@@ -73,29 +74,49 @@ function App() {
   }, [])
 
   useEffect(() => {
-    if (!isAdminRoute) {
-const initializeApp = async () => {
-        try {
-          const authState = await getAuthState()
-          if (authState.status === 'authenticated') {
-            setCurrentBusinessId(authState.session.businessId)
-            setAuthScreen(null)
-            registerPushNotifications(authState.session.businessId).catch(console.error)
-          } else if (authState.status === 'needs_business_setup') {
-            setAuthScreen({ type: 'business_setup', email: authState.email })
-          } else {
-            setAuthScreen('welcome')
-          }
-        } catch (err) {
-          console.error('Failed to initialize app:', err)
+    if (isAdminRoute) return
+
+    let cancelled = false
+
+    const initializeApp = async () => {
+      try {
+        const authState = await getAuthState()
+        if (cancelled) return
+
+        if (authState.status === 'authenticated') {
+          setCurrentBusinessId(authState.session.businessId)
+          setAuthScreen(null)
+          registerPushNotifications(authState.session.businessId).catch(console.error)
+          return
+        }
+
+        await clearAuthSession()
+        if (cancelled) return
+
+        setCurrentBusinessId(null)
+        if (authState.status === 'needs_business_setup') {
+          setAuthScreen({ type: 'business_setup', email: authState.email })
+        } else {
+          setAuthScreen('welcome')
+        }
+      } catch (err) {
+        console.error('Failed to initialize app:', err)
+        if (!bootstrappedSession) {
           setError(err instanceof Error ? err.message : 'Failed to initialize app data')
-        } finally {
+        }
+      } finally {
+        if (!cancelled) {
           setIsCheckingAuth(false)
         }
       }
-      initializeApp()
     }
-  }, [isAdminRoute])
+
+    void initializeApp()
+
+    return () => {
+      cancelled = true
+    }
+  }, [isAdminRoute, bootstrappedSession])
 
   const checkRoute = () => {
     setIsAdminRoute(window.location.pathname === '/admin')
@@ -267,11 +288,7 @@ const initializeApp = async () => {
   }
 
   if (!currentBusinessId) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-background">
-        <p className="text-sm text-muted-foreground">Loading...</p>
-      </div>
-    )
+    return <WelcomeScreen onContinue={handleWelcomeSubmit} onLoginOnly={handleLoginOnly} />
   }
 
   const navigateToConnection = (connectionId: string, orderId?: string) => {
