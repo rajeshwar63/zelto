@@ -548,7 +548,6 @@ function TabShell({
           <AttentionScreen
             currentBusinessId={currentBusinessId}
             isActive
-            onNavigateToConnections={() => onNavigateToTab('connections')}
             onNavigateToIssue={onNavigateToIssueDetail}
           />
         ) : activeTabScreen.tab === 'connections' ? (

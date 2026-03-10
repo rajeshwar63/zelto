@@ -1,26 +1,23 @@
 import { useEffect, useRef, useState } from 'react'
 import { CaretRight, ShieldWarning } from '@phosphor-icons/react'
 import { formatDistanceToNow } from 'date-fns'
-import { ConnectionRequestItem } from '@/components/ConnectionRequestItem'
 import { markOrderSeen, getUnreadState, updateTabLastSeen } from '@/lib/unread-tracker'
 import { useAttentionData } from '@/hooks/data/use-business-data'
 import { ScreenRefreshIndicator, useScreenLoadState } from '@/components/ScreenLoadState'
 
 interface Props {
   currentBusinessId: string
-  onNavigateToConnections: () => void
   onNavigateToIssue: (connectionId: string, orderId: string, issueId: string) => void
   isActive?: boolean
 }
 
 
-export function AttentionScreen({ currentBusinessId, onNavigateToConnections, onNavigateToIssue, isActive = true }: Props) {
-  const { data, isInitialLoading, isRefreshing, refresh } = useAttentionData(currentBusinessId, isActive)
+export function AttentionScreen({ currentBusinessId, onNavigateToIssue, isActive = true }: Props) {
+  const { data, isInitialLoading, isRefreshing } = useAttentionData(currentBusinessId, isActive)
   const items = data?.items ?? []
-  const connectionRequests = data?.connectionRequests ?? []
 
   const { initialLoading, refreshing } = useScreenLoadState({
-    hasData: items.length > 0 || connectionRequests.length > 0,
+    hasData: items.length > 0,
     isInitialLoading,
     isRefreshing: isActive && isRefreshing,
   })
@@ -84,7 +81,7 @@ export function AttentionScreen({ currentBusinessId, onNavigateToConnections, on
     )
   }
 
-  if (items.length === 0 && connectionRequests.length === 0) {
+  if (items.length === 0) {
     return (
       <div className="flex flex-col h-full" style={{ backgroundColor: 'var(--bg-screen)' }}>
         <div className="sticky top-0 bg-white z-10" style={{ paddingTop: 'env(safe-area-inset-top)' }}>
@@ -136,25 +133,6 @@ export function AttentionScreen({ currentBusinessId, onNavigateToConnections, on
       </div>
 
       <div className="flex-1 overflow-y-auto px-4 pb-24">
-        {connectionRequests.length > 0 && (
-          <div>
-            <div className="px-4 pt-3 pb-1.5">
-              <h2 className="text-[10px] uppercase tracking-wide text-muted-foreground/60">
-                Connection Requests
-              </h2>
-            </div>
-            {connectionRequests.map(request => (
-              <ConnectionRequestItem
-                key={request.id}
-                request={request}
-                currentBusinessId={currentBusinessId}
-                onUpdate={() => { void refresh(true) }}
-                onNavigateToConnections={onNavigateToConnections}
-              />
-            ))}
-          </div>
-        )}
-
         {items.length > 0 && (
           <div>
             <div className="pt-3 pb-1.5">

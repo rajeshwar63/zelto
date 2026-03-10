@@ -8,6 +8,7 @@ import { formatDistanceToNow } from 'date-fns'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Label } from '@/components/ui/label'
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group'
+import { toast } from 'sonner'
 
 interface Props {
   request: ConnectionRequest
@@ -79,6 +80,7 @@ export function ConnectionRequestItem({ request, currentBusinessId, onUpdate, on
       }
 
       setShowRoleConfirm(false)
+      toast.success('Connection accepted.')
       setProcessing(false)
 
       emitDataChange('connections:changed', 'connection-requests:changed', 'notifications:changed')
