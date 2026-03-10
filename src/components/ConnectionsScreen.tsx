@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { dataStore } from '@/lib/data-store'
 import { behaviourEngine } from '@/lib/behaviour-engine'
 import { createOrder } from '@/lib/interactions'
@@ -22,7 +22,6 @@ interface Props {
   onSelectConnection: (connectionId: string) => void
   onAddConnection: () => void
   unreadConnectionIds?: Set<string>
-  isActive?: boolean
 }
 
 function formatPaymentTerms(terms: Connection['paymentTerms']): string | null {
@@ -64,7 +63,7 @@ function isSameConnections(a: ConnectionWithState[], b: ConnectionWithState[]) {
   })
 }
 
-export function ConnectionsScreen({ currentBusinessId, onSelectConnection, onAddConnection, unreadConnectionIds, isActive = true }: Props) {
+export function ConnectionsScreen({ currentBusinessId, onSelectConnection, onAddConnection, unreadConnectionIds }: Props) {
   const [connections, setConnections] = useState<ConnectionWithState[]>(
     () => cachedConnectionsByBusiness.get(currentBusinessId) || []
   )
@@ -83,7 +82,7 @@ export function ConnectionsScreen({ currentBusinessId, onSelectConnection, onAdd
     requestAnimationFrame(() => console.debug('[ConnectionsScreen] paint', Date.now(), { currentBusinessId }))
   }, [currentBusinessId])
 
-  const loadConnections = useCallback(async () => {
+  async function loadConnections() {
     console.debug('[ConnectionsScreen] fetch start', Date.now(), { currentBusinessId })
     const cachedConns = cachedConnectionsByBusiness.get(currentBusinessId)
     const rawConnections = await dataStore.getConnectionsByBusinessId(currentBusinessId)
@@ -142,7 +141,7 @@ export function ConnectionsScreen({ currentBusinessId, onSelectConnection, onAdd
         .slice(0, PREFETCH_CONNECTION_COUNT)
         .map(conn => dataStore.getOrdersWithPaymentStateByConnectionId(conn.id))
     ).catch(() => {})
-  }, [currentBusinessId])
+  }
 
   useEffect(() => {
     const cachedConns = cachedConnectionsByBusiness.get(currentBusinessId)
@@ -152,15 +151,12 @@ export function ConnectionsScreen({ currentBusinessId, onSelectConnection, onAdd
       setIsLoading(true)
     }
 
-    if (isActive) {
-      void loadConnections()
-    }
-  }, [currentBusinessId, isActive, loadConnections])
+    void loadConnections()
+  }, [currentBusinessId])
 
   useDataListener(
     ['connections:changed', 'connection-requests:changed', 'orders:changed', 'payments:changed'],
-    () => { void loadConnections() },
-    isActive
+    () => { loadConnections() }
   )
 
   const handleOpenOrderModal = async () => {

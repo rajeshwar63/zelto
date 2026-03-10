@@ -58,10 +58,9 @@ function getLatestActivity(order: OrderWithPaymentState): number {
   return Math.max(order.deliveredAt || 0, order.dispatchedAt || 0, order.acceptedAt || 0, order.createdAt || 0)
 }
 
-export function useOrdersData(currentBusinessId: string, isActive = true) {
+export function useOrdersData(currentBusinessId: string) {
   return useCachedQuery<EnrichedOrder[]>({
     key: `orders:${currentBusinessId}`,
-    isActive,
     events: ['orders:changed', 'payments:changed', 'issues:changed', 'connections:changed'],
     fetcher: async () => {
       const [allOrders, connections, entities] = await Promise.all([
@@ -93,10 +92,9 @@ export function useOrdersData(currentBusinessId: string, isActive = true) {
   })
 }
 
-export function useBusinessOverviewData(currentBusinessId: string, isActive = true) {
+export function useBusinessOverviewData(currentBusinessId: string) {
   return useCachedQuery<BusinessOverviewData>({
     key: `business-overview:${currentBusinessId}`,
-    isActive,
     events: ['orders:changed', 'payments:changed', 'connections:changed', 'issues:changed'],
     fetcher: async () => {
       const [orders, connections, entities, attentionItems] = await Promise.all([
@@ -182,10 +180,9 @@ export function useBusinessOverviewData(currentBusinessId: string, isActive = tr
   })
 }
 
-export function useAttentionData(currentBusinessId: string, isActive = true) {
+export function useAttentionData(currentBusinessId: string) {
   return useCachedQuery<AttentionData>({
     key: `attention:${currentBusinessId}`,
-    isActive,
     events: ['orders:changed', 'payments:changed', 'issues:changed', 'connections:changed', 'connection-requests:changed'],
     fetcher: async () => {
       const [attentionItems, connections, entities, allRequests] = await Promise.all([
