@@ -2,11 +2,9 @@ import { useEffect, useState, useRef } from 'react'
 import { attentionEngine } from '@/lib/attention-engine'
 import { dataStore } from '@/lib/data-store'
 import { formatDistanceToNow } from 'date-fns'
-import type { AttentionItem, AttentionCategory } from '@/lib/attention-engine'
-import type { ConnectionRequest, IssueReport, OrderWithPaymentState, BusinessEntity } from '@/lib/types'
-import { getAttentionHeadingColor } from '@/lib/semantic-colors'
+import type { AttentionItem } from '@/lib/attention-engine'
+import type { ConnectionRequest } from '@/lib/types'
 import { ConnectionRequestItem } from '@/components/ConnectionRequestItem'
-import { IssueDetailSheet } from '@/components/IssueDetailSheet'
 import { markOrderSeen, getUnreadState, updateTabLastSeen } from '@/lib/unread-tracker'
 import { useDataListener } from '@/lib/data-events'
 
@@ -20,73 +18,19 @@ interface ItemWithConnection extends AttentionItem {
   connectionName: string
 }
 
-const CATEGORY_ORDER: AttentionCategory[] = [
-  'Overdue',
-  'Due Today',
-  'Pending Payments',
-  'Disputes',
-  'Approval Needed',
-]
-
-const CATEGORY_LABELS: Record<AttentionCategory, string> = {
-  'Overdue': 'Overdue',
-  'Due Today': 'Due Today',
-  'Pending Payments': 'Pending',
-  'Disputes': 'Disputes',
-  'Approval Needed': 'Approval',
-}
-
 export function AttentionScreen({ currentBusinessId, onNavigateToConnections, onNavigateToConnection }: Props) {
   const [items, setItems] = useState<ItemWithConnection[]>([])
   const [connectionRequests, setConnectionRequests] = useState<ConnectionRequest[]>([])
   const [loading, setLoading] = useState(true)
-  const [selectedFilter, setSelectedFilter] = useState<AttentionCategory | null>(null)
 
-  // Snapshot the lastSeen timestamp before updating it, so we can show unread counts
   const lastSeenRef = useRef<number | null>(null)
   if (lastSeenRef.current === null) {
     const state = getUnreadState(currentBusinessId)
     lastSeenRef.current = state.attentionLastSeen
-    // Now mark the tab as seen for next time
     updateTabLastSeen(currentBusinessId, 'attention')
   }
 
   const [seenOrders, setSeenOrders] = useState<Set<string>>(new Set())
-
-  // Issue detail sheet state
-  const [selectedIssue, setSelectedIssue] = useState<IssueReport | null>(null)
-  const [selectedOrder, setSelectedOrder] = useState<OrderWithPaymentState | null>(null)
-  const [buyerBusiness, setBuyerBusiness] = useState<BusinessEntity | null>(null)
-  const [supplierBusiness, setSupplierBusiness] = useState<BusinessEntity | null>(null)
-
-  const handleDisputeTap = async (item: ItemWithConnection) => {
-    if (!item.issueId || !item.orderId) {
-      onNavigateToConnection(item.connectionId, item.orderId)
-      return
-    }
-    const [issue, orders, connection] = await Promise.all([
-      dataStore.getIssueReportById(item.issueId),
-      dataStore.getOrdersWithPaymentStateByConnectionId(item.connectionId),
-      dataStore.getConnectionById(item.connectionId),
-    ])
-    if (!issue || !connection) {
-      onNavigateToConnection(item.connectionId, item.orderId)
-      return
-    }
-    const order = orders.find(o => o.id === item.orderId)
-    if (!order) {
-      onNavigateToConnection(item.connectionId, item.orderId)
-      return
-    }
-    const [buyer, supplier] = await Promise.all([
-      dataStore.getBusinessEntityById(connection.buyerBusinessId),
-      dataStore.getBusinessEntityById(connection.supplierBusinessId),
-    ])
-    setSelectedIssue(issue)
-    setSelectedOrder(order)
-    setBuyerBusiness(buyer || null)
-    setSupplierBusiness(supplier || null)
-  }
 
   const isItemNew = (orderId: string, frictionStartedAt: number): boolean => {
     if (seenOrders.has(orderId)) return false
@@ -101,24 +45,26 @@ export function AttentionScreen({ currentBusinessId, onNavigateToConnections, on
     const entities = await dataStore.getAllBusinessEntities()
     const entityMap = new Map(entities.map(e => [e.id, e]))
 
-    const itemsWithNames = attentionItems.map(item => {
-      const connection = connections.find(c => c.id === item.connectionId)
-      let connectionName = 'Unknown'
-      if (connection) {
-        const otherId = connection.buyerBusinessId === currentBusinessId
-          ? connection.supplierBusinessId
-          : connection.buyerBusinessId
-        connectionName = entityMap.get(otherId)?.businessName || 'Unknown'
-      }
-      return { ...item, connectionName }
-    })
+    const disputeItems = attentionItems
+      .filter(item => item.category === 'Disputes')
+      .map(item => {
+        const connection = connections.find(c => c.id === item.connectionId)
+        let connectionName = 'Unknown'
+        if (connection) {
+          const otherId = connection.buyerBusinessId === currentBusinessId
+            ? connection.supplierBusinessId
+            : connection.buyerBusinessId
+          connectionName = entityMap.get(otherId)?.businessName || 'Unknown'
+        }
+        return { ...item, connectionName }
+      })
 
     const allRequests = await dataStore.getAllConnectionRequests()
     const pendingRequests = allRequests.filter(
       r => r.receiverBusinessId === currentBusinessId && r.status === 'Pending'
     )
 
-    setItems(itemsWithNames)
+    setItems(disputeItems)
     setConnectionRequests(pendingRequests)
     setLoading(false)
   }
@@ -132,21 +78,6 @@ export function AttentionScreen({ currentBusinessId, onNavigateToConnections, on
     () => { loadData() }
   )
 
-  useEffect(() => {
-    if (items.length === 0) return
-    const firstNewCategory = CATEGORY_ORDER.find(cat =>
-      items.some(
-        item => item.category === cat &&
-        item.orderId != null &&
-        isItemNew(item.orderId, item.frictionStartedAt)
-      )
-    )
-    const firstAvailableCategory = CATEGORY_ORDER.find(cat =>
-      items.some(item => item.category === cat)
-    )
-    setSelectedFilter(firstNewCategory ?? firstAvailableCategory ?? null)
-  }, [items, currentBusinessId])
-
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-screen">
@@ -155,83 +86,49 @@ export function AttentionScreen({ currentBusinessId, onNavigateToConnections, on
     )
   }
 
-  const itemsByCategory = new Map<AttentionCategory, ItemWithConnection[]>()
-  CATEGORY_ORDER.forEach(category => {
-    const categoryItems = items.filter(item => item.category === category)
-    if (categoryItems.length > 0) itemsByCategory.set(category, categoryItems)
-  })
-
-  const availableCategories = Array.from(itemsByCategory.keys())
-
-  if (itemsByCategory.size === 0 && connectionRequests.length === 0) {
+  if (items.length === 0 && connectionRequests.length === 0) {
     return (
       <div className="flex flex-col h-full">
         <div className="sticky top-0 bg-white z-10" style={{ paddingTop: 'env(safe-area-inset-top)' }}>
           <div className="h-11 flex items-center px-4">
-            <h1 className="text-[17px] text-foreground font-normal">Attention</h1>
+            <h1 className="text-[17px] text-foreground font-normal">Disputes</h1>
           </div>
         </div>
         <div className="flex-1 flex items-center justify-center">
-          <p className="text-sm text-muted-foreground">Nothing needs attention right now.</p>
+          <div className="text-center px-6">
+            <p className="text-[15px] text-foreground mb-1">No disputes</p>
+            <p className="text-[13px] text-muted-foreground">
+              Issues and disputes with your connections will appear here.
+            </p>
+          </div>
         </div>
       </div>
     )
   }
 
-  const filteredItems = selectedFilter
-    ? items.filter(item => item.category === selectedFilter)
-    : items
-
-  const filteredItemsByCategory = new Map<AttentionCategory, ItemWithConnection[]>()
-  CATEGORY_ORDER.forEach(category => {
-    const categoryItems = filteredItems.filter(item => item.category === category)
-    if (categoryItems.length > 0) filteredItemsByCategory.set(category, categoryItems)
+  const sortedItems = [...items].sort((a, b) => {
+    const aNew = a.orderId != null && isItemNew(a.orderId, a.frictionStartedAt)
+    const bNew = b.orderId != null && isItemNew(b.orderId, b.frictionStartedAt)
+    if (aNew && !bNew) return -1
+    if (!aNew && bNew) return 1
+    return b.frictionStartedAt - a.frictionStartedAt
   })
+
+  const newCount = items.filter(item =>
+    item.orderId != null && isItemNew(item.orderId, item.frictionStartedAt)
+  ).length
 
   return (
     <div className="flex flex-col h-full">
       <div className="sticky top-0 bg-white z-10" style={{ paddingTop: 'env(safe-area-inset-top)' }}>
         <div className="h-11 flex items-center px-4">
-          <h1 className="text-[17px] text-foreground font-normal">Attention</h1>
+          <h1 className="text-[17px] text-foreground font-normal">Disputes</h1>
+          {newCount > 0 && (
+            <span className="ml-2 inline-flex items-center text-[11px] font-medium px-2 py-0.5 rounded-full bg-red-50 text-red-600">
+              {newCount} new
+            </span>
+          )}
         </div>
-        {itemsByCategory.size > 0 && (
-          <div className="border-b border-border py-2 px-4">
-            <div className="flex gap-3 overflow-x-auto scrollbar-hide">
-              {availableCategories.map(category => {
-                const newCount = items.filter(
-                  item => item.category === category &&
-                  item.orderId != null &&
-                  isItemNew(item.orderId, item.frictionStartedAt)
-                ).length
-                return (
-                  <button
-                    key={category}
-                    onClick={() => setSelectedFilter(category)}
-                    className={`text-sm whitespace-nowrap pb-1 ${
-                      selectedFilter === category
-                        ? 'text-foreground border-b-2 border-foreground'
-                        : 'text-muted-foreground'
-                    }`}
-                  >
-                    {CATEGORY_LABELS[category]}
-                    {newCount > 0 && (
-                      <span style={{
-                        fontSize: '0.6em',
-                        verticalAlign: 'super',
-                        fontWeight: 500,
-                        color: 'inherit',
-                        marginLeft: '2px',
-                        lineHeight: 1,
-                      }}>
-                        {newCount}
-                      </span>
-                    )}
-                  </button>
-                )
-              })}
-            </div>
-          </div>
-        )}
       </div>
 
       <div className="flex-1 overflow-y-auto">
@@ -254,131 +151,55 @@ export function AttentionScreen({ currentBusinessId, onNavigateToConnections, on
           </div>
         )}
 
-        {CATEGORY_ORDER.map(category => {
-          const categoryItems = filteredItemsByCategory.get(category)
-          if (!categoryItems) return null
-          const categoryColor = getAttentionHeadingColor(category)
-
-          const newCount = categoryItems.filter(item =>
-            item.orderId != null && isItemNew(item.orderId, item.frictionStartedAt)
-          ).length
-
-          const sortedItems = [...categoryItems].sort((a, b) => {
-            const aNew = a.orderId != null && isItemNew(a.orderId, a.frictionStartedAt)
-            const bNew = b.orderId != null && isItemNew(b.orderId, b.frictionStartedAt)
-            if (aNew && !bNew) return -1
-            if (!aNew && bNew) return 1
-            return b.frictionStartedAt - a.frictionStartedAt
-          })
-
-          return (
-            <div key={category}>
-              <div className="px-4 pt-3 pb-1.5">
-                <h2
-                  className="text-[10px] uppercase tracking-wide flex items-center gap-1.5"
-                  style={{ color: categoryColor || 'hsl(var(--muted-foreground) / 0.6)' }}
-                >
-                  {category}
-                  {newCount > 0 && (
-                    <span className="inline-flex items-center gap-0.5 text-[9px] font-medium px-1.5 py-0.5 rounded-full bg-amber-100 text-amber-700 normal-case tracking-normal">
-                      • {newCount} new
-                    </span>
-                  )}
-                </h2>
-              </div>
-              {sortedItems.map(item => {
-                const amount = item.metadata?.pendingAmount
-                const amountStr = amount ? `₹${amount.toLocaleString('en-IN')}` : ''
-                const issueType = item.metadata?.issueType || 'Issue'
-
-                const statusLabel = ({
-                  'Overdue': `Overdue${amountStr ? ` · ${amountStr}` : ''}`,
-                  'Due Today': `Due today${amountStr ? ` · ${amountStr}` : ''}`,
-                  'Pending Payments': `Pending${amountStr ? ` · ${amountStr}` : ''}`,
-                  'Disputes': `Dispute · ${issueType}`,
-                  'Approval Needed': 'Awaiting Dispatch',
-                } as Record<string, string>)[item.category] || item.description
-
-                const statusColor = ({
-                  'Overdue': 'var(--status-overdue)',
-                  'Due Today': 'var(--status-dispatched)',
-                  'Pending Payments': '#444444',
-                  'Disputes': 'var(--status-overdue)',
-                  'Approval Needed': 'var(--status-dispatched)',
-                } as Record<string, string>)[item.category]
-
-                const isNew = item.orderId != null && isItemNew(item.orderId, item.frictionStartedAt)
-
-                return (
-                  <button
-                    key={item.id}
-                    onClick={() => {
-                      if (item.orderId) {
-                        markOrderSeen(currentBusinessId, item.orderId)
-                        setSeenOrders(prev => new Set(prev).add(item.orderId!))
-                      }
-                      if (item.category === 'Disputes' && item.issueId) {
-                        handleDisputeTap(item)
-                      } else {
-                        onNavigateToConnection(item.connectionId, item.orderId)
-                      }
-                    }}
-                    className={`w-full px-4 py-3 text-left transition-colors ${
-                      isNew
-                        ? 'border-l-[3px] border-l-amber-400 bg-amber-50'
-                        : 'border-l-[3px] border-l-transparent'
-                    }`}
-                  >
-                    <div className="flex items-start justify-between mb-1">
-                      <div className="flex-1 mr-3">
-                        <p className="text-[14px] text-foreground font-normal leading-snug">
-                          {item.metadata?.orderSummary || item.description}
-                        </p>
-                      </div>
-                      <p className="text-[12px] text-muted-foreground flex-shrink-0">
-                        {formatDistanceToNow(item.frictionStartedAt, { addSuffix: true })}
-                      </p>
-                    </div>
-                    <div className="flex items-center justify-between">
-                      <p className="text-[13px] text-muted-foreground">
-                        {item.connectionName}
-                      </p>
-                      <p className="text-[12px] font-medium" style={{ color: statusColor }}>
-                        {statusLabel}
-                      </p>
-                    </div>
-                  </button>
-                )
-              })}
+        {items.length > 0 && (
+          <div>
+            <div className="px-4 pt-3 pb-1.5">
+              <h2 className="text-[10px] uppercase tracking-wide" style={{ color: '#D64545' }}>
+                Open Disputes
+              </h2>
             </div>
-          )
-        })}
-      </div>
+            {sortedItems.map(item => {
+              const issueType = item.metadata?.issueType || 'Issue'
+              const isNew = item.orderId != null && isItemNew(item.orderId, item.frictionStartedAt)
 
-      {/* Issue Detail Sheet */}
-      {selectedIssue && selectedOrder && buyerBusiness && supplierBusiness && (
-        <IssueDetailSheet
-          issue={selectedIssue}
-          order={selectedOrder}
-          buyerBusiness={buyerBusiness}
-          supplierBusiness={supplierBusiness}
-          currentBusinessId={currentBusinessId}
-          isOpen={!!selectedIssue}
-          onClose={() => {
-            setSelectedIssue(null)
-            setSelectedOrder(null)
-            setBuyerBusiness(null)
-            setSupplierBusiness(null)
-          }}
-          onStatusChange={() => {
-            setSelectedIssue(null)
-            setSelectedOrder(null)
-            setBuyerBusiness(null)
-            setSupplierBusiness(null)
-            loadData()
-          }}
-        />
-      )}
+              return (
+                <button
+                  key={item.id}
+                  onClick={() => {
+                    if (item.orderId) {
+                      markOrderSeen(currentBusinessId, item.orderId)
+                      setSeenOrders(prev => new Set(prev).add(item.orderId!))
+                    }
+                    onNavigateToConnection(item.connectionId, item.orderId)
+                  }}
+                  className={`w-full px-4 py-3 text-left border-b border-border/30 transition-colors ${
+                    isNew
+                      ? 'border-l-[3px] border-l-red-400 bg-red-50/50'
+                      : 'border-l-[3px] border-l-transparent'
+                  }`}
+                >
+                  <div className="flex items-start justify-between mb-1">
+                    <p className="text-[14px] text-foreground font-normal leading-snug flex-1 mr-3">
+                      {item.metadata?.orderSummary || item.description}
+                    </p>
+                    <p className="text-[12px] text-muted-foreground flex-shrink-0">
+                      {formatDistanceToNow(item.frictionStartedAt, { addSuffix: true })}
+                    </p>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <p className="text-[13px] text-muted-foreground">
+                      {item.connectionName}
+                    </p>
+                    <p className="text-[12px] font-medium" style={{ color: '#D64545' }}>
+                      {issueType}
+                    </p>
+                  </div>
+                </button>
+              )
+            })}
+          </div>
+        )}
+      </div>
     </div>
   )
 }
