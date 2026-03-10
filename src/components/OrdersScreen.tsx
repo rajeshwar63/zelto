@@ -10,7 +10,7 @@ import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import { toast } from 'sonner'
 
-type OrderFilter = 'all' | 'today' | 'placed' | 'dispatched' | 'delivered' | 'payment_pending' | 'paid' | 'awaiting_dispatch'
+type OrderFilter = 'all' | 'today' | 'placed' | 'dispatched' | 'delivered' | 'payment_pending' | 'paid' | 'awaiting_dispatch' | 'has_issues'
 
 interface EnrichedOrder extends OrderWithPaymentState {
   connectionName: string
@@ -48,6 +48,7 @@ const FILTER_LABELS: { key: OrderFilter; label: string }[] = [
   { key: 'delivered', label: 'Delivered' },
   { key: 'payment_pending', label: 'Payment Pending' },
   { key: 'paid', label: 'Paid' },
+  { key: 'has_issues', label: 'Issues' },
 ]
 
 function getFilterColor(key: OrderFilter): string {
@@ -57,6 +58,7 @@ function getFilterColor(key: OrderFilter): string {
     case 'delivered': return 'var(--status-delivered)'
     case 'payment_pending': return 'var(--status-overdue)'
     case 'paid': return 'var(--status-success)'
+    case 'has_issues': return 'var(--status-overdue)'
     default: return 'var(--brand-primary)'
   }
 }
@@ -68,6 +70,7 @@ function getFilterBg(key: OrderFilter): string {
     case 'delivered': return '#F0FFF6'
     case 'payment_pending': return '#FFF0F0'
     case 'paid': return '#F0FFF6'
+    case 'has_issues': return '#FFF0F0'
     default: return 'var(--brand-primary-bg)'
   }
 }
@@ -86,6 +89,7 @@ export function OrdersScreen({ currentBusinessId, onSelectOrder, initialFilter }
   const [orders, setOrders] = useState<EnrichedOrder[]>([])
   const [loading, setLoading] = useState(true)
   const [filter, setFilter] = useState<OrderFilter>((initialFilter as OrderFilter) || 'all')
+  const [openIssueOrderIds, setOpenIssueOrderIds] = useState<Set<string>>(new Set())
 
   // Order creation modal state
   const [showOrderModal, setShowOrderModal] = useState(false)
@@ -126,6 +130,19 @@ export function OrdersScreen({ currentBusinessId, onSelectOrder, initialFilter }
 
     enriched.sort((a, b) => b.latestActivity - a.latestActivity)
     setOrders(enriched)
+
+    // Fetch open issues to support has_issues filter
+    const orderIds = allOrders.map(o => o.id)
+    if (orderIds.length > 0) {
+      const issues = await dataStore.getIssueReportsByOrderIds(orderIds)
+      const idsWithOpenIssues = new Set(
+        issues.filter(i => i.status !== 'Resolved').map(i => i.orderId)
+      )
+      setOpenIssueOrderIds(idsWithOpenIssues)
+    } else {
+      setOpenIssueOrderIds(new Set())
+    }
+
     setLoading(false)
   }
 
@@ -140,7 +157,7 @@ export function OrdersScreen({ currentBusinessId, onSelectOrder, initialFilter }
   }, [initialFilter])
 
   useDataListener(
-    ['orders:changed', 'payments:changed'],
+    ['orders:changed', 'payments:changed', 'issues:changed'],
     () => { loadOrders() }
   )
 
@@ -156,10 +173,11 @@ export function OrdersScreen({ currentBusinessId, onSelectOrder, initialFilter }
         case 'delivered': return order.lifecycleState === 'Delivered' && order.settlementState !== 'Paid'
         case 'payment_pending': return order.deliveredAt && order.settlementState !== 'Paid'
         case 'paid': return order.settlementState === 'Paid'
+        case 'has_issues': return openIssueOrderIds.has(order.id)
         default: return true
       }
     })
-  }, [orders, filter])
+  }, [orders, filter, openIssueOrderIds])
 
   const handleOpenOrderModal = async () => {
     const allConnections = await dataStore.getConnectionsByBusinessId(currentBusinessId)
