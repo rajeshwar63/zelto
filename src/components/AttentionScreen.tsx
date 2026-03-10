@@ -1,4 +1,5 @@
 import { useEffect, useState, useRef } from 'react'
+import { CaretRight, ShieldWarning } from '@phosphor-icons/react'
 import { attentionEngine } from '@/lib/attention-engine'
 import { dataStore } from '@/lib/data-store'
 import { formatDistanceToNow } from 'date-fns'
@@ -158,7 +159,7 @@ export function AttentionScreen({ currentBusinessId, onNavigateToConnections, on
                 Open Disputes
               </h2>
             </div>
-            <div className="bg-white border border-border rounded-xl overflow-hidden">
+            <div className="space-y-2">
               {sortedItems.map(item => {
               const issueType = item.metadata?.issueType || 'Issue'
               const isNew = item.orderId != null && isItemNew(item.orderId, item.frictionStartedAt)
@@ -172,27 +173,51 @@ export function AttentionScreen({ currentBusinessId, onNavigateToConnections, on
                     setSeenOrders(prev => new Set(prev).add(item.orderId))
                     onNavigateToIssue(item.connectionId, item.orderId, item.issueId)
                   }}
-                  className={`w-full px-4 py-3 text-left border-b border-border/30 transition-colors ${
-                    isNew
-                      ? 'border-l-[3px] border-l-red-400 bg-red-50/50'
-                      : 'border-l-[3px] border-l-transparent'
-                  }`}
+                  className="w-full px-4 py-3 text-left transition-colors rounded-xl"
+                  style={{
+                    backgroundColor: 'var(--bg-card)',
+                    borderLeft: `3px solid ${isNew ? 'var(--status-issue)' : 'var(--status-dispute)'}`,
+                  }}
                 >
-                  <div className="flex items-start justify-between mb-1">
-                    <p className="text-[14px] text-foreground font-normal leading-snug flex-1 mr-3">
-                      {item.metadata?.orderSummary || item.description}
-                    </p>
-                    <p className="text-[12px] text-muted-foreground flex-shrink-0">
-                      {formatDistanceToNow(item.frictionStartedAt, { addSuffix: true })}
-                    </p>
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="flex items-start gap-3 min-w-0">
+                      <div className="w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0" style={{ backgroundColor: '#FFFBF0' }}>
+                        <ShieldWarning size={15} weight="fill" color="var(--status-issue)" />
+                      </div>
+                      <div className="min-w-0">
+                        <p className="text-[14px] text-foreground font-semibold leading-snug truncate">
+                          {item.metadata?.orderSummary || item.description}
+                        </p>
+                        <p className="text-[12px] text-muted-foreground mt-0.5 truncate">
+                          {item.connectionName}
+                        </p>
+                      </div>
+                    </div>
+                    <CaretRight size={16} style={{ color: 'var(--text-muted)' }} className="flex-shrink-0 mt-0.5" />
                   </div>
-                  <div className="flex items-center justify-between">
-                    <p className="text-[13px] text-muted-foreground">
-                      {item.connectionName}
-                    </p>
-                    <p className="text-[12px] font-medium" style={{ color: '#D64545' }}>
+                  <div className="flex items-center gap-1.5 mt-1 pl-10" style={{ fontSize: '12px' }}>
+                    <span
+                      style={{
+                        fontSize: '11px',
+                        fontWeight: 600,
+                        color: 'var(--status-issue)',
+                        backgroundColor: '#FFFBF0',
+                        padding: '2px 8px',
+                        borderRadius: 'var(--radius-chip)',
+                      }}
+                    >
                       {issueType}
-                    </p>
+                    </span>
+                    <span style={{ color: 'var(--text-secondary)' }}>·</span>
+                    <span style={{ color: 'var(--text-secondary)', fontSize: '12px', fontWeight: 500 }}>
+                      {formatDistanceToNow(item.frictionStartedAt, { addSuffix: true })}
+                    </span>
+                    {isNew && (
+                      <>
+                        <span style={{ color: 'var(--text-secondary)' }}>·</span>
+                        <span style={{ color: 'var(--status-overdue)', fontSize: '11px', fontWeight: 600 }}>New</span>
+                      </>
+                    )}
                   </div>
                 </button>
               )
