@@ -9,6 +9,7 @@ import { formatDistanceToNow } from 'date-fns'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Label } from '@/components/ui/label'
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group'
+import { toast } from 'sonner'
 
 interface Props {
   request: ConnectionRequest
@@ -75,15 +76,21 @@ export function ConnectionRequestItem({ request, currentBusinessId, onUpdate, on
 
       await dataStore.updateConnectionRequestStatus(request.id, 'Accepted')
 
-      await dataStore.createNotification(
-        request.requesterBusinessId,
-        'ConnectionAccepted',
-        connection.id,
-        connection.id,
-        `Your connection request has been accepted`
-      )
+      try {
+        await dataStore.createNotification(
+          request.requesterBusinessId,
+          'ConnectionAccepted',
+          connection.id,
+          connection.id,
+          'Your connection request has been accepted'
+        )
+      } catch (notificationError) {
+        console.warn('Connection accepted but notification could not be sent:', notificationError)
+        toast.warning('Accepted, but notification could not be sent.')
+      }
 
       setShowRoleConfirm(false)
+      toast.success('Connection accepted.')
       setProcessing(false)
 
       emitDataChange('connections:changed', 'connection-requests:changed', 'notifications:changed')
