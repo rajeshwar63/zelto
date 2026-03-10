@@ -383,49 +383,51 @@ function App() {
     navigateBack()
   }
 
-  return (
-    <div className="h-full flex flex-col overflow-hidden" style={{ backgroundColor: 'var(--bg-screen)' }}>
-      <div className="flex-1 overflow-auto pb-16">
-        <div style={{ display: activeTab === 'dashboard' ? 'block' : 'none', height: '100%' }}>
+  const renderActiveTabScreen = () => {
+    if (screen.type !== 'tab') return null
+
+    switch (screen.tab) {
+      case 'dashboard':
+        return (
           <DashboardScreen
             currentBusinessId={currentBusinessId}
-            isActive={activeTab === 'dashboard'}
+            isActive
             onNavigateToOrders={(filter) => navigateToTabWithFilter('orders', filter)}
             onNavigateToConnection={navigateToConnection}
             onNavigateToProfile={() => navigateToTab('profile')}
             onNavigateToAttention={(filter) => navigateToTabWithFilter('attention', filter)}
           />
-        </div>
-
-        <div style={{ display: activeTab === 'attention' ? 'block' : 'none', height: '100%' }}>
+        )
+      case 'attention':
+        return (
           <AttentionScreen
             currentBusinessId={currentBusinessId}
-            isActive={activeTab === 'attention'}
+            isActive
             onNavigateToConnections={() => navigateToTab('connections')}
             onNavigateToIssue={navigateToIssueDetail}
           />
-        </div>
-
-        <div style={{ display: activeTab === 'connections' ? 'block' : 'none', height: '100%' }}>
+        )
+      case 'connections':
+        return (
           <ConnectionsScreen
             currentBusinessId={currentBusinessId}
-            isActive={activeTab === 'connections'}
+            isActive
             onSelectConnection={navigateToConnection}
             onAddConnection={navigateToAddConnection}
             unreadConnectionIds={unreadConnectionIds}
           />
-        </div>
-
-        <div style={{ display: activeTab === 'orders' ? 'block' : 'none', height: '100%' }}>
+        )
+      case 'orders':
+        return (
           <OrdersScreen
             currentBusinessId={currentBusinessId}
-            isActive={activeTab === 'orders'}
+            isActive
             onSelectOrder={navigateToOrderDetail}
             initialFilter={activeTabScreen?.tab === 'orders' ? activeTabScreen.filter : undefined}
           />
-        </div>
-
-        <div style={{ display: activeTab === 'profile' ? 'block' : 'none', height: '100%' }}>
+        )
+      case 'profile':
+        return (
           <ProfileScreen
             currentBusinessId={currentBusinessId}
             onLogout={handleLogout}
@@ -435,68 +437,107 @@ function App() {
             onNavigateToAccount={navigateToProfileAccount}
             onNavigateToSupport={navigateToProfileSupport}
           />
-        </div>
+        )
+      default:
+        return null
+    }
+  }
 
-        {screen.type === 'profile-notifications' ? (
-          <NotificationSettingsScreen onBack={navigateBack} />
-        ) : screen.type === 'profile-account' ? (
-          <AccountScreen onBack={navigateBack} onLogout={handleLogout} />
-        ) : screen.type === 'profile-support' ? (
-          <HelpSupportScreen onBack={navigateBack} />
-        ) : screen.type === 'notifications' ? (
-          <NotificationHistoryScreen
-            currentBusinessId={currentBusinessId}
-            onBack={navigateBack}
-            onNavigateToConnection={navigateToConnection}
-          />
-        ) : screen.type === 'business-details' ? (
-          <BusinessDetailsScreen
-            currentBusinessId={currentBusinessId}
-            onBack={navigateBack}
-            onSave={handleBusinessDetailsSaved}
-          />
-        ) : screen.type === 'add-connection' ? (
-          <AddConnectionScreen
-            currentBusinessId={currentBusinessId}
-            onBack={navigateBack}
-            onSuccess={handleAddConnectionSuccess}
-          />
-        ) : screen.type === 'payment-terms-setup' ? (
-          <PaymentTermsSetupScreen
-            connectionId={screen.connectionId}
-            businessName={screen.businessName}
-            currentBusinessId={currentBusinessId}
-            onSave={handlePaymentTermsSaved}
-            onBack={handlePaymentTermsBack}
-          />
-        ) : screen.type === 'report-issue' ? (
-          <ReportIssueScreen
-            orderId={screen.orderId}
-            currentBusinessId={currentBusinessId}
-            onBack={navigateBack}
-            onSuccess={() => {
-              navigateBack()
-            }}
-          />
-        ) : screen.type === 'order-detail' ? (
-          <OrderDetailScreen
-            orderId={screen.orderId}
-            connectionId={screen.connectionId}
-            currentBusinessId={currentBusinessId}
-            onBack={navigateBack}
-            onReportIssue={navigateToReportIssue}
-            initialIssueId={screen.initialIssueId}
-          />
-        ) : screen.type === 'connection-detail' ? (
-          <ConnectionDetailScreen
-            connectionId={screen.connectionId}
-            currentBusinessId={currentBusinessId}
-            selectedOrderId={screen.selectedOrderId}
-            onBack={navigateBack}
-            onNavigateToPaymentTermsSetup={navigateToPaymentTermsSetup}
-            onReportIssue={navigateToReportIssue}
-          />
-        ) : null}
+  const renderOverlayScreen = () => {
+    if (screen.type === 'tab') return null
+
+    if (screen.type === 'profile-notifications') {
+      return <NotificationSettingsScreen onBack={navigateBack} />
+    }
+    if (screen.type === 'profile-account') {
+      return <AccountScreen onBack={navigateBack} onLogout={handleLogout} />
+    }
+    if (screen.type === 'profile-support') {
+      return <HelpSupportScreen onBack={navigateBack} />
+    }
+    if (screen.type === 'notifications') {
+      return (
+        <NotificationHistoryScreen
+          currentBusinessId={currentBusinessId}
+          onBack={navigateBack}
+          onNavigateToConnection={navigateToConnection}
+        />
+      )
+    }
+    if (screen.type === 'business-details') {
+      return (
+        <BusinessDetailsScreen
+          currentBusinessId={currentBusinessId}
+          onBack={navigateBack}
+          onSave={handleBusinessDetailsSaved}
+        />
+      )
+    }
+    if (screen.type === 'add-connection') {
+      return (
+        <AddConnectionScreen
+          currentBusinessId={currentBusinessId}
+          onBack={navigateBack}
+          onSuccess={handleAddConnectionSuccess}
+        />
+      )
+    }
+    if (screen.type === 'payment-terms-setup') {
+      return (
+        <PaymentTermsSetupScreen
+          connectionId={screen.connectionId}
+          businessName={screen.businessName}
+          currentBusinessId={currentBusinessId}
+          onSave={handlePaymentTermsSaved}
+          onBack={handlePaymentTermsBack}
+        />
+      )
+    }
+    if (screen.type === 'report-issue') {
+      return (
+        <ReportIssueScreen
+          orderId={screen.orderId}
+          currentBusinessId={currentBusinessId}
+          onBack={navigateBack}
+          onSuccess={() => {
+            navigateBack()
+          }}
+        />
+      )
+    }
+    if (screen.type === 'order-detail') {
+      return (
+        <OrderDetailScreen
+          orderId={screen.orderId}
+          connectionId={screen.connectionId}
+          currentBusinessId={currentBusinessId}
+          onBack={navigateBack}
+          onReportIssue={navigateToReportIssue}
+          initialIssueId={screen.initialIssueId}
+        />
+      )
+    }
+    if (screen.type === 'connection-detail') {
+      return (
+        <ConnectionDetailScreen
+          connectionId={screen.connectionId}
+          currentBusinessId={currentBusinessId}
+          selectedOrderId={screen.selectedOrderId}
+          onBack={navigateBack}
+          onNavigateToPaymentTermsSetup={navigateToPaymentTermsSetup}
+          onReportIssue={navigateToReportIssue}
+        />
+      )
+    }
+
+    return null
+  }
+
+  return (
+    <div className="h-full flex flex-col overflow-hidden" style={{ backgroundColor: 'var(--bg-screen)' }}>
+      <div className={`flex-1 overflow-auto ${screen.type === 'tab' ? 'pb-16' : ''}`}>
+        {renderActiveTabScreen()}
+        {renderOverlayScreen()}
       </div>
 
       {screen.type === 'tab' && (
