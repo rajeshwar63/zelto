@@ -427,6 +427,7 @@ const initializeApp = async () => {
             onNavigateToOrders={(filter) => navigateToTabWithFilter('orders', filter)}
             onNavigateToConnection={navigateToConnection}
             onNavigateToProfile={() => navigateToTab('profile')}
+            onNavigateToAttention={(filter) => navigateToTabWithFilter('attention', filter)}
           />
         ) : screen.type === 'tab' && screen.tab === 'attention' ? (
           <AttentionScreen
@@ -468,6 +469,12 @@ const initializeApp = async () => {
               icon={<House weight="regular" size={22} />}
               active={screen.tab === 'dashboard'}
               onClick={() => navigateToTab('dashboard')}
+            />
+            <TabButton
+              label="Connections"
+              icon={<Users weight="regular" size={22} />}
+              active={screen.tab === 'connections'}
+              onClick={() => navigateToTab('connections')}
               hasUnread={hasUnreadConnections}
             />
             <TabButton
@@ -477,16 +484,10 @@ const initializeApp = async () => {
               onClick={() => navigateToTab('orders')}
             />
             <TabButton
-              label="Attention"
+              label="Disputes"
               icon={<Bell weight="regular" size={22} />}
               active={screen.tab === 'attention'}
               onClick={() => navigateToTab('attention')}
-            />
-            <TabButton
-              label="Connections"
-              icon={<Users weight="regular" size={22} />}
-              active={screen.tab === 'connections'}
-              onClick={() => navigateToTab('connections')}
             />
             <TabButton
               label="Profile"
