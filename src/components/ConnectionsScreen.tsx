@@ -158,7 +158,7 @@ export function ConnectionsScreen({ currentBusinessId, onSelectConnection, onAdd
   }, [currentBusinessId, isActive, loadConnections])
 
   useDataListener(
-    ['connections:changed', 'connection-requests:changed', 'orders:changed', 'payments:changed'],
+    ['connections:changed', 'connection-requests:changed', 'orders:changed', 'payments:changed', 'issues:changed'],
     () => { void loadConnections() },
     isActive
   )
