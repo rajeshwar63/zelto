@@ -41,7 +41,7 @@ export function AdminLogin({ onLoginSuccess }: AdminLoginProps) {
           style={{ width: '100%', padding: '10px 12px', marginBottom: 12, border: '1px solid #ccc', borderRadius: 4, fontSize: 14, boxSizing: 'border-box' }}
         />
         {error && (
-          <p style={{ color: '#D64545', fontSize: 13, marginBottom: 12 }}>{error}</p>
+          <p style={{ color: 'var(--status-overdue)', fontSize: 13, marginBottom: 12 }}>{error}</p>
         )}
         <button
           onClick={handleLogin}

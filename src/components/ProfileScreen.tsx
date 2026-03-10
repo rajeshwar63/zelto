@@ -18,6 +18,16 @@ interface Props {
   onNavigateToSupport: () => void
 }
 
+function getInitials(name: string): string {
+  return name
+    .split(' ')
+    .filter(Boolean)
+    .slice(0, 2)
+    .map(w => w[0])
+    .join('')
+    .toUpperCase()
+}
+
 export function ProfileScreen({ currentBusinessId, onLogout, onNavigateToBusinessDetails, onNavigateToNotifications, onNavigateToNotificationSettings, onNavigateToAccount, onNavigateToSupport }: Props) {
   const [business, setBusiness] = useState<BusinessEntity | null>(null)
   const [userAccount, setUserAccount] = useState<UserAccount | null>(null)
@@ -87,8 +97,15 @@ export function ProfileScreen({ currentBusinessId, onLogout, onNavigateToBusines
 
   if (loading || !business || !userAccount) {
     return (
-      <div className="flex items-center justify-center min-h-screen">
-        <p className="text-sm text-muted-foreground">Loading...</p>
+      <div style={{ backgroundColor: 'var(--bg-screen)', minHeight: '100vh' }}>
+        <div className="sticky top-0 z-10" style={{ backgroundColor: 'var(--bg-header)', paddingTop: 'env(safe-area-inset-top)' }}>
+          <div className="h-11 flex items-center px-4">
+            <h1 style={{ fontSize: '22px', fontWeight: 700, color: 'var(--text-primary)', letterSpacing: '-0.02em' }}>Profile</h1>
+          </div>
+        </div>
+        <div className="flex items-center justify-center py-16">
+          <p style={{ fontSize: '14px', fontWeight: 500, color: 'var(--text-secondary)' }}>Loading...</p>
+        </div>
       </div>
     )
   }
@@ -158,20 +175,30 @@ export function ProfileScreen({ currentBusinessId, onLogout, onNavigateToBusines
   }
 
   return (
-    <div>
+    <div style={{ backgroundColor: 'var(--bg-screen)', minHeight: '100%' }}>
       {/* Header */}
-      <div className="sticky top-0 bg-white z-10" style={{ paddingTop: 'env(safe-area-inset-top)' }}>
+      <div className="sticky top-0 z-10" style={{ backgroundColor: 'var(--bg-header)', paddingTop: 'env(safe-area-inset-top)' }}>
         <div className="h-11 flex items-center px-4">
-          <h1 className="text-[17px] text-foreground font-normal flex-1">Profile</h1>
+          <h1 style={{ fontSize: '22px', fontWeight: 700, color: 'var(--text-primary)', letterSpacing: '-0.02em', flex: 1 }}>Profile</h1>
           <button
             onClick={onNavigateToNotifications}
-            className="relative flex items-center text-foreground hover:text-muted-foreground"
+            className="relative flex items-center"
+            style={{ color: 'var(--text-primary)', minWidth: '44px', minHeight: '44px', justifyContent: 'center' }}
           >
             <Bell size={22} weight="regular" />
             {unreadCount > 0 && (
               <div
-                className="absolute -top-1 -right-1 min-w-[18px] h-[18px] rounded-full flex items-center justify-center text-white text-[10px] font-medium px-1"
-                style={{ backgroundColor: '#D64545' }}
+                className="absolute -top-1 -right-1 flex items-center justify-center"
+                style={{
+                  minWidth: '18px',
+                  height: '18px',
+                  borderRadius: 'var(--radius-badge)',
+                  backgroundColor: 'var(--status-overdue)',
+                  color: '#FFFFFF',
+                  fontSize: '10px',
+                  fontWeight: 700,
+                  padding: '0 4px',
+                }}
               >
                 {unreadCount > 99 ? '99+' : unreadCount}
               </div>
@@ -180,155 +207,199 @@ export function ProfileScreen({ currentBusinessId, onLogout, onNavigateToBusines
         </div>
       </div>
 
-      {/* User Info Section */}
-      <div className="px-4 py-6 border-b border-border">
-        <div className="flex items-center gap-2">
-          {isEditingUsername ? (
-            <div className="flex items-center gap-2 flex-1">
-              <input
-                ref={usernameInputRef}
-                type="text"
-                value={editedUsername}
-                onChange={(e) => setEditedUsername(e.target.value)}
-                onKeyDown={handleUsernameKeyDown}
-                disabled={isSavingUsername}
-                maxLength={50}
-                className="text-[17px] font-medium text-foreground bg-transparent border-b border-foreground outline-none flex-1 min-w-0 py-0.5"
-              />
-              <button
-                onClick={handleSaveUsername}
-                disabled={isSavingUsername}
-                className="text-foreground hover:text-foreground/70 transition-colors p-1"
-              >
-                <Check size={18} weight="bold" />
-              </button>
-              <button
-                onClick={handleCancelEditUsername}
-                disabled={isSavingUsername}
-                className="text-muted-foreground hover:text-foreground transition-colors p-1"
-              >
-                <X size={18} />
-              </button>
-            </div>
-          ) : (
-            <>
-              <h1 className="text-[17px] font-medium text-foreground">{userAccount.username}</h1>
-              <button
-                onClick={handleStartEditUsername}
-                className="text-muted-foreground hover:text-foreground transition-colors p-1"
-              >
-                <PencilSimple size={16} />
-              </button>
-            </>
-          )}
-        </div>
-        <p className="text-[13px] text-muted-foreground mt-1">{userAccount.email}</p>
-      </div>
-
-      {/* Business Section */}
-      <div className="px-4 py-4 border-b border-border">
-        <h2 className="text-[11px] font-medium text-muted-foreground uppercase tracking-wide mb-3">
-          Business
-        </h2>
-        <div className="flex items-center gap-1.5 mb-1">
-          <h3 className="text-[15px] font-medium text-foreground">{business.businessName}</h3>
+      {/* Avatar + Business Name Section */}
+      <div className="px-4 pt-6 pb-4">
+        <div className="flex flex-col items-center mb-4">
+          <div
+            className="flex items-center justify-center mb-3"
+            style={{
+              width: '64px',
+              height: '64px',
+              borderRadius: 'var(--radius-avatar)',
+              background: 'linear-gradient(135deg, var(--brand-primary), var(--brand-primary-light))',
+              boxShadow: '0 4px 12px rgba(74,108,247,0.3)',
+              color: '#FFFFFF',
+              fontSize: '22px',
+              fontWeight: 700,
+            }}
+          >
+            {getInitials(business.businessName)}
+          </div>
+          <h2 style={{ fontSize: '22px', fontWeight: 700, color: 'var(--text-primary)' }}>{business.businessName}</h2>
           {credibility && credibility.level !== 'none' && (
-            <CredibilityBadge level={credibility.level} />
+            <div className="mt-1">
+              <CredibilityBadge level={credibility.level} />
+            </div>
           )}
         </div>
-        <div className="flex items-center gap-2 mb-1">
-          <p className="text-[13px] text-muted-foreground font-mono">{business.zeltoId}</p>
-          <button
-            onClick={handleShare}
-            className="text-[13px] text-foreground hover:text-foreground/70 transition-colors"
-          >
-            Share
-          </button>
-        </div>
-        {activityCounts && (
-          <p className="text-[12px] text-muted-foreground mt-1">
-            {activityCounts.connectionCount} connection{activityCounts.connectionCount !== 1 ? 's' : ''} · {activityCounts.orderCount} order{activityCounts.orderCount !== 1 ? 's' : ''}
-          </p>
-        )}
-        {business.formattedAddress && (
-          <p className="text-[12px] text-muted-foreground mt-0.5">
-            {business.formattedAddress}
-          </p>
-        )}
-        {business.phone && (
-          <p className="text-[12px] text-muted-foreground mt-0.5">
-            {business.phone}
-          </p>
-        )}
       </div>
 
-      {/* Business Details Section */}
-      <div className="px-4 py-4 border-b border-border">
-        {!hasBusinessDetails ? (
-          <button
-            onClick={onNavigateToBusinessDetails}
-            className="w-full flex items-center justify-between py-2"
-          >
-            <div>
-              <span className="text-[13px]" style={{ color: '#E8A020' }}>
-                Add business details to build credibility
-              </span>
-              {credibility && (
-                <span className="text-[11px] text-muted-foreground ml-2">
-                  {credibility.score}/100
-                </span>
-              )}
-            </div>
-            <CaretRight size={16} style={{ color: '#E8A020' }} />
-          </button>
-        ) : (
-          <div>
-            <div className="space-y-1 mb-2">
-              {business.gstNumber && (
-                <p className="text-[12px] text-muted-foreground">GST: {business.gstNumber}</p>
-              )}
-              {business.businessAddress && (
-                <p className="text-[12px] text-muted-foreground">Address: {business.businessAddress}</p>
-              )}
-              {business.businessType && (
-                <p className="text-[12px] text-muted-foreground">Type: {business.businessType}</p>
-              )}
-              {business.website && (
-                <p className="text-[12px] text-muted-foreground">Website: {business.website}</p>
-              )}
-            </div>
-            {credibility && (
-              <div className="mt-2 flex items-center gap-2">
-                <div className="flex-1 h-1.5 bg-muted rounded-full overflow-hidden">
-                  <div
-                    className="h-full rounded-full"
+      {/* User Info Card */}
+      <div className="px-4 mb-3">
+        <div style={{ backgroundColor: 'var(--bg-card)', borderRadius: 'var(--radius-card)', overflow: 'hidden' }}>
+          <div style={{ padding: '13px 16px', borderBottom: '1px solid var(--border-section)' }}>
+            <div className="flex items-center gap-2">
+              {isEditingUsername ? (
+                <div className="flex items-center gap-2 flex-1">
+                  <input
+                    ref={usernameInputRef}
+                    type="text"
+                    value={editedUsername}
+                    onChange={(e) => setEditedUsername(e.target.value)}
+                    onKeyDown={handleUsernameKeyDown}
+                    disabled={isSavingUsername}
+                    maxLength={50}
                     style={{
-                      width: `${credibility.score}%`,
-                      backgroundColor: credibility.level === 'trusted' ? '#22C55E'
-                        : credibility.level === 'verified' ? '#3B82F6'
-                        : '#F59E0B'
+                      fontSize: '14px',
+                      fontWeight: 600,
+                      color: 'var(--text-primary)',
+                      backgroundColor: 'transparent',
+                      borderBottom: '1px solid var(--brand-primary)',
+                      outline: 'none',
+                      flex: 1,
+                      minWidth: 0,
+                      padding: '2px 0',
                     }}
                   />
+                  <button
+                    onClick={handleSaveUsername}
+                    disabled={isSavingUsername}
+                    style={{ color: 'var(--brand-primary)', padding: '4px', minWidth: '44px', minHeight: '44px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                  >
+                    <Check size={18} weight="bold" />
+                  </button>
+                  <button
+                    onClick={handleCancelEditUsername}
+                    disabled={isSavingUsername}
+                    style={{ color: 'var(--text-muted)', padding: '4px', minWidth: '44px', minHeight: '44px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                  >
+                    <X size={18} />
+                  </button>
                 </div>
-                <span className="text-[11px] text-muted-foreground">{credibility.score}/100</span>
-              </div>
-            )}
-            <button
-              onClick={onNavigateToBusinessDetails}
-              className="text-[12px] text-muted-foreground hover:text-foreground transition-colors mt-2"
-            >
-              Edit business details
-            </button>
+              ) : (
+                <>
+                  <p style={{ fontSize: '14px', fontWeight: 600, color: 'var(--text-primary)', flex: 1 }}>{userAccount.username}</p>
+                  <button
+                    onClick={handleStartEditUsername}
+                    style={{ color: 'var(--text-muted)', padding: '4px', minWidth: '44px', minHeight: '44px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                  >
+                    <PencilSimple size={16} />
+                  </button>
+                </>
+              )}
+            </div>
+            <p style={{ fontSize: '12px', fontWeight: 500, color: 'var(--text-secondary)', marginTop: '2px' }}>{userAccount.email}</p>
           </div>
-        )}
+
+          <div style={{ padding: '13px 16px', borderBottom: '1px solid var(--border-section)' }}>
+            <div className="flex items-center gap-2 mb-1">
+              <p style={{ fontSize: '13px', fontWeight: 500, color: 'var(--text-secondary)' }}>Zelto ID</p>
+            </div>
+            <div className="flex items-center gap-2">
+              <p style={{ fontSize: '14px', fontWeight: 600, color: 'var(--text-primary)', fontFamily: 'monospace' }}>{business.zeltoId}</p>
+              <button
+                onClick={handleShare}
+                style={{ fontSize: '13px', fontWeight: 600, color: 'var(--brand-primary)', minHeight: '44px', display: 'flex', alignItems: 'center' }}
+              >
+                Share
+              </button>
+            </div>
+          </div>
+
+          {activityCounts && (
+            <div style={{ padding: '13px 16px' }}>
+              <p style={{ fontSize: '12px', fontWeight: 500, color: 'var(--text-secondary)' }}>
+                {activityCounts.connectionCount} connection{activityCounts.connectionCount !== 1 ? 's' : ''} · {activityCounts.orderCount} order{activityCounts.orderCount !== 1 ? 's' : ''}
+              </p>
+              {business.formattedAddress && (
+                <p style={{ fontSize: '12px', fontWeight: 500, color: 'var(--text-secondary)', marginTop: '2px' }}>
+                  {business.formattedAddress}
+                </p>
+              )}
+              {business.phone && (
+                <p style={{ fontSize: '12px', fontWeight: 500, color: 'var(--text-secondary)', marginTop: '2px' }}>
+                  {business.phone}
+                </p>
+              )}
+            </div>
+          )}
+        </div>
       </div>
 
-      {/* Settings Section */}
-      <div className="px-4 py-4">
-        <h2 className="text-[11px] font-medium text-muted-foreground uppercase tracking-wide mb-3">
-          Settings
-        </h2>
-        <div className="divide-y divide-border">
+      {/* Business Details Card */}
+      <div className="px-4 mb-3">
+        <p style={{ fontSize: '13px', fontWeight: 700, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '10px' }}>
+          BUSINESS DETAILS
+        </p>
+        <div style={{ backgroundColor: 'var(--bg-card)', borderRadius: 'var(--radius-card)', overflow: 'hidden' }}>
+          {!hasBusinessDetails ? (
+            <button
+              onClick={onNavigateToBusinessDetails}
+              className="w-full flex items-center justify-between"
+              style={{ padding: '13px 16px', minHeight: '44px' }}
+            >
+              <div>
+                <span style={{ fontSize: '14px', fontWeight: 600, color: 'var(--status-dispatched)' }}>
+                  Add business details to build credibility
+                </span>
+                {credibility && (
+                  <span style={{ fontSize: '11px', fontWeight: 600, color: 'var(--text-secondary)', marginLeft: '8px' }}>
+                    {credibility.score}/100
+                  </span>
+                )}
+              </div>
+              <CaretRight size={16} style={{ color: 'var(--text-muted)' }} />
+            </button>
+          ) : (
+            <div style={{ padding: '13px 16px' }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', marginBottom: '8px' }}>
+                {business.gstNumber && (
+                  <p style={{ fontSize: '12px', fontWeight: 500, color: 'var(--text-secondary)' }}>GST: {business.gstNumber}</p>
+                )}
+                {business.businessAddress && (
+                  <p style={{ fontSize: '12px', fontWeight: 500, color: 'var(--text-secondary)' }}>Address: {business.businessAddress}</p>
+                )}
+                {business.businessType && (
+                  <p style={{ fontSize: '12px', fontWeight: 500, color: 'var(--text-secondary)' }}>Type: {business.businessType}</p>
+                )}
+                {business.website && (
+                  <p style={{ fontSize: '12px', fontWeight: 500, color: 'var(--text-secondary)' }}>Website: {business.website}</p>
+                )}
+              </div>
+              {credibility && (
+                <div className="flex items-center gap-2 mt-2">
+                  <div className="flex-1 overflow-hidden" style={{ height: '6px', backgroundColor: 'var(--border-light)', borderRadius: '3px' }}>
+                    <div
+                      style={{
+                        height: '100%',
+                        borderRadius: '3px',
+                        width: `${credibility.score}%`,
+                        backgroundColor: credibility.level === 'trusted' ? 'var(--status-delivered)'
+                          : credibility.level === 'verified' ? 'var(--brand-primary)'
+                          : 'var(--status-dispatched)',
+                      }}
+                    />
+                  </div>
+                  <span style={{ fontSize: '11px', fontWeight: 600, color: 'var(--text-secondary)' }}>{credibility.score}/100</span>
+                </div>
+              )}
+              <button
+                onClick={onNavigateToBusinessDetails}
+                style={{ fontSize: '12px', fontWeight: 600, color: 'var(--brand-primary)', marginTop: '8px', minHeight: '44px', display: 'flex', alignItems: 'center' }}
+              >
+                Edit business details
+              </button>
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Settings Card */}
+      <div className="px-4 mb-3">
+        <p style={{ fontSize: '13px', fontWeight: 700, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '10px' }}>
+          SETTINGS
+        </p>
+        <div style={{ backgroundColor: 'var(--bg-card)', borderRadius: 'var(--radius-card)', overflow: 'hidden' }}>
           <SettingsItem title="Notifications" onPress={onNavigateToNotificationSettings} />
           <SettingsItem title="Account" onPress={onNavigateToAccount} />
           <SettingsItem title="Help & Support" onPress={onNavigateToSupport} showDivider={false} />
@@ -336,18 +407,18 @@ export function ProfileScreen({ currentBusinessId, onLogout, onNavigateToBusines
       </div>
 
       {/* Footer Links */}
-      <div className="px-4 py-4 border-t border-border">
+      <div className="px-4 py-4" style={{ borderTop: '1px solid var(--border-light)' }}>
         <div className="flex items-center justify-center gap-6">
           <a
             href="/privacy"
-            className="text-[12px] text-muted-foreground hover:text-foreground transition-colors"
+            style={{ fontSize: '12px', fontWeight: 500, color: 'var(--text-secondary)' }}
           >
             Privacy Policy
           </a>
-          <span className="text-muted-foreground text-[12px]">·</span>
+          <span style={{ color: 'var(--text-secondary)', fontSize: '12px' }}>·</span>
           <a
             href="/terms"
-            className="text-[12px] text-muted-foreground hover:text-foreground transition-colors"
+            style={{ fontSize: '12px', fontWeight: 500, color: 'var(--text-secondary)' }}
           >
             Terms of Service
           </a>
@@ -355,12 +426,13 @@ export function ProfileScreen({ currentBusinessId, onLogout, onNavigateToBusines
       </div>
 
       {/* Logout */}
-      <div className="px-4 pb-8 pt-4">
+      <div className="px-4 pb-24 pt-4">
         <button
           onClick={onLogout}
-          className="w-full text-center py-3"
+          className="w-full text-center"
+          style={{ padding: '13px 16px', minHeight: '44px' }}
         >
-          <p className="text-[14px]" style={{ color: '#D64545' }}>Log out</p>
+          <p style={{ fontSize: '14px', fontWeight: 600, color: 'var(--status-overdue)' }}>Log out</p>
         </button>
       </div>
     </div>

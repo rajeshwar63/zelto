@@ -164,7 +164,7 @@ export function PaymentTermsSetupScreen({
           </div>
         )}
 
-        {error && <p className="text-sm text-[#D64545]">{error}</p>}
+        {error && <p className="text-sm text-[var(--status-overdue)]">{error}</p>}
 
         <Button onClick={handleSave} disabled={saving} className="w-full">
           {saving ? 'Saving...' : 'Save'}

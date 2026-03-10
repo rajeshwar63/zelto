@@ -1,35 +1,38 @@
 export function getConnectionStateColor(state: string): string {
   switch (state) {
-    case 'Stable': return '#4CAF50'
-    case 'Active': return '#4A90D9'
-    case 'Friction Rising': return '#E8A020'
-    case 'Under Stress': return '#D64545'
-    default: return '#444444'
+    case 'Stable': return '#22B573'       // --status-delivered
+    case 'Active': return '#22B573'       // --status-delivered (green for healthy)
+    case 'Friction Rising': return '#FF8C42' // --status-dispatched (orange)
+    case 'Under Stress': return '#FF6B6B'   // --status-overdue (red)
+    default: return '#8492A6'               // --text-secondary
   }
 }
 
 export function getLifecycleStatusColor(state: string): string {
   switch (state) {
-    case 'Delivered': return '#4CAF50'
-    case 'Dispatched': return '#4A90D9'
-    case 'Accepted': return '#4A90D9'
-    case 'Placed': return '#888888'
-    case 'Declined': return '#999999'
-    default: return '#444444'
+    case 'Delivered': return '#22B573'    // --status-delivered
+    case 'Dispatched': return '#FF8C42'   // --status-dispatched
+    case 'Accepted': return '#4A6CF7'     // --status-new
+    case 'Placed': return '#4A6CF7'       // --status-new
+    case 'Declined': return '#8492A6'     // --text-secondary
+    case 'Order Placed': return '#4A6CF7' // --status-new
+    case 'Paid': return '#22B573'         // --status-success
+    case 'Payment Recorded': return '#EC4899' // --status-payment
+    default: return '#8492A6'             // --text-secondary
   }
 }
 
 export function getDueDateColor(label: string): string {
   const l = label.toLowerCase()
-  if (l.includes('overdue')) return '#D64545'
-  if (l.includes('due today')) return '#E8A020'
-  if (l === 'paid') return '#4CAF50'
-  if (l.includes('awaiting')) return '#888888'
-  return '#444444'
+  if (l.includes('overdue')) return '#FF6B6B'  // --status-overdue
+  if (l.includes('due today')) return '#FFB020' // --status-issue (warning)
+  if (l === 'paid') return '#22B573'           // --status-delivered
+  if (l.includes('awaiting')) return '#8492A6'  // --text-secondary
+  return '#8492A6'                              // --text-secondary
 }
 
 export function getAttentionHeadingColor(category: string): string {
-  if (category === 'Overdue' || category === 'Disputes') return '#D64545'
-  if (category === 'Due Today' || category === 'Approval Needed') return '#E8A020'
-  return '#444444'
+  if (category === 'Overdue' || category === 'Disputes') return '#FF6B6B' // --status-overdue
+  if (category === 'Due Today' || category === 'Approval Needed') return '#FFB020' // --status-issue
+  return '#8492A6' // --text-secondary
 }
