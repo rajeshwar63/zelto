@@ -1,9 +1,8 @@
 import { useState, useEffect } from 'react'
 import { dataStore } from '@/lib/data-store'
-import { createConnection } from '@/lib/interactions'
 import { emitDataChange } from '@/lib/data-events'
 import { calculateCredibility, getBusinessActivityCounts, type CredibilityBreakdown } from '@/lib/credibility'
-import type { BusinessEntity, ConnectionRequest, PaymentTermType } from '@/lib/types'
+import type { BusinessEntity, ConnectionRequest } from '@/lib/types'
 import { Button } from '@/components/ui/button'
 import { formatDistanceToNow } from 'date-fns'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
@@ -25,6 +24,7 @@ export function ConnectionRequestItem({ request, currentBusinessId, onUpdate, on
   const [showRoleConfirm, setShowRoleConfirm] = useState(false)
   const [receiverRole, setReceiverRole] = useState<'buyer' | 'supplier'>(request.receiverRole)
   const [error, setError] = useState<string | null>(null)
+  const [outcomeMessage, setOutcomeMessage] = useState<string | null>(null)
   const [processing, setProcessing] = useState(false)
 
   useEffect(() => {
@@ -46,6 +46,7 @@ export function ConnectionRequestItem({ request, currentBusinessId, onUpdate, on
 
   const handleAccept = () => {
     setError(null)
+    setOutcomeMessage(null)
     setShowRoleConfirm(true)
   }
 
@@ -64,29 +65,18 @@ export function ConnectionRequestItem({ request, currentBusinessId, onUpdate, on
     }
 
     setError(null)
+    setOutcomeMessage(null)
     setProcessing(true)
 
     try {
-      const buyerBusinessId = receiverRole === 'buyer' ? currentBusinessId : request.requesterBusinessId
-      const supplierBusinessId = receiverRole === 'supplier' ? currentBusinessId : request.requesterBusinessId
+      const result = await dataStore.acceptConnectionRequest(request.id, receiverRole, currentBusinessId)
 
-      const paymentTerms: PaymentTermType | null = receiverRole === 'supplier' ? null : { type: 'Payment on Delivery' }
-
-      const connection = await createConnection(buyerBusinessId, supplierBusinessId, paymentTerms)
-
-      await dataStore.updateConnectionRequestStatus(request.id, 'Accepted')
-
-      try {
-        await dataStore.createNotification(
-          request.requesterBusinessId,
-          'ConnectionAccepted',
-          connection.id,
-          connection.id,
-          'Your connection request has been accepted'
-        )
-      } catch (notificationError) {
-        console.warn('Connection accepted but notification could not be sent:', notificationError)
-        toast.warning('Accepted, but notification could not be sent.')
+      if (result.alreadyExisted) {
+        setOutcomeMessage('This request was already accepted previously.')
+      } else if (result.notificationStatus === 'failed') {
+        setOutcomeMessage('Connection accepted, but requester notification could not be sent.')
+      } else {
+        setOutcomeMessage('Connection accepted successfully.')
       }
 
       setShowRoleConfirm(false)
@@ -193,6 +183,9 @@ export function ConnectionRequestItem({ request, currentBusinessId, onUpdate, on
         <p className="text-xs text-muted-foreground mb-2">
           {formatDistanceToNow(request.createdAt, { addSuffix: true })}
         </p>
+        {outcomeMessage && (
+          <p className="text-xs text-muted-foreground mb-2">{outcomeMessage}</p>
+        )}
         <div className="flex gap-2">
           <Button
             onClick={handleAccept}
@@ -239,7 +232,10 @@ export function ConnectionRequestItem({ request, currentBusinessId, onUpdate, on
             {error && (
               <p className="text-sm text-destructive">{error}</p>
             )}
-            <div className="flex gap-2">
+            {outcomeMessage && (
+          <p className="text-xs text-muted-foreground mb-2">{outcomeMessage}</p>
+        )}
+        <div className="flex gap-2">
               <Button onClick={handleRoleConfirm} disabled={processing} className="flex-1">
                 {processing ? 'Creating Connection...' : 'Confirm'}
               </Button>

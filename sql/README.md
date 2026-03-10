@@ -15,6 +15,7 @@ Run these scripts **in order** using the Supabase SQL Editor.
 |---|------|-------------|
 | 1 | `add_multi_user_fields.sql` | Schema changes — adds `username`, `phone`, `role` to `user_accounts`; adds `name_normalized`, `city`, `area`, `phone` to `business_entities`; creates trigram index and fuzzy search function |
 | 2 | `backfill_multi_user_fields.sql` | Data backfill — sets `username` from email prefix, `role` to `'owner'` for existing users, and `name_normalized` from `business_name` for existing businesses |
+| 3 | `create_accept_connection_request_rpc.sql` | Adds `accept_connection_request` RPC for atomic/idempotent request acceptance and notification enqueue |
 
 ## Notes
 

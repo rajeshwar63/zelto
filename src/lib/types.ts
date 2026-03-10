@@ -165,6 +165,14 @@ export interface ConnectionRequest {
   resolvedAt: number | null
 }
 
+
+export interface AcceptConnectionRequestResult {
+  connectionId: string
+  requestStatus: ConnectionRequestStatus
+  notificationStatus: 'sent' | 'failed' | 'skipped'
+  alreadyExisted: boolean
+}
+
 export interface RoleChangeRequest {
   id: string
   connectionId: string
