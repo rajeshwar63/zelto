@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { CaretRight } from '@phosphor-icons/react'
+import { CaretRight, CheckCircle, ClockClockwise, Package, ShieldWarning, Truck } from '@phosphor-icons/react'
 import { dataStore } from '@/lib/data-store'
 import { useDataListener } from '@/lib/data-events'
 import { attentionEngine } from '@/lib/attention-engine'
@@ -29,9 +29,8 @@ interface RecentOrder extends OrderWithPaymentState {
 }
 
 interface AttentionCounts {
-  overdue: number
-  dueToday: number
   approvalNeeded: number
+  dispatched: number
   delivered: number
   paymentPending: number
   disputes: number
@@ -41,9 +40,8 @@ export function DashboardScreen({ currentBusinessId, onNavigateToOrders, onNavig
   const [data, setData] = useState<DashboardData | null>(null)
   const [recentOrders, setRecentOrders] = useState<RecentOrder[]>([])
   const [attentionCounts, setAttentionCounts] = useState<AttentionCounts>({
-    overdue: 0,
-    dueToday: 0,
     approvalNeeded: 0,
+    dispatched: 0,
     delivered: 0,
     paymentPending: 0,
     disputes: 0,
@@ -88,11 +86,15 @@ export function DashboardScreen({ currentBusinessId, onNavigateToOrders, onNavig
       }
     }
 
+    let dispatchedCount = 0
     let deliveredCount = 0
     let paymentPendingCount = 0
 
     for (const order of orders) {
       if (order.declinedAt) continue
+      if (order.dispatchedAt && !order.deliveredAt) {
+        dispatchedCount++
+      }
       if (order.deliveredAt && order.settlementState !== 'Paid') {
         deliveredCount++
       }
@@ -102,15 +104,12 @@ export function DashboardScreen({ currentBusinessId, onNavigateToOrders, onNavig
     }
 
     const attentionItems = await attentionEngine.getAttentionItems(currentBusinessId)
-    const overdueCount = attentionItems.filter(i => i.category === 'Overdue').length
-    const dueTodayCount = attentionItems.filter(i => i.category === 'Due Today').length
     const approvalNeededCount = attentionItems.filter(i => i.category === 'Approval Needed').length
     const disputeCount = attentionItems.filter(i => i.category === 'Disputes').length
 
     setAttentionCounts({
-      overdue: overdueCount,
-      dueToday: dueTodayCount,
       approvalNeeded: approvalNeededCount,
+      dispatched: dispatchedCount,
       delivered: deliveredCount,
       paymentPending: paymentPendingCount,
       disputes: disputeCount,
@@ -218,50 +217,46 @@ export function DashboardScreen({ currentBusinessId, onNavigateToOrders, onNavig
           <h2 className="text-[10px] uppercase tracking-wide text-muted-foreground/60 mb-3">
             Needs Attention
           </h2>
-          <div className="space-y-2">
-            {attentionCounts.overdue > 0 && (
-              <button
-                onClick={() => onNavigateToOrders('overdue')}
-                className="w-full flex items-center justify-between bg-white border border-border rounded-xl px-4 py-3"
-              >
-                <div className="flex items-center gap-3">
-                  <div className="w-2 h-2 rounded-full" style={{ backgroundColor: '#D64545' }} />
-                  <p className="text-[14px] text-foreground">Overdue</p>
-                </div>
-                <div className="flex items-center gap-2">
-                  <span className="text-[14px] font-semibold" style={{ color: '#D64545' }}>{attentionCounts.overdue}</span>
-                  <CaretRight size={16} className="text-muted-foreground" />
-                </div>
-              </button>
-            )}
-
-            {attentionCounts.dueToday > 0 && (
-              <button
-                onClick={() => onNavigateToOrders('due_today')}
-                className="w-full flex items-center justify-between bg-white border border-border rounded-xl px-4 py-3"
-              >
-                <div className="flex items-center gap-3">
-                  <div className="w-2 h-2 rounded-full" style={{ backgroundColor: '#E8A020' }} />
-                  <p className="text-[14px] text-foreground">Due Today</p>
-                </div>
-                <div className="flex items-center gap-2">
-                  <span className="text-[14px] font-semibold" style={{ color: '#E8A020' }}>{attentionCounts.dueToday}</span>
-                  <CaretRight size={16} className="text-muted-foreground" />
-                </div>
-              </button>
-            )}
-
+          <div className="space-y-3">
             {attentionCounts.approvalNeeded > 0 && (
               <button
                 onClick={() => onNavigateToOrders('placed')}
-                className="w-full flex items-center justify-between bg-white border border-border rounded-xl px-4 py-3"
+                className="w-full flex items-center justify-between rounded-xl px-4 py-3 text-left"
+                style={{
+                  backgroundColor: 'var(--bg-card)',
+                  borderLeft: '3px solid var(--status-new)',
+                }}
               >
                 <div className="flex items-center gap-3">
-                  <div className="w-2 h-2 rounded-full" style={{ backgroundColor: '#E8A020' }} />
-                  <p className="text-[14px] text-foreground">Approval Needed</p>
+                  <div className="w-7 h-7 rounded-lg flex items-center justify-center" style={{ backgroundColor: 'var(--brand-primary-bg)' }}>
+                    <ClockClockwise size={15} weight="bold" color="var(--status-new)" />
+                  </div>
+                  <p className="text-[14px] text-foreground font-semibold">Approval Needed</p>
                 </div>
                 <div className="flex items-center gap-2">
-                  <span className="text-[14px] font-semibold" style={{ color: '#E8A020' }}>{attentionCounts.approvalNeeded}</span>
+                  <span className="inline-flex items-center justify-center min-w-6 h-6 px-2 rounded-full text-[12px] font-bold text-white" style={{ backgroundColor: 'var(--status-new)' }}>{attentionCounts.approvalNeeded}</span>
+                  <CaretRight size={16} style={{ color: 'var(--text-muted)' }} />
+                </div>
+              </button>
+            )}
+
+            {attentionCounts.dispatched > 0 && (
+              <button
+                onClick={() => onNavigateToOrders('dispatched')}
+                className="w-full flex items-center justify-between rounded-xl px-4 py-3 text-left"
+                style={{
+                  backgroundColor: 'var(--bg-card)',
+                  borderLeft: '3px solid var(--status-dispatched)',
+                }}
+              >
+                <div className="flex items-center gap-3">
+                  <div className="w-7 h-7 rounded-lg flex items-center justify-center" style={{ backgroundColor: '#FFF6F0' }}>
+                    <Truck size={15} weight="fill" color="var(--status-dispatched)" />
+                  </div>
+                  <p className="text-[14px] text-foreground font-semibold">Dispatched</p>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="inline-flex items-center justify-center min-w-6 h-6 px-2 rounded-full text-[12px] font-bold text-white" style={{ backgroundColor: 'var(--status-dispatched)' }}>{attentionCounts.dispatched}</span>
                   <CaretRight size={16} className="text-muted-foreground" />
                 </div>
               </button>
@@ -270,14 +265,20 @@ export function DashboardScreen({ currentBusinessId, onNavigateToOrders, onNavig
             {attentionCounts.delivered > 0 && (
               <button
                 onClick={() => onNavigateToOrders('delivered')}
-                className="w-full flex items-center justify-between bg-white border border-border rounded-xl px-4 py-3"
+                className="w-full flex items-center justify-between rounded-xl px-4 py-3 text-left"
+                style={{
+                  backgroundColor: 'var(--bg-card)',
+                  borderLeft: '3px solid var(--status-delivered)',
+                }}
               >
                 <div className="flex items-center gap-3">
-                  <div className="w-2 h-2 rounded-full" style={{ backgroundColor: '#4CAF50' }} />
-                  <p className="text-[14px] text-foreground">Delivered</p>
+                  <div className="w-7 h-7 rounded-lg flex items-center justify-center" style={{ backgroundColor: '#F0FFF6' }}>
+                    <CheckCircle size={15} weight="fill" color="var(--status-delivered)" />
+                  </div>
+                  <p className="text-[14px] text-foreground font-semibold">Delivered</p>
                 </div>
                 <div className="flex items-center gap-2">
-                  <span className="text-[14px] font-semibold text-foreground">{attentionCounts.delivered}</span>
+                  <span className="inline-flex items-center justify-center min-w-6 h-6 px-2 rounded-full text-[12px] font-bold text-white" style={{ backgroundColor: 'var(--status-delivered)' }}>{attentionCounts.delivered}</span>
                   <CaretRight size={16} className="text-muted-foreground" />
                 </div>
               </button>
@@ -286,14 +287,20 @@ export function DashboardScreen({ currentBusinessId, onNavigateToOrders, onNavig
             {attentionCounts.paymentPending > 0 && (
               <button
                 onClick={() => onNavigateToOrders('payment_pending')}
-                className="w-full flex items-center justify-between bg-white border border-border rounded-xl px-4 py-3"
+                className="w-full flex items-center justify-between rounded-xl px-4 py-3 text-left"
+                style={{
+                  backgroundColor: 'var(--bg-card)',
+                  borderLeft: '3px solid var(--status-payment)',
+                }}
               >
                 <div className="flex items-center gap-3">
-                  <div className="w-2 h-2 rounded-full" style={{ backgroundColor: '#E8A020' }} />
-                  <p className="text-[14px] text-foreground">Payment Pending</p>
+                  <div className="w-7 h-7 rounded-lg flex items-center justify-center" style={{ backgroundColor: '#FFF0F8' }}>
+                    <Package size={15} weight="fill" color="var(--status-payment)" />
+                  </div>
+                  <p className="text-[14px] text-foreground font-semibold">Payment Pending</p>
                 </div>
                 <div className="flex items-center gap-2">
-                  <span className="text-[14px] font-semibold" style={{ color: '#E8A020' }}>{attentionCounts.paymentPending}</span>
+                  <span className="inline-flex items-center justify-center min-w-6 h-6 px-2 rounded-full text-[12px] font-bold text-white" style={{ backgroundColor: 'var(--status-payment)' }}>{attentionCounts.paymentPending}</span>
                   <CaretRight size={16} className="text-muted-foreground" />
                 </div>
               </button>
@@ -302,22 +309,27 @@ export function DashboardScreen({ currentBusinessId, onNavigateToOrders, onNavig
             {attentionCounts.disputes > 0 && (
               <button
                 onClick={() => onNavigateToAttention('disputes')}
-                className="w-full flex items-center justify-between bg-white border border-border rounded-xl px-4 py-3"
+                className="w-full flex items-center justify-between rounded-xl px-4 py-3 text-left"
+                style={{
+                  backgroundColor: 'var(--bg-card)',
+                  borderLeft: '3px solid var(--status-issue)',
+                }}
               >
                 <div className="flex items-center gap-3">
-                  <div className="w-2 h-2 rounded-full" style={{ backgroundColor: '#D64545' }} />
-                  <p className="text-[14px] text-foreground">Issues / Disputes</p>
+                  <div className="w-7 h-7 rounded-lg flex items-center justify-center" style={{ backgroundColor: '#FFFBF0' }}>
+                    <ShieldWarning size={15} weight="fill" color="var(--status-issue)" />
+                  </div>
+                  <p className="text-[14px] text-foreground font-semibold">Issues / Disputes</p>
                 </div>
                 <div className="flex items-center gap-2">
-                  <span className="text-[14px] font-semibold" style={{ color: '#D64545' }}>{attentionCounts.disputes}</span>
+                  <span className="inline-flex items-center justify-center min-w-6 h-6 px-2 rounded-full text-[12px] font-bold text-white" style={{ backgroundColor: 'var(--status-issue)' }}>{attentionCounts.disputes}</span>
                   <CaretRight size={16} className="text-muted-foreground" />
                 </div>
               </button>
             )}
 
-            {attentionCounts.overdue === 0 &&
-              attentionCounts.dueToday === 0 &&
-              attentionCounts.approvalNeeded === 0 &&
+            {attentionCounts.approvalNeeded === 0 &&
+              attentionCounts.dispatched === 0 &&
               attentionCounts.delivered === 0 &&
               attentionCounts.paymentPending === 0 &&
               attentionCounts.disputes === 0 && (
