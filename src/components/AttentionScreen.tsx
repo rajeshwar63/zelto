@@ -3,9 +3,10 @@ import { attentionEngine } from '@/lib/attention-engine'
 import { dataStore } from '@/lib/data-store'
 import { formatDistanceToNow } from 'date-fns'
 import type { AttentionItem, AttentionCategory } from '@/lib/attention-engine'
-import type { ConnectionRequest } from '@/lib/types'
+import type { ConnectionRequest, IssueReport, OrderWithPaymentState, BusinessEntity } from '@/lib/types'
 import { getAttentionHeadingColor } from '@/lib/semantic-colors'
 import { ConnectionRequestItem } from '@/components/ConnectionRequestItem'
+import { IssueDetailSheet } from '@/components/IssueDetailSheet'
 import { markOrderSeen, getUnreadState, updateTabLastSeen } from '@/lib/unread-tracker'
 import { useDataListener } from '@/lib/data-events'
 
@@ -51,6 +52,41 @@ export function AttentionScreen({ currentBusinessId, onNavigateToConnections, on
   }
 
   const [seenOrders, setSeenOrders] = useState<Set<string>>(new Set())
+
+  // Issue detail sheet state
+  const [selectedIssue, setSelectedIssue] = useState<IssueReport | null>(null)
+  const [selectedOrder, setSelectedOrder] = useState<OrderWithPaymentState | null>(null)
+  const [buyerBusiness, setBuyerBusiness] = useState<BusinessEntity | null>(null)
+  const [supplierBusiness, setSupplierBusiness] = useState<BusinessEntity | null>(null)
+
+  const handleDisputeTap = async (item: ItemWithConnection) => {
+    if (!item.issueId || !item.orderId) {
+      onNavigateToConnection(item.connectionId, item.orderId)
+      return
+    }
+    const [issue, orders, connection] = await Promise.all([
+      dataStore.getIssueReportById(item.issueId),
+      dataStore.getOrdersWithPaymentStateByConnectionId(item.connectionId),
+      dataStore.getConnectionById(item.connectionId),
+    ])
+    if (!issue || !connection) {
+      onNavigateToConnection(item.connectionId, item.orderId)
+      return
+    }
+    const order = orders.find(o => o.id === item.orderId)
+    if (!order) {
+      onNavigateToConnection(item.connectionId, item.orderId)
+      return
+    }
+    const [buyer, supplier] = await Promise.all([
+      dataStore.getBusinessEntityById(connection.buyerBusinessId),
+      dataStore.getBusinessEntityById(connection.supplierBusinessId),
+    ])
+    setSelectedIssue(issue)
+    setSelectedOrder(order)
+    setBuyerBusiness(buyer || null)
+    setSupplierBusiness(supplier || null)
+  }
 
   const isItemNew = (orderId: string, frictionStartedAt: number): boolean => {
     if (seenOrders.has(orderId)) return false
@@ -281,7 +317,11 @@ export function AttentionScreen({ currentBusinessId, onNavigateToConnections, on
                         markOrderSeen(currentBusinessId, item.orderId)
                         setSeenOrders(prev => new Set(prev).add(item.orderId!))
                       }
-                      onNavigateToConnection(item.connectionId, item.orderId)
+                      if (item.category === 'Disputes' && item.issueId) {
+                        handleDisputeTap(item)
+                      } else {
+                        onNavigateToConnection(item.connectionId, item.orderId)
+                      }
                     }}
                     className={`w-full px-4 py-3 text-left transition-colors ${
                       isNew
@@ -314,6 +354,31 @@ export function AttentionScreen({ currentBusinessId, onNavigateToConnections, on
           )
         })}
       </div>
+
+      {/* Issue Detail Sheet */}
+      {selectedIssue && selectedOrder && buyerBusiness && supplierBusiness && (
+        <IssueDetailSheet
+          issue={selectedIssue}
+          order={selectedOrder}
+          buyerBusiness={buyerBusiness}
+          supplierBusiness={supplierBusiness}
+          currentBusinessId={currentBusinessId}
+          isOpen={!!selectedIssue}
+          onClose={() => {
+            setSelectedIssue(null)
+            setSelectedOrder(null)
+            setBuyerBusiness(null)
+            setSupplierBusiness(null)
+          }}
+          onStatusChange={() => {
+            setSelectedIssue(null)
+            setSelectedOrder(null)
+            setBuyerBusiness(null)
+            setSupplierBusiness(null)
+            loadData()
+          }}
+        />
+      )}
     </div>
   )
 }

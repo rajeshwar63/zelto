@@ -18,7 +18,8 @@ import { NotificationSettingsScreen } from '@/components/NotificationSettingsScr
 import { AccountScreen } from '@/components/AccountScreen'
 import { HelpSupportScreen } from '@/components/HelpSupportScreen'
 import { ReportIssueScreen } from '@/components/ReportIssueScreen'
-import { House, Users, Package, User } from '@phosphor-icons/react'
+import { House, Users, Package, User, Bell } from '@phosphor-icons/react'
+import { AttentionScreen } from '@/components/AttentionScreen'
 import { getAuthSession, getAuthState, logout, clearAuthSession } from '@/lib/auth'
 import { registerPushNotifications, removeDeviceTokens } from '@/lib/push-notifications'
 import { supabase } from '@/lib/supabase-client'
@@ -33,7 +34,7 @@ import { BusinessSetupScreen } from '@/components/BusinessSetupScreen'
 import { useDataListener } from '@/lib/data-events'
 
 
-type Tab = 'dashboard' | 'orders' | 'connections' | 'profile'
+type Tab = 'dashboard' | 'orders' | 'attention' | 'connections' | 'profile'
 type Screen =
   | { type: 'tab'; tab: Tab; filter?: string }
   | { type: 'connection-detail'; connectionId: string; selectedOrderId?: string }
@@ -427,6 +428,12 @@ const initializeApp = async () => {
             onNavigateToConnection={navigateToConnection}
             onNavigateToProfile={() => navigateToTab('profile')}
           />
+        ) : screen.type === 'tab' && screen.tab === 'attention' ? (
+          <AttentionScreen
+            currentBusinessId={currentBusinessId}
+            onNavigateToConnections={() => navigateToTab('connections')}
+            onNavigateToConnection={navigateToConnection}
+          />
         ) : screen.type === 'tab' && screen.tab === 'connections' ? (
           <ConnectionsScreen
             currentBusinessId={currentBusinessId}
@@ -468,6 +475,12 @@ const initializeApp = async () => {
               icon={<Package weight="regular" size={22} />}
               active={screen.tab === 'orders'}
               onClick={() => navigateToTab('orders')}
+            />
+            <TabButton
+              label="Attention"
+              icon={<Bell weight="regular" size={22} />}
+              active={screen.tab === 'attention'}
+              onClick={() => navigateToTab('attention')}
             />
             <TabButton
               label="Connections"

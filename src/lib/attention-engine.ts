@@ -176,7 +176,7 @@ export class AttentionEngine {
     const items: AttentionItem[] = []
     const orderIds = orders.map(o => o.id)
     const allIssues = await dataStore.getIssueReportsByOrderIds(orderIds)
-    const openIssues = allIssues.filter((issue) => issue.status === 'Open')
+    const openIssues = allIssues.filter((issue) => issue.status === 'Open' || issue.status === 'Acknowledged')
     const orderMap = new Map(orders.map(o => [o.id, o]))
 
     for (const issue of openIssues) {

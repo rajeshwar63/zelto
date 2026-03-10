@@ -12,6 +12,7 @@ import type {
   OrderAttachment,
   PaymentEvent,
   IssueReport,
+  IssueComment,
   RaisedBy,
 } from './types'
 
@@ -359,7 +360,8 @@ export async function createIssue(
   orderId: string,
   issueType: IssueType,
   severity: IssueSeverity,
-  requestingBusinessId: string
+  requestingBusinessId: string,
+  description?: string
 ): Promise<IssueReport> {
   const order = await dataStore.getOrderById(orderId)
 
@@ -386,7 +388,8 @@ export async function createIssue(
     orderId,
     issueType,
     severity,
-    raisedBy
+    raisedBy,
+    description
   )
 
   // Notify the OTHER party about the issue
@@ -540,6 +543,121 @@ export async function resolveIssue(
 
   emitDataChange('issues:changed', 'payments:changed', 'notifications:changed')
   return updatedIssue
+}
+
+export async function closeIssue(
+  issueId: string,
+  requestingBusinessId: string
+): Promise<IssueReport> {
+  const targetIssue = await dataStore.getIssueReportById(issueId)
+
+  if (!targetIssue) {
+    throw new Error('Issue does not exist')
+  }
+
+  if (targetIssue.status !== 'Resolved') {
+    throw new Error('Issue must be resolved before it can be closed')
+  }
+
+  const order = await dataStore.getOrderById(targetIssue.orderId)
+  if (!order) throw new Error('Order not found')
+
+  const connection = await dataStore.getConnectionById(order.connectionId)
+  if (!connection) throw new Error('Connection not found')
+
+  // Only the original raiser can close a resolved issue
+  const isBuyer = requestingBusinessId === connection.buyerBusinessId
+  const isSupplier = requestingBusinessId === connection.supplierBusinessId
+  if (!isBuyer && !isSupplier) {
+    throw new Error('Requesting business is not part of this connection')
+  }
+
+  const requestingRole: RaisedBy = isBuyer ? 'buyer' : 'supplier'
+  if (requestingRole !== targetIssue.raisedBy) {
+    throw new Error('Only the issue creator can close a resolved issue')
+  }
+
+  const updatedIssue = await dataStore.updateIssueStatus(issueId, 'Closed')
+
+  const otherPartyId = isBuyer
+    ? connection.supplierBusinessId
+    : connection.buyerBusinessId
+  try {
+    await dataStore.createNotification(
+      otherPartyId,
+      'IssueResolved',
+      issueId,
+      order.connectionId,
+      `Issue closed: ${targetIssue.issueType}`
+    )
+  } catch (err) {
+    console.error('Notification failed:', err)
+  }
+
+  emitDataChange('issues:changed', 'notifications:changed')
+  return updatedIssue
+}
+
+export async function addIssueComment(
+  issueId: string,
+  message: string,
+  requestingBusinessId: string
+): Promise<IssueComment> {
+  const targetIssue = await dataStore.getIssueReportById(issueId)
+
+  if (!targetIssue) {
+    throw new Error('Issue does not exist')
+  }
+
+  if (targetIssue.status === 'Closed') {
+    throw new Error('Cannot comment on a closed issue')
+  }
+
+  const order = await dataStore.getOrderById(targetIssue.orderId)
+  if (!order) throw new Error('Order not found')
+
+  const connection = await dataStore.getConnectionById(order.connectionId)
+  if (!connection) throw new Error('Connection not found')
+
+  let authorRole: RaisedBy
+  if (requestingBusinessId === connection.buyerBusinessId) {
+    authorRole = 'buyer'
+  } else if (requestingBusinessId === connection.supplierBusinessId) {
+    authorRole = 'supplier'
+  } else {
+    throw new Error('Requesting business is not part of this connection')
+  }
+
+  const comment = await dataStore.createIssueComment(
+    issueId,
+    requestingBusinessId,
+    authorRole,
+    message
+  )
+
+  // If the other party responds and issue is Open, transition to in_progress/Acknowledged
+  if (authorRole !== targetIssue.raisedBy && targetIssue.status === 'Open') {
+    await dataStore.updateIssueStatus(issueId, 'Acknowledged')
+  }
+
+  // Notify the other party
+  const otherPartyId = requestingBusinessId === connection.buyerBusinessId
+    ? connection.supplierBusinessId
+    : connection.buyerBusinessId
+  try {
+    await dataStore.createNotification(
+      otherPartyId,
+      'IssueAcknowledged',
+      issueId,
+      order.connectionId,
+      `New response on issue: ${targetIssue.issueType}`
+    )
+  } catch (err) {
+    console.error('Notification failed:', err)
+  }
+
+  emitDataChange('issues:changed', 'notifications:changed')
+  return comment
 }
 
 export async function setInvoiceDate(

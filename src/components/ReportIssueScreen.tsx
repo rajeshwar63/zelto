@@ -31,6 +31,7 @@ export function ReportIssueScreen({ orderId, currentBusinessId, onBack, onSucces
   const [order, setOrder] = useState<OrderWithPaymentState | null>(null)
   const [issueType, setIssueType] = useState<IssueType | null>(null)
   const [severity, setSeverity] = useState<IssueSeverity>('Medium')
+  const [description, setDescription] = useState('')
   const [isSubmitting, setIsSubmitting] = useState(false)
 
   useEffect(() => {
@@ -53,7 +54,7 @@ export function ReportIssueScreen({ orderId, currentBusinessId, onBack, onSucces
 
     setIsSubmitting(true)
     try {
-      await createIssue(orderId, issueType, severity, currentBusinessId)
+      await createIssue(orderId, issueType, severity, currentBusinessId, description || undefined)
       toast.success('Issue reported')
       onSuccess()
     } catch (err) {
@@ -129,6 +130,20 @@ export function ReportIssueScreen({ orderId, currentBusinessId, onBack, onSucces
               </button>
             ))}
           </div>
+        </div>
+
+        <div>
+          <label htmlFor="description" className="block text-[13px] text-muted-foreground mb-2">
+            Description (optional)
+          </label>
+          <textarea
+            id="description"
+            value={description}
+            onChange={(e) => setDescription(e.target.value)}
+            placeholder="Describe the issue in detail..."
+            rows={3}
+            className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          />
         </div>
 
         <Button
