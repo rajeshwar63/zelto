@@ -16,25 +16,6 @@ export type AuthState =
   | { status: 'needs_business_setup'; email: string }
   | { status: 'unauthenticated' }
 
-function parseStoredAuthSession(cached: string | null): AuthSession | null {
-  if (!cached) return null
-  try {
-    const parsed = JSON.parse(cached) as AuthSession
-    if (!parsed.businessId || !parsed.userId || !parsed.email) return null
-    return parsed
-  } catch {
-    return null
-  }
-}
-
-export function getLocalAuthSessionSync(): AuthSession | null {
-  const session = parseStoredAuthSession(localStorage.getItem(AUTH_SESSION_KEY))
-  if (!session) {
-    localStorage.removeItem(AUTH_SESSION_KEY)
-  }
-  return session
-}
-
 export async function sendEmailOTP(email: string): Promise<void> {
   const { error } = await supabase.auth.signInWithOtp({
     email,
@@ -63,9 +44,14 @@ export async function getAuthState(): Promise<AuthState> {
   if (!email) return { status: 'unauthenticated' }
 
   // Check localStorage cache first
-  const cachedSession = getLocalAuthSessionSync()
-  if (cachedSession?.email === email) {
-    return { status: 'authenticated', session: cachedSession }
+  const cached = localStorage.getItem(AUTH_SESSION_KEY)
+  if (cached) {
+    try {
+      const parsed = JSON.parse(cached) as AuthSession
+      if (parsed.email === email && parsed.businessId) {
+        return { status: 'authenticated', session: parsed }
+      }
+    } catch {}
   }
 
   // Cache miss — check database
