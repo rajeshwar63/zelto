@@ -71,9 +71,10 @@ interface QueryOptions<T> {
   key: string
   fetcher: () => Promise<T>
   events?: DataEvent[]
+  isActive?: boolean
 }
 
-export function useCachedQuery<T>({ key, fetcher, events = [] }: QueryOptions<T>) {
+export function useCachedQuery<T>({ key, fetcher, events = [], isActive = true }: QueryOptions<T>) {
   const initialEntry = cache.get(key) as CacheEntry<T> | undefined
 
   const [data, setData] = useState<T | undefined>(initialEntry?.data)
@@ -123,21 +124,30 @@ export function useCachedQuery<T>({ key, fetcher, events = [] }: QueryOptions<T>
     if (entry?.data) {
       setData(entry.data)
       setIsInitialLoading(false)
-      void refresh(true)
-    } else {
-      void refresh(false)
     }
 
     return () => {
       mountedRef.current = false
       unsubscribe()
     }
-  }, [key, refresh])
+  }, [key])
+
+  useEffect(() => {
+    const entry = cache.get(key) as CacheEntry<T> | undefined
+    if (!isActive) return
+
+    if (entry?.data) {
+      void refresh(true)
+      return
+    }
+
+    void refresh(false)
+  }, [isActive, key, refresh])
 
   useDataListener(events, () => {
     invalidateCacheKey(key)
     void refresh(true)
-  })
+  }, isActive)
 
   return useMemo(() => ({
     data,

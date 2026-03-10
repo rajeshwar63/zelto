@@ -389,6 +389,7 @@ function App() {
         <div style={{ display: activeTab === 'dashboard' ? 'block' : 'none', height: '100%' }}>
           <DashboardScreen
             currentBusinessId={currentBusinessId}
+            isActive={activeTab === 'dashboard'}
             onNavigateToOrders={(filter) => navigateToTabWithFilter('orders', filter)}
             onNavigateToConnection={navigateToConnection}
             onNavigateToProfile={() => navigateToTab('profile')}
@@ -399,6 +400,7 @@ function App() {
         <div style={{ display: activeTab === 'attention' ? 'block' : 'none', height: '100%' }}>
           <AttentionScreen
             currentBusinessId={currentBusinessId}
+            isActive={activeTab === 'attention'}
             onNavigateToConnections={() => navigateToTab('connections')}
             onNavigateToIssue={navigateToIssueDetail}
           />
@@ -407,6 +409,7 @@ function App() {
         <div style={{ display: activeTab === 'connections' ? 'block' : 'none', height: '100%' }}>
           <ConnectionsScreen
             currentBusinessId={currentBusinessId}
+            isActive={activeTab === 'connections'}
             onSelectConnection={navigateToConnection}
             onAddConnection={navigateToAddConnection}
             unreadConnectionIds={unreadConnectionIds}
@@ -416,6 +419,7 @@ function App() {
         <div style={{ display: activeTab === 'orders' ? 'block' : 'none', height: '100%' }}>
           <OrdersScreen
             currentBusinessId={currentBusinessId}
+            isActive={activeTab === 'orders'}
             onSelectOrder={navigateToOrderDetail}
             initialFilter={activeTabScreen?.tab === 'orders' ? activeTabScreen.filter : undefined}
           />

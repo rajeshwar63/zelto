@@ -9,10 +9,11 @@ interface Props {
   onNavigateToConnection: (connectionId: string, orderId?: string) => void
   onNavigateToProfile: () => void
   onNavigateToAttention: (filter?: string) => void
+  isActive?: boolean
 }
 
-export function DashboardScreen({ currentBusinessId, onNavigateToOrders, onNavigateToConnection, onNavigateToAttention }: Props) {
-  const { data: overview, isInitialLoading } = useBusinessOverviewData(currentBusinessId)
+export function DashboardScreen({ currentBusinessId, onNavigateToOrders, onNavigateToConnection, onNavigateToAttention, isActive = true }: Props) {
+  const { data: overview, isInitialLoading } = useBusinessOverviewData(currentBusinessId, isActive)
   const data = useMemo(() => overview && ({
     toPay: overview.toPay,
     toReceive: overview.toReceive,
