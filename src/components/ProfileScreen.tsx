@@ -1,12 +1,10 @@
 import { useEffect, useState, useRef } from 'react'
 import { dataStore } from '@/lib/data-store'
-import { getAuthSession } from '@/lib/auth'
-import { calculateCredibility, getBusinessActivityCounts, type CredibilityBreakdown } from '@/lib/credibility'
-import type { BusinessEntity, UserAccount } from '@/lib/types'
 import { CaretRight, Bell, PencilSimple, Check, X } from '@phosphor-icons/react'
 import { SettingsItem } from './SettingsItem'
 import { CredibilityBadge } from './CredibilityBadge'
 import { toast } from 'sonner'
+import { useProfileData } from '@/hooks/data/use-business-data'
 
 interface Props {
   currentBusinessId: string
@@ -29,57 +27,29 @@ function getInitials(name: string): string {
 }
 
 export function ProfileScreen({ currentBusinessId, onLogout, onNavigateToBusinessDetails, onNavigateToNotifications, onNavigateToNotificationSettings, onNavigateToAccount, onNavigateToSupport }: Props) {
-  const [business, setBusiness] = useState<BusinessEntity | null>(null)
-  const [userAccount, setUserAccount] = useState<UserAccount | null>(null)
-  const [unreadCount, setUnreadCount] = useState(0)
-  const [loading, setLoading] = useState(true)
-  const [refreshTimestamp, setRefreshTimestamp] = useState(Date.now())
-  const [credibility, setCredibility] = useState<CredibilityBreakdown | null>(null)
-  const [activityCounts, setActivityCounts] = useState<{ connectionCount: number; orderCount: number } | null>(null)
+  const { data, isInitialLoading: loading, refresh } = useProfileData(currentBusinessId)
+  const business = data?.business ?? null
+  const userAccount = data?.userAccount ?? null
+  const unreadCount = data?.unreadCount ?? 0
+  const credibility = data?.credibility ?? null
+  const activityCounts = data?.activityCounts ?? null
 
   const [isEditingUsername, setIsEditingUsername] = useState(false)
   const [editedUsername, setEditedUsername] = useState('')
   const [isSavingUsername, setIsSavingUsername] = useState(false)
   const usernameInputRef = useRef<HTMLInputElement>(null)
 
-  useEffect(() => {
-    async function loadData() {
-      const session = await getAuthSession()
-      if (!session) return
-
-      const [biz, user, count] = await Promise.all([
-        dataStore.getBusinessEntityById(currentBusinessId),
-        dataStore.getUserAccountByEmail(session.email),
-        dataStore.getUnreadNotificationCountByBusinessId(currentBusinessId),
-      ])
-
-      setBusiness(biz || null)
-      setUserAccount(user || null)
-      setUnreadCount(count)
-
-      const [cred, activity] = await Promise.all([
-        calculateCredibility(currentBusinessId),
-        getBusinessActivityCounts(currentBusinessId),
-      ])
-      setCredibility(cred)
-      setActivityCounts(activity)
-
-      setLoading(false)
-    }
-
-    loadData()
-  }, [currentBusinessId, refreshTimestamp])
 
   useEffect(() => {
     const handleVisibilityChange = () => {
       if (!document.hidden) {
-        setRefreshTimestamp(Date.now())
+        void refresh(true)
       }
     }
 
     document.addEventListener('visibilitychange', handleVisibilityChange)
     return () => document.removeEventListener('visibilitychange', handleVisibilityChange)
-  }, [])
+  }, [refresh])
 
   useEffect(() => {
     if (isEditingUsername && usernameInputRef.current) {
@@ -153,8 +123,8 @@ export function ProfileScreen({ currentBusinessId, onLogout, onNavigateToBusines
 
     setIsSavingUsername(true)
     try {
-      const updated = await dataStore.updateUsername(userAccount.id, trimmed)
-      setUserAccount(updated)
+      await dataStore.updateUsername(userAccount.id, trimmed)
+      void refresh(true)
       setIsEditingUsername(false)
       toast.success('Saved')
     } catch (err) {

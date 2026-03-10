@@ -1,13 +1,9 @@
-import { useEffect, useState, useRef } from 'react'
+import { useState, useRef } from 'react'
 import { CaretRight, ShieldWarning } from '@phosphor-icons/react'
-import { attentionEngine } from '@/lib/attention-engine'
-import { dataStore } from '@/lib/data-store'
 import { formatDistanceToNow } from 'date-fns'
-import type { AttentionItem } from '@/lib/attention-engine'
-import type { ConnectionRequest } from '@/lib/types'
 import { ConnectionRequestItem } from '@/components/ConnectionRequestItem'
 import { markOrderSeen, getUnreadState, updateTabLastSeen } from '@/lib/unread-tracker'
-import { useDataListener } from '@/lib/data-events'
+import { useAttentionData } from '@/hooks/data/use-business-data'
 
 interface Props {
   currentBusinessId: string
@@ -15,14 +11,11 @@ interface Props {
   onNavigateToIssue: (connectionId: string, orderId: string, issueId: string) => void
 }
 
-interface ItemWithConnection extends AttentionItem {
-  connectionName: string
-}
 
 export function AttentionScreen({ currentBusinessId, onNavigateToConnections, onNavigateToIssue }: Props) {
-  const [items, setItems] = useState<ItemWithConnection[]>([])
-  const [connectionRequests, setConnectionRequests] = useState<ConnectionRequest[]>([])
-  const [loading, setLoading] = useState(true)
+  const { data, isInitialLoading: loading, refresh } = useAttentionData(currentBusinessId)
+  const items = data?.items ?? []
+  const connectionRequests = data?.connectionRequests ?? []
 
   const lastSeenRef = useRef<number | null>(null)
   if (lastSeenRef.current === null) {
@@ -40,44 +33,6 @@ export function AttentionScreen({ currentBusinessId, onNavigateToConnections, on
     return frictionStartedAt > (lastSeenRef.current ?? 0)
   }
 
-  const loadData = async () => {
-    const attentionItems = await attentionEngine.getAttentionItems(currentBusinessId)
-    const connections = await dataStore.getConnectionsByBusinessId(currentBusinessId)
-    const entities = await dataStore.getAllBusinessEntities()
-    const entityMap = new Map(entities.map(e => [e.id, e]))
-
-    const disputeItems = attentionItems
-      .filter(item => item.category === 'Disputes')
-      .map(item => {
-        const connection = connections.find(c => c.id === item.connectionId)
-        let connectionName = 'Unknown'
-        if (connection) {
-          const otherId = connection.buyerBusinessId === currentBusinessId
-            ? connection.supplierBusinessId
-            : connection.buyerBusinessId
-          connectionName = entityMap.get(otherId)?.businessName || 'Unknown'
-        }
-        return { ...item, connectionName }
-      })
-
-    const allRequests = await dataStore.getAllConnectionRequests()
-    const pendingRequests = allRequests.filter(
-      r => r.receiverBusinessId === currentBusinessId && r.status === 'Pending'
-    )
-
-    setItems(disputeItems)
-    setConnectionRequests(pendingRequests)
-    setLoading(false)
-  }
-
-  useEffect(() => {
-    loadData()
-  }, [currentBusinessId])
-
-  useDataListener(
-    ['orders:changed', 'payments:changed', 'issues:changed', 'connections:changed', 'connection-requests:changed'],
-    () => { loadData() }
-  )
 
   if (loading) {
     return (
@@ -145,7 +100,7 @@ export function AttentionScreen({ currentBusinessId, onNavigateToConnections, on
                 key={request.id}
                 request={request}
                 currentBusinessId={currentBusinessId}
-                onUpdate={loadData}
+                onUpdate={() => { void refresh(true) }}
                 onNavigateToConnections={onNavigateToConnections}
               />
             ))}
