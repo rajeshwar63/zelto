@@ -355,10 +355,10 @@ export function DashboardScreen({ currentBusinessId, onNavigateToOrders, onNavig
                     style={{ borderLeft: `3px solid ${statusColor}` }}
                   >
                     <div className="flex items-center justify-between gap-3">
-                      <p className="text-[15px] font-semibold text-foreground truncate">{order.connectionName}</p>
+                      <p className="text-[15px] font-semibold text-foreground truncate">{order.itemSummary}</p>
                       <p className="text-[15px] font-semibold text-foreground">₹{order.orderValue.toLocaleString('en-IN')}</p>
                     </div>
-                    <p className="text-[12px] text-muted-foreground mt-1">{order.lifecycleState} · {order.itemSummary}</p>
+                    <p className="text-[12px] text-muted-foreground mt-1">{order.connectionName} · {order.lifecycleState}</p>
                   </button>
                 )
               })}

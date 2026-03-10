@@ -287,7 +287,7 @@ export function OrdersScreen({ currentBusinessId, onSelectOrder, initialFilter }
                 >
                   <div className="flex items-start justify-between">
                     <p style={{ fontSize: '15px', fontWeight: 700, color: 'var(--text-primary)', flex: 1, marginRight: '12px' }}>
-                      {order.connectionName}
+                      {order.itemSummary}
                     </p>
                     {order.orderValue > 0 && (
                       <p style={{ fontSize: '15px', fontWeight: 700, color: 'var(--text-primary)', flexShrink: 0 }}>
@@ -295,6 +295,9 @@ export function OrdersScreen({ currentBusinessId, onSelectOrder, initialFilter }
                       </p>
                     )}
                   </div>
+                  <p style={{ fontSize: '12px', fontWeight: 500, color: 'var(--text-secondary)', marginTop: '4px' }} className="truncate">
+                    {order.connectionName}
+                  </p>
                   <div className="flex items-center gap-1.5 mt-1" style={{ fontSize: '12px' }}>
                     <span
                       style={{
@@ -319,9 +322,6 @@ export function OrdersScreen({ currentBusinessId, onSelectOrder, initialFilter }
                       </>
                     )}
                   </div>
-                  <p style={{ fontSize: '12px', fontWeight: 500, color: 'var(--text-secondary)', marginTop: '4px' }} className="truncate">
-                    {order.itemSummary}
-                  </p>
                 </button>
               )
             })}
