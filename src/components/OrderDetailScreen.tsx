@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { dataStore } from '@/lib/data-store'
-import { recordPayment, addAttachment, deleteAttachment } from '@/lib/interactions'
+import { recordPayment, addAttachment, deleteAttachment, acknowledgeIssue, resolveIssue } from '@/lib/interactions'
 import { useDataListener } from '@/lib/data-events'
 import { formatDistanceToNow, differenceInDays } from 'date-fns'
 import type { Connection, OrderWithPaymentState, BusinessEntity, PaymentEvent, IssueReport, OrderAttachment, AttachmentType } from '@/lib/types'
@@ -12,6 +12,7 @@ import { getLifecycleStatusColor, getDueDateColor } from '@/lib/semantic-colors'
 import { OrderAttachments } from '@/components/OrderAttachments'
 import { AddAttachmentSheet } from '@/components/AddAttachmentSheet'
 import { AttachmentViewer } from '@/components/AttachmentViewer'
+import { IssueDetailSheet } from '@/components/IssueDetailSheet'
 
 interface Props {
   orderId: string
@@ -80,6 +81,9 @@ export function OrderDetailScreen({ orderId, connectionId, currentBusinessId, on
   // Attachments
   const [showAttachmentSheet, setShowAttachmentSheet] = useState(false)
   const [viewingAttachmentIndex, setViewingAttachmentIndex] = useState<number | null>(null)
+
+  // Issue detail
+  const [selectedIssue, setSelectedIssue] = useState<IssueReport | null>(null)
 
   const loadData = async () => {
     const [conn, orderData] = await Promise.all([
@@ -154,6 +158,24 @@ export function OrderDetailScreen({ orderId, connectionId, currentBusinessId, on
       toast.success('Attachment removed')
     } catch (err) {
       toast.error('Failed to delete attachment')
+    }
+  }
+
+  const handleAcknowledge = async (issueId: string) => {
+    try {
+      await acknowledgeIssue(issueId, currentBusinessId)
+      toast.success('Issue acknowledged')
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Failed to acknowledge issue')
+    }
+  }
+
+  const handleResolve = async (issueId: string) => {
+    try {
+      await resolveIssue(issueId, currentBusinessId)
+      toast.success('Issue resolved')
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Failed to resolve issue')
     }
   }
 
@@ -410,28 +432,91 @@ export function OrderDetailScreen({ orderId, connectionId, currentBusinessId, on
               ISSUES
             </p>
             <div style={{ backgroundColor: 'var(--bg-card)', borderRadius: 'var(--radius-card)', padding: '14px 16px' }}>
-              {issues.map(issue => (
-                <div key={issue.id} style={{ padding: '6px 0', borderBottom: '1px solid var(--border-section)' }}>
-                  <div className="flex items-center justify-between">
-                    <p style={{ fontSize: '14px', fontWeight: 600, color: 'var(--text-primary)' }}>{issue.issueType}</p>
-                    <span
-                      style={{
-                        fontSize: '11px',
-                        fontWeight: 600,
-                        color: issue.status === 'Resolved' ? 'var(--status-delivered)' : 'var(--status-overdue)',
-                        backgroundColor: issue.status === 'Resolved' ? '#F0FFF6' : '#FFF0F0',
-                        padding: '2px 8px',
-                        borderRadius: 'var(--radius-chip)',
-                      }}
-                    >
-                      {issue.status}
-                    </span>
-                  </div>
-                  <p style={{ fontSize: '11px', fontWeight: 500, color: 'var(--text-secondary)' }}>
-                    {issue.severity} · {formatDistanceToNow(issue.createdAt, { addSuffix: true })}
-                  </p>
-                </div>
-              ))}
+              {issues.map(issue => {
+                const isRaiser =
+                  (issue.raisedBy === 'buyer' && currentBusinessId === connection.buyerBusinessId) ||
+                  (issue.raisedBy === 'supplier' && currentBusinessId === connection.supplierBusinessId)
+                const isResponder = !isRaiser
+                const showAcknowledge = isResponder && issue.status === 'Open'
+                const showResolve = issue.status === 'Open' || issue.status === 'Acknowledged'
+
+                const statusColor = issue.status === 'Resolved'
+                  ? 'var(--status-delivered)'
+                  : issue.status === 'Acknowledged'
+                    ? 'var(--text-secondary)'
+                    : 'var(--status-overdue)'
+                const statusBg = issue.status === 'Resolved'
+                  ? '#F0FFF6'
+                  : issue.status === 'Acknowledged'
+                    ? '#F0F0F0'
+                    : '#FFF0F0'
+
+                return (
+                  <button
+                    key={issue.id}
+                    onClick={() => setSelectedIssue(issue)}
+                    className="w-full text-left"
+                    style={{ padding: '6px 0', borderBottom: '1px solid var(--border-section)' }}
+                  >
+                    <div className="flex items-center justify-between">
+                      <p style={{ fontSize: '14px', fontWeight: 600, color: 'var(--text-primary)' }}>{issue.issueType}</p>
+                      <span
+                        style={{
+                          fontSize: '11px',
+                          fontWeight: 600,
+                          color: statusColor,
+                          backgroundColor: statusBg,
+                          padding: '2px 8px',
+                          borderRadius: 'var(--radius-chip)',
+                        }}
+                      >
+                        {issue.status}
+                      </span>
+                    </div>
+                    <p style={{ fontSize: '11px', fontWeight: 500, color: 'var(--text-secondary)' }}>
+                      {issue.severity} · {formatDistanceToNow(issue.createdAt, { addSuffix: true })}
+                    </p>
+                    {(showAcknowledge || showResolve) && (
+                      <div className="flex gap-2 mt-2" onClick={(e) => e.stopPropagation()}>
+                        {showAcknowledge && (
+                          <button
+                            onClick={(e) => { e.stopPropagation(); handleAcknowledge(issue.id) }}
+                            style={{
+                              fontSize: '12px',
+                              fontWeight: 600,
+                              color: 'var(--text-primary)',
+                              border: '1px solid var(--border-light)',
+                              backgroundColor: 'var(--bg-card)',
+                              borderRadius: 'var(--radius-button-sm)',
+                              padding: '4px 12px',
+                              minHeight: '32px',
+                            }}
+                          >
+                            Acknowledge
+                          </button>
+                        )}
+                        {showResolve && (
+                          <button
+                            onClick={(e) => { e.stopPropagation(); handleResolve(issue.id) }}
+                            style={{
+                              fontSize: '12px',
+                              fontWeight: 600,
+                              color: '#FFFFFF',
+                              backgroundColor: '#22C55E',
+                              border: 'none',
+                              borderRadius: 'var(--radius-button-sm)',
+                              padding: '4px 12px',
+                              minHeight: '32px',
+                            }}
+                          >
+                            Resolve
+                          </button>
+                        )}
+                      </div>
+                    )}
+                  </button>
+                )
+              })}
             </div>
           </div>
         )}
@@ -523,6 +608,20 @@ export function OrderDetailScreen({ orderId, connectionId, currentBusinessId, on
           buyerBusiness={isSupplier ? otherBusiness : myBusiness}
           supplierBusiness={isSupplier ? myBusiness : otherBusiness}
           onClose={() => setViewingAttachmentIndex(null)}
+        />
+      )}
+
+      {/* Issue Detail Sheet */}
+      {selectedIssue && myBusiness && otherBusiness && (
+        <IssueDetailSheet
+          issue={selectedIssue}
+          order={order}
+          buyerBusiness={isSupplier ? otherBusiness : myBusiness}
+          supplierBusiness={isSupplier ? myBusiness : otherBusiness}
+          currentBusinessId={currentBusinessId}
+          isOpen={!!selectedIssue}
+          onClose={() => setSelectedIssue(null)}
+          onStatusChange={() => { setSelectedIssue(null); loadData() }}
         />
       )}
     </div>

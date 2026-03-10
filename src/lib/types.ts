@@ -102,6 +102,9 @@ export interface IssueReport {
   raisedBy: RaisedBy
   status: IssueStatus
   createdAt: number
+  acknowledgedAt?: number
+  resolvedAt?: number
+  resolvedBy?: RaisedBy
 }
 
 export interface OrderWithPaymentState extends Order {
@@ -169,6 +172,8 @@ export type NotificationType =
   | 'PaymentRecorded'
   | 'PaymentDisputed'
   | 'IssueRaised'
+  | 'IssueAcknowledged'
+  | 'IssueResolved'
   | 'ConnectionAccepted'
 
 export interface Notification {
