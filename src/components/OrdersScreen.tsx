@@ -9,6 +9,7 @@ import { PencilSimple, MagnifyingGlass, X, PaperPlaneTilt } from '@phosphor-icon
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import { toast } from 'sonner'
+import { InlineRefreshSpinner, ScreenRefreshIndicator, useScreenLoadState } from '@/components/ScreenLoadState'
 
 type OrderFilter = 'all' | 'today' | 'placed' | 'dispatched' | 'delivered' | 'payment_pending' | 'paid' | 'awaiting_dispatch' | 'overdue' | 'due_today'
 
@@ -84,8 +85,8 @@ function formatPaymentTerms(terms: Connection['paymentTerms']): string | null {
 
 export function OrdersScreen({ currentBusinessId, onSelectOrder, initialFilter }: Props) {
   const [orders, setOrders] = useState<EnrichedOrder[]>([])
-  const [loading, setLoading] = useState(true)
   const [filter, setFilter] = useState<OrderFilter>((initialFilter as OrderFilter) || 'all')
+  const { initialLoading, refreshing, runWithLoadState } = useScreenLoadState({ resetKey: currentBusinessId })
 
   // Order creation modal state
   const [showOrderModal, setShowOrderModal] = useState(false)
@@ -98,36 +99,36 @@ export function OrdersScreen({ currentBusinessId, onSelectOrder, initialFilter }
   const [sendError, setSendError] = useState<string | null>(null)
 
   const loadOrders = async () => {
-    const [allOrders, connections, entities] = await Promise.all([
-      dataStore.getOrdersWithPaymentStateByBusinessId(currentBusinessId),
-      dataStore.getConnectionsByBusinessId(currentBusinessId),
-      dataStore.getAllBusinessEntities(),
-    ])
+    await runWithLoadState(async () => {
+      const [allOrders, connections, entities] = await Promise.all([
+        dataStore.getOrdersWithPaymentStateByBusinessId(currentBusinessId),
+        dataStore.getConnectionsByBusinessId(currentBusinessId),
+        dataStore.getAllBusinessEntities(),
+      ])
 
-    const entityMap = new Map(entities.map(e => [e.id, e]))
-    const connMap = new Map(connections.map(c => [c.id, c]))
+      const entityMap = new Map(entities.map(e => [e.id, e]))
+      const connMap = new Map(connections.map(c => [c.id, c]))
 
-    const enriched: EnrichedOrder[] = allOrders.map(order => {
-      const conn = connMap.get(order.connectionId)
-      let connectionName = 'Unknown'
-      if (conn) {
-        const otherId = conn.buyerBusinessId === currentBusinessId
-          ? conn.supplierBusinessId
-          : conn.buyerBusinessId
-        connectionName = entityMap.get(otherId)?.businessName || 'Unknown'
-      }
-      return {
-        ...order,
-        connectionName,
-        lifecycleState: getLifecycleState(order),
-        latestActivity: getLatestActivity(order),
-      }
+      const enriched: EnrichedOrder[] = allOrders.map(order => {
+        const conn = connMap.get(order.connectionId)
+        let connectionName = 'Unknown'
+        if (conn) {
+          const otherId = conn.buyerBusinessId === currentBusinessId
+            ? conn.supplierBusinessId
+            : conn.buyerBusinessId
+          connectionName = entityMap.get(otherId)?.businessName || 'Unknown'
+        }
+        return {
+          ...order,
+          connectionName,
+          lifecycleState: getLifecycleState(order),
+          latestActivity: getLatestActivity(order),
+        }
+      })
+
+      enriched.sort((a, b) => b.latestActivity - a.latestActivity)
+      setOrders(enriched)
     })
-
-    enriched.sort((a, b) => b.latestActivity - a.latestActivity)
-    setOrders(enriched)
-
-    setLoading(false)
   }
 
   useEffect(() => {
@@ -206,14 +207,15 @@ export function OrdersScreen({ currentBusinessId, onSelectOrder, initialFilter }
       : eligibleConnections
   ), [businesses, eligibleConnections, search])
 
-  if (loading) {
+  if (initialLoading) {
     return (
       <div className="flex flex-col h-full" style={{ backgroundColor: 'var(--bg-screen)' }}>
-        <div className="sticky top-0 z-10" style={{ backgroundColor: 'var(--bg-header)', paddingTop: 'env(safe-area-inset-top)' }}>
-          <div className="h-11 flex items-center px-4">
-            <h1 style={{ fontSize: '22px', fontWeight: 700, color: 'var(--text-primary)', letterSpacing: '-0.02em' }}>Orders</h1>
-          </div>
+      <div className="sticky top-0 z-10" style={{ backgroundColor: 'var(--bg-header)', paddingTop: 'env(safe-area-inset-top)' }}>
+        <div className="h-11 flex items-center px-4">
+          <h1 style={{ fontSize: '22px', fontWeight: 700, color: 'var(--text-primary)', letterSpacing: '-0.02em' }}>Orders</h1>
         </div>
+        <ScreenRefreshIndicator refreshing={false} />
+      </div>
         <div className="flex-1 px-4 pt-4 space-y-2">
           {[1, 2, 3].map(i => (
             <div key={i} className="animate-pulse" style={{ backgroundColor: 'var(--border-light)', borderRadius: 'var(--radius-card)', height: '80px' }} />
@@ -228,7 +230,9 @@ export function OrdersScreen({ currentBusinessId, onSelectOrder, initialFilter }
       <div className="sticky top-0 z-10" style={{ backgroundColor: 'var(--bg-header)', paddingTop: 'env(safe-area-inset-top)' }}>
         <div className="h-11 flex items-center px-4">
           <h1 style={{ fontSize: '22px', fontWeight: 700, color: 'var(--text-primary)', letterSpacing: '-0.02em' }}>Orders</h1>
+          <InlineRefreshSpinner refreshing={refreshing} />
         </div>
+        <ScreenRefreshIndicator refreshing={refreshing} />
         <div style={{ borderBottom: '1px solid var(--border-light)', padding: '8px 16px' }}>
           <div className="flex gap-2 overflow-x-auto scrollbar-hide">
             {FILTER_LABELS.map(({ key, label }) => {

@@ -2,6 +2,8 @@ import { useEffect, useState } from 'react'
 import { dataStore } from '@/lib/data-store'
 import { isToday, isYesterday, formatDistanceToNow, format } from 'date-fns'
 import { getLifecycleStatusColor } from '@/lib/semantic-colors'
+import { useDataListener } from '@/lib/data-events'
+import { InlineRefreshSpinner, ScreenRefreshIndicator, useScreenLoadState } from '@/components/ScreenLoadState'
 
 interface Props {
   currentBusinessId: string
@@ -34,10 +36,10 @@ function getSectionLabel(timestamp: number): string {
 
 export function StatusScreen({ currentBusinessId, onNavigateToConnection }: Props) {
   const [events, setEvents] = useState<LifecycleEvent[]>([])
-  const [loading, setLoading] = useState(true)
+  const { initialLoading, refreshing, runWithLoadState } = useScreenLoadState({ resetKey: currentBusinessId })
 
-  useEffect(() => {
-    async function loadEvents() {
+  const loadEvents = async () => {
+    await runWithLoadState(async () => {
       const connections = await dataStore.getConnectionsByBusinessId(currentBusinessId)
       const allOrders = await dataStore.getAllOrders()
       const entities = await dataStore.getAllBusinessEntities()
@@ -90,16 +92,28 @@ export function StatusScreen({ currentBusinessId, onNavigateToConnection }: Prop
 
       lifecycleEvents.sort((a, b) => b.timestamp - a.timestamp)
       setEvents(lifecycleEvents)
-      setLoading(false)
-    }
+    })
+  }
 
+  useEffect(() => {
     loadEvents()
   }, [currentBusinessId])
 
-  if (loading) {
+  useDataListener(['orders:changed', 'connections:changed'], () => { loadEvents() })
+
+  if (initialLoading) {
     return (
-      <div className="flex items-center justify-center min-h-screen">
-        <p className="text-sm text-muted-foreground">Loading...</p>
+      <div className="flex flex-col h-full">
+        <div className="sticky top-0 bg-white z-10" style={{ paddingTop: 'env(safe-area-inset-top)' }}>
+          <div className="h-11 flex items-center px-4">
+            <h1 className="text-[17px] text-foreground font-normal">Status</h1>
+          </div>
+        </div>
+        <div className="flex-1 px-4 pt-3 space-y-2">
+          {[1, 2, 3].map(item => (
+            <div key={item} className="animate-pulse h-[68px] rounded-xl bg-muted/40" />
+          ))}
+        </div>
       </div>
     )
   }
@@ -110,7 +124,9 @@ export function StatusScreen({ currentBusinessId, onNavigateToConnection }: Prop
         <div className="sticky top-0 bg-white z-10" style={{ paddingTop: 'env(safe-area-inset-top)' }}>
           <div className="h-11 flex items-center px-4">
             <h1 className="text-[17px] text-foreground font-normal">Status</h1>
+            <InlineRefreshSpinner refreshing={refreshing} />
           </div>
+          <ScreenRefreshIndicator refreshing={refreshing} />
         </div>
         <div className="flex-1 flex items-center justify-center">
           <p className="text-sm text-muted-foreground">No activity yet.</p>
@@ -126,7 +142,9 @@ export function StatusScreen({ currentBusinessId, onNavigateToConnection }: Prop
       <div className="sticky top-0 bg-white z-10" style={{ paddingTop: 'env(safe-area-inset-top)' }}>
         <div className="h-11 flex items-center px-4">
           <h1 className="text-[17px] text-foreground font-normal">Status</h1>
+          <InlineRefreshSpinner refreshing={refreshing} />
         </div>
+        <ScreenRefreshIndicator refreshing={refreshing} />
       </div>
 
       <div className="flex-1 overflow-y-auto">
