@@ -1,6 +1,7 @@
 import { useMemo } from 'react'
 import { CaretRight, CheckCircle, ClockClockwise, Info, Package, ShieldWarning, Truck, WarningCircle } from '@phosphor-icons/react'
 import { useBusinessOverviewData } from '@/hooks/data/use-business-data'
+import { formatIndianCurrencyShorthand } from '@/lib/formatters'
 import { getLifecycleStatusColor } from '@/lib/semantic-colors'
 
 interface Props {
@@ -63,7 +64,7 @@ export function DashboardScreen({ currentBusinessId, onNavigateToOrders, onNavig
               <p className="text-[14px] font-semibold" style={{ color: '#333' }}>Overdue Payments</p>
             </div>
             <p className="text-[30px] font-bold leading-tight mt-2" style={{ color: '#E53935' }}>
-              ₹{data.overdue.toLocaleString('en-IN')}
+              {formatIndianCurrencyShorthand(data.overdue)}
             </p>
             <p className="text-[12px] mt-2" style={{ color: '#777' }}>
               {data.overdueOrdersCount} orders overdue • Avg delay {data.overdueAverageDelayDays} days
@@ -86,7 +87,7 @@ export function DashboardScreen({ currentBusinessId, onNavigateToOrders, onNavig
               style={{ backgroundColor: '#F1FAF5', borderRadius: '14px', padding: '16px', minHeight: '80px', boxShadow: '0px 2px 6px rgba(0,0,0,0.05)' }}
             >
               <p className="text-[12px] font-medium" style={{ color: '#666' }}>💰 To Receive</p>
-              <p className="text-[24px] font-bold leading-tight mt-1" style={{ color: '#16A34A' }}>₹{data.toReceive.toLocaleString('en-IN')}</p>
+              <p className="text-[24px] font-bold leading-tight mt-1" style={{ color: '#16A34A' }}>{formatIndianCurrencyShorthand(data.toReceive)}</p>
             </button>
 
             <button
@@ -95,14 +96,14 @@ export function DashboardScreen({ currentBusinessId, onNavigateToOrders, onNavig
               style={{ backgroundColor: '#F8F8F8', borderRadius: '14px', padding: '16px', minHeight: '80px', boxShadow: '0px 2px 6px rgba(0,0,0,0.05)' }}
             >
               <p className="text-[12px] font-medium" style={{ color: '#666' }}>💳 To Pay</p>
-              <p className="text-[24px] font-bold leading-tight mt-1" style={{ color: '#333' }}>₹{data.toPay.toLocaleString('en-IN')}</p>
+              <p className="text-[24px] font-bold leading-tight mt-1" style={{ color: '#333' }}>{formatIndianCurrencyShorthand(data.toPay)}</p>
             </button>
           </div>
 
           <div className="flex items-center gap-2 mt-[14px]" style={{ padding: '12px', backgroundColor: '#F6F8FF', borderRadius: '12px' }}>
             <Info size={14} color="#64748B" weight="fill" />
             <p className="text-[12px]" style={{ color: '#4A5568' }}>
-              Insight: Your overdue {data.overdueChangeFromYesterday >= 0 ? 'increased' : 'decreased'} by ₹{Math.abs(data.overdueChangeFromYesterday).toLocaleString('en-IN')} since yesterday.
+              Insight: Your overdue {data.overdueChangeFromYesterday >= 0 ? 'increased' : 'decreased'} by {formatIndianCurrencyShorthand(Math.abs(data.overdueChangeFromYesterday))} since yesterday.
             </p>
           </div>
         </div>
@@ -250,7 +251,7 @@ export function DashboardScreen({ currentBusinessId, onNavigateToOrders, onNavig
                   >
                     <div className="flex items-center justify-between gap-3">
                       <p className="text-[15px] font-semibold text-foreground truncate">{order.itemSummary}</p>
-                      <p className="text-[15px] font-semibold text-foreground">₹{order.orderValue.toLocaleString('en-IN')}</p>
+                      <p className="text-[15px] font-semibold text-foreground">{formatIndianCurrencyShorthand(order.orderValue)}</p>
                     </div>
                     <p className="text-[12px] text-muted-foreground mt-1">{order.connectionName} · {order.lifecycleState}</p>
                   </button>
