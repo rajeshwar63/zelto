@@ -27,6 +27,12 @@ export function DashboardScreen({ currentBusinessId, onNavigateToOrders, onNavig
     paymentPending: 0,
     disputes: 0,
   }
+  const netPosition = data.toReceive - data.toPay
+  const netPositionColorClass = netPosition > 0
+    ? 'text-[var(--status-delivered)]'
+    : netPosition < 0
+      ? 'text-destructive'
+      : 'text-muted-foreground'
 
   if (isInitialLoading || !data) {
     return <div className="p-4 text-sm text-muted-foreground">Loading...</div>
@@ -85,6 +91,7 @@ export function DashboardScreen({ currentBusinessId, onNavigateToOrders, onNavig
             </div>
             <p className="text-[30px] font-bold leading-tight mt-2" style={{ color: '#E53935' }}>
               {formatIndianCurrencyShorthand(data.overdue)}
+              ₹{data.overdue.toLocaleString('en-IN')}
             </p>
             <p className="text-[12px] mt-2" style={{ color: '#777' }}>
               {data.overdueOrdersCount} orders overdue • Avg delay {data.overdueAverageDelayDays} days
@@ -99,6 +106,13 @@ export function DashboardScreen({ currentBusinessId, onNavigateToOrders, onNavig
             >
               <p className="text-[12px] font-medium" style={{ color: '#666' }}>📦 Orders Today</p>
               <p className="text-[24px] font-bold leading-tight mt-1" style={{ color: '#2563EB' }}>{data.ordersToday}</p>
+          <div className="grid grid-cols-2 gap-[10px]">
+            <button
+              onClick={() => onNavigateToOrders('today')}
+              className="text-left rounded-xl border border-border bg-card px-4 py-3 min-h-[80px]"
+            >
+              <p className="text-[12px] font-medium text-muted-foreground">📦 Orders Today</p>
+              <p className="text-[24px] font-bold leading-tight mt-1 text-foreground">{data.ordersToday}</p>
             </button>
 
             <button
@@ -108,6 +122,10 @@ export function DashboardScreen({ currentBusinessId, onNavigateToOrders, onNavig
             >
               <p className="text-[12px] font-medium" style={{ color: '#666' }}>💰 To Receive</p>
               <p className="text-[24px] font-bold leading-tight mt-1" style={{ color: '#16A34A' }}>{formatIndianCurrencyShorthand(data.toReceive)}</p>
+              className="text-left rounded-xl border border-border bg-card px-4 py-3 min-h-[80px]"
+            >
+              <p className="text-[12px] font-medium text-muted-foreground">💰 To Receive</p>
+              <p className="text-[24px] font-bold leading-tight mt-1 text-[var(--status-delivered)]">₹{data.toReceive.toLocaleString('en-IN')}</p>
             </button>
 
             <button
@@ -117,6 +135,22 @@ export function DashboardScreen({ currentBusinessId, onNavigateToOrders, onNavig
             >
               <p className="text-[12px] font-medium" style={{ color: '#666' }}>💳 To Pay</p>
               <p className="text-[24px] font-bold leading-tight mt-1" style={{ color: '#333' }}>{formatIndianCurrencyShorthand(data.toPay)}</p>
+              className="text-left rounded-xl border border-border bg-card px-4 py-3 min-h-[80px]"
+            >
+              <p className="text-[12px] font-medium text-muted-foreground">💳 To Pay</p>
+              <p className="text-[24px] font-bold leading-tight mt-1 text-foreground">₹{data.toPay.toLocaleString('en-IN')}</p>
+            </button>
+          </div>
+
+          <div className="mt-[10px]">
+            <button
+              onClick={() => onNavigateToConnections(netPosition >= 0 ? 'receivables' : 'payables')}
+              className="w-full text-left rounded-xl border border-border bg-card px-4 py-3"
+            >
+              <p className="text-[12px] font-medium text-muted-foreground">Net Position</p>
+              <p className={`text-[30px] font-bold leading-tight mt-1 ${netPositionColorClass}`}>
+                {netPosition > 0 ? '+' : netPosition < 0 ? '-' : ''}₹{Math.abs(netPosition).toLocaleString('en-IN')}
+              </p>
             </button>
           </div>
 
@@ -124,6 +158,7 @@ export function DashboardScreen({ currentBusinessId, onNavigateToOrders, onNavig
             <Info size={14} color="#64748B" weight="fill" />
             <p className="text-[12px]" style={{ color: '#4A5568' }}>
               Insight: Your overdue {data.overdueChangeFromYesterday >= 0 ? 'increased' : 'decreased'} by {formatIndianCurrencyShorthand(Math.abs(data.overdueChangeFromYesterday))} since yesterday.
+              Insight: Your overdue {data.overdueChangeFromYesterday >= 0 ? 'increased' : 'decreased'} by ₹{Math.abs(data.overdueChangeFromYesterday).toLocaleString('en-IN')} since yesterday.
             </p>
           </div>
         </div>
