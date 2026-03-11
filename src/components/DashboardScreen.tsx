@@ -51,8 +51,10 @@ export function DashboardScreen({ currentBusinessId, onNavigateToOrders, onNavig
     return <div className="p-4 text-sm text-muted-foreground">Loading...</div>
   }
 
+  const firstName = (overview.username ?? '').trim().split(/\s+/)[0] ?? ''
+
   const data = {
-    username: overview.username ?? '',
+    username: firstName,
     ordersToday: overview.ordersToday ?? 0,
     toReceive: overview.toReceive ?? 0,
     toPay: overview.toPay ?? 0,
@@ -69,7 +71,7 @@ export function DashboardScreen({ currentBusinessId, onNavigateToOrders, onNavig
     <div className="flex flex-col h-full">
       <div className="sticky top-0 bg-white z-10" style={{ paddingTop: 'env(safe-area-inset-top)' }}>
         <div className="px-4" style={{ paddingTop: '20px', paddingBottom: '16px' }}>
-          <h1 className="text-[20px] font-semibold" style={{ color: '#111' }}>Welcome back, {data.username}</h1>
+          <h1 className="text-[20px] font-semibold" style={{ color: '#111' }}>Welcome back{data.username ? ` ${data.username}` : ''},</h1>
           <p className="text-[13px] font-normal mt-1" style={{ color: '#8A8A8A' }}>Your trade snapshot today</p>
         </div>
       </div>
