@@ -96,7 +96,7 @@ export function DashboardScreen({ currentBusinessId, onNavigateToOrders, onNavig
                       </div>
                       <div className="flex items-center justify-between">
                         <p className="text-[13px] text-muted-foreground">Going Out</p>
-                        <p className="text-[14px] font-semibold text-[var(--status-overdue)]">₹{data.tradePosition.next7Days.goingOut.toLocaleString('en-IN')}</p>
+                        <p className="text-[14px] font-semibold text-foreground">₹{data.tradePosition.next7Days.goingOut.toLocaleString('en-IN')}</p>
                       </div>
                       <div className="flex items-center justify-between">
                         <p className="text-[13px] text-muted-foreground">Net</p>
@@ -119,7 +119,7 @@ export function DashboardScreen({ currentBusinessId, onNavigateToOrders, onNavig
                       </div>
                       <div className="flex items-center justify-between">
                         <p className="text-[13px] text-muted-foreground">Going Out</p>
-                        <p className="text-[14px] font-semibold text-[var(--status-overdue)]">₹{data.tradePosition.next30Days.goingOut.toLocaleString('en-IN')}</p>
+                        <p className="text-[14px] font-semibold text-foreground">₹{data.tradePosition.next30Days.goingOut.toLocaleString('en-IN')}</p>
                       </div>
                       <div className="flex items-center justify-between">
                         <p className="text-[13px] text-muted-foreground">Net</p>
@@ -137,7 +137,7 @@ export function DashboardScreen({ currentBusinessId, onNavigateToOrders, onNavig
                     <div className="space-y-3">
                       <div className="flex items-center justify-between">
                         <p className="text-[13px] text-muted-foreground">Money Paid</p>
-                        <p className="text-[14px] font-semibold text-[var(--status-overdue)]">₹{data.tradePosition.past7Days.moneyPaid.toLocaleString('en-IN')}</p>
+                        <p className="text-[14px] font-semibold text-foreground">₹{data.tradePosition.past7Days.moneyPaid.toLocaleString('en-IN')}</p>
                       </div>
                       <div className="flex items-center justify-between">
                         <p className="text-[13px] text-muted-foreground">Money Received</p>
@@ -153,7 +153,7 @@ export function DashboardScreen({ currentBusinessId, onNavigateToOrders, onNavig
                     <div className="space-y-3">
                       <div className="flex items-center justify-between">
                         <p className="text-[13px] text-muted-foreground">Money Paid</p>
-                        <p className="text-[14px] font-semibold text-[var(--status-overdue)]">₹{data.tradePosition.past30Days.moneyPaid.toLocaleString('en-IN')}</p>
+                        <p className="text-[14px] font-semibold text-foreground">₹{data.tradePosition.past30Days.moneyPaid.toLocaleString('en-IN')}</p>
                       </div>
                       <div className="flex items-center justify-between">
                         <p className="text-[13px] text-muted-foreground">Money Received</p>
