@@ -5,6 +5,51 @@ import { PushNotifications } from '@capacitor/push-notifications'
 import { Capacitor } from '@capacitor/core'
 import { supabase } from './supabase-client'
 import { getAuthSession } from './auth'
+import { getMessaging, getToken } from 'firebase/messaging'
+import { getApp, initializeApp } from 'firebase/app'
+
+const firebaseConfig = {
+  apiKey: 'AIzaSyDi88lmNnBmbBQ_kKuL6L2PsQ8cMb1aIQk',
+  projectId: 'zelto-87b9f',
+  messagingSenderId: '1087219191711',
+  appId: '1:1087219191711:android:857f042a120957413077aa',
+  storageBucket: 'zelto-87b9f.firebasestorage.app',
+}
+
+let listenersRegistered = false
+let activeBusinessEntityId: string | null = null
+
+function getFirebaseApp() {
+  try {
+    return getApp()
+  } catch {
+    return initializeApp(firebaseConfig)
+  }
+}
+
+export async function registerPushNotifications(businessEntityId: string): Promise<void> {
+  if (!Capacitor.isNativePlatform()) return
+
+  if (activeBusinessEntityId === businessEntityId && listenersRegistered) {
+    return
+  }
+
+  try {
+    const permissionStatus = await PushNotifications.checkPermissions()
+
+    if (permissionStatus.receive !== 'granted') {
+      const requestStatus = await PushNotifications.requestPermissions()
+
+      if (requestStatus.receive !== 'granted') {
+        console.warn('Push notification permission was not granted')
+        return
+      }
+    }
+
+    await PushNotifications.register()
+
+    const messaging = getMessaging(getFirebaseApp())
+    const token = await getToken(messaging)
 
 let listenersRegistered = false
 let activeBusinessEntityId: string | null = null
@@ -19,6 +64,10 @@ async function persistDeviceToken(token: string, businessEntityId?: string): Pro
     return
   }
 
+    const {
+      data: { user },
+    } = await supabase.auth.getUser()
+    if (!user) return
   const { data: userAccount, error: userError } = await supabase
     .from('user_accounts')
     .select('id, business_entity_id')
@@ -35,6 +84,37 @@ async function persistDeviceToken(token: string, businessEntityId?: string): Pro
 
   const resolvedBusinessEntityId = businessEntityId ?? userAccount.business_entity_id
 
+    const { error } = await supabase.from('device_tokens').upsert(
+      {
+        user_id: userAccount.id,
+        business_entity_id: userAccount.business_entity_id,
+        fcm_token: token,
+        platform: 'android',
+        updated_at: Date.now(),
+        created_at: Date.now(),
+      },
+      { onConflict: 'user_id,fcm_token' }
+    )
+
+    if (error) {
+      console.error('Failed to save device token:', error)
+    } else {
+      activeBusinessEntityId = businessEntityId
+      console.log('Device token saved successfully:', token.substring(0, 20))
+    }
+
+    if (!listenersRegistered) {
+      // Still use Capacitor for receiving notifications in foreground
+      PushNotifications.addListener('pushNotificationReceived', (notification) => {
+        console.log('Push received:', notification)
+      })
+
+      PushNotifications.addListener('pushNotificationActionPerformed', (action) => {
+        console.log('Push tapped:', action)
+      })
+
+      listenersRegistered = true
+    }
   const { error } = await supabase.from('device_tokens').upsert(
     {
       user_id: userAccount.id,
@@ -108,10 +188,7 @@ export async function removeDeviceTokens(): Promise<void> {
   const session = await getAuthSession()
   if (!session) return
 
-  const { error } = await supabase
-    .from('device_tokens')
-    .delete()
-    .eq('user_id', session.userId)
+  const { error } = await supabase.from('device_tokens').delete().eq('user_id', session.userId)
 
   if (error) console.error('Failed to remove device tokens:', error)
 }
