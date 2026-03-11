@@ -24,6 +24,10 @@ interface BusinessOverviewData {
   username: string
   toPay: number
   toReceive: number
+  tradePosition: {
+    next7Days: { comingIn: number; goingOut: number; net: number }
+    next30Days: { comingIn: number; goingOut: number; net: number }
+  }
   ordersToday: number
   overdue: number
   overdueOrdersCount: number
@@ -126,7 +130,14 @@ export function useBusinessOverviewData(currentBusinessId: string, isActive = tr
       let delivered = 0
       let paymentPending = 0
 
+      let next7DaysComingIn = 0
+      let next7DaysGoingOut = 0
+      let next30DaysComingIn = 0
+      let next30DaysGoingOut = 0
+
       const now = Date.now()
+      const sevenDaysFromNow = now + (7 * 24 * 60 * 60 * 1000)
+      const thirtyDaysFromNow = now + (30 * 24 * 60 * 60 * 1000)
       const yesterday = now - (24 * 60 * 60 * 1000)
 
       for (const order of orders) {
@@ -150,6 +161,19 @@ export function useBusinessOverviewData(currentBusinessId: string, isActive = tr
         if (order.pendingAmount > 0) {
           if (isSupplier) toReceive += order.pendingAmount
           else toPay += order.pendingAmount
+        }
+
+        if (order.pendingAmount > 0 && order.calculatedDueDate != null) {
+          const dueDate = order.calculatedDueDate
+          if (dueDate >= now && dueDate <= thirtyDaysFromNow) {
+            if (isSupplier) next30DaysComingIn += order.pendingAmount
+            else next30DaysGoingOut += order.pendingAmount
+
+            if (dueDate <= sevenDaysFromNow) {
+              if (isSupplier) next7DaysComingIn += order.pendingAmount
+              else next7DaysGoingOut += order.pendingAmount
+            }
+          }
         }
 
         if (order.dispatchedAt && !order.deliveredAt) dispatched += 1
@@ -186,6 +210,18 @@ export function useBusinessOverviewData(currentBusinessId: string, isActive = tr
         username,
         toPay,
         toReceive,
+        tradePosition: {
+          next7Days: {
+            comingIn: next7DaysComingIn,
+            goingOut: next7DaysGoingOut,
+            net: next7DaysComingIn - next7DaysGoingOut,
+          },
+          next30Days: {
+            comingIn: next30DaysComingIn,
+            goingOut: next30DaysGoingOut,
+            net: next30DaysComingIn - next30DaysGoingOut,
+          },
+        },
         ordersToday,
         overdue,
         overdueOrdersCount,
