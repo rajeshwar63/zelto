@@ -94,7 +94,7 @@ export function DashboardScreen({ currentBusinessId, onNavigateToOrders, onNavig
             <p className="text-[12px] mt-2" style={{ color: '#777' }}>
               {data.overdueOrdersCount} orders overdue • Avg delay {data.overdueAverageDelayDays} days
             </p>
-          </button>
+          </div>
 
           <div className="grid grid-cols-2 gap-[10px]">
             <button
