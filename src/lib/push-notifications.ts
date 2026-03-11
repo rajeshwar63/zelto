@@ -5,7 +5,7 @@ import { PushNotifications } from '@capacitor/push-notifications'
 import { Capacitor } from '@capacitor/core'
 import { supabase } from './supabase-client'
 import { getAuthSession } from './auth'
-import { getMessaging, getToken } from 'firebase/messaging'
+import { getMessaging } from 'firebase/messaging'
 import { getApp, initializeApp } from 'firebase/app'
 
 const firebaseConfig = {
@@ -23,29 +23,6 @@ function getFirebaseApp() {
     return initializeApp(firebaseConfig)
   }
 }
-
-let listenersRegistered = false
-let activeBusinessEntityId: string | null = null
-
-export async function registerPushNotifications(businessEntityId: string): Promise<void> {
-  if (!Capacitor.isNativePlatform()) return
-  if (activeBusinessEntityId === businessEntityId && listenersRegistered) return
-
-  try {
-    const permissionStatus = await PushNotifications.checkPermissions()
-
-    if (permissionStatus.receive !== 'granted') {
-      const requestStatus = await PushNotifications.requestPermissions()
-
-      if (requestStatus.receive !== 'granted') {
-        console.warn('Push notification permission was not granted')
-        return
-      }
-    }
-
-    await PushNotifications.register()
-
-    const messaging = getMessaging(getFirebaseApp())
 
 let listenersRegistered = false
 let activeBusinessEntityId: string | null = null
@@ -98,19 +75,6 @@ async function persistDeviceToken(token: string, businessEntityId?: string): Pro
 function registerPushListeners(): void {
   if (listenersRegistered) return
 
-    activeBusinessEntityId = businessEntityId
-
-    if (!listenersRegistered) {
-      // Still use Capacitor for receiving notifications in foreground
-      PushNotifications.addListener('pushNotificationReceived', (notification) => {
-        console.log('Push received:', notification)
-      })
-
-      PushNotifications.addListener('pushNotificationActionPerformed', (action) => {
-        console.log('Push tapped:', action)
-      })
-
-      listenersRegistered = true
   PushNotifications.addListener('registration', async (token) => {
     console.log('Push registration success', { tokenPreview: token.value.substring(0, 20) })
     await persistDeviceToken(token.value, activeBusinessEntityId ?? undefined)
@@ -137,18 +101,26 @@ function registerPushListeners(): void {
 
 export async function registerPushNotifications(businessEntityId: string): Promise<void> {
   if (!Capacitor.isNativePlatform()) return
+  if (activeBusinessEntityId === businessEntityId && listenersRegistered) return
 
   activeBusinessEntityId = businessEntityId
 
   try {
-    registerPushListeners()
-
-    const permissionStatus = await PushNotifications.requestPermissions()
+    const permissionStatus = await PushNotifications.checkPermissions()
 
     if (permissionStatus.receive !== 'granted') {
-      console.error('Push notification permission not granted', permissionStatus)
-      return
+      const requestStatus = await PushNotifications.requestPermissions()
+
+      if (requestStatus.receive !== 'granted') {
+        console.warn('Push notification permission was not granted')
+        return
+      }
     }
+
+    registerPushListeners()
+
+    // Ensure Firebase messaging is initialized for FCM on native platforms.
+    getMessaging(getFirebaseApp())
 
     await PushNotifications.register()
   } catch (e) {
@@ -162,10 +134,7 @@ export async function removeDeviceTokens(): Promise<void> {
   const session = await getAuthSession()
   if (!session) return
 
-  const { error } = await supabase
-    .from('device_tokens')
-    .delete()
-    .eq('user_id', session.userId)
+  const { error } = await supabase.from('device_tokens').delete().eq('user_id', session.userId)
 
   if (error) console.error('Failed to remove device tokens:', error)
 }
