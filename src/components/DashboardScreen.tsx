@@ -14,7 +14,6 @@ interface Props {
 
 export function DashboardScreen({ currentBusinessId, onNavigateToOrders, onNavigateToConnection, onNavigateToConnections, onNavigateToAttention, isActive = true }: Props) {
   const { data: overview, isInitialLoading } = useBusinessOverviewData(currentBusinessId, isActive)
-  const data = overview
   const recentOrders = overview?.recentOrders ?? []
   const attentionCounts = overview?.attentionCounts ?? {
     approvalNeeded: 0,
@@ -23,10 +22,21 @@ export function DashboardScreen({ currentBusinessId, onNavigateToOrders, onNavig
     paymentPending: 0,
     disputes: 0,
   }
-  if (isInitialLoading || !data) {
+
+  if (isInitialLoading || !overview) {
     return <div className="p-4 text-sm text-muted-foreground">Loading...</div>
   }
 
+  const data = {
+    username: overview.username ?? '',
+    ordersToday: overview.ordersToday ?? 0,
+    toReceive: overview.toReceive ?? 0,
+    toPay: overview.toPay ?? 0,
+    overdue: overview.overdue ?? 0,
+    overdueOrdersCount: overview.overdueOrdersCount ?? 0,
+    overdueAverageDelayDays: overview.overdueAverageDelayDays ?? 0,
+    overdueChangeFromYesterday: overview.overdueChangeFromYesterday ?? 0,
+  }
   const netPosition = data.toReceive - data.toPay
   const netPositionColorClass = netPosition > 0
     ? 'text-[var(--status-delivered)]'
