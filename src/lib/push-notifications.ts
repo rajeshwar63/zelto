@@ -28,6 +28,19 @@ export async function registerPushNotifications(businessEntityId: string): Promi
   if (!Capacitor.isNativePlatform()) return
 
   try {
+    const permissionStatus = await PushNotifications.checkPermissions()
+
+    if (permissionStatus.receive !== 'granted') {
+      const requestStatus = await PushNotifications.requestPermissions()
+
+      if (requestStatus.receive !== 'granted') {
+        console.warn('Push notification permission was not granted')
+        return
+      }
+    }
+
+    await PushNotifications.register()
+
     const messaging = getMessaging(getFirebaseApp())
 
     const token = await getToken(messaging)
