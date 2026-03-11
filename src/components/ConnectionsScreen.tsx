@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState, type TouchEvent } from 'react'
 import { dataStore } from '@/lib/data-store'
 import { behaviourEngine } from '@/lib/behaviour-engine'
 import { createOrder } from '@/lib/interactions'
@@ -74,7 +74,11 @@ export function ConnectionsScreen({ currentBusinessId, onSelectConnection, onAdd
   const [showOrderModal, setShowOrderModal] = useState(false)
   const [eligibleConnections, setEligibleConnections] = useState<Connection[]>([])
   const [businesses, setBusinesses] = useState<Map<string, BusinessEntity>>(new Map())
-  const [search, setSearch] = useState('')
+  const [supplierSearch, setSupplierSearch] = useState('')
+  const [connectionSearch, setConnectionSearch] = useState('')
+  const [showConnectionSearch, setShowConnectionSearch] = useState(false)
+  const listContainerRef = useRef<HTMLDivElement | null>(null)
+  const pullStartYRef = useRef<number | null>(null)
   const [selectedConnection, setSelectedConnection] = useState<Connection | null>(null)
   const [message, setMessage] = useState('')
   const [isSending, setIsSending] = useState(false)
@@ -194,7 +198,7 @@ export function ConnectionsScreen({ currentBusinessId, onSelectConnection, onAdd
       setShowOrderModal(false)
       setSelectedConnection(null)
       setMessage('')
-      setSearch('')
+      setSupplierSearch('')
       onSelectConnection(connectionId)
     } catch (error) {
       console.error('Failed to create order:', error)
@@ -205,13 +209,47 @@ export function ConnectionsScreen({ currentBusinessId, onSelectConnection, onAdd
   }
 
   const filteredConnections = useMemo(() => (
-    search.trim()
+    supplierSearch.trim()
       ? eligibleConnections.filter(conn => {
         const supplier = businesses.get(conn.supplierBusinessId)
-        return supplier?.businessName.toLowerCase().includes(search.toLowerCase())
+        return supplier?.businessName.toLowerCase().includes(supplierSearch.toLowerCase())
       })
       : eligibleConnections
-  ), [businesses, eligibleConnections, search])
+  ), [businesses, eligibleConnections, supplierSearch])
+
+
+  const visibleConnections = useMemo(() => (
+    connectionSearch.trim()
+      ? connections.filter(conn => conn.otherBusinessName.toLowerCase().includes(connectionSearch.toLowerCase()))
+      : connections
+  ), [connections, connectionSearch])
+
+  useEffect(() => {
+    if (!showConnectionSearch) {
+      setConnectionSearch('')
+    }
+  }, [showConnectionSearch])
+
+  const handleListTouchStart = (event: TouchEvent<HTMLDivElement>) => {
+    const container = listContainerRef.current
+    if (!container || container.scrollTop > 0) return
+    pullStartYRef.current = event.touches[0]?.clientY ?? null
+  }
+
+  const handleListTouchMove = (event: TouchEvent<HTMLDivElement>) => {
+    if (showConnectionSearch || pullStartYRef.current === null) return
+    const currentY = event.touches[0]?.clientY
+    if (currentY === undefined) return
+    const pullDistance = currentY - pullStartYRef.current
+    if (pullDistance > 50) {
+      setShowConnectionSearch(true)
+      pullStartYRef.current = null
+    }
+  }
+
+  const handleListTouchEnd = () => {
+    pullStartYRef.current = null
+  }
 
   if (connections.length === 0 && connectionRequests.length === 0) {
     return (
@@ -285,7 +323,13 @@ export function ConnectionsScreen({ currentBusinessId, onSelectConnection, onAdd
         </div>
       </div>
 
-      <div className="px-4 pt-3 pb-24">
+      <div
+        ref={listContainerRef}
+        className="px-4 pt-3 pb-24 overflow-y-auto"
+        onTouchStart={handleListTouchStart}
+        onTouchMove={handleListTouchMove}
+        onTouchEnd={handleListTouchEnd}
+      >
         {connectionRequests.length > 0 && (
           <div className="mb-4">
             <p style={{ fontSize: '13px', fontWeight: 700, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '10px' }}>
@@ -308,11 +352,38 @@ export function ConnectionsScreen({ currentBusinessId, onSelectConnection, onAdd
           </div>
         )}
 
+        {showConnectionSearch && (
+          <div className="mb-3">
+            <div className="relative">
+              <MagnifyingGlass size={18} weight="regular" className="absolute left-3 top-1/2 -translate-y-1/2" style={{ color: 'var(--text-secondary)' }} />
+              <Input
+                placeholder="Search connections..."
+                value={connectionSearch}
+                onChange={(e) => setConnectionSearch(e.target.value)}
+                className="pl-9 pr-10"
+                style={{ borderRadius: 'var(--radius-input)' }}
+              />
+              <button
+                onClick={() => setShowConnectionSearch(false)}
+                className="absolute right-2 top-1/2 -translate-y-1/2"
+                style={{ minWidth: '32px', minHeight: '32px', color: 'var(--text-secondary)' }}
+              >
+                <X size={16} weight="regular" />
+              </button>
+            </div>
+          </div>
+        )}
+
         <p style={{ fontSize: '13px', fontWeight: 700, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '10px' }}>
           ALL CONNECTIONS
         </p>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--sp-sm)' }}>
-          {connections.map((conn) => {
+          {visibleConnections.length === 0 && (
+            <p style={{ fontSize: '14px', fontWeight: 500, color: 'var(--text-secondary)', textAlign: 'center', padding: '16px 0' }}>
+              No connections found
+            </p>
+          )}
+          {visibleConnections.map((conn) => {
             const formattedTerms = formatPaymentTerms(conn.paymentTerms)
             const isSupplier = conn.supplierBusinessId === currentBusinessId
             const isUnread = unreadConnectionIds?.has(conn.id)
@@ -413,7 +484,7 @@ export function ConnectionsScreen({ currentBusinessId, onSelectConnection, onAdd
                 setShowOrderModal(false)
                 setSelectedConnection(null)
                 setMessage('')
-                setSearch('')
+                setSupplierSearch('')
               }} style={{ minWidth: '44px', minHeight: '44px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                 <X size={24} weight="regular" color="var(--text-primary)" />
               </button>
@@ -426,8 +497,8 @@ export function ConnectionsScreen({ currentBusinessId, onSelectConnection, onAdd
                     <MagnifyingGlass size={20} weight="regular" className="absolute left-3 top-1/2 -translate-y-1/2" style={{ color: 'var(--text-secondary)' }} />
                     <Input
                       placeholder="Search suppliers..."
-                      value={search}
-                      onChange={(e) => setSearch(e.target.value)}
+                      value={supplierSearch}
+                      onChange={(e) => setSupplierSearch(e.target.value)}
                       className="pl-10"
                       style={{ borderRadius: 'var(--radius-input)' }}
                     />
