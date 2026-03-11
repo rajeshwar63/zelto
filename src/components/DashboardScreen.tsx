@@ -65,8 +65,8 @@ export function DashboardScreen({ currentBusinessId, onNavigateToOrders, onNavig
     tradePosition: overview.tradePosition ?? {
       next7Days: { comingIn: 0, goingOut: 0, net: 0 },
       next30Days: { comingIn: 0, goingOut: 0, net: 0 },
-      past7Days: { moneyPaid: 0, moneyReceived: 0 },
-      past30Days: { moneyPaid: 0, moneyReceived: 0 },
+      past7Days: { moneyPaid: 0, moneyReceived: 0, net: 0 },
+      past30Days: { moneyPaid: 0, moneyReceived: 0, net: 0 },
     },
   }
   return (
@@ -143,6 +143,12 @@ export function DashboardScreen({ currentBusinessId, onNavigateToOrders, onNavig
                         <p className="text-[13px] text-muted-foreground">Money Received</p>
                         <p className="text-[14px] font-semibold text-[var(--status-delivered)]">₹{data.tradePosition.past7Days.moneyReceived.toLocaleString('en-IN')}</p>
                       </div>
+                      <div className="flex items-center justify-between">
+                        <p className="text-[13px] text-muted-foreground">Net</p>
+                        <p className={`text-[14px] font-semibold ${data.tradePosition.past7Days.net >= 0 ? 'text-[var(--status-delivered)]' : 'text-destructive'}`}>
+                          {data.tradePosition.past7Days.net >= 0 ? '+' : '-'}₹{Math.abs(data.tradePosition.past7Days.net).toLocaleString('en-IN')}
+                        </p>
+                      </div>
                     </div>
                   </div>
                 </CarouselItem>
@@ -158,6 +164,12 @@ export function DashboardScreen({ currentBusinessId, onNavigateToOrders, onNavig
                       <div className="flex items-center justify-between">
                         <p className="text-[13px] text-muted-foreground">Money Received</p>
                         <p className="text-[14px] font-semibold text-[var(--status-delivered)]">₹{data.tradePosition.past30Days.moneyReceived.toLocaleString('en-IN')}</p>
+                      </div>
+                      <div className="flex items-center justify-between">
+                        <p className="text-[13px] text-muted-foreground">Net</p>
+                        <p className={`text-[14px] font-semibold ${data.tradePosition.past30Days.net >= 0 ? 'text-[var(--status-delivered)]' : 'text-destructive'}`}>
+                          {data.tradePosition.past30Days.net >= 0 ? '+' : '-'}₹{Math.abs(data.tradePosition.past30Days.net).toLocaleString('en-IN')}
+                        </p>
                       </div>
                     </div>
                   </div>
