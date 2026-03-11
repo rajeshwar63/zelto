@@ -55,7 +55,7 @@ export async function registerPushNotifications(businessEntityId: string): Promi
       platform: 'android',
       updated_at: Date.now(),
       created_at: Date.now(),
-    }, { onConflict: 'fcm_token' })
+    }, { onConflict: 'user_id,fcm_token' })
 
     if (error) {
       console.error('Failed to save device token:', error)
