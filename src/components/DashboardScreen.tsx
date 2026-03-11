@@ -1,4 +1,3 @@
-import { useMemo } from 'react'
 import { CaretRight, CheckCircle, ClockClockwise, Package, ShieldWarning, Truck } from '@phosphor-icons/react'
 import { useBusinessOverviewData } from '@/hooks/data/use-business-data'
 import { getLifecycleStatusColor } from '@/lib/semantic-colors'
@@ -15,9 +14,6 @@ interface Props {
 
 export function DashboardScreen({ currentBusinessId, onNavigateToOrders, onNavigateToConnection, onNavigateToConnections, onNavigateToAttention, isActive = true }: Props) {
   const { data: overview, isInitialLoading } = useBusinessOverviewData(currentBusinessId, isActive)
-  const data = useMemo(() => overview && ({
-    username: overview.username,
-  }), [overview])
   const recentOrders = overview?.recentOrders ?? []
   const attentionCounts = overview?.attentionCounts ?? {
     approvalNeeded: 0,
@@ -26,16 +22,18 @@ export function DashboardScreen({ currentBusinessId, onNavigateToOrders, onNavig
     paymentPending: 0,
     disputes: 0,
   }
+
+  if (isInitialLoading || !overview) {
+    return <div className="p-4 text-sm text-muted-foreground">Loading...</div>
+  }
+
+  const data = overview
   const netPosition = data.toReceive - data.toPay
   const netPositionColorClass = netPosition > 0
     ? 'text-[var(--status-delivered)]'
     : netPosition < 0
       ? 'text-destructive'
       : 'text-muted-foreground'
-
-  if (isInitialLoading || !data) {
-    return <div className="p-4 text-sm text-muted-foreground">Loading...</div>
-  }
 
   return (
     <div className="flex flex-col h-full">
