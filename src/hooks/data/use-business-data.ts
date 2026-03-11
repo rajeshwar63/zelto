@@ -27,6 +27,8 @@ interface BusinessOverviewData {
   tradePosition: {
     next7Days: { comingIn: number; goingOut: number; net: number }
     next30Days: { comingIn: number; goingOut: number; net: number }
+    past7Days: { moneyPaid: number; moneyReceived: number }
+    past30Days: { moneyPaid: number; moneyReceived: number }
   }
   ordersToday: number
   overdue: number
@@ -114,6 +116,11 @@ export function useBusinessOverviewData(currentBusinessId: string, isActive = tr
         getAuthSession(),
       ])
 
+      const orderIds = orders.map(order => order.id)
+      const paymentEvents = orderIds.length > 0
+        ? await dataStore.getPaymentEventsByOrderIds(orderIds)
+        : []
+
       const username = session?.userAccount?.username || 'there'
 
       const connMap = new Map<string, Connection>(connections.map(conn => [conn.id, conn]))
@@ -134,6 +141,10 @@ export function useBusinessOverviewData(currentBusinessId: string, isActive = tr
       let next7DaysGoingOut = 0
       let next30DaysComingIn = 0
       let next30DaysGoingOut = 0
+      let past7DaysMoneyPaid = 0
+      let past7DaysMoneyReceived = 0
+      let past30DaysMoneyPaid = 0
+      let past30DaysMoneyReceived = 0
 
       const now = Date.now()
       const todayStart = new Date(now)
@@ -141,7 +152,29 @@ export function useBusinessOverviewData(currentBusinessId: string, isActive = tr
       const todayStartMs = todayStart.getTime()
       const sevenDaysFromTodayEnd = todayStartMs + (7 * 24 * 60 * 60 * 1000) - 1
       const thirtyDaysFromTodayEnd = todayStartMs + (30 * 24 * 60 * 60 * 1000) - 1
+      const sevenDaysAgoStart = todayStartMs - (7 * 24 * 60 * 60 * 1000)
+      const thirtyDaysAgoStart = todayStartMs - (30 * 24 * 60 * 60 * 1000)
       const yesterday = now - (24 * 60 * 60 * 1000)
+
+      const orderConnectionMap = new Map(orders.map(order => [order.id, connMap.get(order.connectionId)]))
+
+      for (const paymentEvent of paymentEvents) {
+        const connection = orderConnectionMap.get(paymentEvent.orderId)
+        if (!connection) continue
+
+        const isSupplier = connection.supplierBusinessId === currentBusinessId
+        const eventTimestamp = paymentEvent.timestamp
+
+        if (eventTimestamp >= thirtyDaysAgoStart && eventTimestamp <= now) {
+          if (isSupplier) past30DaysMoneyReceived += paymentEvent.amountPaid
+          else past30DaysMoneyPaid += paymentEvent.amountPaid
+        }
+
+        if (eventTimestamp >= sevenDaysAgoStart && eventTimestamp <= now) {
+          if (isSupplier) past7DaysMoneyReceived += paymentEvent.amountPaid
+          else past7DaysMoneyPaid += paymentEvent.amountPaid
+        }
+      }
 
       for (const order of orders) {
         if (order.declinedAt) continue
@@ -224,6 +257,14 @@ export function useBusinessOverviewData(currentBusinessId: string, isActive = tr
             comingIn: next30DaysComingIn,
             goingOut: next30DaysGoingOut,
             net: next30DaysComingIn - next30DaysGoingOut,
+          },
+          past7Days: {
+            moneyPaid: past7DaysMoneyPaid,
+            moneyReceived: past7DaysMoneyReceived,
+          },
+          past30Days: {
+            moneyPaid: past30DaysMoneyPaid,
+            moneyReceived: past30DaysMoneyReceived,
           },
         },
         ordersToday,

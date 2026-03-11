@@ -65,6 +65,8 @@ export function DashboardScreen({ currentBusinessId, onNavigateToOrders, onNavig
     tradePosition: overview.tradePosition ?? {
       next7Days: { comingIn: 0, goingOut: 0, net: 0 },
       next30Days: { comingIn: 0, goingOut: 0, net: 0 },
+      past7Days: { moneyPaid: 0, moneyReceived: 0 },
+      past30Days: { moneyPaid: 0, moneyReceived: 0 },
     },
   }
   return (
@@ -141,6 +143,36 @@ export function DashboardScreen({ currentBusinessId, onNavigateToOrders, onNavig
                   aria-label={`Go to ${slideIndex === 0 ? '7 days' : '30 days'} trade position`}
                 />
               ))}
+            </div>
+
+            <div className="mt-5 grid grid-cols-1 gap-3 sm:grid-cols-2">
+              <div className="rounded-xl border border-border bg-background p-3">
+                <p className="text-[11px] uppercase tracking-wide text-muted-foreground/70 mb-2">Past 7 Days</p>
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <p className="text-[13px] text-muted-foreground">Money Paid</p>
+                    <p className="text-[14px] font-semibold text-foreground">₹{data.tradePosition.past7Days.moneyPaid.toLocaleString('en-IN')}</p>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <p className="text-[13px] text-muted-foreground">Money Received</p>
+                    <p className="text-[14px] font-semibold text-[var(--status-delivered)]">₹{data.tradePosition.past7Days.moneyReceived.toLocaleString('en-IN')}</p>
+                  </div>
+                </div>
+              </div>
+
+              <div className="rounded-xl border border-border bg-background p-3">
+                <p className="text-[11px] uppercase tracking-wide text-muted-foreground/70 mb-2">Past 30 Days</p>
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <p className="text-[13px] text-muted-foreground">Money Paid</p>
+                    <p className="text-[14px] font-semibold text-foreground">₹{data.tradePosition.past30Days.moneyPaid.toLocaleString('en-IN')}</p>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <p className="text-[13px] text-muted-foreground">Money Received</p>
+                    <p className="text-[14px] font-semibold text-[var(--status-delivered)]">₹{data.tradePosition.past30Days.moneyReceived.toLocaleString('en-IN')}</p>
+                  </div>
+                </div>
+              </div>
             </div>
           </div>
 
