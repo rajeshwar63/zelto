@@ -168,14 +168,15 @@ export function useBusinessOverviewData(currentBusinessId: string, isActive = tr
 
         if (order.pendingAmount > 0 && order.calculatedDueDate != null) {
           const dueDate = order.calculatedDueDate
-          if (dueDate >= todayStartMs && dueDate <= thirtyDaysFromTodayEnd) {
+
+          if (dueDate <= thirtyDaysFromTodayEnd) {
             if (isSupplier) next30DaysComingIn += order.pendingAmount
             else next30DaysGoingOut += order.pendingAmount
+          }
 
-            if (dueDate <= sevenDaysFromTodayEnd) {
-              if (isSupplier) next7DaysComingIn += order.pendingAmount
-              else next7DaysGoingOut += order.pendingAmount
-            }
+          if (dueDate <= sevenDaysFromTodayEnd) {
+            if (isSupplier) next7DaysComingIn += order.pendingAmount
+            else next7DaysGoingOut += order.pendingAmount
           }
         }
 
