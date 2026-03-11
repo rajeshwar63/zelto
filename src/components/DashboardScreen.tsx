@@ -1,4 +1,4 @@
-import { CaretRight, CheckCircle, ClockClockwise, Info, Package, ShieldWarning, Truck } from '@phosphor-icons/react'
+import { CaretRight, CheckCircle, ClockClockwise, Package, ShieldWarning, Truck } from '@phosphor-icons/react'
 import { useBusinessOverviewData } from '@/hooks/data/use-business-data'
 import { getLifecycleStatusColor } from '@/lib/semantic-colors'
 
@@ -41,13 +41,6 @@ export function DashboardScreen({ currentBusinessId, onNavigateToOrders, onNavig
       next30Days: { comingIn: 0, goingOut: 0, net: 0 },
     },
   }
-  const netPosition = data.toReceive - data.toPay
-  const netPositionColorClass = netPosition > 0
-    ? 'text-[var(--status-delivered)]'
-    : netPosition < 0
-      ? 'text-destructive'
-      : 'text-muted-foreground'
-
   return (
     <div className="flex flex-col h-full">
       <div className="sticky top-0 bg-white z-10" style={{ paddingTop: 'env(safe-area-inset-top)' }}>
@@ -105,63 +98,6 @@ export function DashboardScreen({ currentBusinessId, onNavigateToOrders, onNavig
             </div>
           </div>
 
-          <div className="grid grid-cols-2 gap-[10px] mt-[10px]">
-            <button
-              onClick={() => onNavigateToOrders('today')}
-              className="text-left rounded-xl border border-border bg-card px-4 py-3 min-h-[80px]"
-            >
-              <p className="text-[12px] font-medium text-muted-foreground">📦 Orders Today</p>
-              <p className="text-[24px] font-bold leading-tight mt-1 text-foreground">{data.ordersToday}</p>
-            </button>
-
-            <button
-              onClick={() => onNavigateToConnections('receivables')}
-              className="text-left rounded-xl border border-border bg-card px-4 py-3 min-h-[80px]"
-            >
-              <p className="text-[12px] font-medium text-muted-foreground">💰 To Receive</p>
-              <p className="text-[24px] font-bold leading-tight mt-1 text-[var(--status-delivered)]">₹{data.toReceive.toLocaleString('en-IN')}</p>
-            </button>
-
-            <button
-              onClick={() => onNavigateToOrders('payment_pending')}
-              className="text-left rounded-xl border border-border bg-card px-4 py-3 min-h-[80px]"
-            >
-              <p className="text-[12px] font-medium text-muted-foreground">💳 To Pay</p>
-              <p className="text-[24px] font-bold leading-tight mt-1 text-foreground">₹{data.toPay.toLocaleString('en-IN')}</p>
-            </button>
-
-            <button
-              onClick={() => onNavigateToOrders('overdue')}
-              className="text-left rounded-xl border border-border bg-card px-4 py-3 min-h-[80px]"
-            >
-              <p className="text-[12px] font-medium text-muted-foreground" style={{ color: '#E53935' }}>⚠️ Overdue</p>
-              <p className="text-[24px] font-bold leading-tight mt-1" style={{ color: '#E53935' }}>₹{data.overdue.toLocaleString('en-IN')}</p>
-              {data.overdueOrdersCount > 0 && (
-                <p className="text-[11px] mt-1" style={{ color: '#777' }}>
-                  {data.overdueOrdersCount} orders · {data.overdueAverageDelayDays}d avg
-                </p>
-              )}
-            </button>
-          </div>
-
-          <div className="mt-[10px]">
-            <button
-              onClick={() => onNavigateToConnections(netPosition >= 0 ? 'receivables' : 'payables')}
-              className="w-full text-left rounded-xl border border-border bg-card px-4 py-3"
-            >
-              <p className="text-[12px] font-medium text-muted-foreground">Net Position</p>
-              <p className={`text-[30px] font-bold leading-tight mt-1 ${netPositionColorClass}`}>
-                {netPosition > 0 ? '+' : netPosition < 0 ? '-' : ''}₹{Math.abs(netPosition).toLocaleString('en-IN')}
-              </p>
-            </button>
-          </div>
-
-          <div className="flex items-center gap-2 mt-[14px]" style={{ padding: '12px', backgroundColor: '#F6F8FF', borderRadius: '12px' }}>
-            <Info size={14} color="#64748B" weight="fill" />
-            <p className="text-[12px]" style={{ color: '#4A5568' }}>
-              Insight: Your overdue {data.overdueChangeFromYesterday >= 0 ? 'increased' : 'decreased'} by ₹{Math.abs(data.overdueChangeFromYesterday).toLocaleString('en-IN')} since yesterday.
-            </p>
-          </div>
         </div>
 
         <div>
