@@ -16,6 +16,9 @@ const firebaseConfig = {
   storageBucket: 'zelto-87b9f.firebasestorage.app',
 }
 
+let listenersRegistered = false
+let activeBusinessEntityId: string | null = null
+
 function getFirebaseApp() {
   try {
     return getApp()
@@ -27,9 +30,25 @@ function getFirebaseApp() {
 export async function registerPushNotifications(businessEntityId: string): Promise<void> {
   if (!Capacitor.isNativePlatform()) return
 
-  try {
-    const messaging = getMessaging(getFirebaseApp())
+  if (activeBusinessEntityId === businessEntityId && listenersRegistered) {
+    return
+  }
 
+  try {
+    const permissionStatus = await PushNotifications.checkPermissions()
+
+    if (permissionStatus.receive !== 'granted') {
+      const requestStatus = await PushNotifications.requestPermissions()
+
+      if (requestStatus.receive !== 'granted') {
+        console.warn('Push notification permission was not granted')
+        return
+      }
+    }
+
+    await PushNotifications.register()
+
+    const messaging = getMessaging(getFirebaseApp())
     const token = await getToken(messaging)
 
     if (!token) {
@@ -37,7 +56,9 @@ export async function registerPushNotifications(businessEntityId: string): Promi
       return
     }
 
-    const { data: { user } } = await supabase.auth.getUser()
+    const {
+      data: { user },
+    } = await supabase.auth.getUser()
     if (!user) return
 
     const { data: userAccount, error: userError } = await supabase
@@ -48,30 +69,37 @@ export async function registerPushNotifications(businessEntityId: string): Promi
 
     if (userError || !userAccount) return
 
-    const { error } = await supabase.from('device_tokens').upsert({
-      user_id: userAccount.id,
-      business_entity_id: userAccount.business_entity_id,
-      fcm_token: token,
-      platform: 'android',
-      updated_at: Date.now(),
-      created_at: Date.now(),
-    }, { onConflict: 'user_id,fcm_token' })
+    const { error } = await supabase.from('device_tokens').upsert(
+      {
+        user_id: userAccount.id,
+        business_entity_id: userAccount.business_entity_id,
+        fcm_token: token,
+        platform: 'android',
+        updated_at: Date.now(),
+        created_at: Date.now(),
+      },
+      { onConflict: 'user_id,fcm_token' }
+    )
 
     if (error) {
       console.error('Failed to save device token:', error)
     } else {
+      activeBusinessEntityId = businessEntityId
       console.log('Device token saved successfully:', token.substring(0, 20))
     }
 
-    // Still use Capacitor for receiving notifications in foreground
-    PushNotifications.addListener('pushNotificationReceived', (notification) => {
-      console.log('Push received:', notification)
-    })
+    if (!listenersRegistered) {
+      // Still use Capacitor for receiving notifications in foreground
+      PushNotifications.addListener('pushNotificationReceived', (notification) => {
+        console.log('Push received:', notification)
+      })
 
-    PushNotifications.addListener('pushNotificationActionPerformed', (action) => {
-      console.log('Push tapped:', action)
-    })
+      PushNotifications.addListener('pushNotificationActionPerformed', (action) => {
+        console.log('Push tapped:', action)
+      })
 
+      listenersRegistered = true
+    }
   } catch (e) {
     console.error('Push registration error:', e)
   }
@@ -83,10 +111,7 @@ export async function removeDeviceTokens(): Promise<void> {
   const session = await getAuthSession()
   if (!session) return
 
-  const { error } = await supabase
-    .from('device_tokens')
-    .delete()
-    .eq('user_id', session.userId)
+  const { error } = await supabase.from('device_tokens').delete().eq('user_id', session.userId)
 
   if (error) console.error('Failed to remove device tokens:', error)
 }
