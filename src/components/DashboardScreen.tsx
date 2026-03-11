@@ -33,6 +33,12 @@ export function DashboardScreen({ currentBusinessId, onNavigateToOrders, onNavig
     paymentPending: 0,
     disputes: 0,
   }
+  const netPosition = data.toReceive - data.toPay
+  const netPositionColorClass = netPosition > 0
+    ? 'text-[var(--status-delivered)]'
+    : netPosition < 0
+      ? 'text-destructive'
+      : 'text-muted-foreground'
 
   if (isInitialLoading || !data) {
     return <div className="p-4 text-sm text-muted-foreground">Loading...</div>
@@ -70,32 +76,41 @@ export function DashboardScreen({ currentBusinessId, onNavigateToOrders, onNavig
             </p>
           </button>
 
-          <div className="grid grid-cols-3 gap-[10px]">
+          <div className="grid grid-cols-2 gap-[10px]">
             <button
               onClick={() => onNavigateToOrders('today')}
-              className="text-left"
-              style={{ backgroundColor: '#F7F7F7', borderRadius: '14px', padding: '16px', minHeight: '80px', boxShadow: '0px 2px 6px rgba(0,0,0,0.05)' }}
+              className="text-left rounded-xl border border-border bg-card px-4 py-3 min-h-[80px]"
             >
-              <p className="text-[12px] font-medium" style={{ color: '#666' }}>📦 Orders Today</p>
-              <p className="text-[24px] font-bold leading-tight mt-1" style={{ color: '#2563EB' }}>{data.ordersToday}</p>
+              <p className="text-[12px] font-medium text-muted-foreground">📦 Orders Today</p>
+              <p className="text-[24px] font-bold leading-tight mt-1 text-foreground">{data.ordersToday}</p>
             </button>
 
             <button
               onClick={() => onNavigateToConnections('receivables')}
-              className="text-left"
-              style={{ backgroundColor: '#F1FAF5', borderRadius: '14px', padding: '16px', minHeight: '80px', boxShadow: '0px 2px 6px rgba(0,0,0,0.05)' }}
+              className="text-left rounded-xl border border-border bg-card px-4 py-3 min-h-[80px]"
             >
-              <p className="text-[12px] font-medium" style={{ color: '#666' }}>💰 To Receive</p>
-              <p className="text-[24px] font-bold leading-tight mt-1" style={{ color: '#16A34A' }}>₹{data.toReceive.toLocaleString('en-IN')}</p>
+              <p className="text-[12px] font-medium text-muted-foreground">💰 To Receive</p>
+              <p className="text-[24px] font-bold leading-tight mt-1 text-[var(--status-delivered)]">₹{data.toReceive.toLocaleString('en-IN')}</p>
             </button>
 
             <button
               onClick={() => onNavigateToOrders('payment_pending')}
-              className="text-left"
-              style={{ backgroundColor: '#F8F8F8', borderRadius: '14px', padding: '16px', minHeight: '80px', boxShadow: '0px 2px 6px rgba(0,0,0,0.05)' }}
+              className="text-left rounded-xl border border-border bg-card px-4 py-3 min-h-[80px]"
             >
-              <p className="text-[12px] font-medium" style={{ color: '#666' }}>💳 To Pay</p>
-              <p className="text-[24px] font-bold leading-tight mt-1" style={{ color: '#333' }}>₹{data.toPay.toLocaleString('en-IN')}</p>
+              <p className="text-[12px] font-medium text-muted-foreground">💳 To Pay</p>
+              <p className="text-[24px] font-bold leading-tight mt-1 text-foreground">₹{data.toPay.toLocaleString('en-IN')}</p>
+            </button>
+          </div>
+
+          <div className="mt-[10px]">
+            <button
+              onClick={() => onNavigateToConnections(netPosition >= 0 ? 'receivables' : 'payables')}
+              className="w-full text-left rounded-xl border border-border bg-card px-4 py-3"
+            >
+              <p className="text-[12px] font-medium text-muted-foreground">Net Position</p>
+              <p className={`text-[30px] font-bold leading-tight mt-1 ${netPositionColorClass}`}>
+                {netPosition > 0 ? '+' : netPosition < 0 ? '-' : ''}₹{Math.abs(netPosition).toLocaleString('en-IN')}
+              </p>
             </button>
           </div>
 
