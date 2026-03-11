@@ -95,13 +95,13 @@ export function RecordPaymentScreen({ orderId, currentBusinessId, onBack, onSucc
         <div className="grid grid-cols-2 gap-4">
           <div>
             <p className="text-[13px] text-muted-foreground mb-1">Order value</p>
-            <p className="text-[15px] text-foreground font-medium">
+            <p className="text-[15px] font-medium text-[var(--status-overdue)]">
               ₹{order.orderValue.toLocaleString('en-IN')}
             </p>
           </div>
           <div>
             <p className="text-[13px] text-muted-foreground mb-1">Already paid</p>
-            <p className="text-[15px] text-foreground font-medium">
+            <p className="text-[15px] font-medium text-[var(--status-delivered)]">
               ₹{order.totalPaid.toLocaleString('en-IN')}
             </p>
           </div>
@@ -109,7 +109,7 @@ export function RecordPaymentScreen({ orderId, currentBusinessId, onBack, onSucc
 
         <div>
           <p className="text-[13px] text-muted-foreground mb-1">Remaining balance</p>
-          <p className="text-[17px] text-foreground font-semibold">
+          <p className="text-[17px] font-semibold text-[var(--status-overdue)]">
             ₹{order.pendingAmount.toLocaleString('en-IN')}
           </p>
         </div>

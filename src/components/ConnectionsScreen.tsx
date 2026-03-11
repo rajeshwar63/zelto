@@ -425,7 +425,7 @@ export function ConnectionsScreen({ currentBusinessId, onSelectConnection, onAdd
                     <p style={{ fontSize: '15px', fontWeight: 700, color: 'var(--text-primary)' }}>{conn.otherBusinessName}</p>
                   </div>
                   {conn.outstandingBalance > 0 && (
-                    <p style={{ fontSize: '15px', fontWeight: 700, color: 'var(--text-primary)' }}>
+                    <p style={{ fontSize: '15px', fontWeight: 700, color: isSupplier ? 'var(--status-delivered)' : 'var(--status-overdue)' }}>
                       {conn.outstandingBalance.toLocaleString('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 })}
                     </p>
                   )}

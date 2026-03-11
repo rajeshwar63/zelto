@@ -293,7 +293,7 @@ export function OrderDetailScreen({ orderId, connectionId, currentBusinessId, on
           <div style={{ backgroundColor: 'var(--bg-card)', borderRadius: 'var(--radius-card)', padding: '14px 16px' }}>
             <p style={{ fontSize: '15px', fontWeight: 600, color: 'var(--text-primary)' }}>{order.itemSummary}</p>
             {order.orderValue > 0 && (
-              <p style={{ fontSize: '20px', fontWeight: 800, color: 'var(--text-primary)', marginTop: '4px', letterSpacing: '-0.02em' }}>
+              <p style={{ fontSize: '20px', fontWeight: 800, color: 'var(--status-overdue)', marginTop: '4px', letterSpacing: '-0.02em' }}>
                 {order.orderValue.toLocaleString('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 })}
               </p>
             )}
@@ -324,7 +324,7 @@ export function OrderDetailScreen({ orderId, connectionId, currentBusinessId, on
           </div>
           {order.totalPaid > 0 && order.settlementState !== 'Paid' && (
             <p style={{ fontSize: '12px', fontWeight: 500, color: 'var(--text-secondary)', marginTop: '8px' }}>
-              {order.totalPaid.toLocaleString('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 })} paid · {order.pendingAmount.toLocaleString('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 })} pending
+              <span style={{ color: 'var(--status-delivered)' }}>{order.totalPaid.toLocaleString('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 })}</span> paid · <span style={{ color: 'var(--status-overdue)' }}>{order.pendingAmount.toLocaleString('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 })}</span> pending
             </p>
           )}
         </div>
@@ -405,7 +405,7 @@ export function OrderDetailScreen({ orderId, connectionId, currentBusinessId, on
               {payments.map(payment => (
                 <div key={payment.id} className="flex items-center justify-between" style={{ padding: '6px 0', borderBottom: '1px solid var(--border-section)' }}>
                   <div>
-                    <p style={{ fontSize: '14px', fontWeight: 600, color: 'var(--text-primary)' }}>
+                    <p style={{ fontSize: '14px', fontWeight: 600, color: payment.recordedBy === currentBusinessId ? 'var(--status-overdue)' : 'var(--status-delivered)' }}>
                       {payment.amountPaid.toLocaleString('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 })}
                     </p>
                     <p style={{ fontSize: '11px', fontWeight: 500, color: 'var(--text-secondary)' }}>

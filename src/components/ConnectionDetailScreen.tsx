@@ -304,7 +304,7 @@ export function ConnectionDetailScreen({ connectionId, currentBusinessId, select
             </div>
             <div style={{ backgroundColor: 'var(--bg-card)', borderRadius: 'var(--radius-card)', padding: '14px 16px' }}>
               <p style={{ fontSize: '12px', fontWeight: 600, color: 'var(--text-secondary)' }}>Total Value</p>
-              <p style={{ fontSize: '20px', fontWeight: 800, color: 'var(--text-primary)', letterSpacing: '-0.02em', marginTop: '4px' }}>
+              <p style={{ fontSize: '20px', fontWeight: 800, color: isSupplier ? 'var(--status-delivered)' : 'var(--status-overdue)', letterSpacing: '-0.02em', marginTop: '4px' }}>
                 {totalValue.toLocaleString('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 })}
               </p>
             </div>
@@ -426,9 +426,9 @@ export function ConnectionDetailScreen({ connectionId, currentBusinessId, select
                             <p style={{ fontSize: '11px', fontWeight: 600, color: 'var(--status-delivered)' }}>Paid</p>
                           </div>
                         ) : order.settlementState === 'Partial Payment' ? (
-                          <p style={{ fontSize: '14px', fontWeight: 600, color: 'var(--status-dispatched)' }}>{order.pendingAmount.toLocaleString('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 })} remaining</p>
+                          <p style={{ fontSize: '14px', fontWeight: 600, color: 'var(--status-overdue)' }}>{order.pendingAmount.toLocaleString('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 })} remaining</p>
                         ) : (
-                          <p style={{ fontSize: isOld ? '13px' : '15px', fontWeight: 700, color: isOld ? 'var(--text-secondary)' : 'var(--text-primary)' }}>
+                          <p style={{ fontSize: isOld ? '13px' : '15px', fontWeight: 700, color: isOld ? 'var(--status-overdue)' : 'var(--status-overdue)' }}>
                             {order.orderValue.toLocaleString('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 })}
                           </p>
                         )}
@@ -862,7 +862,7 @@ function OrderDetailView({ order: orderProp, connection, currentBusinessId, onBa
             ) : order.orderValue === 0 ? (
               <p style={{ fontSize: '13px', fontWeight: 500, color: 'var(--text-secondary)' }}>Amount not recorded</p>
             ) : (
-              <p style={{ fontSize: '20px', fontWeight: 800, color: 'var(--text-primary)', letterSpacing: '-0.02em' }}>{order.orderValue.toLocaleString('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 })}</p>
+              <p style={{ fontSize: '20px', fontWeight: 800, color: 'var(--status-overdue)', letterSpacing: '-0.02em' }}>{order.orderValue.toLocaleString('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 })}</p>
             )}
             <div className="flex items-center gap-2 mt-1" style={{ fontSize: '13px' }}>
               <span style={{ color: 'var(--text-secondary)', fontWeight: 500 }}>
@@ -908,7 +908,7 @@ function OrderDetailView({ order: orderProp, connection, currentBusinessId, onBa
                   <div className="flex-1 pb-2">
                     <div className="flex items-center gap-2 flex-wrap">
                       <p className="text-[13px] text-foreground">
-                        ₹{payment.amountPaid.toLocaleString('en-IN')} recorded by {recordedByBusiness?.businessName}
+                        <span style={{ color: payment.recordedBy === currentBusinessId ? 'var(--status-overdue)' : 'var(--status-delivered)' }}>₹{payment.amountPaid.toLocaleString('en-IN')}</span> recorded by {recordedByBusiness?.businessName}
                       </p>
                       {canDispute && (
                         <button
@@ -963,7 +963,7 @@ function OrderDetailView({ order: orderProp, connection, currentBusinessId, onBa
               <div className="flex gap-3">
                 <div className="pt-1"><div className="w-2 h-2 rounded-full bg-destructive" /></div>
                 <p className="text-[13px] font-medium text-destructive">
-                  Overdue · ₹{order.pendingAmount.toLocaleString('en-IN')} remaining
+                  Overdue · <span style={{ color: 'var(--status-overdue)' }}>₹{order.pendingAmount.toLocaleString('en-IN')}</span> remaining
                 </p>
               </div>
             )}
@@ -972,7 +972,7 @@ function OrderDetailView({ order: orderProp, connection, currentBusinessId, onBa
               <div className="flex gap-3">
                 <div className="pt-1"><div className="w-2 h-2 rounded-full" style={{ backgroundColor: 'var(--status-dispatched)' }} /></div>
                 <p className="text-[13px] font-medium" style={{ color: 'var(--status-dispatched)' }}>
-                  Partial Payment · ₹{order.pendingAmount.toLocaleString('en-IN')} remaining
+                  Partial Payment · <span style={{ color: 'var(--status-overdue)' }}>₹{order.pendingAmount.toLocaleString('en-IN')}</span> remaining
                 </p>
               </div>
             )}
@@ -1082,7 +1082,7 @@ function OrderDetailView({ order: orderProp, connection, currentBusinessId, onBa
         {lifecycleState === 'Delivered' && order.pendingAmount > 0 && (
           <div className="space-y-3">
             <p className="text-[13px] text-muted-foreground">
-              Remaining balance: ₹{order.pendingAmount.toLocaleString('en-IN')}
+              Remaining balance: <span style={{ color: 'var(--status-overdue)' }}>₹{order.pendingAmount.toLocaleString('en-IN')}</span>
             </p>
             <Input
               type="number"
