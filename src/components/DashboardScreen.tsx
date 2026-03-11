@@ -27,7 +27,16 @@ export function DashboardScreen({ currentBusinessId, onNavigateToOrders, onNavig
     return <div className="p-4 text-sm text-muted-foreground">Loading...</div>
   }
 
-  const data = overview
+  const data = {
+    username: overview.username ?? '',
+    ordersToday: overview.ordersToday ?? 0,
+    toReceive: overview.toReceive ?? 0,
+    toPay: overview.toPay ?? 0,
+    overdue: overview.overdue ?? 0,
+    overdueOrdersCount: overview.overdueOrdersCount ?? 0,
+    overdueAverageDelayDays: overview.overdueAverageDelayDays ?? 0,
+    overdueChangeFromYesterday: overview.overdueChangeFromYesterday ?? 0,
+  }
   const netPosition = data.toReceive - data.toPay
   const netPositionColorClass = netPosition > 0
     ? 'text-[var(--status-delivered)]'
