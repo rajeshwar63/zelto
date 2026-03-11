@@ -1,4 +1,4 @@
-import { CaretRight, CheckCircle, ClockClockwise, Package, ShieldWarning, Truck } from '@phosphor-icons/react'
+import { CaretRight, CheckCircle, ClockClockwise, Info, Package, ShieldWarning, Truck } from '@phosphor-icons/react'
 import { useBusinessOverviewData } from '@/hooks/data/use-business-data'
 import { getLifecycleStatusColor } from '@/lib/semantic-colors'
 
