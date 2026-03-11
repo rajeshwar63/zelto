@@ -5,14 +5,49 @@
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts'
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 
-const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!
-const SUPABASE_SERVICE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
+type ServiceAccount = {
+  project_id: string
+  client_email: string
+  private_key: string
+}
 
-// Firebase service account from env
-const FCM_SERVICE_ACCOUNT = JSON.parse(Deno.env.get('FCM_SERVICE_ACCOUNT')!)
-const FCM_PROJECT_ID = FCM_SERVICE_ACCOUNT.project_id
-const FCM_CLIENT_EMAIL = FCM_SERVICE_ACCOUNT.client_email
-const FCM_PRIVATE_KEY = FCM_SERVICE_ACCOUNT.private_key
+const startupErrors: string[] = []
+
+const SUPABASE_URL = Deno.env.get('SUPABASE_URL')
+if (!SUPABASE_URL) startupErrors.push('SUPABASE_URL')
+
+const SUPABASE_SERVICE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')
+if (!SUPABASE_SERVICE_KEY) startupErrors.push('SUPABASE_SERVICE_ROLE_KEY')
+
+let FCM_PROJECT_ID = ''
+let FCM_CLIENT_EMAIL = ''
+let FCM_PRIVATE_KEY = ''
+
+const fcmServiceAccountRaw = Deno.env.get('FCM_SERVICE_ACCOUNT')
+if (!fcmServiceAccountRaw) {
+  startupErrors.push('FCM_SERVICE_ACCOUNT')
+} else {
+  try {
+    const parsed = JSON.parse(fcmServiceAccountRaw) as ServiceAccount
+
+    if (!parsed.project_id) startupErrors.push('FCM_SERVICE_ACCOUNT.project_id')
+    if (!parsed.client_email) startupErrors.push('FCM_SERVICE_ACCOUNT.client_email')
+    if (!parsed.private_key) startupErrors.push('FCM_SERVICE_ACCOUNT.private_key')
+
+    FCM_PROJECT_ID = parsed.project_id
+    FCM_CLIENT_EMAIL = parsed.client_email
+    FCM_PRIVATE_KEY = parsed.private_key
+  } catch (error) {
+    console.error('[send-push] FCM_SERVICE_ACCOUNT is not valid JSON:', error)
+    startupErrors.push('FCM_SERVICE_ACCOUNT (valid JSON)')
+  }
+}
+
+if (startupErrors.length > 0) {
+  console.error('[send-push] Missing/invalid required env configuration:', startupErrors)
+} else {
+  console.log('[send-push] Startup env validation passed')
+}
 
 // Get OAuth2 access token for FCM V1 API
 async function getAccessToken(): Promise<string> {
@@ -76,6 +111,13 @@ const NOTIFICATION_TITLES: Record<string, string> = {
 
 serve(async (req) => {
   try {
+    if (startupErrors.length > 0) {
+      return new Response(
+        JSON.stringify({ error: 'Server misconfigured', missing: startupErrors }),
+        { status: 500, headers: { 'Content-Type': 'application/json' } },
+      )
+    }
+
     const { record } = await req.json()
 
     const recipientBusinessId = record.recipient_business_id
@@ -83,7 +125,7 @@ serve(async (req) => {
     const type = record.type
 
     // Get device tokens for recipient business
-    const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_KEY)
+    const supabase = createClient(SUPABASE_URL!, SUPABASE_SERVICE_KEY!)
     const { data: tokens, error } = await supabase
       .from('device_tokens')
       .select('fcm_token')
