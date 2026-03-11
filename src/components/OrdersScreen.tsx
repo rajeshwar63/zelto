@@ -235,7 +235,7 @@ export function OrdersScreen({ currentBusinessId, onSelectOrder, initialFilter, 
                       {order.itemSummary}
                     </p>
                     {order.orderValue > 0 && (
-                      <p style={{ fontSize: '15px', fontWeight: 700, color: 'var(--status-overdue)', flexShrink: 0 }}>
+                      <p style={{ fontSize: '15px', fontWeight: 700, color: 'var(--text-primary)', flexShrink: 0 }}>
                         {order.orderValue.toLocaleString('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 })}
                       </p>
                     )}
