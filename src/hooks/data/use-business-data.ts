@@ -27,8 +27,8 @@ interface BusinessOverviewData {
   tradePosition: {
     next7Days: { comingIn: number; goingOut: number; net: number }
     next30Days: { comingIn: number; goingOut: number; net: number }
-    past7Days: { moneyPaid: number; moneyReceived: number; net: number }
-    past30Days: { moneyPaid: number; moneyReceived: number; net: number }
+    past7Days: { moneyPaid: number; moneyReceived: number }
+    past30Days: { moneyPaid: number; moneyReceived: number }
   }
   ordersToday: number
   overdue: number
@@ -261,12 +261,10 @@ export function useBusinessOverviewData(currentBusinessId: string, isActive = tr
           past7Days: {
             moneyPaid: past7DaysMoneyPaid,
             moneyReceived: past7DaysMoneyReceived,
-            net: past7DaysMoneyReceived - past7DaysMoneyPaid,
           },
           past30Days: {
             moneyPaid: past30DaysMoneyPaid,
             moneyReceived: past30DaysMoneyReceived,
-            net: past30DaysMoneyReceived - past30DaysMoneyPaid,
           },
         },
         ordersToday,
