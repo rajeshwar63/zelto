@@ -53,7 +53,8 @@ export function DashboardScreen({ currentBusinessId, onNavigateToOrders, onNavig
       <div className="flex-1 overflow-y-auto px-4 py-3 space-y-6 pb-24" style={{ backgroundColor: 'var(--bg-screen)' }}>
         <div>
           <div className="rounded-2xl border border-border bg-card p-4">
-            <h2 className="text-[16px] font-semibold text-foreground mb-4">Trade Position</h2>
+            <h2 className="text-[16px] font-semibold text-foreground">Trade Position</h2>
+            <p className="text-[11px] text-muted-foreground mb-4">Includes overdue amount</p>
 
             <div className="grid grid-cols-2 gap-4">
               <div>
