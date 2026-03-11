@@ -82,13 +82,13 @@ export function DashboardScreen({ currentBusinessId, onNavigateToOrders, onNavig
         <div>
           <div className="rounded-2xl border border-border bg-card p-4">
             <h2 className="text-[16px] font-semibold text-foreground">Trade Position</h2>
-            <p className="text-[11px] text-muted-foreground mb-4">Includes overdue amount</p>
 
             <Carousel setApi={setTradePositionCarouselApi} opts={{ align: 'start' }}>
               <CarouselContent className="-ml-0">
                 <CarouselItem className="pl-0">
                   <div>
                     <p className="text-[11px] uppercase tracking-wide text-muted-foreground/70 mb-3">Next 7 Days</p>
+                    <p className="text-[11px] text-muted-foreground mb-3">Includes overdue amount</p>
                     <div className="space-y-3">
                       <div className="flex items-center justify-between">
                         <p className="text-[13px] text-muted-foreground">Coming In</p>
@@ -111,6 +111,7 @@ export function DashboardScreen({ currentBusinessId, onNavigateToOrders, onNavig
                 <CarouselItem className="pl-0">
                   <div>
                     <p className="text-[11px] uppercase tracking-wide text-muted-foreground/70 mb-3">Next 30 Days</p>
+                    <p className="text-[11px] text-muted-foreground mb-3">Includes overdue amount</p>
                     <div className="space-y-3">
                       <div className="flex items-center justify-between">
                         <p className="text-[13px] text-muted-foreground">Coming In</p>
@@ -129,50 +130,52 @@ export function DashboardScreen({ currentBusinessId, onNavigateToOrders, onNavig
                     </div>
                   </div>
                 </CarouselItem>
+
+                <CarouselItem className="pl-0">
+                  <div>
+                    <p className="text-[11px] uppercase tracking-wide text-muted-foreground/70 mb-3">Past 7 Days</p>
+                    <div className="space-y-3">
+                      <div className="flex items-center justify-between">
+                        <p className="text-[13px] text-muted-foreground">Money Paid</p>
+                        <p className="text-[14px] font-semibold text-foreground">₹{data.tradePosition.past7Days.moneyPaid.toLocaleString('en-IN')}</p>
+                      </div>
+                      <div className="flex items-center justify-between">
+                        <p className="text-[13px] text-muted-foreground">Money Received</p>
+                        <p className="text-[14px] font-semibold text-[var(--status-delivered)]">₹{data.tradePosition.past7Days.moneyReceived.toLocaleString('en-IN')}</p>
+                      </div>
+                    </div>
+                  </div>
+                </CarouselItem>
+
+                <CarouselItem className="pl-0">
+                  <div>
+                    <p className="text-[11px] uppercase tracking-wide text-muted-foreground/70 mb-3">Past 30 Days</p>
+                    <div className="space-y-3">
+                      <div className="flex items-center justify-between">
+                        <p className="text-[13px] text-muted-foreground">Money Paid</p>
+                        <p className="text-[14px] font-semibold text-foreground">₹{data.tradePosition.past30Days.moneyPaid.toLocaleString('en-IN')}</p>
+                      </div>
+                      <div className="flex items-center justify-between">
+                        <p className="text-[13px] text-muted-foreground">Money Received</p>
+                        <p className="text-[14px] font-semibold text-[var(--status-delivered)]">₹{data.tradePosition.past30Days.moneyReceived.toLocaleString('en-IN')}</p>
+                      </div>
+                    </div>
+                  </div>
+                </CarouselItem>
               </CarouselContent>
             </Carousel>
 
             <div className="mt-4 flex items-center justify-center gap-2">
-              {[0, 1].map(slideIndex => (
+              {[0, 1, 2, 3].map(slideIndex => (
                 <button
                   key={slideIndex}
                   type="button"
                   onClick={() => tradePositionCarouselApi?.scrollTo(slideIndex)}
                   className="h-2 w-2 rounded-full transition-colors"
                   style={{ backgroundColor: activeTradePositionSlide === slideIndex ? '#6B7280' : '#D1D5DB' }}
-                  aria-label={`Go to ${slideIndex === 0 ? '7 days' : '30 days'} trade position`}
+                  aria-label={`Go to ${slideIndex === 0 ? 'next 7 days' : slideIndex === 1 ? 'next 30 days' : slideIndex === 2 ? 'past 7 days' : 'past 30 days'} trade position`}
                 />
               ))}
-            </div>
-
-            <div className="mt-5 grid grid-cols-1 gap-3 sm:grid-cols-2">
-              <div className="rounded-xl border border-border bg-background p-3">
-                <p className="text-[11px] uppercase tracking-wide text-muted-foreground/70 mb-2">Past 7 Days</p>
-                <div className="space-y-2">
-                  <div className="flex items-center justify-between">
-                    <p className="text-[13px] text-muted-foreground">Money Paid</p>
-                    <p className="text-[14px] font-semibold text-foreground">₹{data.tradePosition.past7Days.moneyPaid.toLocaleString('en-IN')}</p>
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <p className="text-[13px] text-muted-foreground">Money Received</p>
-                    <p className="text-[14px] font-semibold text-[var(--status-delivered)]">₹{data.tradePosition.past7Days.moneyReceived.toLocaleString('en-IN')}</p>
-                  </div>
-                </div>
-              </div>
-
-              <div className="rounded-xl border border-border bg-background p-3">
-                <p className="text-[11px] uppercase tracking-wide text-muted-foreground/70 mb-2">Past 30 Days</p>
-                <div className="space-y-2">
-                  <div className="flex items-center justify-between">
-                    <p className="text-[13px] text-muted-foreground">Money Paid</p>
-                    <p className="text-[14px] font-semibold text-foreground">₹{data.tradePosition.past30Days.moneyPaid.toLocaleString('en-IN')}</p>
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <p className="text-[13px] text-muted-foreground">Money Received</p>
-                    <p className="text-[14px] font-semibold text-[var(--status-delivered)]">₹{data.tradePosition.past30Days.moneyReceived.toLocaleString('en-IN')}</p>
-                  </div>
-                </div>
-              </div>
             </div>
           </div>
 
