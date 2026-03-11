@@ -24,8 +24,12 @@ function getFirebaseApp() {
   }
 }
 
+let listenersRegistered = false
+let activeBusinessEntityId: string | null = null
+
 export async function registerPushNotifications(businessEntityId: string): Promise<void> {
   if (!Capacitor.isNativePlatform()) return
+  if (activeBusinessEntityId === businessEntityId && listenersRegistered) return
 
   try {
     const permissionStatus = await PushNotifications.checkPermissions()
@@ -76,14 +80,20 @@ export async function registerPushNotifications(businessEntityId: string): Promi
       console.log('Device token saved successfully:', token.substring(0, 20))
     }
 
-    // Still use Capacitor for receiving notifications in foreground
-    PushNotifications.addListener('pushNotificationReceived', (notification) => {
-      console.log('Push received:', notification)
-    })
+    activeBusinessEntityId = businessEntityId
 
-    PushNotifications.addListener('pushNotificationActionPerformed', (action) => {
-      console.log('Push tapped:', action)
-    })
+    if (!listenersRegistered) {
+      // Still use Capacitor for receiving notifications in foreground
+      PushNotifications.addListener('pushNotificationReceived', (notification) => {
+        console.log('Push received:', notification)
+      })
+
+      PushNotifications.addListener('pushNotificationActionPerformed', (action) => {
+        console.log('Push tapped:', action)
+      })
+
+      listenersRegistered = true
+    }
 
   } catch (e) {
     console.error('Push registration error:', e)
