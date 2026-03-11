@@ -1,6 +1,8 @@
 import { CaretRight, CheckCircle, ClockClockwise, Package, ShieldWarning, Truck } from '@phosphor-icons/react'
+import { useEffect, useState } from 'react'
 import { useBusinessOverviewData } from '@/hooks/data/use-business-data'
 import { getLifecycleStatusColor } from '@/lib/semantic-colors'
+import { Carousel, CarouselApi, CarouselContent, CarouselItem } from '@/components/ui/carousel'
 
 interface Props {
   currentBusinessId: string
@@ -13,6 +15,28 @@ interface Props {
 }
 
 export function DashboardScreen({ currentBusinessId, onNavigateToOrders, onNavigateToConnection, onNavigateToConnections, onNavigateToAttention, isActive = true }: Props) {
+  const [tradePositionCarouselApi, setTradePositionCarouselApi] = useState<CarouselApi>()
+  const [activeTradePositionSlide, setActiveTradePositionSlide] = useState(0)
+
+  useEffect(() => {
+    if (!tradePositionCarouselApi) {
+      return
+    }
+
+    const handleSelect = () => {
+      setActiveTradePositionSlide(tradePositionCarouselApi.selectedScrollSnap())
+    }
+
+    handleSelect()
+    tradePositionCarouselApi.on('select', handleSelect)
+    tradePositionCarouselApi.on('reInit', handleSelect)
+
+    return () => {
+      tradePositionCarouselApi.off('select', handleSelect)
+      tradePositionCarouselApi.off('reInit', handleSelect)
+    }
+  }, [tradePositionCarouselApi])
+
   const { data: overview, isInitialLoading } = useBusinessOverviewData(currentBusinessId, isActive)
   const recentOrders = overview?.recentOrders ?? []
   const attentionCounts = overview?.attentionCounts ?? {
@@ -56,46 +80,65 @@ export function DashboardScreen({ currentBusinessId, onNavigateToOrders, onNavig
             <h2 className="text-[16px] font-semibold text-foreground">Trade Position</h2>
             <p className="text-[11px] text-muted-foreground mb-4">Includes overdue amount</p>
 
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <p className="text-[11px] uppercase tracking-wide text-muted-foreground/70 mb-3">Next 7 Days</p>
-                <div className="space-y-3">
-                  <div className="flex items-center justify-between">
-                    <p className="text-[13px] text-muted-foreground">Coming In</p>
-                    <p className="text-[14px] font-semibold text-[var(--status-delivered)]">₹{data.tradePosition.next7Days.comingIn.toLocaleString('en-IN')}</p>
+            <Carousel setApi={setTradePositionCarouselApi} opts={{ align: 'start' }}>
+              <CarouselContent className="-ml-0">
+                <CarouselItem className="pl-0">
+                  <div>
+                    <p className="text-[11px] uppercase tracking-wide text-muted-foreground/70 mb-3">Next 7 Days</p>
+                    <div className="space-y-3">
+                      <div className="flex items-center justify-between">
+                        <p className="text-[13px] text-muted-foreground">Coming In</p>
+                        <p className="text-[14px] font-semibold text-[var(--status-delivered)]">₹{data.tradePosition.next7Days.comingIn.toLocaleString('en-IN')}</p>
+                      </div>
+                      <div className="flex items-center justify-between">
+                        <p className="text-[13px] text-muted-foreground">Going Out</p>
+                        <p className="text-[14px] font-semibold text-foreground">₹{data.tradePosition.next7Days.goingOut.toLocaleString('en-IN')}</p>
+                      </div>
+                      <div className="flex items-center justify-between">
+                        <p className="text-[13px] text-muted-foreground">Net</p>
+                        <p className={`text-[14px] font-semibold ${data.tradePosition.next7Days.net >= 0 ? 'text-[var(--status-delivered)]' : 'text-destructive'}`}>
+                          {data.tradePosition.next7Days.net >= 0 ? '+' : '-'}₹{Math.abs(data.tradePosition.next7Days.net).toLocaleString('en-IN')}
+                        </p>
+                      </div>
+                    </div>
                   </div>
-                  <div className="flex items-center justify-between">
-                    <p className="text-[13px] text-muted-foreground">Going Out</p>
-                    <p className="text-[14px] font-semibold text-foreground">₹{data.tradePosition.next7Days.goingOut.toLocaleString('en-IN')}</p>
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <p className="text-[13px] text-muted-foreground">Net</p>
-                    <p className={`text-[14px] font-semibold ${data.tradePosition.next7Days.net >= 0 ? 'text-[var(--status-delivered)]' : 'text-destructive'}`}>
-                      {data.tradePosition.next7Days.net >= 0 ? '+' : '-'}₹{Math.abs(data.tradePosition.next7Days.net).toLocaleString('en-IN')}
-                    </p>
-                  </div>
-                </div>
-              </div>
+                </CarouselItem>
 
-              <div>
-                <p className="text-[11px] uppercase tracking-wide text-muted-foreground/70 mb-3">Next 30 Days</p>
-                <div className="space-y-3">
-                  <div className="flex items-center justify-between">
-                    <p className="text-[13px] text-muted-foreground">Coming In</p>
-                    <p className="text-[14px] font-semibold text-[var(--status-delivered)]">₹{data.tradePosition.next30Days.comingIn.toLocaleString('en-IN')}</p>
+                <CarouselItem className="pl-0">
+                  <div>
+                    <p className="text-[11px] uppercase tracking-wide text-muted-foreground/70 mb-3">Next 30 Days</p>
+                    <div className="space-y-3">
+                      <div className="flex items-center justify-between">
+                        <p className="text-[13px] text-muted-foreground">Coming In</p>
+                        <p className="text-[14px] font-semibold text-[var(--status-delivered)]">₹{data.tradePosition.next30Days.comingIn.toLocaleString('en-IN')}</p>
+                      </div>
+                      <div className="flex items-center justify-between">
+                        <p className="text-[13px] text-muted-foreground">Going Out</p>
+                        <p className="text-[14px] font-semibold text-foreground">₹{data.tradePosition.next30Days.goingOut.toLocaleString('en-IN')}</p>
+                      </div>
+                      <div className="flex items-center justify-between">
+                        <p className="text-[13px] text-muted-foreground">Net</p>
+                        <p className={`text-[14px] font-semibold ${data.tradePosition.next30Days.net >= 0 ? 'text-[var(--status-delivered)]' : 'text-destructive'}`}>
+                          {data.tradePosition.next30Days.net >= 0 ? '+' : '-'}₹{Math.abs(data.tradePosition.next30Days.net).toLocaleString('en-IN')}
+                        </p>
+                      </div>
+                    </div>
                   </div>
-                  <div className="flex items-center justify-between">
-                    <p className="text-[13px] text-muted-foreground">Going Out</p>
-                    <p className="text-[14px] font-semibold text-foreground">₹{data.tradePosition.next30Days.goingOut.toLocaleString('en-IN')}</p>
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <p className="text-[13px] text-muted-foreground">Net</p>
-                    <p className={`text-[14px] font-semibold ${data.tradePosition.next30Days.net >= 0 ? 'text-[var(--status-delivered)]' : 'text-destructive'}`}>
-                      {data.tradePosition.next30Days.net >= 0 ? '+' : '-'}₹{Math.abs(data.tradePosition.next30Days.net).toLocaleString('en-IN')}
-                    </p>
-                  </div>
-                </div>
-              </div>
+                </CarouselItem>
+              </CarouselContent>
+            </Carousel>
+
+            <div className="mt-4 flex items-center justify-center gap-2">
+              {[0, 1].map(slideIndex => (
+                <button
+                  key={slideIndex}
+                  type="button"
+                  onClick={() => tradePositionCarouselApi?.scrollTo(slideIndex)}
+                  className="h-2 w-2 rounded-full transition-colors"
+                  style={{ backgroundColor: activeTradePositionSlide === slideIndex ? '#6B7280' : '#D1D5DB' }}
+                  aria-label={`Go to ${slideIndex === 0 ? '7 days' : '30 days'} trade position`}
+                />
+              ))}
             </div>
           </div>
 
