@@ -136,8 +136,11 @@ export function useBusinessOverviewData(currentBusinessId: string, isActive = tr
       let next30DaysGoingOut = 0
 
       const now = Date.now()
-      const sevenDaysFromNow = now + (7 * 24 * 60 * 60 * 1000)
-      const thirtyDaysFromNow = now + (30 * 24 * 60 * 60 * 1000)
+      const todayStart = new Date(now)
+      todayStart.setHours(0, 0, 0, 0)
+      const todayStartMs = todayStart.getTime()
+      const sevenDaysFromTodayEnd = todayStartMs + (7 * 24 * 60 * 60 * 1000) - 1
+      const thirtyDaysFromTodayEnd = todayStartMs + (30 * 24 * 60 * 60 * 1000) - 1
       const yesterday = now - (24 * 60 * 60 * 1000)
 
       for (const order of orders) {
@@ -165,11 +168,11 @@ export function useBusinessOverviewData(currentBusinessId: string, isActive = tr
 
         if (order.pendingAmount > 0 && order.calculatedDueDate != null) {
           const dueDate = order.calculatedDueDate
-          if (dueDate >= now && dueDate <= thirtyDaysFromNow) {
+          if (dueDate >= todayStartMs && dueDate <= thirtyDaysFromTodayEnd) {
             if (isSupplier) next30DaysComingIn += order.pendingAmount
             else next30DaysGoingOut += order.pendingAmount
 
-            if (dueDate <= sevenDaysFromNow) {
+            if (dueDate <= sevenDaysFromTodayEnd) {
               if (isSupplier) next7DaysComingIn += order.pendingAmount
               else next7DaysGoingOut += order.pendingAmount
             }
