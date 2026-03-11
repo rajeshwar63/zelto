@@ -36,6 +36,10 @@ export function DashboardScreen({ currentBusinessId, onNavigateToOrders, onNavig
     overdueOrdersCount: overview.overdueOrdersCount ?? 0,
     overdueAverageDelayDays: overview.overdueAverageDelayDays ?? 0,
     overdueChangeFromYesterday: overview.overdueChangeFromYesterday ?? 0,
+    tradePosition: overview.tradePosition ?? {
+      next7Days: { comingIn: 0, goingOut: 0, net: 0 },
+      next30Days: { comingIn: 0, goingOut: 0, net: 0 },
+    },
   }
   const netPosition = data.toReceive - data.toPay
   const netPositionColorClass = netPosition > 0
@@ -63,16 +67,18 @@ export function DashboardScreen({ currentBusinessId, onNavigateToOrders, onNavig
                 <p className="text-[11px] uppercase tracking-wide text-muted-foreground/70 mb-3">Next 7 Days</p>
                 <div className="space-y-3">
                   <div className="flex items-center justify-between">
-                    <p className="text-[13px] text-muted-foreground">Money Coming In</p>
-                    <p className="text-[14px] font-semibold text-foreground">—</p>
+                    <p className="text-[13px] text-muted-foreground">Coming In</p>
+                    <p className="text-[14px] font-semibold text-[var(--status-delivered)]">₹{data.tradePosition.next7Days.comingIn.toLocaleString('en-IN')}</p>
                   </div>
                   <div className="flex items-center justify-between">
-                    <p className="text-[13px] text-muted-foreground">Money Going Out</p>
-                    <p className="text-[14px] font-semibold text-foreground">—</p>
+                    <p className="text-[13px] text-muted-foreground">Going Out</p>
+                    <p className="text-[14px] font-semibold text-foreground">₹{data.tradePosition.next7Days.goingOut.toLocaleString('en-IN')}</p>
                   </div>
                   <div className="flex items-center justify-between">
-                    <p className="text-[13px] text-muted-foreground">Net Position</p>
-                    <p className="text-[14px] font-semibold text-foreground">—</p>
+                    <p className="text-[13px] text-muted-foreground">Net</p>
+                    <p className={`text-[14px] font-semibold ${data.tradePosition.next7Days.net >= 0 ? 'text-[var(--status-delivered)]' : 'text-destructive'}`}>
+                      {data.tradePosition.next7Days.net >= 0 ? '+' : '-'}₹{Math.abs(data.tradePosition.next7Days.net).toLocaleString('en-IN')}
+                    </p>
                   </div>
                 </div>
               </div>
@@ -81,29 +87,25 @@ export function DashboardScreen({ currentBusinessId, onNavigateToOrders, onNavig
                 <p className="text-[11px] uppercase tracking-wide text-muted-foreground/70 mb-3">Next 30 Days</p>
                 <div className="space-y-3">
                   <div className="flex items-center justify-between">
-                    <p className="text-[13px] text-muted-foreground">Money Coming In</p>
-                    <p className="text-[14px] font-semibold text-foreground">—</p>
+                    <p className="text-[13px] text-muted-foreground">Coming In</p>
+                    <p className="text-[14px] font-semibold text-[var(--status-delivered)]">₹{data.tradePosition.next30Days.comingIn.toLocaleString('en-IN')}</p>
                   </div>
                   <div className="flex items-center justify-between">
-                    <p className="text-[13px] text-muted-foreground">Money Going Out</p>
-                    <p className="text-[14px] font-semibold text-foreground">—</p>
+                    <p className="text-[13px] text-muted-foreground">Going Out</p>
+                    <p className="text-[14px] font-semibold text-foreground">₹{data.tradePosition.next30Days.goingOut.toLocaleString('en-IN')}</p>
                   </div>
                   <div className="flex items-center justify-between">
-                    <p className="text-[13px] text-muted-foreground">Net Position</p>
-                    <p className="text-[14px] font-semibold text-foreground">—</p>
+                    <p className="text-[13px] text-muted-foreground">Net</p>
+                    <p className={`text-[14px] font-semibold ${data.tradePosition.next30Days.net >= 0 ? 'text-[var(--status-delivered)]' : 'text-destructive'}`}>
+                      {data.tradePosition.next30Days.net >= 0 ? '+' : '-'}₹{Math.abs(data.tradePosition.next30Days.net).toLocaleString('en-IN')}
+                    </p>
                   </div>
                 </div>
               </div>
             </div>
-            <p className="text-[30px] font-bold leading-tight mt-2" style={{ color: '#E53935' }}>
-              ₹{data.overdue.toLocaleString('en-IN')}
-            </p>
-            <p className="text-[12px] mt-2" style={{ color: '#777' }}>
-              {data.overdueOrdersCount} orders overdue • Avg delay {data.overdueAverageDelayDays} days
-            </p>
           </div>
 
-          <div className="grid grid-cols-2 gap-[10px]">
+          <div className="grid grid-cols-2 gap-[10px] mt-[10px]">
             <button
               onClick={() => onNavigateToOrders('today')}
               className="text-left rounded-xl border border-border bg-card px-4 py-3 min-h-[80px]"
@@ -126,6 +128,19 @@ export function DashboardScreen({ currentBusinessId, onNavigateToOrders, onNavig
             >
               <p className="text-[12px] font-medium text-muted-foreground">💳 To Pay</p>
               <p className="text-[24px] font-bold leading-tight mt-1 text-foreground">₹{data.toPay.toLocaleString('en-IN')}</p>
+            </button>
+
+            <button
+              onClick={() => onNavigateToOrders('overdue')}
+              className="text-left rounded-xl border border-border bg-card px-4 py-3 min-h-[80px]"
+            >
+              <p className="text-[12px] font-medium text-muted-foreground" style={{ color: '#E53935' }}>⚠️ Overdue</p>
+              <p className="text-[24px] font-bold leading-tight mt-1" style={{ color: '#E53935' }}>₹{data.overdue.toLocaleString('en-IN')}</p>
+              {data.overdueOrdersCount > 0 && (
+                <p className="text-[11px] mt-1" style={{ color: '#777' }}>
+                  {data.overdueOrdersCount} orders · {data.overdueAverageDelayDays}d avg
+                </p>
+              )}
             </button>
           </div>
 
