@@ -425,9 +425,22 @@ export function ConnectionsScreen({ currentBusinessId, onSelectConnection, onAdd
                     <p style={{ fontSize: '15px', fontWeight: 700, color: 'var(--text-primary)' }}>{conn.otherBusinessName}</p>
                   </div>
                   {conn.outstandingBalance > 0 && (
-                    <p style={{ fontSize: '15px', fontWeight: 700, color: 'var(--text-primary)' }}>
-                      {conn.outstandingBalance.toLocaleString('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 })}
-                    </p>
+                    <div className="flex items-center gap-1">
+                      <span
+                        aria-hidden
+                        style={{
+                          fontSize: '10px',
+                          fontWeight: 700,
+                          color: isSupplier ? 'var(--status-paid)' : 'var(--status-overdue)',
+                          lineHeight: 1,
+                        }}
+                      >
+                        {isSupplier ? '↓' : '↑'}
+                      </span>
+                      <p style={{ fontSize: '15px', fontWeight: 700, color: 'var(--text-primary)' }}>
+                        {conn.outstandingBalance.toLocaleString('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 })}
+                      </p>
+                    </div>
                   )}
                 </div>
                 <div className="flex items-center gap-2 mt-1">
