@@ -25,10 +25,10 @@ interface BusinessOverviewData {
   toPay: number
   toReceive: number
   tradePosition: {
-    next7Days: { comingIn: number; goingOut: number; net: number }
-    next30Days: { comingIn: number; goingOut: number; net: number }
-    past7Days: { moneyPaid: number; moneyReceived: number }
-    past30Days: { moneyPaid: number; moneyReceived: number }
+    next7Days: { comingIn: number; goingOut: number; net: number; comingInOrders: number; goingOutOrders: number }
+    next30Days: { comingIn: number; goingOut: number; net: number; comingInOrders: number; goingOutOrders: number }
+    past7Days: { moneyPaid: number; moneyReceived: number; receivedOrders: number; paidOrders: number }
+    past30Days: { moneyPaid: number; moneyReceived: number; receivedOrders: number; paidOrders: number }
   }
   ordersToday: number
   overdue: number
@@ -145,6 +145,14 @@ export function useBusinessOverviewData(currentBusinessId: string, isActive = tr
       let past7DaysMoneyReceived = 0
       let past30DaysMoneyPaid = 0
       let past30DaysMoneyReceived = 0
+      let next7DaysComingInOrders = 0
+      let next7DaysGoingOutOrders = 0
+      let next30DaysComingInOrders = 0
+      let next30DaysGoingOutOrders = 0
+      const past7DaysReceivedOrderIds = new Set<string>()
+      const past7DaysPaidOrderIds = new Set<string>()
+      const past30DaysReceivedOrderIds = new Set<string>()
+      const past30DaysPaidOrderIds = new Set<string>()
 
       const now = Date.now()
       const todayStart = new Date(now)
@@ -166,13 +174,23 @@ export function useBusinessOverviewData(currentBusinessId: string, isActive = tr
         const eventTimestamp = paymentEvent.timestamp
 
         if (eventTimestamp >= thirtyDaysAgoStart && eventTimestamp <= now) {
-          if (isSupplier) past30DaysMoneyReceived += paymentEvent.amountPaid
-          else past30DaysMoneyPaid += paymentEvent.amountPaid
+          if (isSupplier) {
+            past30DaysMoneyReceived += paymentEvent.amountPaid
+            past30DaysReceivedOrderIds.add(paymentEvent.orderId)
+          } else {
+            past30DaysMoneyPaid += paymentEvent.amountPaid
+            past30DaysPaidOrderIds.add(paymentEvent.orderId)
+          }
         }
 
         if (eventTimestamp >= sevenDaysAgoStart && eventTimestamp <= now) {
-          if (isSupplier) past7DaysMoneyReceived += paymentEvent.amountPaid
-          else past7DaysMoneyPaid += paymentEvent.amountPaid
+          if (isSupplier) {
+            past7DaysMoneyReceived += paymentEvent.amountPaid
+            past7DaysReceivedOrderIds.add(paymentEvent.orderId)
+          } else {
+            past7DaysMoneyPaid += paymentEvent.amountPaid
+            past7DaysPaidOrderIds.add(paymentEvent.orderId)
+          }
         }
       }
 
@@ -203,13 +221,23 @@ export function useBusinessOverviewData(currentBusinessId: string, isActive = tr
           const dueDate = order.calculatedDueDate
 
           if (dueDate <= thirtyDaysFromTodayEnd) {
-            if (isSupplier) next30DaysComingIn += order.pendingAmount
-            else next30DaysGoingOut += order.pendingAmount
+            if (isSupplier) {
+              next30DaysComingIn += order.pendingAmount
+              next30DaysComingInOrders += 1
+            } else {
+              next30DaysGoingOut += order.pendingAmount
+              next30DaysGoingOutOrders += 1
+            }
           }
 
           if (dueDate <= sevenDaysFromTodayEnd) {
-            if (isSupplier) next7DaysComingIn += order.pendingAmount
-            else next7DaysGoingOut += order.pendingAmount
+            if (isSupplier) {
+              next7DaysComingIn += order.pendingAmount
+              next7DaysComingInOrders += 1
+            } else {
+              next7DaysGoingOut += order.pendingAmount
+              next7DaysGoingOutOrders += 1
+            }
           }
         }
 
@@ -252,19 +280,27 @@ export function useBusinessOverviewData(currentBusinessId: string, isActive = tr
             comingIn: next7DaysComingIn,
             goingOut: next7DaysGoingOut,
             net: next7DaysComingIn - next7DaysGoingOut,
+            comingInOrders: next7DaysComingInOrders,
+            goingOutOrders: next7DaysGoingOutOrders,
           },
           next30Days: {
             comingIn: next30DaysComingIn,
             goingOut: next30DaysGoingOut,
             net: next30DaysComingIn - next30DaysGoingOut,
+            comingInOrders: next30DaysComingInOrders,
+            goingOutOrders: next30DaysGoingOutOrders,
           },
           past7Days: {
             moneyPaid: past7DaysMoneyPaid,
             moneyReceived: past7DaysMoneyReceived,
+            receivedOrders: past7DaysReceivedOrderIds.size,
+            paidOrders: past7DaysPaidOrderIds.size,
           },
           past30Days: {
             moneyPaid: past30DaysMoneyPaid,
             moneyReceived: past30DaysMoneyReceived,
+            receivedOrders: past30DaysReceivedOrderIds.size,
+            paidOrders: past30DaysPaidOrderIds.size,
           },
         },
         ordersToday,
