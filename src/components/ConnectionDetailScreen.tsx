@@ -400,6 +400,7 @@ export function ConnectionDetailScreen({ connectionId, currentBusinessId, select
                 : null
               const dueLabel = formatDueDate(order)
               const isNew = isOrderNew(currentBusinessId, order.id, order.createdAt)
+              const isOld = order.createdAt < oldOrderThreshold
               const lifecycleColor = getLifecycleStatusColor(lifecycleState)
               return (
                 <SwipeableOrderRow
@@ -407,16 +408,7 @@ export function ConnectionDetailScreen({ connectionId, currentBusinessId, select
                   actionLabel={showArchived ? 'Unarchive' : 'Archive'}
                   onAction={() => showArchived ? handleUnarchiveOrder(order.id) : handleArchiveOrder(order.id)}
                 >
-                  <OrderCard
-                    itemSummary={order.itemSummary}
-                    dueText={order.pendingAmount > 0 ? `${order.pendingAmount.toLocaleString('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 })} due` : 'No due'}
-                    connectionName={order.connectionName}
-                    lifecycleLabel={lifecycleState}
-                    settlementLabel={settlementLabel}
-                    lifecycleColor={getLifecycleStatusColor(lifecycleState)}
-                    orderValue={order.orderValue}
-                    totalPaid={order.totalPaid}
-                    relativeTime={formatTimestamp(order.createdAt, order.createdAt < oldOrderThreshold)}
+                  <button
                     onClick={() => {
                       markOrderSeen(currentBusinessId, order.id)
                       setViewingOrderId(order.id)
