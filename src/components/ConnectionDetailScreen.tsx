@@ -391,9 +391,7 @@ export function ConnectionDetailScreen({ connectionId, currentBusinessId, select
               const lifecycleState = getLifecycleState(order)
               const dueLabel = formatDueDate(order)
               const isNew = isOrderNew(currentBusinessId, order.id, order.createdAt)
-              const settlementLabel = lifecycleState === 'Delivered' && order.settlementState === 'Partial Payment'
-                ? 'Partial Payment'
-                : order.settlementState
+              const lifecycleColor = getLifecycleStatusColor(lifecycleState)
               return (
                 <SwipeableOrderRow
                   key={order.id}
@@ -414,14 +412,71 @@ export function ConnectionDetailScreen({ connectionId, currentBusinessId, select
                       markOrderSeen(currentBusinessId, order.id)
                       setViewingOrderId(order.id)
                     }}
-                    dimmed={lifecycleState === 'Declined'}
-                    highlighted={isNew}
-                    leftBorderColor={isNew ? 'var(--status-new)' : 'transparent'}
-                    trailingMeta={(attachmentCounts[order.id] || 0) > 0 ? <Paperclip size={11} style={{ color: 'var(--text-secondary)' }} /> : null}
-                  />
-                  <div className="px-4 pb-2">
-                    <p style={{ color: getDueDateColor(dueLabel), fontWeight: 500, fontSize: '12px', textAlign: 'right' }}>{dueLabel}</p>
-                  </div>
+                    className="w-full text-left transition-colors relative overflow-hidden"
+                    style={{
+                      padding: '14px 16px 14px 20px',
+                      opacity: lifecycleState === 'Declined' ? 0.4 : 1,
+                      backgroundColor: isNew ? 'var(--brand-primary-bg)' : 'var(--bg-card)',
+                      minHeight: '44px',
+                    }}
+                  >
+                    <CardAccent color={lifecycleColor} />
+                    <div className="flex items-start justify-between mb-1">
+                      <p style={{ fontSize: isOld ? '13px' : '14px', fontWeight: 600, color: isOld ? 'var(--text-secondary)' : 'var(--text-primary)', lineHeight: 1.4 }}>
+                        {order.itemSummary}
+                      </p>
+                      <div style={{ marginLeft: '12px', flexShrink: 0, textAlign: 'right' }}>
+                        {order.orderValue === 0 && lifecycleState === 'Placed' ? (
+                          <p style={{ fontSize: '14px', fontWeight: 600, color: 'var(--status-dispatched)' }}>Awaiting amount</p>
+                        ) : order.orderValue === 0 ? (
+                          <p style={{ fontSize: '13px', fontWeight: 500, color: 'var(--text-secondary)' }}>Amount not recorded</p>
+                        ) : order.settlementState === 'Paid' ? (
+                          <div>
+                            <p style={{ fontSize: '15px', fontWeight: 700, color: 'var(--status-delivered)' }}>{order.orderValue.toLocaleString('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 })}</p>
+                            <p style={{ fontSize: '11px', fontWeight: 600, color: 'var(--status-delivered)' }}>Paid</p>
+                          </div>
+                        ) : order.settlementState === 'Partial Payment' ? (
+                          <p style={{ fontSize: '14px', fontWeight: 600, color: 'var(--status-dispatched)' }}>{order.pendingAmount.toLocaleString('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 })} remaining</p>
+                        ) : (
+                          <p style={{ fontSize: isOld ? '13px' : '15px', fontWeight: 700, color: isOld ? 'var(--text-secondary)' : 'var(--text-primary)' }}>
+                            {order.orderValue.toLocaleString('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 })}
+                          </p>
+                        )}
+                      </div>
+                    </div>
+                    <div className="flex items-center justify-between" style={{ fontSize: '12px' }}>
+                      <div className="flex items-center gap-1.5">
+                        <span style={{ color: 'var(--text-secondary)', fontWeight: 500 }}>{formatTimestamp(order.createdAt, isOld)}</span>
+                        <span style={{ color: 'var(--text-secondary)' }}>·</span>
+                        <span style={{ fontSize: '11px', fontWeight: 600, color: lifecycleColor, backgroundColor: `${lifecycleColor}26`, padding: '2px 8px', borderRadius: 'var(--radius-chip)' }}>{lifecycleState}</span>
+                        {(attachmentCounts[order.id] || 0) > 0 && (
+                          <>
+                            <span style={{ color: 'var(--text-secondary)' }}>·</span>
+                            <Paperclip size={11} style={{ color: 'var(--text-secondary)' }} />
+                          </>
+                        )}
+                        {paymentStatusLabel && (
+                          <>
+                            <span style={{ color: 'var(--text-secondary)' }}>·</span>
+                            <span
+                              style={{
+                                color: 'var(--status-dispatched)',
+                                backgroundColor: 'var(--status-dispatched-bg)',
+                                fontSize: '10px',
+                                fontWeight: 600,
+                                padding: '1px 6px',
+                                borderRadius: '999px',
+                                lineHeight: 1.5,
+                              }}
+                            >
+                              {paymentStatusLabel}
+                            </span>
+                          </>
+                        )}
+                      </div>
+                      <p style={{ color: getDueDateColor(dueLabel), fontWeight: 500 }}>{dueLabel}</p>
+                    </div>
+                  </button>
                 </SwipeableOrderRow>
               )
             })

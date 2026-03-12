@@ -15,6 +15,20 @@ function Card({ className, ...props }: ComponentProps<"div">) {
   )
 }
 
+interface CardAccentProps {
+  color: string
+}
+
+function CardAccent({ color }: CardAccentProps) {
+  return (
+    <span
+      aria-hidden="true"
+      style={{ backgroundColor: color }}
+      className="absolute left-2 top-2 bottom-2 w-[3px] rounded-full pointer-events-none"
+    />
+  )
+}
+
 function CardHeader({ className, ...props }: ComponentProps<"div">) {
   return (
     <div
@@ -83,6 +97,7 @@ function CardFooter({ className, ...props }: ComponentProps<"div">) {
 
 export {
   Card,
+  CardAccent,
   CardHeader,
   CardFooter,
   CardTitle,

@@ -11,6 +11,7 @@ import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import { toast } from 'sonner'
 import { InlineRefreshSpinner, ScreenRefreshIndicator, useScreenLoadState } from '@/components/ScreenLoadState'
+import { CardAccent } from '@/components/ui/card'
 
 type OrderFilter = 'all' | 'today' | 'placed' | 'dispatched' | 'delivered' | 'payment_pending' | 'paid' | 'awaiting_dispatch' | 'overdue' | 'due_today'
 
@@ -231,18 +232,84 @@ export function OrdersScreen({ currentBusinessId, onSelectOrder, initialFilter, 
                 <OrderCard
                   key={order.id}
                   onClick={() => onSelectOrder(order.id, order.connectionId)}
-                  itemSummary={order.itemSummary}
-                  dueText={order.pendingAmount > 0 ? `${order.pendingAmount.toLocaleString('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 })} due` : 'No due'}
-                  connectionName={order.connectionName}
-                  lifecycleLabel={order.lifecycleState}
-                  settlementLabel={paymentStatusLabel || order.settlementState}
-                  lifecycleColor={statusColor}
-                  orderValue={order.orderValue}
-                  totalPaid={order.totalPaid}
-                  relativeTime={formatDistanceToNow(order.latestActivity, { addSuffix: true })}
-                  leftBorderColor={statusColor}
-                  trailingMeta={dueStatus ? <span style={{ color: dueStatus.color, fontWeight: 600 }}>{dueStatus.label}</span> : null}
-                />
+                  className="w-full text-left relative overflow-hidden"
+                  style={{
+                    backgroundColor: 'var(--bg-card)',
+                    borderRadius: 'var(--radius-card)',
+                    padding: '14px 16px 14px 20px',
+                    minHeight: '44px',
+                  }}
+                >
+                  <CardAccent color={statusColor} />
+                  <div className="flex items-start justify-between">
+                    <p style={{ fontSize: '15px', fontWeight: 700, color: 'var(--text-primary)', flex: 1, marginRight: '12px' }}>
+                      {order.itemSummary}
+                    </p>
+                    {order.orderValue > 0 && (
+                      order.settlementState === 'Partial Payment' ? (
+                        <p style={{ fontSize: '15px', fontWeight: 700, color: 'var(--status-dispatched)', flexShrink: 0 }}>
+                          {order.pendingAmount.toLocaleString('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 })} remaining
+                        </p>
+                      ) : (
+                        <p
+                          style={{
+                            fontSize: '15px',
+                            fontWeight: 700,
+                            color: order.settlementState === 'Paid' ? 'var(--status-success)' : 'var(--text-primary)',
+                            flexShrink: 0,
+                          }}
+                        >
+                          {order.orderValue.toLocaleString('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 })}
+                        </p>
+                      )
+                    )}
+                  </div>
+                  <p style={{ fontSize: '12px', fontWeight: 500, color: 'var(--text-secondary)', marginTop: '4px' }} className="truncate">
+                    {order.connectionName}
+                  </p>
+                  <div className="flex items-center gap-1.5 mt-1" style={{ fontSize: '12px' }}>
+                    <span
+                      style={{
+                        fontSize: '11px',
+                        fontWeight: 600,
+                        color: statusColor,
+                        backgroundColor: `${statusColor}26`,
+                        padding: '2px 8px',
+                        borderRadius: 'var(--radius-chip)',
+                      }}
+                    >
+                      {order.lifecycleState}
+                    </span>
+                    <span style={{ color: 'var(--text-secondary)' }}>·</span>
+                    <span style={{ color: 'var(--text-secondary)', fontSize: '12px', fontWeight: 500 }}>
+                      {formatDistanceToNow(order.latestActivity, { addSuffix: true })}
+                    </span>
+                    {dueStatus && (
+                      <>
+                        <span style={{ color: 'var(--text-secondary)' }}>·</span>
+                        <span style={{ color: dueStatus.color, fontSize: '11px', fontWeight: 600 }}>{dueStatus.label}</span>
+                      </>
+                    )}
+                    {paymentStatusLabel && (
+                      <>
+                        <span style={{ color: 'var(--text-secondary)' }}>·</span>
+                        <span
+                          style={{
+                            color: 'var(--status-dispatched)',
+                            backgroundColor: 'var(--status-dispatched-bg)',
+                            fontSize: '10px',
+                            fontWeight: 600,
+                            padding: '1px 6px',
+                            borderRadius: '999px',
+                            lineHeight: 1.5,
+                          }}
+                        >
+                          {paymentStatusLabel}
+                        </span>
+                      </>
+                    )}
+                  </div>
+                </button>
               )
             })}
           </div>
