@@ -1,4 +1,4 @@
-import { ArrowDown, ArrowUp, CaretRight, CheckCircle, ClockClockwise, Package, ShieldWarning, Truck } from '@phosphor-icons/react'
+import { ArrowDown, ArrowUp, CaretRight, CheckCircle, ClockClockwise, CurrencyInr, Package, ShieldWarning, Truck } from '@phosphor-icons/react'
 import { useEffect, useState } from 'react'
 import { useBusinessOverviewData } from '@/hooks/data/use-business-data'
 import { getLifecycleStatusColor } from '@/lib/semantic-colors'
@@ -66,10 +66,10 @@ export function DashboardScreen({ currentBusinessId, onNavigateToOrders, onNavig
     overdueAverageDelayDays: overview.overdueAverageDelayDays ?? 0,
     overdueChangeFromYesterday: overview.overdueChangeFromYesterday ?? 0,
     tradePosition: overview.tradePosition ?? {
-      next7Days: { comingIn: 0, goingOut: 0, net: 0 },
-      next30Days: { comingIn: 0, goingOut: 0, net: 0 },
-      past7Days: { moneyPaid: 0, moneyReceived: 0 },
-      past30Days: { moneyPaid: 0, moneyReceived: 0 },
+      next7Days: { comingIn: 0, goingOut: 0, net: 0, comingInOrders: 0, goingOutOrders: 0 },
+      next30Days: { comingIn: 0, goingOut: 0, net: 0, comingInOrders: 0, goingOutOrders: 0 },
+      past7Days: { moneyPaid: 0, moneyReceived: 0, receivedOrders: 0, paidOrders: 0 },
+      past30Days: { moneyPaid: 0, moneyReceived: 0, receivedOrders: 0, paidOrders: 0 },
     },
   }
   return (
@@ -91,10 +91,10 @@ export function DashboardScreen({ currentBusinessId, onNavigateToOrders, onNavig
                   key={tab}
                   type="button"
                   onClick={() => tradePositionCarouselApi?.scrollTo(index)}
-                  className={`shrink-0 rounded-full border px-2 py-1 text-[11px] font-medium leading-none transition-colors ${
+                  className={`shrink-0 rounded-full border px-3 py-1 text-[11px] font-medium leading-none transition-colors ${
                     activeTradePositionSlide === index
-                      ? 'border-foreground/20 bg-card text-foreground shadow-sm'
-                      : 'border-border bg-muted/20 text-muted-foreground hover:text-foreground'
+                      ? 'border-transparent bg-[var(--status-delivered)] text-white shadow-sm'
+                      : 'border-border bg-transparent text-muted-foreground hover:text-foreground'
                   }`}
                 >
                   {tab}
@@ -102,120 +102,164 @@ export function DashboardScreen({ currentBusinessId, onNavigateToOrders, onNavig
               ))}
             </div>
 
-            <Carousel setApi={setTradePositionCarouselApi} opts={{ align: 'start' }} className="mt-4">
+            <p className="mt-1 text-[12px] text-muted-foreground">{tradePositionTabs[activeTradePositionSlide]}</p>
+
+            <Carousel setApi={setTradePositionCarouselApi} opts={{ align: 'start' }} className="mt-3">
               <CarouselContent className="-ml-0">
+                {/* Next 7 Days */}
                 <CarouselItem className="pl-0">
-                  <div className="space-y-4">
-                    <div className="rounded-xl border border-border/80 p-3">
-                      <div className="flex items-center gap-3">
-                        <div className="flex h-11 w-11 items-center justify-center rounded-full bg-[var(--status-delivered)]/12 text-[var(--status-delivered)]">
-                          <ArrowDown size={20} weight="bold" />
+                  <div className="space-y-0 divide-y divide-border/60">
+                    <div className="flex items-center gap-3 py-4">
+                      <div className="relative flex-shrink-0">
+                        <div className="flex h-12 w-12 items-center justify-center rounded-full bg-[var(--status-delivered)]/12 text-[var(--status-delivered)]">
+                          <CurrencyInr size={22} weight="bold" />
                         </div>
-                        <div>
-                          <p className="text-[15px] text-foreground">Money Coming in</p>
-                          <p className="text-[22px] font-semibold text-[var(--status-delivered)]">₹{data.tradePosition.next7Days.comingIn.toLocaleString('en-IN')}</p>
-                        </div>
+                        <span className="absolute -top-0.5 -left-0.5 flex h-5 w-5 items-center justify-center rounded-full bg-[var(--status-delivered)] text-white">
+                          <ArrowDown size={11} weight="bold" />
+                        </span>
                       </div>
-                      <p className="mt-2 text-[11px] text-muted-foreground">Includes overdue amounts</p>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-baseline gap-1.5 flex-wrap">
+                          <span className="text-[20px] font-bold text-[var(--status-delivered)]">₹{data.tradePosition.next7Days.comingIn.toLocaleString('en-IN')}</span>
+                          <span className="text-[15px] font-semibold text-foreground">Coming In</span>
+                        </div>
+                        <p className="text-[12px] text-muted-foreground mt-0.5">from {data.tradePosition.next7Days.comingInOrders} orders</p>
+                      </div>
                     </div>
 
-                    <div className="rounded-xl border border-border/80 p-3">
-                      <div className="flex items-center gap-3">
-                        <div className="flex h-11 w-11 items-center justify-center rounded-full bg-destructive/12 text-destructive">
-                          <ArrowUp size={20} weight="bold" />
+                    <div className="flex items-center gap-3 py-4">
+                      <div className="relative flex-shrink-0">
+                        <div className="flex h-12 w-12 items-center justify-center rounded-full bg-destructive/10 text-destructive">
+                          <CurrencyInr size={22} weight="bold" />
                         </div>
-                        <div>
-                          <p className="text-[15px] text-foreground">Money Going Out</p>
-                          <p className="text-[22px] font-semibold text-foreground">₹{data.tradePosition.next7Days.goingOut.toLocaleString('en-IN')}</p>
-                        </div>
+                        <span className="absolute -top-0.5 -left-0.5 flex h-5 w-5 items-center justify-center rounded-full bg-destructive text-white">
+                          <ArrowUp size={11} weight="bold" />
+                        </span>
                       </div>
-                      <p className="mt-2 text-[11px] text-muted-foreground">Includes overdue amounts</p>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-baseline gap-1.5 flex-wrap">
+                          <span className="text-[20px] font-bold text-destructive">₹{data.tradePosition.next7Days.goingOut.toLocaleString('en-IN')}</span>
+                          <span className="text-[15px] font-semibold text-foreground">Going Out</span>
+                        </div>
+                        <p className="text-[12px] text-muted-foreground mt-0.5">for {data.tradePosition.next7Days.goingOutOrders} orders</p>
+                      </div>
+                    </div>
+                  </div>
+                  <p className="pt-2 text-center text-[11px] text-muted-foreground border-t border-border/60">Includes overdue amounts</p>
+                </CarouselItem>
+
+                {/* Next 30 Days */}
+                <CarouselItem className="pl-0">
+                  <div className="space-y-0 divide-y divide-border/60">
+                    <div className="flex items-center gap-3 py-4">
+                      <div className="relative flex-shrink-0">
+                        <div className="flex h-12 w-12 items-center justify-center rounded-full bg-[var(--status-delivered)]/12 text-[var(--status-delivered)]">
+                          <CurrencyInr size={22} weight="bold" />
+                        </div>
+                        <span className="absolute -top-0.5 -left-0.5 flex h-5 w-5 items-center justify-center rounded-full bg-[var(--status-delivered)] text-white">
+                          <ArrowDown size={11} weight="bold" />
+                        </span>
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-baseline gap-1.5 flex-wrap">
+                          <span className="text-[20px] font-bold text-[var(--status-delivered)]">₹{data.tradePosition.next30Days.comingIn.toLocaleString('en-IN')}</span>
+                          <span className="text-[15px] font-semibold text-foreground">Coming In</span>
+                        </div>
+                        <p className="text-[12px] text-muted-foreground mt-0.5">from {data.tradePosition.next30Days.comingInOrders} orders</p>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center gap-3 py-4">
+                      <div className="relative flex-shrink-0">
+                        <div className="flex h-12 w-12 items-center justify-center rounded-full bg-destructive/10 text-destructive">
+                          <CurrencyInr size={22} weight="bold" />
+                        </div>
+                        <span className="absolute -top-0.5 -left-0.5 flex h-5 w-5 items-center justify-center rounded-full bg-destructive text-white">
+                          <ArrowUp size={11} weight="bold" />
+                        </span>
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-baseline gap-1.5 flex-wrap">
+                          <span className="text-[20px] font-bold text-destructive">₹{data.tradePosition.next30Days.goingOut.toLocaleString('en-IN')}</span>
+                          <span className="text-[15px] font-semibold text-foreground">Going Out</span>
+                        </div>
+                        <p className="text-[12px] text-muted-foreground mt-0.5">for {data.tradePosition.next30Days.goingOutOrders} orders</p>
+                      </div>
+                    </div>
+                  </div>
+                  <p className="pt-2 text-center text-[11px] text-muted-foreground border-t border-border/60">Includes overdue amounts</p>
+                </CarouselItem>
+
+                {/* Past 7 Days */}
+                <CarouselItem className="pl-0">
+                  <div className="space-y-0 divide-y divide-border/60">
+                    <div className="flex items-center gap-3 py-4">
+                      <div className="relative flex-shrink-0">
+                        <div className="flex h-14 w-14 items-center justify-center rounded-full bg-[var(--status-delivered)]/12 text-[var(--status-delivered)]">
+                          <CurrencyInr size={26} weight="bold" />
+                        </div>
+                        <span className="absolute -top-0.5 -left-0.5 flex h-5 w-5 items-center justify-center rounded-full bg-[var(--status-delivered)] text-white">
+                          <ArrowDown size={11} weight="bold" />
+                        </span>
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-[14px] font-semibold text-foreground">Money Received</p>
+                        <p className="text-[22px] font-bold text-[var(--status-delivered)] leading-tight">₹{data.tradePosition.past7Days.moneyReceived.toLocaleString('en-IN')}</p>
+                      </div>
+                      <p className="text-[12px] text-muted-foreground flex-shrink-0">from {data.tradePosition.past7Days.receivedOrders} orders</p>
+                    </div>
+
+                    <div className="flex items-center gap-3 py-4">
+                      <div className="relative flex-shrink-0">
+                        <div className="flex h-14 w-14 items-center justify-center rounded-full bg-destructive/10 text-destructive">
+                          <CurrencyInr size={26} weight="bold" />
+                        </div>
+                        <span className="absolute -top-0.5 -left-0.5 flex h-5 w-5 items-center justify-center rounded-full bg-destructive text-white">
+                          <ArrowUp size={11} weight="bold" />
+                        </span>
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-[14px] font-semibold text-foreground">Money Paid</p>
+                        <p className="text-[22px] font-bold text-foreground leading-tight">₹{data.tradePosition.past7Days.moneyPaid.toLocaleString('en-IN')}</p>
+                      </div>
+                      <p className="text-[12px] text-muted-foreground flex-shrink-0">to {data.tradePosition.past7Days.paidOrders} orders</p>
                     </div>
                   </div>
                 </CarouselItem>
 
+                {/* Past 30 Days */}
                 <CarouselItem className="pl-0">
-                  <div className="space-y-4">
-                    <div className="rounded-xl border border-border/80 p-3">
-                      <div className="flex items-center gap-3">
-                        <div className="flex h-11 w-11 items-center justify-center rounded-full bg-[var(--status-delivered)]/12 text-[var(--status-delivered)]">
-                          <ArrowDown size={20} weight="bold" />
+                  <div className="space-y-0 divide-y divide-border/60">
+                    <div className="flex items-center gap-3 py-4">
+                      <div className="relative flex-shrink-0">
+                        <div className="flex h-14 w-14 items-center justify-center rounded-full bg-[var(--status-delivered)]/12 text-[var(--status-delivered)]">
+                          <CurrencyInr size={26} weight="bold" />
                         </div>
-                        <div>
-                          <p className="text-[15px] text-foreground">Money Coming in</p>
-                          <p className="text-[22px] font-semibold text-[var(--status-delivered)]">₹{data.tradePosition.next30Days.comingIn.toLocaleString('en-IN')}</p>
-                        </div>
+                        <span className="absolute -top-0.5 -left-0.5 flex h-5 w-5 items-center justify-center rounded-full bg-[var(--status-delivered)] text-white">
+                          <ArrowDown size={11} weight="bold" />
+                        </span>
                       </div>
-                      <p className="mt-2 text-[11px] text-muted-foreground">Includes overdue amounts</p>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-[14px] font-semibold text-foreground">Money Received</p>
+                        <p className="text-[22px] font-bold text-[var(--status-delivered)] leading-tight">₹{data.tradePosition.past30Days.moneyReceived.toLocaleString('en-IN')}</p>
+                      </div>
+                      <p className="text-[12px] text-muted-foreground flex-shrink-0">from {data.tradePosition.past30Days.receivedOrders} orders</p>
                     </div>
 
-                    <div className="rounded-xl border border-border/80 p-3">
-                      <div className="flex items-center gap-3">
-                        <div className="flex h-11 w-11 items-center justify-center rounded-full bg-destructive/12 text-destructive">
-                          <ArrowUp size={20} weight="bold" />
+                    <div className="flex items-center gap-3 py-4">
+                      <div className="relative flex-shrink-0">
+                        <div className="flex h-14 w-14 items-center justify-center rounded-full bg-destructive/10 text-destructive">
+                          <CurrencyInr size={26} weight="bold" />
                         </div>
-                        <div>
-                          <p className="text-[15px] text-foreground">Money Going Out</p>
-                          <p className="text-[22px] font-semibold text-foreground">₹{data.tradePosition.next30Days.goingOut.toLocaleString('en-IN')}</p>
-                        </div>
+                        <span className="absolute -top-0.5 -left-0.5 flex h-5 w-5 items-center justify-center rounded-full bg-destructive text-white">
+                          <ArrowUp size={11} weight="bold" />
+                        </span>
                       </div>
-                      <p className="mt-2 text-[11px] text-muted-foreground">Includes overdue amounts</p>
-                    </div>
-                  </div>
-                </CarouselItem>
-
-                <CarouselItem className="pl-0">
-                  <div className="space-y-4">
-                    <div className="rounded-xl border border-border/80 p-3">
-                      <div className="flex items-center gap-3">
-                        <div className="flex h-11 w-11 items-center justify-center rounded-full bg-[var(--status-delivered)]/12 text-[var(--status-delivered)]">
-                          <ArrowDown size={20} weight="bold" />
-                        </div>
-                        <div>
-                          <p className="text-[15px] text-foreground">Money Recieved</p>
-                          <p className="text-[22px] font-semibold text-[var(--status-delivered)]">₹{data.tradePosition.past7Days.moneyReceived.toLocaleString('en-IN')}</p>
-                        </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-[14px] font-semibold text-foreground">Money Paid</p>
+                        <p className="text-[22px] font-bold text-foreground leading-tight">₹{data.tradePosition.past30Days.moneyPaid.toLocaleString('en-IN')}</p>
                       </div>
-                    </div>
-
-                    <div className="rounded-xl border border-border/80 p-3">
-                      <div className="flex items-center gap-3">
-                        <div className="flex h-11 w-11 items-center justify-center rounded-full bg-destructive/12 text-destructive">
-                          <ArrowUp size={20} weight="bold" />
-                        </div>
-                        <div>
-                          <p className="text-[15px] text-foreground">Money Paid</p>
-                          <p className="text-[22px] font-semibold text-foreground">₹{data.tradePosition.past7Days.moneyPaid.toLocaleString('en-IN')}</p>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                </CarouselItem>
-
-                <CarouselItem className="pl-0">
-                  <div className="space-y-4">
-                    <div className="rounded-xl border border-border/80 p-3">
-                      <div className="flex items-center gap-3">
-                        <div className="flex h-11 w-11 items-center justify-center rounded-full bg-[var(--status-delivered)]/12 text-[var(--status-delivered)]">
-                          <ArrowDown size={20} weight="bold" />
-                        </div>
-                        <div>
-                          <p className="text-[15px] text-foreground">Money Recieved</p>
-                          <p className="text-[22px] font-semibold text-[var(--status-delivered)]">₹{data.tradePosition.past30Days.moneyReceived.toLocaleString('en-IN')}</p>
-                        </div>
-                      </div>
-                    </div>
-
-                    <div className="rounded-xl border border-border/80 p-3">
-                      <div className="flex items-center gap-3">
-                        <div className="flex h-11 w-11 items-center justify-center rounded-full bg-destructive/12 text-destructive">
-                          <ArrowUp size={20} weight="bold" />
-                        </div>
-                        <div>
-                          <p className="text-[15px] text-foreground">Money Paid</p>
-                          <p className="text-[22px] font-semibold text-foreground">₹{data.tradePosition.past30Days.moneyPaid.toLocaleString('en-IN')}</p>
-                        </div>
-                      </div>
+                      <p className="text-[12px] text-muted-foreground flex-shrink-0">to {data.tradePosition.past30Days.paidOrders} orders</p>
                     </div>
                   </div>
                 </CarouselItem>
