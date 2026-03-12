@@ -18,8 +18,6 @@ export function DashboardScreen({ currentBusinessId, onNavigateToOrders, onNavig
   const [tradePositionCarouselApi, setTradePositionCarouselApi] = useState<CarouselApi>()
   const [activeTradePositionSlide, setActiveTradePositionSlide] = useState(0)
 
-  const tradePositionTabs = ['Next 7 Days', 'Next 30 Days', 'Past 7 Days', 'Past 30 Days']
-
   useEffect(() => {
     if (!tradePositionCarouselApi) {
       return
@@ -85,19 +83,20 @@ export function DashboardScreen({ currentBusinessId, onNavigateToOrders, onNavig
         <div>
           <div className="rounded-2xl border border-border bg-card p-4">
             <h2 className="text-[16px] font-semibold text-foreground">Trade Position</h2>
-            <div className="flex items-center gap-2 overflow-x-auto pb-1 whitespace-nowrap mt-2">
-              {tradePositionTabs.map((tab, index) => (
+            <div className="grid grid-cols-4 mt-2 rounded-lg overflow-hidden border border-border">
+              {[['Next', '7 Days'], ['Next', '30 Days'], ['Past', '7 Days'], ['Past', '30 Days']].map(([prefix, days], index) => (
                 <button
-                  key={tab}
+                  key={`${prefix}-${days}`}
                   type="button"
                   onClick={() => tradePositionCarouselApi?.scrollTo(index)}
-                  className={`shrink-0 rounded-full border px-3 py-1 text-[11px] font-medium leading-none transition-colors ${
+                  className={`py-1.5 text-center transition-colors ${index > 0 ? 'border-l border-border' : ''} ${
                     activeTradePositionSlide === index
-                      ? 'border-transparent bg-[var(--status-delivered)] text-white shadow-sm'
-                      : 'border-border bg-transparent text-muted-foreground hover:text-foreground'
+                      ? 'bg-[var(--status-delivered)] text-white'
+                      : 'bg-transparent text-muted-foreground hover:text-foreground'
                   }`}
                 >
-                  {tab}
+                  <span className="block text-[9px] font-normal leading-tight">{prefix}</span>
+                  <span className="block text-[11px] font-semibold leading-tight">{days}</span>
                 </button>
               ))}
             </div>
@@ -109,11 +108,11 @@ export function DashboardScreen({ currentBusinessId, onNavigateToOrders, onNavig
                   <div className="space-y-0 divide-y divide-border/60">
                     <div className="flex items-center gap-3 py-4">
                       <div className="relative flex-shrink-0">
-                        <div className="flex h-12 w-12 items-center justify-center rounded-full bg-[var(--status-delivered)]/12 text-[var(--status-delivered)]">
-                          <CurrencyInr size={22} weight="bold" />
+                        <div className="flex h-9 w-9 items-center justify-center rounded-full bg-[var(--status-delivered)]/12 text-[var(--status-delivered)]">
+                          <CurrencyInr size={17} weight="bold" />
                         </div>
-                        <span className="absolute -top-0.5 -left-0.5 flex h-5 w-5 items-center justify-center rounded-full bg-[var(--status-delivered)] text-white">
-                          <ArrowDown size={11} weight="bold" />
+                        <span className="absolute -top-0.5 -left-0.5 flex h-4 w-4 items-center justify-center rounded-full bg-[var(--status-delivered)] text-white">
+                          <ArrowDown size={9} weight="bold" />
                         </span>
                       </div>
                       <div className="flex-1 min-w-0">
@@ -127,11 +126,11 @@ export function DashboardScreen({ currentBusinessId, onNavigateToOrders, onNavig
 
                     <div className="flex items-center gap-3 py-4">
                       <div className="relative flex-shrink-0">
-                        <div className="flex h-12 w-12 items-center justify-center rounded-full bg-destructive/10 text-destructive">
-                          <CurrencyInr size={22} weight="bold" />
+                        <div className="flex h-9 w-9 items-center justify-center rounded-full bg-destructive/10 text-destructive">
+                          <CurrencyInr size={17} weight="bold" />
                         </div>
-                        <span className="absolute -top-0.5 -left-0.5 flex h-5 w-5 items-center justify-center rounded-full bg-destructive text-white">
-                          <ArrowUp size={11} weight="bold" />
+                        <span className="absolute -top-0.5 -left-0.5 flex h-4 w-4 items-center justify-center rounded-full bg-destructive text-white">
+                          <ArrowUp size={9} weight="bold" />
                         </span>
                       </div>
                       <div className="flex-1 min-w-0">
@@ -151,11 +150,11 @@ export function DashboardScreen({ currentBusinessId, onNavigateToOrders, onNavig
                   <div className="space-y-0 divide-y divide-border/60">
                     <div className="flex items-center gap-3 py-4">
                       <div className="relative flex-shrink-0">
-                        <div className="flex h-12 w-12 items-center justify-center rounded-full bg-[var(--status-delivered)]/12 text-[var(--status-delivered)]">
-                          <CurrencyInr size={22} weight="bold" />
+                        <div className="flex h-9 w-9 items-center justify-center rounded-full bg-[var(--status-delivered)]/12 text-[var(--status-delivered)]">
+                          <CurrencyInr size={17} weight="bold" />
                         </div>
-                        <span className="absolute -top-0.5 -left-0.5 flex h-5 w-5 items-center justify-center rounded-full bg-[var(--status-delivered)] text-white">
-                          <ArrowDown size={11} weight="bold" />
+                        <span className="absolute -top-0.5 -left-0.5 flex h-4 w-4 items-center justify-center rounded-full bg-[var(--status-delivered)] text-white">
+                          <ArrowDown size={9} weight="bold" />
                         </span>
                       </div>
                       <div className="flex-1 min-w-0">
@@ -169,11 +168,11 @@ export function DashboardScreen({ currentBusinessId, onNavigateToOrders, onNavig
 
                     <div className="flex items-center gap-3 py-4">
                       <div className="relative flex-shrink-0">
-                        <div className="flex h-12 w-12 items-center justify-center rounded-full bg-destructive/10 text-destructive">
-                          <CurrencyInr size={22} weight="bold" />
+                        <div className="flex h-9 w-9 items-center justify-center rounded-full bg-destructive/10 text-destructive">
+                          <CurrencyInr size={17} weight="bold" />
                         </div>
-                        <span className="absolute -top-0.5 -left-0.5 flex h-5 w-5 items-center justify-center rounded-full bg-destructive text-white">
-                          <ArrowUp size={11} weight="bold" />
+                        <span className="absolute -top-0.5 -left-0.5 flex h-4 w-4 items-center justify-center rounded-full bg-destructive text-white">
+                          <ArrowUp size={9} weight="bold" />
                         </span>
                       </div>
                       <div className="flex-1 min-w-0">
@@ -193,11 +192,11 @@ export function DashboardScreen({ currentBusinessId, onNavigateToOrders, onNavig
                   <div className="space-y-0 divide-y divide-border/60">
                     <div className="flex items-center gap-3 py-4">
                       <div className="relative flex-shrink-0">
-                        <div className="flex h-12 w-12 items-center justify-center rounded-full bg-[var(--status-delivered)]/12 text-[var(--status-delivered)]">
-                          <CurrencyInr size={22} weight="bold" />
+                        <div className="flex h-9 w-9 items-center justify-center rounded-full bg-[var(--status-delivered)]/12 text-[var(--status-delivered)]">
+                          <CurrencyInr size={17} weight="bold" />
                         </div>
-                        <span className="absolute -top-0.5 -left-0.5 flex h-5 w-5 items-center justify-center rounded-full bg-[var(--status-delivered)] text-white">
-                          <ArrowDown size={11} weight="bold" />
+                        <span className="absolute -top-0.5 -left-0.5 flex h-4 w-4 items-center justify-center rounded-full bg-[var(--status-delivered)] text-white">
+                          <ArrowDown size={9} weight="bold" />
                         </span>
                       </div>
                       <div className="flex-1 min-w-0">
@@ -209,11 +208,11 @@ export function DashboardScreen({ currentBusinessId, onNavigateToOrders, onNavig
 
                     <div className="flex items-center gap-3 py-4">
                       <div className="relative flex-shrink-0">
-                        <div className="flex h-12 w-12 items-center justify-center rounded-full bg-destructive/10 text-destructive">
-                          <CurrencyInr size={22} weight="bold" />
+                        <div className="flex h-9 w-9 items-center justify-center rounded-full bg-destructive/10 text-destructive">
+                          <CurrencyInr size={17} weight="bold" />
                         </div>
-                        <span className="absolute -top-0.5 -left-0.5 flex h-5 w-5 items-center justify-center rounded-full bg-destructive text-white">
-                          <ArrowUp size={11} weight="bold" />
+                        <span className="absolute -top-0.5 -left-0.5 flex h-4 w-4 items-center justify-center rounded-full bg-destructive text-white">
+                          <ArrowUp size={9} weight="bold" />
                         </span>
                       </div>
                       <div className="flex-1 min-w-0">
@@ -230,11 +229,11 @@ export function DashboardScreen({ currentBusinessId, onNavigateToOrders, onNavig
                   <div className="space-y-0 divide-y divide-border/60">
                     <div className="flex items-center gap-3 py-4">
                       <div className="relative flex-shrink-0">
-                        <div className="flex h-12 w-12 items-center justify-center rounded-full bg-[var(--status-delivered)]/12 text-[var(--status-delivered)]">
-                          <CurrencyInr size={22} weight="bold" />
+                        <div className="flex h-9 w-9 items-center justify-center rounded-full bg-[var(--status-delivered)]/12 text-[var(--status-delivered)]">
+                          <CurrencyInr size={17} weight="bold" />
                         </div>
-                        <span className="absolute -top-0.5 -left-0.5 flex h-5 w-5 items-center justify-center rounded-full bg-[var(--status-delivered)] text-white">
-                          <ArrowDown size={11} weight="bold" />
+                        <span className="absolute -top-0.5 -left-0.5 flex h-4 w-4 items-center justify-center rounded-full bg-[var(--status-delivered)] text-white">
+                          <ArrowDown size={9} weight="bold" />
                         </span>
                       </div>
                       <div className="flex-1 min-w-0">
@@ -246,11 +245,11 @@ export function DashboardScreen({ currentBusinessId, onNavigateToOrders, onNavig
 
                     <div className="flex items-center gap-3 py-4">
                       <div className="relative flex-shrink-0">
-                        <div className="flex h-12 w-12 items-center justify-center rounded-full bg-destructive/10 text-destructive">
-                          <CurrencyInr size={22} weight="bold" />
+                        <div className="flex h-9 w-9 items-center justify-center rounded-full bg-destructive/10 text-destructive">
+                          <CurrencyInr size={17} weight="bold" />
                         </div>
-                        <span className="absolute -top-0.5 -left-0.5 flex h-5 w-5 items-center justify-center rounded-full bg-destructive text-white">
-                          <ArrowUp size={11} weight="bold" />
+                        <span className="absolute -top-0.5 -left-0.5 flex h-4 w-4 items-center justify-center rounded-full bg-destructive text-white">
+                          <ArrowUp size={9} weight="bold" />
                         </span>
                       </div>
                       <div className="flex-1 min-w-0">
