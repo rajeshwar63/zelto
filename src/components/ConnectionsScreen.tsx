@@ -403,6 +403,8 @@ export function ConnectionsScreen({ currentBusinessId, onSelectConnection, onAdd
               ? (isSupplier ? 'var(--status-dispatched)' : 'var(--text-secondary)')
               : getConnectionStateColor(conn.computedState)
 
+            const amountDirectionColor = isSupplier ? '#16A34A' : '#DC2626'
+
             return (
               <button
                 key={conn.id}
@@ -429,9 +431,9 @@ export function ConnectionsScreen({ currentBusinessId, onSelectConnection, onAdd
                       <span
                         aria-hidden
                         style={{
-                          fontSize: '10px',
+                          fontSize: '15px',
                           fontWeight: 700,
-                          color: isSupplier ? 'var(--status-paid)' : 'var(--status-overdue)',
+                          color: amountDirectionColor,
                           lineHeight: 1,
                         }}
                       >
