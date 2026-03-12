@@ -59,6 +59,14 @@ export function calculateSettlementState(
   totalPaid: number,
   dueDate: number | null
 ): SettlementState {
+  if (orderValue <= 0) {
+    if (dueDate === null) {
+      return 'Awaiting Payment'
+    }
+
+    return Date.now() < dueDate ? 'Awaiting Payment' : 'Pending'
+  }
+
   if (totalPaid >= orderValue) {
     return 'Paid'
   }
