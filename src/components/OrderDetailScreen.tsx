@@ -543,7 +543,7 @@ export function OrderDetailScreen({ orderId, connectionId, currentBusinessId, mo
 
         {/* Actions */}
         <div className="px-4 pb-4" style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-          {isConnectionMode && lifecycleState === 'Placed' && isSupplier && (
+          {lifecycleState === 'Placed' && isSupplier && (
             <div className="space-y-3">
               <Input
                 type="number"
@@ -576,7 +576,7 @@ export function OrderDetailScreen({ orderId, connectionId, currentBusinessId, mo
             </div>
           )}
 
-          {isConnectionMode && lifecycleState === 'Placed' && isBuyer && (
+          {lifecycleState === 'Placed' && isBuyer && (
             <div>
               {!showCancelConfirm ? (
                 <button onClick={() => setShowCancelConfirm(true)} className="text-[12px] text-muted-foreground hover:text-foreground w-full text-center">Cancel order</button>
@@ -592,7 +592,7 @@ export function OrderDetailScreen({ orderId, connectionId, currentBusinessId, mo
             </div>
           )}
 
-          {isConnectionMode && lifecycleState === 'Dispatched' && (
+          {lifecycleState === 'Dispatched' && (
             <Button onClick={handleMarkDelivered} disabled={processingAction} className="w-full">
               Mark as Delivered
             </Button>
