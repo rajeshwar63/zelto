@@ -18,7 +18,7 @@ export function WelcomeScreen({ onContinue, onLoginOnly }: WelcomeScreenProps) {
   const [isLoading, setIsLoading] = useState(false)
   const [errors, setErrors] = useState<{ name?: string; businessName?: string; email?: string }>({})
 
-  const emailRegex = /^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
