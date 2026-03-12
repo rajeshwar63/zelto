@@ -293,24 +293,24 @@ export function ConnectionDetailScreen({ connectionId, currentBusinessId, select
       >
         {/* Relationship Summary Card */}
         <div className="px-4 py-3">
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
-            <div style={{ backgroundColor: 'var(--bg-card)', borderRadius: 'var(--radius-card)', padding: '14px 16px' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+            <div style={{ backgroundColor: 'var(--bg-card)', borderRadius: '14px', padding: '14px 16px' }}>
               <p style={{ fontSize: '12px', fontWeight: 600, color: 'var(--text-secondary)' }}>{isSupplier ? 'To Receive' : 'To Pay'}</p>
               <p style={{ fontSize: '20px', fontWeight: 800, color: isSupplier ? 'var(--status-delivered)' : 'var(--status-overdue)', letterSpacing: '-0.02em', marginTop: '4px' }}>
                 {outstandingBalance.toLocaleString('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 })}
               </p>
             </div>
-            <div style={{ backgroundColor: 'var(--bg-card)', borderRadius: 'var(--radius-card)', padding: '14px 16px' }}>
+            <div style={{ backgroundColor: 'var(--bg-card)', borderRadius: '14px', padding: '14px 16px' }}>
               <p style={{ fontSize: '12px', fontWeight: 600, color: 'var(--text-secondary)' }}>Total Orders</p>
               <p style={{ fontSize: '20px', fontWeight: 800, color: 'var(--status-new)', letterSpacing: '-0.02em', marginTop: '4px' }}>{totalOrders}</p>
             </div>
-            <div style={{ backgroundColor: 'var(--bg-card)', borderRadius: 'var(--radius-card)', padding: '14px 16px' }}>
+            <div style={{ backgroundColor: 'var(--bg-card)', borderRadius: '14px', padding: '14px 16px' }}>
               <p style={{ fontSize: '12px', fontWeight: 600, color: 'var(--text-secondary)' }}>Total Value</p>
               <p style={{ fontSize: '20px', fontWeight: 800, color: 'var(--text-primary)', letterSpacing: '-0.02em', marginTop: '4px' }}>
                 {totalValue.toLocaleString('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 })}
               </p>
             </div>
-            <div style={{ backgroundColor: 'var(--bg-card)', borderRadius: 'var(--radius-card)', padding: '14px 16px' }}>
+            <div style={{ backgroundColor: 'var(--bg-card)', borderRadius: '14px', padding: '14px 16px' }}>
               <p style={{ fontSize: '12px', fontWeight: 600, color: 'var(--text-secondary)' }}>Payment Terms</p>
               <p style={{ fontSize: '13px', fontWeight: 600, color: 'var(--text-primary)', marginTop: '4px' }}>{formatPaymentTerms(connection.paymentTerms)}</p>
             </div>
@@ -380,7 +380,7 @@ export function ConnectionDetailScreen({ connectionId, currentBusinessId, select
           )}
         </div>
 
-        <div className="pb-4 divide-y divide-border">
+        <div className="px-3 pb-4 space-y-3">
           {filteredOrders.length === 0 ? (
             <div className="px-4 py-8 text-center">
               <p className="text-[13px] text-muted-foreground">
@@ -425,7 +425,7 @@ export function ConnectionDetailScreen({ connectionId, currentBusinessId, select
                       markOrderSeen(currentBusinessId, order.id)
                       setViewingOrderId(order.id)
                     }}
-                    className="w-full text-left transition-colors relative overflow-hidden"
+                    className="w-full text-left transition-colors relative overflow-hidden rounded-[14px]"
                     style={{
                       padding: '14px 16px 14px 20px',
                       opacity: lifecycleState === 'Declined' ? 0.4 : 1,
@@ -593,7 +593,7 @@ function SwipeableOrderRow({
   }, [x])
 
   return (
-    <div ref={containerRef} className="relative overflow-hidden">
+    <div ref={containerRef} className="relative overflow-hidden" style={{ borderRadius: '14px' }}>
       <motion.div style={{ opacity: actionOpacity }} className="absolute right-0 top-0 bottom-0 flex items-center">
         <button
           onClick={handleAction}
@@ -604,7 +604,7 @@ function SwipeableOrderRow({
         </button>
       </motion.div>
       <motion.div
-        style={{ x, backgroundColor: 'var(--bg-card)' }}
+        style={{ x, backgroundColor: 'var(--bg-card)', borderRadius: '14px' }}
         drag="x"
         dragDirectionLock
         dragConstraints={{ left: -SWIPE_THRESHOLD, right: 0 }}
