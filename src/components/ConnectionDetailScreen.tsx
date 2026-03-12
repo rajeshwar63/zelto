@@ -1,10 +1,10 @@
 import { useEffect, useState, useRef, type TouchEvent } from 'react'
 import { dataStore } from '@/lib/data-store'
 import { insightEngine } from '@/lib/insight-engine'
-import { transitionOrderState, recordPayment, createIssue, createOrder, addAttachment, deleteAttachment, disputePayment } from '@/lib/interactions'
+import { createOrder } from '@/lib/interactions'
 import { useDataListener } from '@/lib/data-events'
-import { formatDistanceToNow, format } from 'date-fns'
-import type { Connection, OrderWithPaymentState, BusinessEntity, PaymentEvent, OrderAttachment, AttachmentType } from '@/lib/types'
+import { formatDistanceToNow, differenceInDays, format } from 'date-fns'
+import type { Connection, OrderWithPaymentState, BusinessEntity } from '@/lib/types'
 import { CaretLeft, CaretDown, CaretRight, Paperclip } from '@phosphor-icons/react'
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible'
 import { Button } from '@/components/ui/button'
@@ -15,8 +15,6 @@ import { getConnectionStateColor, getDueDateColor, getLifecycleStatusColor } fro
 import { motion, useMotionValue, useTransform, animate, PanInfo, AnimatePresence } from 'framer-motion'
 import { getArchivedOrderIds, archiveOrder as doArchiveOrder, unarchiveOrder as doUnarchiveOrder } from '@/lib/archive-store'
 import { markOrderSeen, isOrderNew } from '@/lib/unread-tracker'
-import { AddAttachmentSheet } from '@/components/AddAttachmentSheet'
-import { AttachmentViewer } from '@/components/AttachmentViewer'
 import { formatInrCurrency } from '@/lib/utils'
 import { OrderStatusHeader } from '@/components/order/OrderStatusHeader'
 import { OrderPaymentSummary } from '@/components/order/OrderPaymentSummary'
@@ -27,10 +25,9 @@ import { buildOrderTimeline, formatDueDate, formatPaymentTerms, getLifecycleStat
 interface Props {
   connectionId: string
   currentBusinessId: string
-  selectedOrderId?: string
   onBack: () => void
   onNavigateToPaymentTermsSetup: (connectionId: string, businessName: string) => void
-  onReportIssue?: (orderId: string, connectionId: string) => void
+  onOpenOrderDetail: (orderId: string, connectionId: string) => void
 }
 
 type TimeFilter = '7d' | '30d' | '90d' | '1y'
@@ -47,7 +44,7 @@ const filterDurations: Record<TimeFilter, number> = {
   '1y': 365 * 24 * 60 * 60 * 1000,
 }
 
-export function ConnectionDetailScreen({ connectionId, currentBusinessId, selectedOrderId, onBack, onNavigateToPaymentTermsSetup, onReportIssue }: Props) {
+export function ConnectionDetailScreen({ connectionId, currentBusinessId, onBack, onNavigateToPaymentTermsSetup, onOpenOrderDetail }: Props) {
   const [connection, setConnection] = useState<Connection | null>(null)
   const [otherBusiness, setOtherBusiness] = useState<BusinessEntity | null>(null)
   const [orders, setOrders] = useState<OrderWithPaymentState[]>([])
@@ -55,7 +52,6 @@ export function ConnectionDetailScreen({ connectionId, currentBusinessId, select
   const [timeFilter, setTimeFilter] = useState<TimeFilter>('30d')
   const [insightsOpen, setInsightsOpen] = useState(true)
   const [loading, setLoading] = useState(true)
-  const [viewingOrderId, setViewingOrderId] = useState<string | null>(selectedOrderId || null)
   const [newOrderMessage, setNewOrderMessage] = useState('')
   const [creatingOrder, setCreatingOrder] = useState(false)
   const [showArchived, setShowArchived] = useState(false)
@@ -215,20 +211,6 @@ export function ConnectionDetailScreen({ connectionId, currentBusinessId, select
       setPullRevealHeight(pullRevealHeight > pullRevealThreshold ? pullRevealMax : 0)
     }
     isPullingReveal.current = false
-  }
-
-  const viewingOrder = viewingOrderId ? orders.find(o => o.id === viewingOrderId) : null
-  if (viewingOrder) {
-    return (
-      <OrderDetailView
-        order={viewingOrder}
-        connection={connection}
-        currentBusinessId={currentBusinessId}
-        onBack={() => selectedOrderId ? onBack() : setViewingOrderId(null)}
-        onRefreshOrders={loadOrders}
-        onReportIssue={onReportIssue}
-      />
-    )
   }
 
   return (
@@ -393,7 +375,7 @@ export function ConnectionDetailScreen({ connectionId, currentBusinessId, select
                   <button
                     onClick={() => {
                       markOrderSeen(currentBusinessId, order.id)
-                      setViewingOrderId(order.id)
+                      onOpenOrderDetail(order.id, connection.id)
                     }}
                     className="w-full text-left transition-colors relative overflow-hidden rounded-[14px]"
                     style={{
@@ -606,423 +588,5 @@ function FilterButton({ label, active, onClick }: { label: string; active: boole
     >
       {label}
     </button>
-  )
-}
-
-interface OrderDetailViewProps {
-  order: OrderWithPaymentState
-  connection: Connection
-  currentBusinessId: string
-  onBack: () => void
-  onRefreshOrders: () => Promise<void>
-  onReportIssue?: (orderId: string, connectionId: string) => void
-}
-
-function OrderDetailView({ order: orderProp, connection, currentBusinessId, onBack, onRefreshOrders, onReportIssue }: OrderDetailViewProps) {
-  const order = orderProp
-
-  const [buyerBusiness, setBuyerBusiness] = useState<BusinessEntity | null>(null)
-  const [supplierBusiness, setSupplierBusiness] = useState<BusinessEntity | null>(null)
-  const [paymentEvents, setPaymentEvents] = useState<PaymentEvent[]>([])
-  const [dispatchAmount, setDispatchAmount] = useState('')
-  const [dispatchError, setDispatchError] = useState('')
-  const [paymentAmount, setPaymentAmount] = useState('')
-  const [paymentError, setPaymentError] = useState('')
-  const [processing, setProcessing] = useState(false)
-  const [disputingPaymentId, setDisputingPaymentId] = useState<string | null>(null)
-  const [showDeclineConfirm, setShowDeclineConfirm] = useState(false)
-  const [showCancelConfirm, setShowCancelConfirm] = useState(false)
-  const [attachments, setAttachments] = useState<OrderAttachment[]>([])
-  const [showAddAttachment, setShowAddAttachment] = useState(false)
-  const [viewingAttachmentIndex, setViewingAttachmentIndex] = useState<number | null>(null)
-
-  const loadAttachments = async () => {
-    try {
-      const data = await dataStore.getAttachmentsByOrderId(order.id)
-      setAttachments(data)
-    } catch (err) {
-      console.error('Failed to load attachments:', err)
-    }
-  }
-
-  useEffect(() => {
-    const loadData = async () => {
-      const buyer = await dataStore.getBusinessEntityById(connection.buyerBusinessId)
-      const supplier = await dataStore.getBusinessEntityById(connection.supplierBusinessId)
-      const payments = await dataStore.getPaymentEventsByOrderId(order.id)
-      setBuyerBusiness(buyer || null)
-      setSupplierBusiness(supplier || null)
-      setPaymentEvents(payments)
-    }
-    loadData()
-    loadAttachments()
-  }, [order.id, connection])
-
-  useEffect(() => {
-    const checkAndAcceptPayments = async () => {
-      const payments = await dataStore.getPaymentEventsByOrderId(order.id)
-      const now = Date.now()
-      const fortyEightHours = 48 * 60 * 60 * 1000
-      for (const payment of payments) {
-        if (!payment.disputed && !payment.acceptedAt && payment.recordedBy !== currentBusinessId) {
-          if (now - payment.timestamp >= fortyEightHours) {
-            await dataStore.acceptPaymentEvent(payment.id)
-          }
-        }
-      }
-      const updatedPayments = await dataStore.getPaymentEventsByOrderId(order.id)
-      setPaymentEvents(updatedPayments)
-    }
-    const interval = setInterval(checkAndAcceptPayments, 60000)
-    checkAndAcceptPayments()
-    return () => clearInterval(interval)
-  }, [order.id, currentBusinessId])
-
-  const lifecycleState = getLifecycleState(order)
-  const dueLabel = formatDueDate(order)
-  const isSupplier = connection.supplierBusinessId === currentBusinessId
-  const isBuyer = connection.buyerBusinessId === currentBusinessId
-
-  const refreshPayments = async () => {
-    try {
-      const payments = await dataStore.getPaymentEventsByOrderId(order.id)
-      setPaymentEvents(payments)
-    } catch (err) {
-      console.error('Failed to refresh payments', err)
-    }
-  }
-
-  const handleAddAttachment = async (
-    type: AttachmentType,
-    options: {
-      fileUrl?: string
-      fileName?: string
-      fileType?: string
-      thumbnailUrl?: string
-      noteText?: string
-    }
-  ) => {
-    await addAttachment(order.id, type, currentBusinessId, options)
-  }
-
-  const handleDeleteAttachment = async (attachmentId: string) => {
-    try {
-      await deleteAttachment(attachmentId, currentBusinessId)
-      await loadAttachments()
-      toast.success('Attachment deleted')
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : 'Failed to delete attachment')
-    }
-  }
-
-  const handleDispatch = async () => {
-    if (processing) return
-    setProcessing(true)
-    setDispatchError('')
-    const amount = parseFloat(dispatchAmount)
-    if (isNaN(amount) || amount <= 0) {
-      setDispatchError('Please enter the order amount before dispatching.')
-      setProcessing(false)
-      return
-    }
-    setDispatchAmount('')
-    try {
-      await transitionOrderState(order.id, 'Dispatched', currentBusinessId, amount)
-      toast.success('Order dispatched')
-      await onRefreshOrders()
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : 'Failed to dispatch order')
-    } finally {
-      setProcessing(false)
-    }
-  }
-
-  const handleDecline = async () => {
-    if (processing) return
-    setProcessing(true)
-    setShowDeclineConfirm(false)
-    try {
-      await transitionOrderState(order.id, 'Declined', currentBusinessId)
-      toast.success('Order declined')
-      await onRefreshOrders()
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : 'Failed to decline order')
-    } finally {
-      setProcessing(false)
-    }
-  }
-
-  const handleCancel = async () => {
-    if (processing) return
-    setProcessing(true)
-    setShowCancelConfirm(false)
-    try {
-      await transitionOrderState(order.id, 'Declined', currentBusinessId)
-      toast.success('Order cancelled')
-      await onRefreshOrders()
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : 'Failed to cancel order')
-    } finally {
-      setProcessing(false)
-    }
-  }
-
-  const handleMarkDelivered = async () => {
-    if (processing) return
-    setProcessing(true)
-    try {
-      await transitionOrderState(order.id, 'Delivered', currentBusinessId)
-      toast.success('Order marked as delivered')
-      await onRefreshOrders()
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : 'Failed to mark as delivered')
-    } finally {
-      setProcessing(false)
-    }
-  }
-
-  const handleRecordPayment = async () => {
-    if (processing) return
-    setProcessing(true)
-    setPaymentError('')
-    const amount = parseFloat(paymentAmount)
-    if (isNaN(amount) || amount <= 0) {
-      setPaymentError('Amount must be greater than zero')
-      setProcessing(false)
-      return
-    }
-    if (amount > order.pendingAmount) {
-      setPaymentError(`Amount exceeds remaining balance of ₹${order.pendingAmount.toLocaleString('en-IN')}`)
-      setProcessing(false)
-      return
-    }
-    setPaymentAmount('')
-    try {
-      await recordPayment(order.id, amount, currentBusinessId)
-      toast.success('Payment recorded')
-      await onRefreshOrders()
-      await refreshPayments()
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : 'Failed to record payment')
-    } finally {
-      setProcessing(false)
-    }
-  }
-
-  const handleConfirmDispute = async (paymentId: string) => {
-    if (processing) return
-    setProcessing(true)
-    try {
-      await disputePayment(paymentId, currentBusinessId)
-      await createIssue(order.id, 'Billing Mismatch', 'Medium', currentBusinessId)
-
-      setDisputingPaymentId(null)
-      toast.success('Dispute raised. This has been added to your Attention tab.')
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : 'Failed to dispute payment')
-      setProcessing(false)
-      return
-    }
-    try { await refreshPayments() } catch {} finally { setProcessing(false) }
-  }
-
-  if (!buyerBusiness || !supplierBusiness) {
-    return (
-      <div className="flex items-center justify-center min-h-screen">
-        <p className="text-sm text-muted-foreground">Loading...</p>
-      </div>
-    )
-  }
-
-  return (
-    <div style={{ backgroundColor: 'var(--bg-screen)', minHeight: '100vh', paddingBottom: '16px' }}>
-      <div className="sticky top-0 z-10" style={{ backgroundColor: 'var(--bg-header)', paddingTop: 'env(safe-area-inset-top)' }}>
-        <div className="h-11 flex items-center px-4 gap-2">
-          <button onClick={onBack} className="flex items-center" style={{ color: 'var(--text-primary)', minWidth: '44px', minHeight: '44px' }}>
-            <CaretLeft size={20} weight="regular" />
-          </button>
-          <h1 style={{ fontSize: '17px', fontWeight: 700, color: 'var(--text-primary)' }}>Order Details</h1>
-        </div>
-      </div>
-
-      <div className="px-4 py-4 space-y-6">
-        <OrderStatusHeader
-          lifecycleState={lifecycleState}
-          itemSummary={order.itemSummary}
-          orderValue={order.orderValue}
-          counterpartName={isSupplier ? buyerBusiness.businessName : supplierBusiness.businessName}
-        />
-
-        <OrderPaymentSummary
-          termsLabel={formatPaymentTerms(order.paymentTermSnapshot)}
-          dueDateLabel={dueLabel}
-          totalPaid={order.totalPaid}
-          pendingAmount={order.pendingAmount}
-          settlementState={order.settlementState}
-        />
-
-        <OrderTimeline
-          timeline={buildOrderTimeline(
-            order,
-            buyerBusiness.businessName,
-            supplierBusiness.businessName,
-            paymentEvents[paymentEvents.length - 1]?.timestamp,
-          )}
-        />
-
-        <OrderAttachmentsSection
-          attachments={attachments}
-          currentBusinessId={currentBusinessId}
-          buyerBusiness={buyerBusiness}
-          supplierBusiness={supplierBusiness}
-          onAddAttachment={() => setShowAddAttachment(true)}
-          onViewAttachment={(index) => setViewingAttachmentIndex(index)}
-          onDeleteAttachment={handleDeleteAttachment}
-        />
-
-        {lifecycleState === 'Placed' && isSupplier && (
-          <div className="space-y-3">
-            <Input
-              type="number"
-              placeholder="Enter amount ₹"
-              value={dispatchAmount}
-              onChange={e => { setDispatchAmount(e.target.value); setDispatchError('') }}
-            />
-            {dispatchError && <p className="text-[12px] text-destructive">{dispatchError}</p>}
-            <Button
-              onClick={handleDispatch}
-              disabled={processing || !dispatchAmount || parseFloat(dispatchAmount) <= 0}
-              className="w-full"
-            >
-              Dispatch
-            </Button>
-            {!showDeclineConfirm ? (
-              <button
-                onClick={() => setShowDeclineConfirm(true)}
-                className="text-[12px] text-muted-foreground hover:text-foreground w-full text-center"
-              >
-                Can't fulfil this order
-              </button>
-            ) : (
-              <div className="space-y-2">
-                <p className="text-[13px] text-foreground text-center">Can't fulfil this order?</p>
-                <div className="flex gap-2">
-                  <button
-                    onClick={handleDecline}
-                    disabled={processing}
-                    className="flex-1 px-3 py-1.5 text-[13px] font-medium rounded text-white"
-                    style={{ backgroundColor: 'var(--status-overdue)' }}
-                  >
-                    Yes, decline
-                  </button>
-                  <button
-                    onClick={() => setShowDeclineConfirm(false)}
-                    disabled={processing}
-                    className="flex-1 px-3 py-1.5 text-[13px] font-medium rounded bg-muted text-foreground"
-                  >
-                    Cancel
-                  </button>
-                </div>
-              </div>
-            )}
-          </div>
-        )}
-
-        {lifecycleState === 'Placed' && isBuyer && (
-          <div>
-            {!showCancelConfirm ? (
-              <button
-                onClick={() => setShowCancelConfirm(true)}
-                className="text-[12px] text-muted-foreground hover:text-foreground w-full text-center"
-              >
-                Cancel order
-              </button>
-            ) : (
-              <div className="space-y-2">
-                <p className="text-[13px] text-foreground text-center">Cancel this order?</p>
-                <div className="flex gap-2">
-                  <button
-                    onClick={handleCancel}
-                    disabled={processing}
-                    className="flex-1 px-3 py-1.5 text-[13px] font-medium rounded text-white"
-                    style={{ backgroundColor: 'var(--status-overdue)' }}
-                  >
-                    Yes, cancel
-                  </button>
-                  <button
-                    onClick={() => setShowCancelConfirm(false)}
-                    disabled={processing}
-                    className="flex-1 px-3 py-1.5 text-[13px] font-medium rounded bg-muted text-foreground"
-                  >
-                    Keep order
-                  </button>
-                </div>
-              </div>
-            )}
-          </div>
-        )}
-
-        {lifecycleState === 'Dispatched' && (
-          <Button onClick={handleMarkDelivered} disabled={processing} className="w-full">
-            Mark as Delivered
-          </Button>
-        )}
-
-        {lifecycleState === 'Delivered' && order.pendingAmount > 0 && (
-          <div className="space-y-3">
-            <p className="text-[13px] text-muted-foreground">
-              Remaining balance: ₹{order.pendingAmount.toLocaleString('en-IN')}
-            </p>
-            <Input
-              type="number"
-              placeholder="Enter amount ₹"
-              value={paymentAmount}
-              onChange={e => { setPaymentAmount(e.target.value); setPaymentError('') }}
-              disabled={processing}
-            />
-            {paymentError && <p className="text-[12px] text-destructive">{paymentError}</p>}
-            <Button onClick={handleRecordPayment} disabled={processing} className="w-full">
-              Record Payment
-            </Button>
-          </div>
-        )}
-
-        {(lifecycleState === 'Dispatched' || lifecycleState === 'Delivered') && onReportIssue && (
-          <button
-            onClick={() => onReportIssue(order.id, connection.id)}
-            className="w-full py-2.5 text-[14px] font-medium rounded-lg border border-red-200 text-red-600 hover:bg-red-50 transition-colors"
-          >
-            Raise Issue
-          </button>
-        )}
-
-        {(lifecycleState === 'Declined' || (lifecycleState === 'Placed' && order.declinedAt)) && (
-          <p className="text-[13px] text-muted-foreground text-center py-4">
-            This order was {lifecycleState === 'Declined' ? 'declined' : 'cancelled'}
-          </p>
-        )}
-      </div>
-
-      <AddAttachmentSheet
-        open={showAddAttachment}
-        orderId={order.id}
-        currentBusinessId={currentBusinessId}
-        onClose={() => setShowAddAttachment(false)}
-        onAttachmentAdded={loadAttachments}
-        onAddAttachment={handleAddAttachment}
-      />
-
-      <AnimatePresence>
-        {viewingAttachmentIndex !== null && buyerBusiness && supplierBusiness && (
-          <AttachmentViewer
-            attachments={attachments}
-            initialIndex={viewingAttachmentIndex}
-            buyerBusiness={buyerBusiness}
-            supplierBusiness={supplierBusiness}
-            onClose={() => setViewingAttachmentIndex(null)}
-          />
-        )}
-      </AnimatePresence>
-    </div>
   )
 }

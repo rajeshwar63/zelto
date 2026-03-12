@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { dataStore } from '@/lib/data-store'
-import { recordPayment, addAttachment, deleteAttachment, acknowledgeIssue, resolveIssue } from '@/lib/interactions'
+import { recordPayment, addAttachment, deleteAttachment, acknowledgeIssue, resolveIssue, transitionOrderState, disputePayment } from '@/lib/interactions'
 import { useDataListener } from '@/lib/data-events'
 import { formatDistanceToNow } from 'date-fns'
 import type { Connection, OrderWithPaymentState, BusinessEntity, PaymentEvent, IssueReport, OrderAttachment, AttachmentType } from '@/lib/types'
@@ -22,12 +22,54 @@ interface Props {
   orderId: string
   connectionId: string
   currentBusinessId: string
+  mode?: 'connection' | 'issue'
   onBack: () => void
   onReportIssue: (orderId: string, connectionId: string) => void
   initialIssueId?: string
 }
 
-export function OrderDetailScreen({ orderId, connectionId, currentBusinessId, onBack, onReportIssue, initialIssueId }: Props) {
+function getLifecycleState(order: OrderWithPaymentState): string {
+  if (order.declinedAt) return 'Declined'
+  if (order.deliveredAt) return 'Delivered'
+  if (order.dispatchedAt) return 'Dispatched'
+  if (order.acceptedAt) return 'Accepted'
+  return 'Placed'
+}
+
+function formatPaymentTerms(terms: Connection['paymentTerms']): string {
+  if (!terms) return 'Not set'
+  switch (terms.type) {
+    case 'Advance Required': return 'Advance Required'
+    case 'Payment on Delivery': return 'Payment on Delivery'
+    case 'Bill to Bill': return 'Bill to Bill'
+    case 'Days After Delivery': return `${terms.days} days after delivery`
+  }
+}
+
+function formatDueDate(order: OrderWithPaymentState): string {
+  if (order.settlementState === 'Paid') return 'Paid'
+  if (!order.calculatedDueDate) {
+    if (!order.deliveredAt) return 'Awaiting delivery'
+    if (order.paymentTermSnapshot.type === 'Bill to Bill') return 'Linked to next delivery'
+    return 'Due date pending'
+  }
+  const dueDate = new Date(order.calculatedDueDate)
+  const now = new Date()
+  const days = differenceInDays(dueDate, now)
+  if (days === 0) return 'Due today'
+  if (days > 0) return `Due in ${days} day${days > 1 ? 's' : ''}`
+  const overdueDays = Math.abs(days)
+  return `Overdue ${overdueDays} day${overdueDays > 1 ? 's' : ''}`
+}
+
+interface TimelineEvent {
+  label: string
+  actor: string
+  timestamp: number | null
+  completed: boolean
+}
+
+export function OrderDetailScreen({ orderId, connectionId, currentBusinessId, mode = 'issue', onBack, onReportIssue, initialIssueId }: Props) {
   const [order, setOrder] = useState<OrderWithPaymentState | null>(null)
   const [connection, setConnection] = useState<Connection | null>(null)
   const [otherBusiness, setOtherBusiness] = useState<BusinessEntity | null>(null)
@@ -41,6 +83,13 @@ export function OrderDetailScreen({ orderId, connectionId, currentBusinessId, on
   const [showPaymentInput, setShowPaymentInput] = useState(false)
   const [paymentAmount, setPaymentAmount] = useState('')
   const [isRecordingPayment, setIsRecordingPayment] = useState(false)
+  const [dispatchAmount, setDispatchAmount] = useState('')
+  const [dispatchError, setDispatchError] = useState('')
+  const [paymentError, setPaymentError] = useState('')
+  const [processingAction, setProcessingAction] = useState(false)
+  const [showDeclineConfirm, setShowDeclineConfirm] = useState(false)
+  const [showCancelConfirm, setShowCancelConfirm] = useState(false)
+  const [disputingPaymentId, setDisputingPaymentId] = useState<string | null>(null)
 
   // Attachments
   const [showAttachmentSheet, setShowAttachmentSheet] = useState(false)
@@ -95,20 +144,124 @@ export function OrderDetailScreen({ orderId, connectionId, currentBusinessId, on
     () => { loadData() }
   )
 
+  useEffect(() => {
+    const checkAndAcceptPayments = async () => {
+      const paymentEvents = await dataStore.getPaymentEventsByOrderId(orderId)
+      const now = Date.now()
+      const fortyEightHours = 48 * 60 * 60 * 1000
+      for (const payment of paymentEvents) {
+        if (!payment.disputed && !payment.acceptedAt && payment.recordedBy !== currentBusinessId && now - payment.timestamp >= fortyEightHours) {
+          await dataStore.acceptPaymentEvent(payment.id)
+        }
+      }
+    }
+
+    const interval = setInterval(checkAndAcceptPayments, 60000)
+    checkAndAcceptPayments().catch(console.error)
+    return () => clearInterval(interval)
+  }, [orderId, currentBusinessId])
+
   const handleRecordPayment = async () => {
+    if (processingAction || isRecordingPayment) return
     const amount = parseFloat(paymentAmount)
-    if (!amount || amount <= 0) return
+    if (!amount || amount <= 0) {
+      setPaymentError('Please enter a valid payment amount')
+      return
+    }
 
     setIsRecordingPayment(true)
+    setPaymentError('')
     try {
       await recordPayment(orderId, amount, currentBusinessId)
       toast.success('Payment recorded')
       setShowPaymentInput(false)
       setPaymentAmount('')
+      await loadData()
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Failed to record payment')
     } finally {
       setIsRecordingPayment(false)
+    }
+  }
+
+  const handleDispatch = async () => {
+    if (processingAction) return
+    setProcessingAction(true)
+    setDispatchError('')
+    const amount = parseFloat(dispatchAmount)
+    if (isNaN(amount) || amount <= 0) {
+      setDispatchError('Please enter the order amount before dispatching.')
+      setProcessingAction(false)
+      return
+    }
+    try {
+      await transitionOrderState(orderId, 'Dispatched', currentBusinessId, amount)
+      toast.success('Order dispatched')
+      setDispatchAmount('')
+      await loadData()
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Failed to dispatch order')
+    } finally {
+      setProcessingAction(false)
+    }
+  }
+
+  const handleDecline = async () => {
+    if (processingAction) return
+    setProcessingAction(true)
+    setShowDeclineConfirm(false)
+    try {
+      await transitionOrderState(orderId, 'Declined', currentBusinessId)
+      toast.success('Order declined')
+      await loadData()
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Failed to decline order')
+    } finally {
+      setProcessingAction(false)
+    }
+  }
+
+  const handleCancelOrder = async () => {
+    if (processingAction) return
+    setProcessingAction(true)
+    setShowCancelConfirm(false)
+    try {
+      await transitionOrderState(orderId, 'Declined', currentBusinessId)
+      toast.success('Order cancelled')
+      await loadData()
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Failed to cancel order')
+    } finally {
+      setProcessingAction(false)
+    }
+  }
+
+  const handleMarkDelivered = async () => {
+    if (processingAction) return
+    setProcessingAction(true)
+    try {
+      await transitionOrderState(orderId, 'Delivered', currentBusinessId)
+      toast.success('Order marked as delivered')
+      await loadData()
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Failed to mark as delivered')
+    } finally {
+      setProcessingAction(false)
+    }
+  }
+
+  const handleConfirmDispute = async (paymentId: string) => {
+    if (processingAction) return
+    setProcessingAction(true)
+    try {
+      await disputePayment(paymentId, currentBusinessId)
+      toast.success('Dispute raised. This has been added to your Attention tab.')
+      setDisputingPaymentId(null)
+      await loadData()
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Failed to dispute payment')
+    } finally {
+      setProcessingAction(false)
     }
   }
 
@@ -170,6 +323,8 @@ export function OrderDetailScreen({ orderId, connectionId, currentBusinessId, on
   const lifecycleState = getLifecycleState(order)
   const dueDateLabel = formatDueDate(order)
   const isSupplier = connection.supplierBusinessId === currentBusinessId
+  const isBuyer = connection.buyerBusinessId === currentBusinessId
+  const isConnectionMode = mode === 'connection'
   const buyerName = isSupplier ? (otherBusiness?.businessName || 'Unknown') : (myBusiness?.businessName || 'You')
   const supplierName = isSupplier ? (myBusiness?.businessName || 'You') : (otherBusiness?.businessName || 'Unknown')
   const timeline = buildOrderTimeline(order, buyerName, supplierName, payments[payments.length - 1]?.timestamp)
@@ -221,32 +376,71 @@ export function OrderDetailScreen({ orderId, connectionId, currentBusinessId, on
               PAYMENTS
             </p>
             <div style={{ backgroundColor: 'var(--bg-card)', borderRadius: 'var(--radius-card)', padding: '14px 16px' }}>
-              {payments.map(payment => (
-                <div key={payment.id} className="flex items-center justify-between" style={{ padding: '6px 0', borderBottom: '1px solid var(--border-section)' }}>
-                  <div>
+              {payments.map(payment => {
+                const canDispute = isConnectionMode && payment.recordedBy !== currentBusinessId && !payment.disputed && !payment.acceptedAt
+                const showDisputeConfirm = disputingPaymentId === payment.id
+                return (
+                <div key={payment.id} style={{ padding: '6px 0', borderBottom: '1px solid var(--border-section)' }}>
+                  <div className="flex items-center justify-between">
+                    <div>
                     <p style={{ fontSize: '14px', fontWeight: 600, color: 'var(--text-primary)' }}>
                       {formatInrCurrency(payment.amountPaid)}
                     </p>
                     <p style={{ fontSize: '11px', fontWeight: 500, color: 'var(--text-secondary)' }}>
                       {formatDistanceToNow(payment.timestamp, { addSuffix: true })}
                     </p>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      {canDispute && (
+                        <button
+                          onClick={() => setDisputingPaymentId(payment.id)}
+                          disabled={processingAction}
+                          className="text-[11px] text-destructive hover:underline"
+                        >
+                          Dispute
+                        </button>
+                      )}
+                      {payment.acceptedAt && <span className="text-[11px] text-muted-foreground">✓ Accepted</span>}
+                      {payment.disputed && (
+                        <span
+                          style={{
+                            fontSize: '11px',
+                            fontWeight: 600,
+                            color: 'var(--status-overdue)',
+                            backgroundColor: '#FFF0F0',
+                            padding: '2px 8px',
+                            borderRadius: 'var(--radius-chip)',
+                          }}
+                        >
+                          Disputed
+                        </span>
+                      )}
+                    </div>
                   </div>
-                  {payment.disputed && (
-                    <span
-                      style={{
-                        fontSize: '11px',
-                        fontWeight: 600,
-                        color: 'var(--status-overdue)',
-                        backgroundColor: '#FFF0F0',
-                        padding: '2px 8px',
-                        borderRadius: 'var(--radius-chip)',
-                      }}
-                    >
-                      Disputed
-                    </span>
+                  {showDisputeConfirm && (
+                    <div className="mt-3">
+                      <p className="text-[13px] text-foreground mb-3">Dispute this payment?</p>
+                      <div className="flex gap-2">
+                        <button
+                          onClick={() => handleConfirmDispute(payment.id)}
+                          disabled={processingAction}
+                          className="flex-1 px-3 py-1.5 text-[13px] font-medium rounded text-white"
+                          style={{ backgroundColor: 'var(--status-overdue)' }}
+                        >
+                          Yes, dispute
+                        </button>
+                        <button
+                          onClick={() => setDisputingPaymentId(null)}
+                          disabled={processingAction}
+                          className="flex-1 px-3 py-1.5 text-[13px] font-medium rounded bg-muted text-foreground"
+                        >
+                          Cancel
+                        </button>
+                      </div>
+                    </div>
                   )}
                 </div>
-              ))}
+              )})}
             </div>
           </div>
         )}
@@ -347,17 +541,137 @@ export function OrderDetailScreen({ orderId, connectionId, currentBusinessId, on
           </div>
         )}
 
-        <OrderActionsPanel
-          order={order}
-          showPaymentInput={showPaymentInput}
-          paymentAmount={paymentAmount}
-          isRecordingPayment={isRecordingPayment}
-          onPaymentAmountChange={setPaymentAmount}
-          onStartPayment={() => setShowPaymentInput(true)}
-          onCancelPayment={() => { setShowPaymentInput(false); setPaymentAmount('') }}
-          onRecordPayment={handleRecordPayment}
-          onReportIssue={() => onReportIssue(orderId, connectionId)}
-        />
+        {/* Actions */}
+        <div className="px-4 pb-4" style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+          {isConnectionMode && lifecycleState === 'Placed' && isSupplier && (
+            <div className="space-y-3">
+              <Input
+                type="number"
+                placeholder="Enter amount ₹"
+                value={dispatchAmount}
+                disabled={processingAction}
+                onChange={e => { setDispatchAmount(e.target.value); setDispatchError('') }}
+              />
+              {dispatchError && <p className="text-[12px] text-destructive">{dispatchError}</p>}
+              <Button
+                onClick={handleDispatch}
+                disabled={processingAction || !dispatchAmount || parseFloat(dispatchAmount) <= 0}
+                className="w-full"
+              >
+                Dispatch
+              </Button>
+              {!showDeclineConfirm ? (
+                <button onClick={() => setShowDeclineConfirm(true)} className="text-[12px] text-muted-foreground hover:text-foreground w-full text-center">
+                  Can't fulfil this order
+                </button>
+              ) : (
+                <div className="space-y-2">
+                  <p className="text-[13px] text-foreground text-center">Can't fulfil this order?</p>
+                  <div className="flex gap-2">
+                    <button onClick={handleDecline} disabled={processingAction} className="flex-1 px-3 py-1.5 text-[13px] font-medium rounded text-white" style={{ backgroundColor: 'var(--status-overdue)' }}>Yes, decline</button>
+                    <button onClick={() => setShowDeclineConfirm(false)} disabled={processingAction} className="flex-1 px-3 py-1.5 text-[13px] font-medium rounded bg-muted text-foreground">Cancel</button>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
+          {isConnectionMode && lifecycleState === 'Placed' && isBuyer && (
+            <div>
+              {!showCancelConfirm ? (
+                <button onClick={() => setShowCancelConfirm(true)} className="text-[12px] text-muted-foreground hover:text-foreground w-full text-center">Cancel order</button>
+              ) : (
+                <div className="space-y-2">
+                  <p className="text-[13px] text-foreground text-center">Cancel this order?</p>
+                  <div className="flex gap-2">
+                    <button onClick={handleCancelOrder} disabled={processingAction} className="flex-1 px-3 py-1.5 text-[13px] font-medium rounded text-white" style={{ backgroundColor: 'var(--status-overdue)' }}>Yes, cancel</button>
+                    <button onClick={() => setShowCancelConfirm(false)} disabled={processingAction} className="flex-1 px-3 py-1.5 text-[13px] font-medium rounded bg-muted text-foreground">Keep order</button>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
+          {isConnectionMode && lifecycleState === 'Dispatched' && (
+            <Button onClick={handleMarkDelivered} disabled={processingAction} className="w-full">
+              Mark as Delivered
+            </Button>
+          )}
+
+          {order.settlementState !== 'Paid' && order.deliveredAt && (
+            <>
+              {showPaymentInput ? (
+                <div className="flex gap-2">
+                  <Input
+                    type="number"
+                    placeholder="Amount"
+                    value={paymentAmount}
+                    onChange={(e) => { setPaymentAmount(e.target.value); setPaymentError('') }}
+                    className="flex-1"
+                    style={{ borderRadius: 'var(--radius-input)' }}
+                  />
+                  <Button
+                    onClick={handleRecordPayment}
+                    disabled={isRecordingPayment || !paymentAmount}
+                    size="sm"
+                    style={{ backgroundColor: 'var(--brand-primary)', color: '#FFFFFF', borderRadius: 'var(--radius-button-sm)', fontWeight: 600 }}
+                  >
+                    {isRecordingPayment ? 'Saving...' : 'Save'}
+                  </Button>
+                  <Button
+                    onClick={() => { setShowPaymentInput(false); setPaymentAmount('') }}
+                    variant="outline"
+                    size="sm"
+                    style={{ borderRadius: 'var(--radius-button-sm)', borderColor: 'var(--border-light)', color: 'var(--text-primary)', fontWeight: 600 }}
+                  >
+                    Cancel
+                  </Button>
+                </div>
+              ) : (
+                <button
+                  onClick={() => setShowPaymentInput(true)}
+                  className="w-full"
+                  style={{
+                    backgroundColor: 'var(--brand-primary)',
+                    color: '#FFFFFF',
+                    borderRadius: 'var(--radius-button)',
+                    padding: '12px',
+                    fontSize: '14px',
+                    fontWeight: 600,
+                    minHeight: '44px',
+                  }}
+                >
+                  Record Payment
+                </button>
+              )}
+              {paymentError && <p className="text-[12px] text-destructive">{paymentError}</p>}
+            </>
+          )}
+          {(lifecycleState === 'Dispatched' || lifecycleState === 'Delivered') && (
+            <button
+              onClick={() => onReportIssue(orderId, connectionId)}
+              className="w-full"
+              style={{
+                border: '1px solid var(--border-light)',
+                backgroundColor: 'var(--bg-card)',
+                color: 'var(--text-primary)',
+                borderRadius: 'var(--radius-button)',
+                padding: '12px',
+                fontSize: '14px',
+                fontWeight: 600,
+                minHeight: '44px',
+              }}
+            >
+              Raise Issue
+            </button>
+          )}
+
+          {(lifecycleState === 'Declined' || (lifecycleState === 'Placed' && order.declinedAt)) && (
+            <p className="text-[13px] text-muted-foreground text-center py-4">
+              This order was {lifecycleState === 'Declined' ? 'declined' : 'cancelled'}
+            </p>
+          )}
+        </div>
       </div>
 
       {/* Attachment Sheet */}
