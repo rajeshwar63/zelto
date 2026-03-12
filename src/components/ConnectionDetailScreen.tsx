@@ -9,6 +9,7 @@ import { CaretLeft, CaretDown, CaretRight, Paperclip } from '@phosphor-icons/rea
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
+import { CardAccent } from '@/components/ui/card'
 import { toast } from 'sonner'
 import { getConnectionStateColor, getDueDateColor, getLifecycleStatusColor } from '@/lib/semantic-colors'
 import { motion, useMotionValue, useTransform, animate, PanInfo, AnimatePresence } from 'framer-motion'
