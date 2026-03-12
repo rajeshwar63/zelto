@@ -84,18 +84,17 @@ export function DashboardScreen({ currentBusinessId, onNavigateToOrders, onNavig
       <div className="flex-1 overflow-y-auto px-4 py-3 space-y-6 pb-24" style={{ backgroundColor: 'var(--bg-screen)' }}>
         <div>
           <div className="rounded-2xl border border-border bg-card p-4">
-            <h2 className="text-[16px] font-semibold text-foreground">Trade Position</h2>
-
-            <div className="mt-3 grid grid-cols-2 gap-2 rounded-2xl border border-border bg-muted/30 p-1 md:grid-cols-4">
+            <div className="flex items-center gap-2 overflow-x-auto pb-1 whitespace-nowrap">
+              <h2 className="shrink-0 text-[16px] font-semibold text-foreground">Trade Position</h2>
               {tradePositionTabs.map((tab, index) => (
                 <button
                   key={tab}
                   type="button"
                   onClick={() => tradePositionCarouselApi?.scrollTo(index)}
-                  className={`rounded-xl px-3 py-2 text-[13px] font-medium transition-colors ${
+                  className={`shrink-0 rounded-full border px-2 py-1 text-[11px] font-medium leading-none transition-colors ${
                     activeTradePositionSlide === index
-                      ? 'bg-card text-foreground shadow-sm'
-                      : 'text-muted-foreground hover:text-foreground'
+                      ? 'border-foreground/20 bg-card text-foreground shadow-sm'
+                      : 'border-border bg-muted/20 text-muted-foreground hover:text-foreground'
                   }`}
                 >
                   {tab}
