@@ -41,6 +41,10 @@ interface BusinessOverviewData {
 
 interface AttentionItemWithConnection extends AttentionItem {
   connectionName: string
+  orderValue?: number
+  totalPaid?: number
+  pendingAmount?: number
+  lifecycleState?: string
 }
 
 interface AttentionData {
@@ -327,13 +331,15 @@ export function useAttentionData(currentBusinessId: string, isActive = true) {
     isActive,
     events: ['orders:changed', 'payments:changed', 'issues:changed', 'connections:changed'],
     fetcher: async () => {
-      const [attentionItems, connections, entities] = await Promise.all([
+      const [attentionItems, connections, entities, orders] = await Promise.all([
         attentionEngine.getAttentionItems(currentBusinessId),
         dataStore.getConnectionsByBusinessId(currentBusinessId),
         dataStore.getAllBusinessEntities(),
+        dataStore.getOrdersWithPaymentStateByBusinessId(currentBusinessId),
       ])
 
       const entityMap = new Map(entities.map(entity => [entity.id, entity]))
+      const orderMap = new Map(orders.map(o => [o.id, o]))
       const items = attentionItems
         .filter(item => item.category === 'Disputes')
         .map(item => {
@@ -343,9 +349,14 @@ export function useAttentionData(currentBusinessId: string, isActive = true) {
             const otherId = connection.buyerBusinessId === currentBusinessId ? connection.supplierBusinessId : connection.buyerBusinessId
             connectionName = entityMap.get(otherId)?.businessName || 'Unknown'
           }
+          const order = item.orderId ? orderMap.get(item.orderId) : undefined
           return {
             ...item,
             connectionName,
+            orderValue: order?.orderValue,
+            totalPaid: order?.totalPaid,
+            pendingAmount: order?.pendingAmount,
+            lifecycleState: order ? getLifecycleState(order) : undefined,
           }
         })
 
