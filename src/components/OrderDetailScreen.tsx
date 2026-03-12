@@ -2,17 +2,21 @@ import { useEffect, useState } from 'react'
 import { dataStore } from '@/lib/data-store'
 import { recordPayment, addAttachment, deleteAttachment, acknowledgeIssue, resolveIssue, transitionOrderState, disputePayment } from '@/lib/interactions'
 import { useDataListener } from '@/lib/data-events'
-import { formatDistanceToNow, differenceInDays } from 'date-fns'
+import { formatDistanceToNow } from 'date-fns'
 import type { Connection, OrderWithPaymentState, BusinessEntity, PaymentEvent, IssueReport, OrderAttachment, AttachmentType } from '@/lib/types'
 import { CaretLeft } from '@phosphor-icons/react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { toast } from 'sonner'
-import { getLifecycleStatusColor, getDueDateColor } from '@/lib/semantic-colors'
-import { OrderAttachments } from '@/components/OrderAttachments'
+import { formatInrCurrency } from '@/lib/utils'
 import { AddAttachmentSheet } from '@/components/AddAttachmentSheet'
 import { AttachmentViewer } from '@/components/AttachmentViewer'
 import { IssueDetailSheet } from '@/components/IssueDetailSheet'
+import { OrderStatusHeader } from '@/components/order/OrderStatusHeader'
+import { OrderPaymentSummary } from '@/components/order/OrderPaymentSummary'
+import { OrderTimeline } from '@/components/order/OrderTimeline'
+import { OrderAttachmentsSection } from '@/components/order/OrderAttachmentsSection'
+import { buildOrderTimeline, formatDueDate, formatPaymentTerms, getLifecycleState } from '@/components/order/order-detail-utils'
 
 interface Props {
   orderId: string
@@ -317,60 +321,13 @@ export function OrderDetailScreen({ orderId, connectionId, currentBusinessId, mo
   }
 
   const lifecycleState = getLifecycleState(order)
-  const statusColor = getLifecycleStatusColor(lifecycleState)
   const dueDateLabel = formatDueDate(order)
-  const dueDateColor = getDueDateColor(dueDateLabel)
   const isSupplier = connection.supplierBusinessId === currentBusinessId
   const isBuyer = connection.buyerBusinessId === currentBusinessId
   const isConnectionMode = mode === 'connection'
   const buyerName = isSupplier ? (otherBusiness?.businessName || 'Unknown') : (myBusiness?.businessName || 'You')
   const supplierName = isSupplier ? (myBusiness?.businessName || 'You') : (otherBusiness?.businessName || 'Unknown')
-
-  // Build timeline
-  const timeline: TimelineEvent[] = [
-    {
-      label: 'Order Placed',
-      actor: buyerName,
-      timestamp: order.createdAt,
-      completed: true,
-    },
-  ]
-
-  if (order.acceptedAt || order.dispatchedAt || order.deliveredAt) {
-    timeline.push({
-      label: 'Accepted',
-      actor: supplierName,
-      timestamp: order.acceptedAt,
-      completed: !!order.acceptedAt,
-    })
-  }
-
-  if (order.dispatchedAt || order.deliveredAt) {
-    timeline.push({
-      label: 'Dispatched',
-      actor: supplierName,
-      timestamp: order.dispatchedAt,
-      completed: !!order.dispatchedAt,
-    })
-  }
-
-  if (order.deliveredAt) {
-    timeline.push({
-      label: 'Delivered',
-      actor: '',
-      timestamp: order.deliveredAt,
-      completed: true,
-    })
-  }
-
-  if (payments.length > 0) {
-    timeline.push({
-      label: order.settlementState === 'Paid' ? 'Paid' : 'Payment Recorded',
-      actor: '',
-      timestamp: payments[payments.length - 1].timestamp,
-      completed: true,
-    })
-  }
+  const timeline = buildOrderTimeline(order, buyerName, supplierName, payments[payments.length - 1]?.timestamp)
 
   return (
     <div className="flex flex-col h-full" style={{ backgroundColor: 'var(--bg-screen)' }}>
@@ -385,129 +342,32 @@ export function OrderDetailScreen({ orderId, connectionId, currentBusinessId, mo
       </div>
 
       <div className="flex-1 overflow-y-auto pb-24">
-        {/* Status Header Chip */}
-        <div className="px-4 pt-4 pb-2">
-          <span
-            style={{
-              fontSize: '13px',
-              fontWeight: 600,
-              color: statusColor,
-              backgroundColor: `${statusColor}26`,
-              padding: '8px 14px',
-              borderRadius: 'var(--radius-chip)',
-              display: 'inline-block',
-            }}
-          >
-            {lifecycleState}
-          </span>
-        </div>
+        <OrderStatusHeader
+          lifecycleState={lifecycleState}
+          itemSummary={order.itemSummary}
+          orderValue={order.orderValue}
+          counterpartName={otherBusiness?.businessName || 'Unknown'}
+        />
 
-        {/* Order Summary Card */}
-        <div className="px-4 mb-3">
-          <div style={{ backgroundColor: 'var(--bg-card)', borderRadius: 'var(--radius-card)', padding: '14px 16px' }}>
-            <p style={{ fontSize: '15px', fontWeight: 600, color: 'var(--text-primary)' }}>{order.itemSummary}</p>
-            {order.orderValue > 0 && (
-              <p style={{ fontSize: '20px', fontWeight: 800, color: 'var(--text-primary)', marginTop: '4px', letterSpacing: '-0.02em' }}>
-                {order.orderValue.toLocaleString('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 })}
-              </p>
-            )}
-            <p style={{ fontSize: '12px', fontWeight: 500, color: 'var(--text-secondary)', marginTop: '4px' }}>
-              {otherBusiness?.businessName || 'Unknown'}
-            </p>
-          </div>
-        </div>
+        <OrderPaymentSummary
+          termsLabel={formatPaymentTerms(order.paymentTermSnapshot)}
+          dueDateLabel={dueDateLabel}
+          totalPaid={order.totalPaid}
+          pendingAmount={order.pendingAmount}
+          settlementState={order.settlementState}
+        />
 
-        {/* Payment Summary - Metric Cards */}
-        <div className="px-4 mb-3">
-          <p style={{ fontSize: '13px', fontWeight: 700, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '10px' }}>
-            PAYMENT
-          </p>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
-            <div style={{ backgroundColor: 'var(--bg-card)', borderRadius: 'var(--radius-card)', padding: '14px', border: '1px solid var(--border-light)' }}>
-              <p style={{ fontSize: '12px', fontWeight: 600, color: 'var(--text-secondary)' }}>Terms</p>
-              <p style={{ fontSize: '13px', fontWeight: 600, color: 'var(--text-primary)', marginTop: '4px' }}>
-                {formatPaymentTerms(order.paymentTermSnapshot)}
-              </p>
-            </div>
-            <div style={{ backgroundColor: 'var(--bg-card)', borderRadius: 'var(--radius-card)', padding: '14px', border: '1px solid var(--border-light)' }}>
-              <p style={{ fontSize: '12px', fontWeight: 600, color: 'var(--text-secondary)' }}>Status</p>
-              <p style={{ fontSize: '13px', fontWeight: 600, color: dueDateColor, marginTop: '4px' }}>
-                {dueDateLabel}
-              </p>
-            </div>
-          </div>
-          {order.totalPaid > 0 && order.settlementState !== 'Paid' && (
-            <p style={{ fontSize: '12px', fontWeight: 500, color: 'var(--text-secondary)', marginTop: '8px' }}>
-              {order.totalPaid.toLocaleString('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 })} paid · {order.pendingAmount.toLocaleString('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 })} pending
-            </p>
-          )}
-        </div>
+        <OrderTimeline timeline={timeline} />
 
-        {/* Timeline */}
-        <div className="px-4 mb-3">
-          <p style={{ fontSize: '13px', fontWeight: 700, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '10px' }}>
-            TIMELINE
-          </p>
-          <div style={{ backgroundColor: 'var(--bg-card)', borderRadius: 'var(--radius-card)', padding: '14px 16px' }}>
-            {timeline.map((event, index) => {
-              const isLast = index === timeline.length - 1
-              const eventColor = event.completed ? getLifecycleStatusColor(event.label) : 'var(--text-tertiary)'
-
-              return (
-                <div key={`${event.label}-${index}`} className="flex gap-3">
-                  <div className="flex flex-col items-center">
-                    <div
-                      className="flex-shrink-0 mt-1"
-                      style={{ width: '10px', height: '10px', borderRadius: '50%', backgroundColor: eventColor }}
-                    />
-                    {!isLast && (
-                      <div style={{ width: '2px', flex: 1, minHeight: '24px', backgroundColor: eventColor, opacity: 0.3 }} />
-                    )}
-                  </div>
-                  <div style={{ paddingBottom: '16px' }}>
-                    <p style={{ fontSize: '14px', fontWeight: 600, color: 'var(--text-primary)' }}>{event.label}</p>
-                    {event.actor && (
-                      <p style={{ fontSize: '12px', fontWeight: 500, color: 'var(--text-secondary)' }}>{event.actor}</p>
-                    )}
-                    {event.timestamp && (
-                      <p style={{ fontSize: '11px', fontWeight: 500, color: 'var(--text-tertiary)' }}>
-                        {formatDistanceToNow(event.timestamp, { addSuffix: true })}
-                      </p>
-                    )}
-                  </div>
-                </div>
-              )
-            })}
-          </div>
-        </div>
-
-        {/* Attachments */}
-        <div className="px-4 mb-3">
-          <p style={{ fontSize: '13px', fontWeight: 700, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '10px' }}>
-            ATTACHMENTS
-          </p>
-          <div style={{ backgroundColor: 'var(--bg-card)', borderRadius: 'var(--radius-card)', padding: '14px 16px' }}>
-            {attachments.length > 0 && myBusiness && otherBusiness ? (
-              <OrderAttachments
-                attachments={attachments}
-                currentBusinessId={currentBusinessId}
-                buyerBusiness={isSupplier ? otherBusiness : myBusiness}
-                supplierBusiness={isSupplier ? myBusiness : otherBusiness}
-                onAddAttachment={() => setShowAttachmentSheet(true)}
-                onViewAttachment={(index) => setViewingAttachmentIndex(index)}
-                onDeleteAttachment={(attachment) => handleDeleteAttachment(attachment.id)}
-              />
-            ) : (
-              <p style={{ fontSize: '13px', fontWeight: 500, color: 'var(--text-secondary)' }}>No attachments</p>
-            )}
-            <button
-              onClick={() => setShowAttachmentSheet(true)}
-              style={{ fontSize: '13px', fontWeight: 600, color: 'var(--brand-primary)', marginTop: '8px', minHeight: '44px', display: 'flex', alignItems: 'center' }}
-            >
-              + Add attachment
-            </button>
-          </div>
-        </div>
+        <OrderAttachmentsSection
+          attachments={attachments}
+          currentBusinessId={currentBusinessId}
+          buyerBusiness={isSupplier ? otherBusiness : myBusiness}
+          supplierBusiness={isSupplier ? myBusiness : otherBusiness}
+          onAddAttachment={() => setShowAttachmentSheet(true)}
+          onViewAttachment={(index) => setViewingAttachmentIndex(index)}
+          onDeleteAttachment={handleDeleteAttachment}
+        />
 
         {/* Payment Details */}
         {payments.length > 0 && (
@@ -524,7 +384,7 @@ export function OrderDetailScreen({ orderId, connectionId, currentBusinessId, mo
                   <div className="flex items-center justify-between">
                     <div>
                     <p style={{ fontSize: '14px', fontWeight: 600, color: 'var(--text-primary)' }}>
-                      {payment.amountPaid.toLocaleString('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 })}
+                      {formatInrCurrency(payment.amountPaid)}
                     </p>
                     <p style={{ fontSize: '11px', fontWeight: 500, color: 'var(--text-secondary)' }}>
                       {formatDistanceToNow(payment.timestamp, { addSuffix: true })}
@@ -848,6 +708,100 @@ export function OrderDetailScreen({ orderId, connectionId, currentBusinessId, mo
           onStatusChange={() => { setSelectedIssue(null); loadData() }}
         />
       )}
+    </div>
+  )
+}
+
+
+interface OrderActionsPanelProps {
+  order: OrderWithPaymentState
+  showPaymentInput: boolean
+  paymentAmount: string
+  isRecordingPayment: boolean
+  onPaymentAmountChange: (amount: string) => void
+  onStartPayment: () => void
+  onCancelPayment: () => void
+  onRecordPayment: () => void
+  onReportIssue: () => void
+}
+
+function OrderActionsPanel({
+  order,
+  showPaymentInput,
+  paymentAmount,
+  isRecordingPayment,
+  onPaymentAmountChange,
+  onStartPayment,
+  onCancelPayment,
+  onRecordPayment,
+  onReportIssue,
+}: OrderActionsPanelProps) {
+  return (
+    <div className="px-4 pb-4" style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+      {order.settlementState !== 'Paid' && order.deliveredAt && (
+        <>
+          {showPaymentInput ? (
+            <div className="flex gap-2">
+              <Input
+                type="number"
+                placeholder="Amount"
+                value={paymentAmount}
+                onChange={(e) => onPaymentAmountChange(e.target.value)}
+                className="flex-1"
+                style={{ borderRadius: 'var(--radius-input)' }}
+              />
+              <Button
+                onClick={onRecordPayment}
+                disabled={isRecordingPayment || !paymentAmount}
+                size="sm"
+                style={{ backgroundColor: 'var(--brand-primary)', color: '#FFFFFF', borderRadius: 'var(--radius-button-sm)', fontWeight: 600 }}
+              >
+                {isRecordingPayment ? 'Saving...' : 'Save'}
+              </Button>
+              <Button
+                onClick={onCancelPayment}
+                variant="outline"
+                size="sm"
+                style={{ borderRadius: 'var(--radius-button-sm)', borderColor: 'var(--border-light)', color: 'var(--text-primary)', fontWeight: 600 }}
+              >
+                Cancel
+              </Button>
+            </div>
+          ) : (
+            <button
+              onClick={onStartPayment}
+              className="w-full"
+              style={{
+                backgroundColor: 'var(--brand-primary)',
+                color: '#FFFFFF',
+                borderRadius: 'var(--radius-button)',
+                padding: '12px',
+                fontSize: '14px',
+                fontWeight: 600,
+                minHeight: '44px',
+              }}
+            >
+              Record Payment
+            </button>
+          )}
+        </>
+      )}
+      <button
+        onClick={onReportIssue}
+        className="w-full"
+        style={{
+          border: '1px solid var(--border-light)',
+          backgroundColor: 'var(--bg-card)',
+          color: 'var(--text-primary)',
+          borderRadius: 'var(--radius-button)',
+          padding: '12px',
+          fontSize: '14px',
+          fontWeight: 600,
+          minHeight: '44px',
+        }}
+      >
+        Raise Issue
+      </button>
     </div>
   )
 }

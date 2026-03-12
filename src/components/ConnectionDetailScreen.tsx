@@ -16,6 +16,11 @@ import { motion, useMotionValue, useTransform, animate, PanInfo, AnimatePresence
 import { getArchivedOrderIds, archiveOrder as doArchiveOrder, unarchiveOrder as doUnarchiveOrder } from '@/lib/archive-store'
 import { markOrderSeen, isOrderNew } from '@/lib/unread-tracker'
 import { formatInrCurrency } from '@/lib/utils'
+import { OrderStatusHeader } from '@/components/order/OrderStatusHeader'
+import { OrderPaymentSummary } from '@/components/order/OrderPaymentSummary'
+import { OrderTimeline } from '@/components/order/OrderTimeline'
+import { OrderAttachmentsSection } from '@/components/order/OrderAttachmentsSection'
+import { buildOrderTimeline, formatDueDate, formatPaymentTerms, getLifecycleState } from '@/components/order/order-detail-utils'
 
 interface Props {
   connectionId: string
@@ -26,40 +31,6 @@ interface Props {
 }
 
 type TimeFilter = '7d' | '30d' | '90d' | '1y'
-
-function formatPaymentTerms(terms: Connection['paymentTerms']): string {
-  if (!terms) return 'Not set'
-  switch (terms.type) {
-    case 'Advance Required': return 'Advance Required'
-    case 'Payment on Delivery': return 'Payment on Delivery'
-    case 'Bill to Bill': return 'Bill to Bill'
-    case 'Days After Delivery': return `${terms.days} days after delivery`
-  }
-}
-
-function getLifecycleState(order: OrderWithPaymentState): string {
-  if (order.declinedAt) return 'Declined'
-  if (order.deliveredAt) return 'Delivered'
-  if (order.dispatchedAt) return 'Dispatched'
-  if (order.acceptedAt) return 'Accepted'
-  return 'Placed'
-}
-
-function formatDueDate(order: OrderWithPaymentState): string {
-  if (order.settlementState === 'Paid') return 'Paid'
-  if (!order.calculatedDueDate) {
-    if (!order.deliveredAt) return 'Awaiting delivery'
-    if (order.paymentTermSnapshot.type === 'Bill to Bill') return 'Linked to next delivery'
-    return 'Due date pending'
-  }
-  const dueDate = new Date(order.calculatedDueDate)
-  const now = new Date()
-  const days = differenceInDays(dueDate, now)
-  if (days === 0) return 'Due today'
-  if (days > 0) return `Due in ${days} day${days > 1 ? 's' : ''}`
-  const overdueDays = Math.abs(days)
-  return `Overdue ${overdueDays} day${overdueDays > 1 ? 's' : ''}`
-}
 
 function formatTimestamp(timestamp: number, isOld: boolean): string {
   if (isOld) return format(timestamp, 'MMM d, yyyy')
