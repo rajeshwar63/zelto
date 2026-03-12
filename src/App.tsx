@@ -37,8 +37,8 @@ import { useDataListener } from '@/lib/data-events'
 type Tab = 'dashboard' | 'orders' | 'attention' | 'connections' | 'profile'
 type Screen =
   | { type: 'tab'; tab: Tab; filter?: string }
-  | { type: 'connection-detail'; connectionId: string; selectedOrderId?: string }
-  | { type: 'order-detail'; orderId: string; connectionId: string; initialIssueId?: string }
+  | { type: 'connection-detail'; connectionId: string }
+  | { type: 'order-detail'; orderId: string; connectionId: string; initialIssueId?: string; mode?: 'connection' | 'issue' }
   | { type: 'add-connection' }
   | { type: 'payment-terms-setup'; connectionId: string; businessName: string; returnTo?: 'connection-detail' | 'connections' }
   | { type: 'business-details' }
@@ -292,11 +292,11 @@ function App() {
     return <WelcomeScreen onContinue={handleWelcomeSubmit} onLoginOnly={handleLoginOnly} />
   }
 
-  const navigateToConnection = (connectionId: string, orderId?: string) => {
+  const navigateToConnection = (connectionId: string) => {
     if (currentBusinessId) {
       updateConnectionLastSeen(currentBusinessId, connectionId)
     }
-    setNavigationStack(stack => [...stack, { type: 'connection-detail', connectionId, selectedOrderId: orderId }])
+    setNavigationStack(stack => [...stack, { type: 'connection-detail', connectionId }])
   }
 
   const navigateBack = () => {
@@ -359,7 +359,11 @@ function App() {
   }
 
   const navigateToOrderDetail = (orderId: string, connectionId: string) => {
-    navigateToConnection(connectionId, orderId)
+    setNavigationStack(stack => [...stack, { type: 'order-detail', orderId, connectionId, mode: 'issue' }])
+  }
+
+  const navigateToConnectionOrderDetail = (orderId: string, connectionId: string) => {
+    setNavigationStack(stack => [...stack, { type: 'order-detail', orderId, connectionId, mode: 'connection' }])
   }
 
   const navigateToReportIssue = (orderId: string, connectionId: string) => {
@@ -367,7 +371,7 @@ function App() {
   }
 
   const navigateToIssueDetail = (connectionId: string, orderId: string, issueId: string) => {
-    setNavigationStack(stack => [...stack, { type: 'order-detail', orderId, connectionId, initialIssueId: issueId }])
+    setNavigationStack(stack => [...stack, { type: 'order-detail', orderId, connectionId, initialIssueId: issueId, mode: 'issue' }])
   }
 
   const navigateToTabWithFilter = (tab: Tab, filter?: string) => {
@@ -453,6 +457,7 @@ function App() {
           onBack={navigateBack}
           onReportIssue={navigateToReportIssue}
           initialIssueId={detailScreen.initialIssueId}
+          mode={detailScreen.mode ?? 'issue'}
         />
       )
     }
@@ -460,10 +465,9 @@ function App() {
       <ConnectionDetailScreen
         connectionId={detailScreen.connectionId}
         currentBusinessId={currentBusinessId}
-        selectedOrderId={detailScreen.selectedOrderId}
         onBack={navigateBack}
         onNavigateToPaymentTermsSetup={navigateToPaymentTermsSetup}
-        onReportIssue={navigateToReportIssue}
+        onOpenOrderDetail={navigateToConnectionOrderDetail}
       />
     )
   }
