@@ -17,6 +17,7 @@ import { markOrderSeen, isOrderNew } from '@/lib/unread-tracker'
 import { OrderAttachments } from '@/components/OrderAttachments'
 import { AddAttachmentSheet } from '@/components/AddAttachmentSheet'
 import { AttachmentViewer } from '@/components/AttachmentViewer'
+import { CardAccent } from '@/components/ui/card'
 
 interface Props {
   connectionId: string
@@ -394,6 +395,7 @@ export function ConnectionDetailScreen({ connectionId, currentBusinessId, select
                 : null
               const dueLabel = formatDueDate(order)
               const isNew = isOrderNew(currentBusinessId, order.id, order.createdAt)
+              const lifecycleColor = getLifecycleStatusColor(lifecycleState)
               return (
                 <SwipeableOrderRow
                   key={order.id}
@@ -405,15 +407,15 @@ export function ConnectionDetailScreen({ connectionId, currentBusinessId, select
                       markOrderSeen(currentBusinessId, order.id)
                       setViewingOrderId(order.id)
                     }}
-                    className="w-full text-left transition-colors"
+                    className="w-full text-left transition-colors relative overflow-hidden"
                     style={{
-                      padding: '14px 16px',
+                      padding: '14px 16px 14px 20px',
                       opacity: lifecycleState === 'Declined' ? 0.4 : 1,
-                      borderLeft: isNew ? '3px solid var(--status-new)' : '3px solid transparent',
                       backgroundColor: isNew ? 'var(--brand-primary-bg)' : 'var(--bg-card)',
                       minHeight: '44px',
                     }}
                   >
+                    <CardAccent color={lifecycleColor} />
                     <div className="flex items-start justify-between mb-1">
                       <p style={{ fontSize: isOld ? '13px' : '14px', fontWeight: 600, color: isOld ? 'var(--text-secondary)' : 'var(--text-primary)', lineHeight: 1.4 }}>
                         {order.itemSummary}
@@ -441,7 +443,7 @@ export function ConnectionDetailScreen({ connectionId, currentBusinessId, select
                       <div className="flex items-center gap-1.5">
                         <span style={{ color: 'var(--text-secondary)', fontWeight: 500 }}>{formatTimestamp(order.createdAt, isOld)}</span>
                         <span style={{ color: 'var(--text-secondary)' }}>·</span>
-                        <span style={{ fontSize: '11px', fontWeight: 600, color: getLifecycleStatusColor(lifecycleState), backgroundColor: `${getLifecycleStatusColor(lifecycleState)}26`, padding: '2px 8px', borderRadius: 'var(--radius-chip)' }}>{lifecycleState}</span>
+                        <span style={{ fontSize: '11px', fontWeight: 600, color: lifecycleColor, backgroundColor: `${lifecycleColor}26`, padding: '2px 8px', borderRadius: 'var(--radius-chip)' }}>{lifecycleState}</span>
                         {(attachmentCounts[order.id] || 0) > 0 && (
                           <>
                             <span style={{ color: 'var(--text-secondary)' }}>·</span>
