@@ -398,6 +398,17 @@ export function ConnectionDetailScreen({ connectionId, currentBusinessId, select
               const paymentStatusLabel = lifecycleState === 'Delivered' && order.settlementState === 'Partial Payment'
                 ? 'Partial Payment'
                 : null
+              const settlementLabel = paymentStatusLabel || order.settlementState
+              const settlementColor = settlementLabel === 'Paid'
+                ? 'var(--status-success)'
+                : settlementLabel === 'Partial Payment'
+                  ? 'var(--status-dispatched)'
+                  : 'var(--status-overdue)'
+              const settlementBg = settlementLabel === 'Paid'
+                ? 'var(--status-success-bg)'
+                : settlementLabel === 'Partial Payment'
+                  ? 'var(--status-dispatched-bg)'
+                  : 'var(--status-overdue-bg)'
               const dueLabel = formatDueDate(order)
               const isNew = isOrderNew(currentBusinessId, order.id, order.createdAt)
               const isOld = order.createdAt < oldOrderThreshold
@@ -423,7 +434,7 @@ export function ConnectionDetailScreen({ connectionId, currentBusinessId, select
                   >
                     <CardAccent color={lifecycleColor} />
                     <div className="flex items-start justify-between mb-1">
-                      <p style={{ fontSize: isOld ? '13px' : '14px', fontWeight: 600, color: isOld ? 'var(--text-secondary)' : 'var(--text-primary)', lineHeight: 1.4 }}>
+                      <p style={{ fontSize: isOld ? '14px' : '15px', fontWeight: 700, color: isOld ? 'var(--text-secondary)' : 'var(--text-primary)', lineHeight: 1.4, flex: 1, marginRight: '12px' }}>
                         {order.itemSummary}
                       </p>
                       <div style={{ marginLeft: '12px', flexShrink: 0, textAlign: 'right' }}>
@@ -438,41 +449,28 @@ export function ConnectionDetailScreen({ connectionId, currentBusinessId, select
                         )}
                       </div>
                     </div>
+                    <div className="flex items-center gap-2 mb-2" style={{ fontSize: '11px' }}>
+                      <span style={{ fontWeight: 600, color: lifecycleColor, backgroundColor: `${lifecycleColor}26`, padding: '3px 10px', borderRadius: '999px' }}>
+                        {lifecycleState}
+                      </span>
+                      <span style={{ fontWeight: 600, color: settlementColor, backgroundColor: settlementBg, padding: '3px 10px', borderRadius: '999px' }}>
+                        {settlementLabel}
+                      </span>
+                      {(attachmentCounts[order.id] || 0) > 0 && (
+                        <Paperclip size={12} style={{ color: 'var(--text-secondary)' }} />
+                      )}
+                    </div>
+                    <div style={{ borderTop: '1px solid var(--border-section)', marginTop: '10px' }} />
                     {orderAmount > 0 && (
-                      <div className="flex items-center justify-between mb-1" style={{ fontSize: '12px' }}>
-                        <span style={{ color: 'var(--text-secondary)', fontWeight: 500 }}>Order {formatInrCurrency(orderAmount)}</span>
-                        <span style={{ color: 'var(--text-secondary)', fontWeight: 500 }}>Paid {formatInrCurrency(paidAmount)}</span>
+                      <div className="flex items-center justify-between mt-2" style={{ fontSize: '12px' }}>
+                        <span style={{ color: 'var(--text-secondary)', fontWeight: 600 }}>Order <span style={{ color: 'var(--text-primary)' }}>{formatInrCurrency(orderAmount)}</span></span>
+                        <span style={{ color: 'var(--text-secondary)', fontWeight: 600 }}>Paid <span style={{ color: 'var(--text-primary)' }}>{formatInrCurrency(paidAmount)}</span></span>
                       </div>
                     )}
-                    <div className="flex items-center justify-between" style={{ fontSize: '12px' }}>
+                    <div style={{ borderTop: '1px solid var(--border-section)', marginTop: '10px' }} />
+                    <div className="flex items-center justify-between mt-2" style={{ fontSize: '12px' }}>
                       <div className="flex items-center gap-1.5">
                         <span style={{ color: 'var(--text-secondary)', fontWeight: 500 }}>{formatTimestamp(order.createdAt, isOld)}</span>
-                        <span style={{ color: 'var(--text-secondary)' }}>·</span>
-                        <span style={{ fontSize: '11px', fontWeight: 600, color: lifecycleColor, backgroundColor: `${lifecycleColor}26`, padding: '2px 8px', borderRadius: 'var(--radius-chip)' }}>{lifecycleState}</span>
-                        {(attachmentCounts[order.id] || 0) > 0 && (
-                          <>
-                            <span style={{ color: 'var(--text-secondary)' }}>·</span>
-                            <Paperclip size={11} style={{ color: 'var(--text-secondary)' }} />
-                          </>
-                        )}
-                        {paymentStatusLabel && (
-                          <>
-                            <span style={{ color: 'var(--text-secondary)' }}>·</span>
-                            <span
-                              style={{
-                                color: 'var(--status-dispatched)',
-                                backgroundColor: 'var(--status-dispatched-bg)',
-                                fontSize: '10px',
-                                fontWeight: 600,
-                                padding: '1px 6px',
-                                borderRadius: '999px',
-                                lineHeight: 1.5,
-                              }}
-                            >
-                              {paymentStatusLabel}
-                            </span>
-                          </>
-                        )}
                       </div>
                       <p style={{ color: getDueDateColor(dueLabel), fontWeight: 500 }}>{dueLabel}</p>
                     </div>
