@@ -17,7 +17,7 @@ import { markOrderSeen, isOrderNew } from '@/lib/unread-tracker'
 import { OrderAttachments } from '@/components/OrderAttachments'
 import { AddAttachmentSheet } from '@/components/AddAttachmentSheet'
 import { AttachmentViewer } from '@/components/AttachmentViewer'
-import { OrderCard } from '@/components/order/OrderCard'
+import { formatInrCurrency } from '@/lib/utils'
 
 interface Props {
   connectionId: string
@@ -389,6 +389,15 @@ export function ConnectionDetailScreen({ connectionId, currentBusinessId, select
           ) : (
             filteredOrders.map(order => {
               const lifecycleState = getLifecycleState(order)
+              const orderAmount = order.orderValue
+              const paidAmount = order.totalPaid
+              const dueAmount = Math.max(order.pendingAmount ?? (orderAmount - paidAmount), 0)
+              const topRightLabel = dueAmount > 0
+                ? { text: `${formatInrCurrency(dueAmount)} due`, color: 'var(--status-overdue)' }
+                : { text: 'Paid', color: 'var(--status-success)' }
+              const paymentStatusLabel = lifecycleState === 'Delivered' && order.settlementState === 'Partial Payment'
+                ? 'Partial Payment'
+                : null
               const dueLabel = formatDueDate(order)
               const isNew = isOrderNew(currentBusinessId, order.id, order.createdAt)
               const lifecycleColor = getLifecycleStatusColor(lifecycleState)
@@ -426,24 +435,23 @@ export function ConnectionDetailScreen({ connectionId, currentBusinessId, select
                         {order.itemSummary}
                       </p>
                       <div style={{ marginLeft: '12px', flexShrink: 0, textAlign: 'right' }}>
-                        {order.orderValue === 0 && lifecycleState === 'Placed' ? (
+                        {orderAmount === 0 && lifecycleState === 'Placed' ? (
                           <p style={{ fontSize: '14px', fontWeight: 600, color: 'var(--status-dispatched)' }}>Awaiting amount</p>
-                        ) : order.orderValue === 0 ? (
+                        ) : orderAmount === 0 ? (
                           <p style={{ fontSize: '13px', fontWeight: 500, color: 'var(--text-secondary)' }}>Amount not recorded</p>
-                        ) : order.settlementState === 'Paid' ? (
-                          <div>
-                            <p style={{ fontSize: '15px', fontWeight: 700, color: 'var(--status-delivered)' }}>{order.orderValue.toLocaleString('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 })}</p>
-                            <p style={{ fontSize: '11px', fontWeight: 600, color: 'var(--status-delivered)' }}>Paid</p>
-                          </div>
-                        ) : order.settlementState === 'Partial Payment' ? (
-                          <p style={{ fontSize: '14px', fontWeight: 600, color: 'var(--status-dispatched)' }}>{order.pendingAmount.toLocaleString('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 })} remaining</p>
                         ) : (
-                          <p style={{ fontSize: isOld ? '13px' : '15px', fontWeight: 700, color: isOld ? 'var(--text-secondary)' : 'var(--text-primary)' }}>
-                            {order.orderValue.toLocaleString('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 })}
+                          <p style={{ fontSize: isOld ? '13px' : '15px', fontWeight: 700, color: topRightLabel.color }}>
+                            {topRightLabel.text}
                           </p>
                         )}
                       </div>
                     </div>
+                    {orderAmount > 0 && (
+                      <div className="flex items-center justify-between mb-1" style={{ fontSize: '12px' }}>
+                        <span style={{ color: 'var(--text-secondary)', fontWeight: 500 }}>Order {formatInrCurrency(orderAmount)}</span>
+                        <span style={{ color: 'var(--text-secondary)', fontWeight: 500 }}>Paid {formatInrCurrency(paidAmount)}</span>
+                      </div>
+                    )}
                     <div className="flex items-center justify-between" style={{ fontSize: '12px' }}>
                       <div className="flex items-center gap-1.5">
                         <span style={{ color: 'var(--text-secondary)', fontWeight: 500 }}>{formatTimestamp(order.createdAt, isOld)}</span>

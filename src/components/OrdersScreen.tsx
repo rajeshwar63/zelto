@@ -11,7 +11,7 @@ import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import { toast } from 'sonner'
 import { InlineRefreshSpinner, ScreenRefreshIndicator, useScreenLoadState } from '@/components/ScreenLoadState'
-import { CardAccent } from '@/components/ui/card'
+import { formatInrCurrency } from '@/lib/utils'
 
 type OrderFilter = 'all' | 'today' | 'placed' | 'dispatched' | 'delivered' | 'payment_pending' | 'paid' | 'awaiting_dispatch' | 'overdue' | 'due_today'
 
@@ -219,6 +219,9 @@ export function OrdersScreen({ currentBusinessId, onSelectOrder, initialFilter, 
               const statusColor = getLifecycleStatusColor(order.lifecycleState)
               const isOverdue = order.deliveredAt && order.calculatedDueDate && Date.now() > order.calculatedDueDate && order.settlementState !== 'Paid'
               const isDueToday = order.deliveredAt && order.calculatedDueDate && isToday(order.calculatedDueDate) && order.settlementState !== 'Paid'
+              const orderAmount = order.orderValue
+              const paidAmount = order.totalPaid
+              const dueAmount = Math.max(order.pendingAmount ?? (orderAmount - paidAmount), 0)
               const paymentStatusLabel = order.lifecycleState === 'Delivered' && order.settlementState === 'Partial Payment'
                 ? 'Partial Payment'
                 : null
@@ -227,6 +230,9 @@ export function OrdersScreen({ currentBusinessId, onSelectOrder, initialFilter, 
                 : isDueToday
                   ? { label: 'Due today', color: 'var(--status-dispatched)' }
                   : null
+              const topRightLabel = dueAmount > 0
+                ? { text: `${formatInrCurrency(dueAmount)} due`, color: 'var(--status-overdue)' }
+                : { text: 'Paid', color: 'var(--status-success)' }
 
               return (
                 <OrderCard
@@ -245,28 +251,28 @@ export function OrdersScreen({ currentBusinessId, onSelectOrder, initialFilter, 
                     <p style={{ fontSize: '15px', fontWeight: 700, color: 'var(--text-primary)', flex: 1, marginRight: '12px' }}>
                       {order.itemSummary}
                     </p>
-                    {order.orderValue > 0 && (
-                      order.settlementState === 'Partial Payment' ? (
-                        <p style={{ fontSize: '15px', fontWeight: 700, color: 'var(--status-dispatched)', flexShrink: 0 }}>
-                          {order.pendingAmount.toLocaleString('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 })} remaining
-                        </p>
-                      ) : (
-                        <p
-                          style={{
-                            fontSize: '15px',
-                            fontWeight: 700,
-                            color: order.settlementState === 'Paid' ? 'var(--status-success)' : 'var(--text-primary)',
-                            flexShrink: 0,
-                          }}
-                        >
-                          {order.orderValue.toLocaleString('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 })}
-                        </p>
-                      )
+                    {orderAmount > 0 && (
+                      <p
+                        style={{
+                          fontSize: '15px',
+                          fontWeight: 700,
+                          color: topRightLabel.color,
+                          flexShrink: 0,
+                        }}
+                      >
+                        {topRightLabel.text}
+                      </p>
                     )}
                   </div>
                   <p style={{ fontSize: '12px', fontWeight: 500, color: 'var(--text-secondary)', marginTop: '4px' }} className="truncate">
                     {order.connectionName}
                   </p>
+                  {orderAmount > 0 && (
+                    <div className="flex items-center justify-between mt-1" style={{ fontSize: '12px' }}>
+                      <span style={{ color: 'var(--text-secondary)', fontWeight: 500 }}>Order {formatInrCurrency(orderAmount)}</span>
+                      <span style={{ color: 'var(--text-secondary)', fontWeight: 500 }}>Paid {formatInrCurrency(paidAmount)}</span>
+                    </div>
+                  )}
                   <div className="flex items-center gap-1.5 mt-1" style={{ fontSize: '12px' }}>
                     <span
                       style={{
