@@ -5,6 +5,7 @@ import { useOrdersData } from '@/hooks/data/use-business-data'
 import { formatDistanceToNow, isToday } from 'date-fns'
 import type { Connection, BusinessEntity } from '@/lib/types'
 import { getLifecycleStatusColor } from '@/lib/semantic-colors'
+import { OrderCard } from '@/components/order/OrderCard'
 import { PencilSimple, MagnifyingGlass, X, PaperPlaneTilt } from '@phosphor-icons/react'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
@@ -234,18 +235,18 @@ export function OrdersScreen({ currentBusinessId, onSelectOrder, initialFilter, 
                 : { text: 'Paid', color: 'var(--status-success)' }
 
               return (
-                <button
+                <OrderCard
                   key={order.id}
                   onClick={() => onSelectOrder(order.id, order.connectionId)}
-                  className="w-full text-left"
+                  className="w-full text-left relative overflow-hidden"
                   style={{
                     backgroundColor: 'var(--bg-card)',
                     borderRadius: 'var(--radius-card)',
-                    padding: '14px 16px',
-                    borderLeft: `3px solid ${statusColor}`,
+                    padding: '14px 16px 14px 20px',
                     minHeight: '44px',
                   }}
                 >
+                  <CardAccent color={statusColor} />
                   <div className="flex items-start justify-between">
                     <p style={{ fontSize: '15px', fontWeight: 700, color: 'var(--text-primary)', flex: 1, marginRight: '12px' }}>
                       {order.itemSummary}
