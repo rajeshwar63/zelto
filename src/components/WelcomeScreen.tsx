@@ -18,7 +18,7 @@ export function WelcomeScreen({ onContinue, onLoginOnly }: WelcomeScreenProps) {
   const [isLoading, setIsLoading] = useState(false)
   const [errors, setErrors] = useState<{ name?: string; businessName?: string; email?: string }>({})
 
-  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+  const emailRegex = /^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -75,7 +75,7 @@ export function WelcomeScreen({ onContinue, onLoginOnly }: WelcomeScreenProps) {
                 <Input
                   id="name"
                   type="text"
-                  placeholder="Rajeshwar Kumar"
+                  placeholder="First Name Last Name"
                   value={name}
                   onChange={(e) => {
                     setName(e.target.value)
@@ -97,7 +97,7 @@ export function WelcomeScreen({ onContinue, onLoginOnly }: WelcomeScreenProps) {
                 <Input
                   id="businessName"
                   type="text"
-                  placeholder="Sri Lakshmi Traders"
+                  placeholder="Company Name"
                   value={businessName}
                   onChange={(e) => {
                     setBusinessName(e.target.value)
