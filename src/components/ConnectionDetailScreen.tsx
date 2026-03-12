@@ -377,20 +377,6 @@ export function ConnectionDetailScreen({ connectionId, currentBusinessId, onBack
               const topRightLabel = dueAmount > 0
                 ? { text: `${formatInrCurrency(dueAmount)} due`, color: 'var(--status-overdue)' }
                 : { text: 'Paid', color: 'var(--status-success)' }
-              const paymentStatusLabel = lifecycleState === 'Delivered' && order.settlementState === 'Partial Payment'
-                ? 'Partial Payment'
-                : null
-              const settlementLabel = paymentStatusLabel || order.settlementState
-              const settlementColor = settlementLabel === 'Paid'
-                ? 'var(--status-success)'
-                : settlementLabel === 'Partial Payment'
-                  ? 'var(--status-dispatched)'
-                  : 'var(--status-overdue)'
-              const settlementBg = settlementLabel === 'Paid'
-                ? 'var(--status-success-bg)'
-                : settlementLabel === 'Partial Payment'
-                  ? 'var(--status-dispatched-bg)'
-                  : 'var(--status-overdue-bg)'
               const dueLabel = formatDueDate(order)
               const isNew = isOrderNew(currentBusinessId, order.id, order.createdAt)
               const isOld = order.createdAt < oldOrderThreshold
@@ -434,9 +420,6 @@ export function ConnectionDetailScreen({ connectionId, currentBusinessId, onBack
                     <div className="flex items-center gap-2 mb-2" style={{ fontSize: '11px' }}>
                       <span style={{ fontWeight: 600, color: lifecycleColor, backgroundColor: `${lifecycleColor}26`, padding: '3px 10px', borderRadius: '999px' }}>
                         {lifecycleState}
-                      </span>
-                      <span style={{ fontWeight: 600, color: settlementColor, backgroundColor: settlementBg, padding: '3px 10px', borderRadius: '999px' }}>
-                        {settlementLabel}
                       </span>
                       {(attachmentCounts[order.id] || 0) > 0 && (
                         <Paperclip size={12} style={{ color: 'var(--text-secondary)' }} />
