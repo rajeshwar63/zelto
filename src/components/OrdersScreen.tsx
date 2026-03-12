@@ -235,9 +235,22 @@ export function OrdersScreen({ currentBusinessId, onSelectOrder, initialFilter, 
                       {order.itemSummary}
                     </p>
                     {order.orderValue > 0 && (
-                      <p style={{ fontSize: '15px', fontWeight: 700, color: 'var(--text-primary)', flexShrink: 0 }}>
-                        {order.orderValue.toLocaleString('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 })}
-                      </p>
+                      order.settlementState === 'Partial Payment' ? (
+                        <p style={{ fontSize: '15px', fontWeight: 700, color: 'var(--status-dispatched)', flexShrink: 0 }}>
+                          {order.pendingAmount.toLocaleString('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 })} remaining
+                        </p>
+                      ) : (
+                        <p
+                          style={{
+                            fontSize: '15px',
+                            fontWeight: 700,
+                            color: order.settlementState === 'Paid' ? 'var(--status-success)' : 'var(--text-primary)',
+                            flexShrink: 0,
+                          }}
+                        >
+                          {order.orderValue.toLocaleString('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 })}
+                        </p>
+                      )
                     )}
                   </div>
                   <p style={{ fontSize: '12px', fontWeight: 500, color: 'var(--text-secondary)', marginTop: '4px' }} className="truncate">
