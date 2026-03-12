@@ -389,6 +389,9 @@ export function ConnectionDetailScreen({ connectionId, currentBusinessId, select
             filteredOrders.map(order => {
               const isOld = order.createdAt < oldOrderThreshold
               const lifecycleState = getLifecycleState(order)
+              const paymentStatusLabel = lifecycleState === 'Delivered' && order.settlementState === 'Partial Payment'
+                ? 'Partial Payment'
+                : null
               const dueLabel = formatDueDate(order)
               const isNew = isOrderNew(currentBusinessId, order.id, order.createdAt)
               return (
@@ -443,6 +446,24 @@ export function ConnectionDetailScreen({ connectionId, currentBusinessId, select
                           <>
                             <span style={{ color: 'var(--text-secondary)' }}>·</span>
                             <Paperclip size={11} style={{ color: 'var(--text-secondary)' }} />
+                          </>
+                        )}
+                        {paymentStatusLabel && (
+                          <>
+                            <span style={{ color: 'var(--text-secondary)' }}>·</span>
+                            <span
+                              style={{
+                                color: 'var(--status-dispatched)',
+                                backgroundColor: 'var(--status-dispatched-bg)',
+                                fontSize: '10px',
+                                fontWeight: 600,
+                                padding: '1px 6px',
+                                borderRadius: '999px',
+                                lineHeight: 1.5,
+                              }}
+                            >
+                              {paymentStatusLabel}
+                            </span>
                           </>
                         )}
                       </div>
