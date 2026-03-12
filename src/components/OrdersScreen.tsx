@@ -5,6 +5,7 @@ import { useOrdersData } from '@/hooks/data/use-business-data'
 import { formatDistanceToNow, isToday } from 'date-fns'
 import type { Connection, BusinessEntity } from '@/lib/types'
 import { getLifecycleStatusColor } from '@/lib/semantic-colors'
+import { OrderCard } from '@/components/order/OrderCard'
 import { PencilSimple, MagnifyingGlass, X, PaperPlaneTilt } from '@phosphor-icons/react'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
@@ -228,7 +229,7 @@ export function OrdersScreen({ currentBusinessId, onSelectOrder, initialFilter, 
                   : null
 
               return (
-                <button
+                <OrderCard
                   key={order.id}
                   onClick={() => onSelectOrder(order.id, order.connectionId)}
                   className="w-full text-left relative overflow-hidden"

@@ -17,7 +17,7 @@ import { markOrderSeen, isOrderNew } from '@/lib/unread-tracker'
 import { OrderAttachments } from '@/components/OrderAttachments'
 import { AddAttachmentSheet } from '@/components/AddAttachmentSheet'
 import { AttachmentViewer } from '@/components/AttachmentViewer'
-import { CardAccent } from '@/components/ui/card'
+import { OrderCard } from '@/components/order/OrderCard'
 
 interface Props {
   connectionId: string
@@ -388,11 +388,7 @@ export function ConnectionDetailScreen({ connectionId, currentBusinessId, select
             </div>
           ) : (
             filteredOrders.map(order => {
-              const isOld = order.createdAt < oldOrderThreshold
               const lifecycleState = getLifecycleState(order)
-              const paymentStatusLabel = lifecycleState === 'Delivered' && order.settlementState === 'Partial Payment'
-                ? 'Partial Payment'
-                : null
               const dueLabel = formatDueDate(order)
               const isNew = isOrderNew(currentBusinessId, order.id, order.createdAt)
               const lifecycleColor = getLifecycleStatusColor(lifecycleState)
@@ -402,7 +398,16 @@ export function ConnectionDetailScreen({ connectionId, currentBusinessId, select
                   actionLabel={showArchived ? 'Unarchive' : 'Archive'}
                   onAction={() => showArchived ? handleUnarchiveOrder(order.id) : handleArchiveOrder(order.id)}
                 >
-                  <button
+                  <OrderCard
+                    itemSummary={order.itemSummary}
+                    dueText={order.pendingAmount > 0 ? `${order.pendingAmount.toLocaleString('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 })} due` : 'No due'}
+                    connectionName={order.connectionName}
+                    lifecycleLabel={lifecycleState}
+                    settlementLabel={settlementLabel}
+                    lifecycleColor={getLifecycleStatusColor(lifecycleState)}
+                    orderValue={order.orderValue}
+                    totalPaid={order.totalPaid}
+                    relativeTime={formatTimestamp(order.createdAt, order.createdAt < oldOrderThreshold)}
                     onClick={() => {
                       markOrderSeen(currentBusinessId, order.id)
                       setViewingOrderId(order.id)
