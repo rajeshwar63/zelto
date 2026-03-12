@@ -216,6 +216,15 @@ export function OrdersScreen({ currentBusinessId, onSelectOrder, initialFilter, 
             {filteredOrders.map(order => {
               const statusColor = getLifecycleStatusColor(order.lifecycleState)
               const isOverdue = order.deliveredAt && order.calculatedDueDate && Date.now() > order.calculatedDueDate && order.settlementState !== 'Paid'
+              const isDueToday = order.deliveredAt && order.calculatedDueDate && isToday(order.calculatedDueDate) && order.settlementState !== 'Paid'
+              const paymentStatusLabel = order.lifecycleState === 'Delivered' && order.settlementState === 'Partial Payment'
+                ? 'Partial Payment'
+                : null
+              const dueStatus = isOverdue
+                ? { label: 'Overdue', color: 'var(--status-overdue)' }
+                : isDueToday
+                  ? { label: 'Due today', color: 'var(--status-dispatched)' }
+                  : null
 
               return (
                 <button
@@ -273,10 +282,28 @@ export function OrdersScreen({ currentBusinessId, onSelectOrder, initialFilter, 
                     <span style={{ color: 'var(--text-secondary)', fontSize: '12px', fontWeight: 500 }}>
                       {formatDistanceToNow(order.latestActivity, { addSuffix: true })}
                     </span>
-                    {isOverdue && (
+                    {dueStatus && (
                       <>
                         <span style={{ color: 'var(--text-secondary)' }}>·</span>
-                        <span style={{ color: 'var(--status-overdue)', fontSize: '11px', fontWeight: 600 }}>Overdue</span>
+                        <span style={{ color: dueStatus.color, fontSize: '11px', fontWeight: 600 }}>{dueStatus.label}</span>
+                      </>
+                    )}
+                    {paymentStatusLabel && (
+                      <>
+                        <span style={{ color: 'var(--text-secondary)' }}>·</span>
+                        <span
+                          style={{
+                            color: 'var(--status-dispatched)',
+                            backgroundColor: 'var(--status-dispatched-bg)',
+                            fontSize: '10px',
+                            fontWeight: 600,
+                            padding: '1px 6px',
+                            borderRadius: '999px',
+                            lineHeight: 1.5,
+                          }}
+                        >
+                          {paymentStatusLabel}
+                        </span>
                       </>
                     )}
                   </div>
