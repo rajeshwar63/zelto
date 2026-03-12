@@ -111,7 +111,7 @@ export function DashboardScreen({ currentBusinessId, onNavigateToOrders, onNavig
                         <div className="flex h-9 w-9 items-center justify-center rounded-full bg-[var(--status-delivered)]/12 text-[var(--status-delivered)]">
                           <CurrencyInr size={17} weight="bold" />
                         </div>
-                        <span className="absolute -top-0.5 -left-0.5 flex h-4 w-4 items-center justify-center rounded-full bg-[var(--status-delivered)] text-white">
+                        <span className="absolute -top-0.5 -right-0.5 flex h-4 w-4 items-center justify-center rounded-full bg-[var(--status-delivered)] text-white">
                           <ArrowDown size={9} weight="bold" />
                         </span>
                       </div>
@@ -129,7 +129,7 @@ export function DashboardScreen({ currentBusinessId, onNavigateToOrders, onNavig
                         <div className="flex h-9 w-9 items-center justify-center rounded-full bg-destructive/10 text-destructive">
                           <CurrencyInr size={17} weight="bold" />
                         </div>
-                        <span className="absolute -top-0.5 -left-0.5 flex h-4 w-4 items-center justify-center rounded-full bg-destructive text-white">
+                        <span className="absolute -top-0.5 -right-0.5 flex h-4 w-4 items-center justify-center rounded-full bg-destructive text-white">
                           <ArrowUp size={9} weight="bold" />
                         </span>
                       </div>
@@ -153,7 +153,7 @@ export function DashboardScreen({ currentBusinessId, onNavigateToOrders, onNavig
                         <div className="flex h-9 w-9 items-center justify-center rounded-full bg-[var(--status-delivered)]/12 text-[var(--status-delivered)]">
                           <CurrencyInr size={17} weight="bold" />
                         </div>
-                        <span className="absolute -top-0.5 -left-0.5 flex h-4 w-4 items-center justify-center rounded-full bg-[var(--status-delivered)] text-white">
+                        <span className="absolute -top-0.5 -right-0.5 flex h-4 w-4 items-center justify-center rounded-full bg-[var(--status-delivered)] text-white">
                           <ArrowDown size={9} weight="bold" />
                         </span>
                       </div>
@@ -171,7 +171,7 @@ export function DashboardScreen({ currentBusinessId, onNavigateToOrders, onNavig
                         <div className="flex h-9 w-9 items-center justify-center rounded-full bg-destructive/10 text-destructive">
                           <CurrencyInr size={17} weight="bold" />
                         </div>
-                        <span className="absolute -top-0.5 -left-0.5 flex h-4 w-4 items-center justify-center rounded-full bg-destructive text-white">
+                        <span className="absolute -top-0.5 -right-0.5 flex h-4 w-4 items-center justify-center rounded-full bg-destructive text-white">
                           <ArrowUp size={9} weight="bold" />
                         </span>
                       </div>
@@ -195,7 +195,7 @@ export function DashboardScreen({ currentBusinessId, onNavigateToOrders, onNavig
                         <div className="flex h-9 w-9 items-center justify-center rounded-full bg-[var(--status-delivered)]/12 text-[var(--status-delivered)]">
                           <CurrencyInr size={17} weight="bold" />
                         </div>
-                        <span className="absolute -top-0.5 -left-0.5 flex h-4 w-4 items-center justify-center rounded-full bg-[var(--status-delivered)] text-white">
+                        <span className="absolute -top-0.5 -right-0.5 flex h-4 w-4 items-center justify-center rounded-full bg-[var(--status-delivered)] text-white">
                           <ArrowDown size={9} weight="bold" />
                         </span>
                       </div>
@@ -211,7 +211,7 @@ export function DashboardScreen({ currentBusinessId, onNavigateToOrders, onNavig
                         <div className="flex h-9 w-9 items-center justify-center rounded-full bg-destructive/10 text-destructive">
                           <CurrencyInr size={17} weight="bold" />
                         </div>
-                        <span className="absolute -top-0.5 -left-0.5 flex h-4 w-4 items-center justify-center rounded-full bg-destructive text-white">
+                        <span className="absolute -top-0.5 -right-0.5 flex h-4 w-4 items-center justify-center rounded-full bg-destructive text-white">
                           <ArrowUp size={9} weight="bold" />
                         </span>
                       </div>
@@ -232,7 +232,7 @@ export function DashboardScreen({ currentBusinessId, onNavigateToOrders, onNavig
                         <div className="flex h-9 w-9 items-center justify-center rounded-full bg-[var(--status-delivered)]/12 text-[var(--status-delivered)]">
                           <CurrencyInr size={17} weight="bold" />
                         </div>
-                        <span className="absolute -top-0.5 -left-0.5 flex h-4 w-4 items-center justify-center rounded-full bg-[var(--status-delivered)] text-white">
+                        <span className="absolute -top-0.5 -right-0.5 flex h-4 w-4 items-center justify-center rounded-full bg-[var(--status-delivered)] text-white">
                           <ArrowDown size={9} weight="bold" />
                         </span>
                       </div>
@@ -248,7 +248,7 @@ export function DashboardScreen({ currentBusinessId, onNavigateToOrders, onNavig
                         <div className="flex h-9 w-9 items-center justify-center rounded-full bg-destructive/10 text-destructive">
                           <CurrencyInr size={17} weight="bold" />
                         </div>
-                        <span className="absolute -top-0.5 -left-0.5 flex h-4 w-4 items-center justify-center rounded-full bg-destructive text-white">
+                        <span className="absolute -top-0.5 -right-0.5 flex h-4 w-4 items-center justify-center rounded-full bg-destructive text-white">
                           <ArrowUp size={9} weight="bold" />
                         </span>
                       </div>
