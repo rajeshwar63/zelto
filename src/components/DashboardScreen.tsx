@@ -1,4 +1,4 @@
-import { CaretRight, CheckCircle, ClockClockwise, Package, ShieldWarning, Truck } from '@phosphor-icons/react'
+import { ArrowDown, ArrowUp, CaretRight, CheckCircle, ClockClockwise, Package, ShieldWarning, Truck } from '@phosphor-icons/react'
 import { useEffect, useState } from 'react'
 import { useBusinessOverviewData } from '@/hooks/data/use-business-data'
 import { getLifecycleStatusColor } from '@/lib/semantic-colors'
@@ -17,6 +17,8 @@ interface Props {
 export function DashboardScreen({ currentBusinessId, onNavigateToOrders, onNavigateToConnection, onNavigateToConnections, onNavigateToAttention, isActive = true }: Props) {
   const [tradePositionCarouselApi, setTradePositionCarouselApi] = useState<CarouselApi>()
   const [activeTradePositionSlide, setActiveTradePositionSlide] = useState(0)
+
+  const tradePositionTabs = ['Next 7 Days', 'Next 30 Days', 'Past 7 Days', 'Past 30 Days']
 
   useEffect(() => {
     if (!tradePositionCarouselApi) {
@@ -84,100 +86,142 @@ export function DashboardScreen({ currentBusinessId, onNavigateToOrders, onNavig
           <div className="rounded-2xl border border-border bg-card p-4">
             <h2 className="text-[16px] font-semibold text-foreground">Trade Position</h2>
 
-            <Carousel setApi={setTradePositionCarouselApi} opts={{ align: 'start' }}>
+            <div className="mt-3 grid grid-cols-2 gap-2 rounded-2xl border border-border bg-muted/30 p-1 md:grid-cols-4">
+              {tradePositionTabs.map((tab, index) => (
+                <button
+                  key={tab}
+                  type="button"
+                  onClick={() => tradePositionCarouselApi?.scrollTo(index)}
+                  className={`rounded-xl px-3 py-2 text-[13px] font-medium transition-colors ${
+                    activeTradePositionSlide === index
+                      ? 'bg-card text-foreground shadow-sm'
+                      : 'text-muted-foreground hover:text-foreground'
+                  }`}
+                >
+                  {tab}
+                </button>
+              ))}
+            </div>
+
+            <Carousel setApi={setTradePositionCarouselApi} opts={{ align: 'start' }} className="mt-4">
               <CarouselContent className="-ml-0">
                 <CarouselItem className="pl-0">
-                  <div>
-                    <p className="text-[11px] uppercase tracking-wide text-muted-foreground/70 mb-3">Next 7 Days</p>
-                    <p className="text-[11px] text-muted-foreground mb-3">Includes overdue amount</p>
-                    <div className="space-y-3">
-                      <div className="flex items-center justify-between">
-                        <p className="text-[13px] text-muted-foreground">Coming In</p>
-                        <p className="text-[14px] font-semibold text-[var(--status-delivered)]">₹{data.tradePosition.next7Days.comingIn.toLocaleString('en-IN')}</p>
+                  <div className="space-y-4">
+                    <div className="rounded-xl border border-border/80 p-3">
+                      <div className="flex items-center gap-3">
+                        <div className="flex h-11 w-11 items-center justify-center rounded-full bg-[var(--status-delivered)]/12 text-[var(--status-delivered)]">
+                          <ArrowDown size={20} weight="bold" />
+                        </div>
+                        <div>
+                          <p className="text-[15px] text-foreground">Money Coming in</p>
+                          <p className="text-[22px] font-semibold text-[var(--status-delivered)]">₹{data.tradePosition.next7Days.comingIn.toLocaleString('en-IN')}</p>
+                        </div>
                       </div>
-                      <div className="flex items-center justify-between">
-                        <p className="text-[13px] text-muted-foreground">Going Out</p>
-                        <p className="text-[14px] font-semibold text-foreground">₹{data.tradePosition.next7Days.goingOut.toLocaleString('en-IN')}</p>
+                      <p className="mt-2 text-[11px] text-muted-foreground">Includes overdue amounts</p>
+                    </div>
+
+                    <div className="rounded-xl border border-border/80 p-3">
+                      <div className="flex items-center gap-3">
+                        <div className="flex h-11 w-11 items-center justify-center rounded-full bg-destructive/12 text-destructive">
+                          <ArrowUp size={20} weight="bold" />
+                        </div>
+                        <div>
+                          <p className="text-[15px] text-foreground">Money Going Out</p>
+                          <p className="text-[22px] font-semibold text-foreground">₹{data.tradePosition.next7Days.goingOut.toLocaleString('en-IN')}</p>
+                        </div>
                       </div>
-                      <div className="flex items-center justify-between">
-                        <p className="text-[13px] text-muted-foreground">Net</p>
-                        <p className={`text-[14px] font-semibold ${data.tradePosition.next7Days.net >= 0 ? 'text-[var(--status-delivered)]' : 'text-destructive'}`}>
-                          {data.tradePosition.next7Days.net >= 0 ? '+' : '-'}₹{Math.abs(data.tradePosition.next7Days.net).toLocaleString('en-IN')}
-                        </p>
+                      <p className="mt-2 text-[11px] text-muted-foreground">Includes overdue amounts</p>
+                    </div>
+                  </div>
+                </CarouselItem>
+
+                <CarouselItem className="pl-0">
+                  <div className="space-y-4">
+                    <div className="rounded-xl border border-border/80 p-3">
+                      <div className="flex items-center gap-3">
+                        <div className="flex h-11 w-11 items-center justify-center rounded-full bg-[var(--status-delivered)]/12 text-[var(--status-delivered)]">
+                          <ArrowDown size={20} weight="bold" />
+                        </div>
+                        <div>
+                          <p className="text-[15px] text-foreground">Money Coming in</p>
+                          <p className="text-[22px] font-semibold text-[var(--status-delivered)]">₹{data.tradePosition.next30Days.comingIn.toLocaleString('en-IN')}</p>
+                        </div>
+                      </div>
+                      <p className="mt-2 text-[11px] text-muted-foreground">Includes overdue amounts</p>
+                    </div>
+
+                    <div className="rounded-xl border border-border/80 p-3">
+                      <div className="flex items-center gap-3">
+                        <div className="flex h-11 w-11 items-center justify-center rounded-full bg-destructive/12 text-destructive">
+                          <ArrowUp size={20} weight="bold" />
+                        </div>
+                        <div>
+                          <p className="text-[15px] text-foreground">Money Going Out</p>
+                          <p className="text-[22px] font-semibold text-foreground">₹{data.tradePosition.next30Days.goingOut.toLocaleString('en-IN')}</p>
+                        </div>
+                      </div>
+                      <p className="mt-2 text-[11px] text-muted-foreground">Includes overdue amounts</p>
+                    </div>
+                  </div>
+                </CarouselItem>
+
+                <CarouselItem className="pl-0">
+                  <div className="space-y-4">
+                    <div className="rounded-xl border border-border/80 p-3">
+                      <div className="flex items-center gap-3">
+                        <div className="flex h-11 w-11 items-center justify-center rounded-full bg-[var(--status-delivered)]/12 text-[var(--status-delivered)]">
+                          <ArrowDown size={20} weight="bold" />
+                        </div>
+                        <div>
+                          <p className="text-[15px] text-foreground">Money Recieved</p>
+                          <p className="text-[22px] font-semibold text-[var(--status-delivered)]">₹{data.tradePosition.past7Days.moneyReceived.toLocaleString('en-IN')}</p>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="rounded-xl border border-border/80 p-3">
+                      <div className="flex items-center gap-3">
+                        <div className="flex h-11 w-11 items-center justify-center rounded-full bg-destructive/12 text-destructive">
+                          <ArrowUp size={20} weight="bold" />
+                        </div>
+                        <div>
+                          <p className="text-[15px] text-foreground">Money Paid</p>
+                          <p className="text-[22px] font-semibold text-foreground">₹{data.tradePosition.past7Days.moneyPaid.toLocaleString('en-IN')}</p>
+                        </div>
                       </div>
                     </div>
                   </div>
                 </CarouselItem>
 
                 <CarouselItem className="pl-0">
-                  <div>
-                    <p className="text-[11px] uppercase tracking-wide text-muted-foreground/70 mb-3">Next 30 Days</p>
-                    <p className="text-[11px] text-muted-foreground mb-3">Includes overdue amount</p>
-                    <div className="space-y-3">
-                      <div className="flex items-center justify-between">
-                        <p className="text-[13px] text-muted-foreground">Coming In</p>
-                        <p className="text-[14px] font-semibold text-[var(--status-delivered)]">₹{data.tradePosition.next30Days.comingIn.toLocaleString('en-IN')}</p>
-                      </div>
-                      <div className="flex items-center justify-between">
-                        <p className="text-[13px] text-muted-foreground">Going Out</p>
-                        <p className="text-[14px] font-semibold text-foreground">₹{data.tradePosition.next30Days.goingOut.toLocaleString('en-IN')}</p>
-                      </div>
-                      <div className="flex items-center justify-between">
-                        <p className="text-[13px] text-muted-foreground">Net</p>
-                        <p className={`text-[14px] font-semibold ${data.tradePosition.next30Days.net >= 0 ? 'text-[var(--status-delivered)]' : 'text-destructive'}`}>
-                          {data.tradePosition.next30Days.net >= 0 ? '+' : '-'}₹{Math.abs(data.tradePosition.next30Days.net).toLocaleString('en-IN')}
-                        </p>
+                  <div className="space-y-4">
+                    <div className="rounded-xl border border-border/80 p-3">
+                      <div className="flex items-center gap-3">
+                        <div className="flex h-11 w-11 items-center justify-center rounded-full bg-[var(--status-delivered)]/12 text-[var(--status-delivered)]">
+                          <ArrowDown size={20} weight="bold" />
+                        </div>
+                        <div>
+                          <p className="text-[15px] text-foreground">Money Recieved</p>
+                          <p className="text-[22px] font-semibold text-[var(--status-delivered)]">₹{data.tradePosition.past30Days.moneyReceived.toLocaleString('en-IN')}</p>
+                        </div>
                       </div>
                     </div>
-                  </div>
-                </CarouselItem>
 
-                <CarouselItem className="pl-0">
-                  <div>
-                    <p className="text-[11px] uppercase tracking-wide text-muted-foreground/70 mb-3">Past 7 Days</p>
-                    <div className="space-y-3">
-                      <div className="flex items-center justify-between">
-                        <p className="text-[13px] text-muted-foreground">Money Paid</p>
-                        <p className="text-[14px] font-semibold text-foreground">₹{data.tradePosition.past7Days.moneyPaid.toLocaleString('en-IN')}</p>
-                      </div>
-                      <div className="flex items-center justify-between">
-                        <p className="text-[13px] text-muted-foreground">Money Received</p>
-                        <p className="text-[14px] font-semibold text-[var(--status-delivered)]">₹{data.tradePosition.past7Days.moneyReceived.toLocaleString('en-IN')}</p>
-                      </div>
-                    </div>
-                  </div>
-                </CarouselItem>
-
-                <CarouselItem className="pl-0">
-                  <div>
-                    <p className="text-[11px] uppercase tracking-wide text-muted-foreground/70 mb-3">Past 30 Days</p>
-                    <div className="space-y-3">
-                      <div className="flex items-center justify-between">
-                        <p className="text-[13px] text-muted-foreground">Money Paid</p>
-                        <p className="text-[14px] font-semibold text-foreground">₹{data.tradePosition.past30Days.moneyPaid.toLocaleString('en-IN')}</p>
-                      </div>
-                      <div className="flex items-center justify-between">
-                        <p className="text-[13px] text-muted-foreground">Money Received</p>
-                        <p className="text-[14px] font-semibold text-[var(--status-delivered)]">₹{data.tradePosition.past30Days.moneyReceived.toLocaleString('en-IN')}</p>
+                    <div className="rounded-xl border border-border/80 p-3">
+                      <div className="flex items-center gap-3">
+                        <div className="flex h-11 w-11 items-center justify-center rounded-full bg-destructive/12 text-destructive">
+                          <ArrowUp size={20} weight="bold" />
+                        </div>
+                        <div>
+                          <p className="text-[15px] text-foreground">Money Paid</p>
+                          <p className="text-[22px] font-semibold text-foreground">₹{data.tradePosition.past30Days.moneyPaid.toLocaleString('en-IN')}</p>
+                        </div>
                       </div>
                     </div>
                   </div>
                 </CarouselItem>
               </CarouselContent>
             </Carousel>
-
-            <div className="mt-4 flex items-center justify-center gap-2">
-              {[0, 1, 2, 3].map(slideIndex => (
-                <button
-                  key={slideIndex}
-                  type="button"
-                  onClick={() => tradePositionCarouselApi?.scrollTo(slideIndex)}
-                  className="h-2 w-2 rounded-full transition-colors"
-                  style={{ backgroundColor: activeTradePositionSlide === slideIndex ? '#6B7280' : '#D1D5DB' }}
-                  aria-label={`Go to ${slideIndex === 0 ? 'next 7 days' : slideIndex === 1 ? 'next 30 days' : slideIndex === 2 ? 'past 7 days' : 'past 30 days'} trade position`}
-                />
-              ))}
-            </div>
           </div>
 
         </div>
