@@ -51,7 +51,8 @@ export function DashboardScreen({ currentBusinessId, onNavigateToOrders, onNavig
     return <div className="p-4 text-sm text-muted-foreground">Loading...</div>
   }
 
-  const firstName = (overview.username ?? '').trim().split(/\s+/)[0] ?? ''
+  const trimmedUsername = (overview.username ?? '').trim()
+  const firstName = trimmedUsername ? trimmedUsername.split(/\s+/)[0] : ''
 
   const data = {
     username: firstName,
