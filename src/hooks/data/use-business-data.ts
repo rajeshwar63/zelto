@@ -121,7 +121,7 @@ export function useBusinessOverviewData(currentBusinessId: string, isActive = tr
         ? await dataStore.getPaymentEventsByOrderIds(orderIds)
         : []
 
-      const username = session?.userAccount?.username || 'there'
+      const username = session?.userAccount?.username?.trim() ?? ''
 
       const connMap = new Map<string, Connection>(connections.map(conn => [conn.id, conn]))
       const entityMap = new Map(entities.map(entity => [entity.id, entity]))
