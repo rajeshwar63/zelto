@@ -3,7 +3,7 @@ import { dataStore } from '@/lib/data-store'
 import { insightEngine } from '@/lib/insight-engine'
 import { transitionOrderState, recordPayment, createIssue, createOrder, addAttachment, deleteAttachment, disputePayment } from '@/lib/interactions'
 import { useDataListener } from '@/lib/data-events'
-import { formatDistanceToNow, differenceInDays, format } from 'date-fns'
+import { formatDistanceToNow, format } from 'date-fns'
 import type { Connection, OrderWithPaymentState, BusinessEntity, PaymentEvent, OrderAttachment, AttachmentType } from '@/lib/types'
 import { CaretLeft, CaretDown, CaretRight, Paperclip } from '@phosphor-icons/react'
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible'
@@ -15,10 +15,14 @@ import { getConnectionStateColor, getDueDateColor, getLifecycleStatusColor } fro
 import { motion, useMotionValue, useTransform, animate, PanInfo, AnimatePresence } from 'framer-motion'
 import { getArchivedOrderIds, archiveOrder as doArchiveOrder, unarchiveOrder as doUnarchiveOrder } from '@/lib/archive-store'
 import { markOrderSeen, isOrderNew } from '@/lib/unread-tracker'
-import { OrderAttachments } from '@/components/OrderAttachments'
 import { AddAttachmentSheet } from '@/components/AddAttachmentSheet'
 import { AttachmentViewer } from '@/components/AttachmentViewer'
 import { formatInrCurrency } from '@/lib/utils'
+import { OrderStatusHeader } from '@/components/order/OrderStatusHeader'
+import { OrderPaymentSummary } from '@/components/order/OrderPaymentSummary'
+import { OrderTimeline } from '@/components/order/OrderTimeline'
+import { OrderAttachmentsSection } from '@/components/order/OrderAttachmentsSection'
+import { buildOrderTimeline, formatDueDate, formatPaymentTerms, getLifecycleState } from '@/components/order/order-detail-utils'
 
 interface Props {
   connectionId: string
@@ -30,40 +34,6 @@ interface Props {
 }
 
 type TimeFilter = '7d' | '30d' | '90d' | '1y'
-
-function formatPaymentTerms(terms: Connection['paymentTerms']): string {
-  if (!terms) return 'Not set'
-  switch (terms.type) {
-    case 'Advance Required': return 'Advance Required'
-    case 'Payment on Delivery': return 'Payment on Delivery'
-    case 'Bill to Bill': return 'Bill to Bill'
-    case 'Days After Delivery': return `${terms.days} days after delivery`
-  }
-}
-
-function getLifecycleState(order: OrderWithPaymentState): string {
-  if (order.declinedAt) return 'Declined'
-  if (order.deliveredAt) return 'Delivered'
-  if (order.dispatchedAt) return 'Dispatched'
-  if (order.acceptedAt) return 'Accepted'
-  return 'Placed'
-}
-
-function formatDueDate(order: OrderWithPaymentState): string {
-  if (order.settlementState === 'Paid') return 'Paid'
-  if (!order.calculatedDueDate) {
-    if (!order.deliveredAt) return 'Awaiting delivery'
-    if (order.paymentTermSnapshot.type === 'Bill to Bill') return 'Linked to next delivery'
-    return 'Due date pending'
-  }
-  const dueDate = new Date(order.calculatedDueDate)
-  const now = new Date()
-  const days = differenceInDays(dueDate, now)
-  if (days === 0) return 'Due today'
-  if (days > 0) return `Due in ${days} day${days > 1 ? 's' : ''}`
-  const overdueDays = Math.abs(days)
-  return `Overdue ${overdueDays} day${overdueDays > 1 ? 's' : ''}`
-}
 
 function formatTimestamp(timestamp: number, isOld: boolean): string {
   if (isOld) return format(timestamp, 'MMM d, yyyy')
@@ -710,7 +680,6 @@ function OrderDetailView({ order: orderProp, connection, currentBusinessId, onBa
 
   const lifecycleState = getLifecycleState(order)
   const dueLabel = formatDueDate(order)
-  const dueDateColor = getDueDateColor(dueLabel)
   const isSupplier = connection.supplierBusinessId === currentBusinessId
   const isBuyer = connection.buyerBusinessId === currentBusinessId
 
@@ -736,9 +705,9 @@ function OrderDetailView({ order: orderProp, connection, currentBusinessId, onBa
     await addAttachment(order.id, type, currentBusinessId, options)
   }
 
-  const handleDeleteAttachment = async (attachment: OrderAttachment) => {
+  const handleDeleteAttachment = async (attachmentId: string) => {
     try {
-      await deleteAttachment(attachment.id, currentBusinessId)
+      await deleteAttachment(attachmentId, currentBusinessId)
       await loadAttachments()
       toast.success('Attachment deleted')
     } catch (err) {
@@ -877,146 +846,39 @@ function OrderDetailView({ order: orderProp, connection, currentBusinessId, onBa
       </div>
 
       <div className="px-4 py-4 space-y-6">
-        {/* Status Chip */}
-        <div>
-          <span style={{ fontSize: '13px', fontWeight: 600, color: getLifecycleStatusColor(lifecycleState), backgroundColor: `${getLifecycleStatusColor(lifecycleState)}26`, padding: '8px 14px', borderRadius: 'var(--radius-chip)', display: 'inline-block', marginBottom: '12px' }}>
-            {lifecycleState}
-          </span>
-          <div style={{ backgroundColor: 'var(--bg-card)', borderRadius: 'var(--radius-card)', padding: '14px 16px' }}>
-            <p style={{ fontSize: '15px', fontWeight: 600, color: 'var(--text-primary)', marginBottom: '4px' }}>{order.itemSummary}</p>
-            {order.orderValue === 0 && lifecycleState === 'Placed' ? (
-              <p style={{ fontSize: '13px', fontWeight: 500, color: 'var(--text-secondary)' }}>Awaiting supplier confirmation</p>
-            ) : order.orderValue === 0 ? (
-              <p style={{ fontSize: '13px', fontWeight: 500, color: 'var(--text-secondary)' }}>Amount not recorded</p>
-            ) : (
-              <p style={{ fontSize: '20px', fontWeight: 800, color: 'var(--text-primary)', letterSpacing: '-0.02em' }}>{order.orderValue.toLocaleString('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 })}</p>
-            )}
-            <div className="flex items-center gap-2 mt-1" style={{ fontSize: '13px' }}>
-              <span style={{ color: 'var(--text-secondary)', fontWeight: 500 }}>
-                {order.paymentTermSnapshot.type === 'Days After Delivery'
-                  ? `${order.paymentTermSnapshot.days} days after delivery`
-                  : order.paymentTermSnapshot.type}
-              </span>
-              <span style={{ color: 'var(--text-secondary)' }}>·</span>
-              <span style={{ color: dueDateColor, fontWeight: 600 }}>{dueLabel}</span>
-            </div>
-          </div>
-        </div>
+        <OrderStatusHeader
+          lifecycleState={lifecycleState}
+          itemSummary={order.itemSummary}
+          orderValue={order.orderValue}
+          counterpartName={isSupplier ? buyerBusiness.businessName : supplierBusiness.businessName}
+        />
 
-        <div>
-          <p style={{ fontSize: '13px', fontWeight: 700, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '10px' }}>TIMELINE</p>
-          <div className="space-y-4">
-            <TimelineItem label={`Placed by ${buyerBusiness.businessName}`} timestamp={order.createdAt} />
+        <OrderPaymentSummary
+          termsLabel={formatPaymentTerms(order.paymentTermSnapshot)}
+          dueDateLabel={dueLabel}
+          totalPaid={order.totalPaid}
+          pendingAmount={order.pendingAmount}
+          settlementState={order.settlementState}
+        />
 
-            {order.dispatchedAt && (
-              <TimelineItem
-                label={`Dispatched by ${supplierBusiness.businessName} · ₹${order.orderValue.toLocaleString('en-IN')}`}
-                timestamp={order.dispatchedAt}
-              />
-            )}
+        <OrderTimeline
+          timeline={buildOrderTimeline(
+            order,
+            buyerBusiness.businessName,
+            supplierBusiness.businessName,
+            paymentEvents[paymentEvents.length - 1]?.timestamp,
+          )}
+        />
 
-            {order.deliveredAt && (
-              <TimelineItem
-                label={`Delivered · confirmed by ${isSupplier ? supplierBusiness.businessName : buyerBusiness.businessName}`}
-                timestamp={order.deliveredAt}
-              />
-            )}
-
-            {paymentEvents.map(payment => {
-              const recordedByBusiness = payment.recordedBy === connection.buyerBusinessId ? buyerBusiness : supplierBusiness
-              const canDispute = payment.recordedBy !== currentBusinessId && !payment.disputed && !payment.acceptedAt
-              const isShowingConfirmation = disputingPaymentId === payment.id
-              return (
-                <div key={payment.id} className="flex gap-3">
-                  <div className="flex flex-col items-center pt-1">
-                    <div className="w-2 h-2 rounded-full bg-foreground" />
-                    <div className="w-[1px] h-full bg-border mt-1" />
-                  </div>
-                  <div className="flex-1 pb-2">
-                    <div className="flex items-center gap-2 flex-wrap">
-                      <p className="text-[13px] text-foreground">
-                        ₹{payment.amountPaid.toLocaleString('en-IN')} recorded by {recordedByBusiness?.businessName}
-                      </p>
-                      {canDispute && (
-                        <button
-                          onClick={() => setDisputingPaymentId(payment.id)}
-                          disabled={processing}
-                          className="text-[11px] text-destructive hover:underline"
-                        >
-                          Dispute
-                        </button>
-                      )}
-                      {payment.acceptedAt && <span className="text-[11px] text-muted-foreground">✓ Accepted</span>}
-                      {payment.disputed && <span className="text-[11px] text-destructive">⚠ Disputed</span>}
-                    </div>
-                    <p className="text-[12px] text-muted-foreground mt-0.5">
-                      {formatDistanceToNow(payment.timestamp, { addSuffix: true })}
-                    </p>
-                    {isShowingConfirmation && (
-                      <div className="mt-3">
-                        <p className="text-[13px] text-foreground mb-3">Dispute this payment?</p>
-                        <div className="flex gap-2">
-                          <button
-                            onClick={() => handleConfirmDispute(payment.id)}
-                            disabled={processing}
-                            className="flex-1 px-3 py-1.5 text-[13px] font-medium rounded text-white"
-                            style={{ backgroundColor: 'var(--status-overdue)' }}
-                          >
-                            Yes, dispute
-                          </button>
-                          <button
-                            onClick={() => setDisputingPaymentId(null)}
-                            disabled={processing}
-                            className="flex-1 px-3 py-1.5 text-[13px] font-medium rounded bg-muted text-foreground"
-                          >
-                            Cancel
-                          </button>
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                </div>
-              )
-            })}
-
-            {lifecycleState === 'Delivered' && order.pendingAmount === 0 && (
-              <div className="flex gap-3">
-                <div className="pt-1"><div className="w-2 h-2 rounded-full" style={{ backgroundColor: 'var(--status-delivered)' }} /></div>
-                <p className="text-[13px] font-medium" style={{ color: 'var(--status-delivered)' }}>Paid</p>
-              </div>
-            )}
-
-            {lifecycleState === 'Delivered' && order.pendingAmount > 0 && order.calculatedDueDate && new Date(order.calculatedDueDate) < new Date() && (
-              <div className="flex gap-3">
-                <div className="pt-1"><div className="w-2 h-2 rounded-full bg-destructive" /></div>
-                <p className="text-[13px] font-medium text-destructive">
-                  Overdue · ₹{order.pendingAmount.toLocaleString('en-IN')} remaining
-                </p>
-              </div>
-            )}
-
-            {lifecycleState === 'Delivered' && order.pendingAmount > 0 && order.totalPaid > 0 && (!order.calculatedDueDate || new Date(order.calculatedDueDate) >= new Date()) && (
-              <div className="flex gap-3">
-                <div className="pt-1"><div className="w-2 h-2 rounded-full" style={{ backgroundColor: 'var(--status-dispatched)' }} /></div>
-                <p className="text-[13px] font-medium" style={{ color: 'var(--status-dispatched)' }}>
-                  Partial Payment · ₹{order.pendingAmount.toLocaleString('en-IN')} remaining
-                </p>
-              </div>
-            )}
-          </div>
-        </div>
-
-        {buyerBusiness && supplierBusiness && (
-          <OrderAttachments
-            attachments={attachments}
-            currentBusinessId={currentBusinessId}
-            buyerBusiness={buyerBusiness}
-            supplierBusiness={supplierBusiness}
-            onAddAttachment={() => setShowAddAttachment(true)}
-            onViewAttachment={(index) => setViewingAttachmentIndex(index)}
-            onDeleteAttachment={handleDeleteAttachment}
-          />
-        )}
+        <OrderAttachmentsSection
+          attachments={attachments}
+          currentBusinessId={currentBusinessId}
+          buyerBusiness={buyerBusiness}
+          supplierBusiness={supplierBusiness}
+          onAddAttachment={() => setShowAddAttachment(true)}
+          onViewAttachment={(index) => setViewingAttachmentIndex(index)}
+          onDeleteAttachment={handleDeleteAttachment}
+        />
 
         {lifecycleState === 'Placed' && isSupplier && (
           <div className="space-y-3">
@@ -1161,23 +1023,6 @@ function OrderDetailView({ order: orderProp, connection, currentBusinessId, onBa
           />
         )}
       </AnimatePresence>
-    </div>
-  )
-}
-
-function TimelineItem({ label, timestamp }: { label: string; timestamp: number }) {
-  return (
-    <div className="flex gap-3">
-      <div className="flex flex-col items-center pt-1">
-        <div className="w-2 h-2 rounded-full bg-foreground" />
-        <div className="w-[1px] h-full bg-border mt-1" />
-      </div>
-      <div className="flex-1 pb-2">
-        <p className="text-[13px] text-foreground">{label}</p>
-        <p className="text-[12px] text-muted-foreground mt-0.5">
-          {formatDistanceToNow(timestamp, { addSuffix: true })}
-        </p>
-      </div>
     </div>
   )
 }

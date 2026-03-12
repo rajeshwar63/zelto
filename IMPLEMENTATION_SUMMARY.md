@@ -172,3 +172,6 @@ Added notification triggers for 4 key events:
 3. **Performance**: Notification queries are optimized with indexes and pagination
 4. **Scalability**: System can handle high notification volumes with current architecture
 5. **Maintenance**: Notification types are strongly typed and checked at compile time
+
+## Developer Note
+- `OrderDetailScreen` is now the canonical order detail UI. Reuse shared order detail blocks in `src/components/order/` rather than introducing parallel bespoke order detail layouts.
