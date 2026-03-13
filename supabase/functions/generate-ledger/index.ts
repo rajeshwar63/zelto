@@ -43,13 +43,23 @@ function getPeriodLabel(period: Period): string {
 }
 
 function formatPaymentTerms(snapshot: any): string {
-  if (!snapshot) return 'Unknown'
-  switch (snapshot.type) {
-    case 'Advance Required': return 'Advance Required'
-    case 'Payment on Delivery': return 'Payment on Delivery'
-    case 'Bill to Bill': return 'Bill to Bill'
-    case 'Days After Delivery': return `${snapshot.days} Days After Delivery`
-    default: return snapshot.type || 'Unknown'
+  if (!snapshot) return 'Not set'
+  if (typeof snapshot === 'string') return snapshot
+  const type = snapshot.type || snapshot.termType || snapshot.payment_type
+  if (!type) return 'Not set'
+  switch (type) {
+    case 'Advance Required':
+    case 'advance': return 'Advance'
+    case 'Payment on Delivery':
+    case 'on_delivery': return 'On Delivery'
+    case 'Bill to Bill':
+    case 'bill_to_bill': return 'Bill to Bill'
+    case 'Days After Delivery':
+    case 'days_after_delivery': {
+      const days = snapshot.days || snapshot.numDays || ''
+      return days ? `${days} Days After Delivery` : 'Days After Delivery'
+    }
+    default: return type
   }
 }
 
