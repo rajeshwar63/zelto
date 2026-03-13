@@ -1,7 +1,7 @@
-import { ArrowDown, ArrowUp, CaretRight, CheckCircle, ClockClockwise, CurrencyInr, Package, ShieldWarning, Truck } from '@phosphor-icons/react'
+import { ArrowDown, ArrowUp, CaretRight, CheckCircle, ClockClockwise, CurrencyInr, Package, ShieldWarning, Truck, UserPlus } from '@phosphor-icons/react'
 import { useEffect, useState } from 'react'
 import { formatDistanceToNow, isToday } from 'date-fns'
-import { useBusinessOverviewData } from '@/hooks/data/use-business-data'
+import { useBusinessOverviewData, useConnectionRequestsData } from '@/hooks/data/use-business-data'
 import { getLifecycleStatusColor } from '@/lib/semantic-colors'
 import { formatInrCurrency } from '@/lib/utils'
 import { CardAccent } from '@/components/ui/card'
@@ -41,6 +41,7 @@ export function DashboardScreen({ currentBusinessId, onNavigateToOrders, onNavig
   }, [tradePositionCarouselApi])
 
   const { data: overview, isInitialLoading } = useBusinessOverviewData(currentBusinessId, isActive)
+  const { data: connectionRequests = [] } = useConnectionRequestsData(currentBusinessId, isActive)
   const recentOrders = overview?.recentOrders ?? []
   const attentionCounts = overview?.attentionCounts ?? {
     approvalNeeded: 0,
@@ -274,6 +275,28 @@ export function DashboardScreen({ currentBusinessId, onNavigateToOrders, onNavig
             Needs Attention
           </h2>
           <div className="space-y-3">
+            {connectionRequests.length > 0 && (
+              <button
+                onClick={() => onNavigateToConnections()}
+                className="w-full flex items-center justify-between rounded-xl px-4 py-3 text-left"
+                style={{
+                  backgroundColor: 'var(--bg-card)',
+                  borderLeft: '3px solid var(--brand-primary)',
+                }}
+              >
+                <div className="flex items-center gap-3">
+                  <div className="w-7 h-7 rounded-lg flex items-center justify-center" style={{ backgroundColor: 'var(--brand-primary-bg)' }}>
+                    <UserPlus size={15} weight="bold" color="var(--brand-primary)" />
+                  </div>
+                  <p className="text-[14px] text-foreground font-semibold">Connection Requests</p>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="inline-flex items-center justify-center min-w-6 h-6 px-2 rounded-full text-[12px] font-bold text-white" style={{ backgroundColor: 'var(--brand-primary)' }}>{connectionRequests.length}</span>
+                  <CaretRight size={16} style={{ color: 'var(--text-muted)' }} />
+                </div>
+              </button>
+            )}
+
             {attentionCounts.approvalNeeded > 0 && (
               <button
                 onClick={() => onNavigateToOrders('placed')}
@@ -384,7 +407,8 @@ export function DashboardScreen({ currentBusinessId, onNavigateToOrders, onNavig
               </button>
             )}
 
-            {attentionCounts.approvalNeeded === 0 &&
+            {connectionRequests.length === 0 &&
+              attentionCounts.approvalNeeded === 0 &&
               attentionCounts.dispatched === 0 &&
               attentionCounts.delivered === 0 &&
               attentionCounts.paymentPending === 0 &&
