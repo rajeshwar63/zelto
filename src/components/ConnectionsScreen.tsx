@@ -15,9 +15,12 @@ import { LedgerDownloadSheet } from '@/components/LedgerDownloadSheet'
 
 interface ConnectionWithState extends Connection {
   otherBusinessName: string
+  otherBusinessType?: string
   computedState: ConnectionState
   outstandingBalance: number
   totalOrders: number
+  totalTradedAmount: number
+  lastActivityAt: number | null
 }
 
 interface Props {
@@ -26,6 +29,15 @@ interface Props {
   onAddConnection: () => void
   unreadConnectionIds?: Set<string>
   isActive?: boolean
+}
+
+function formatLastActivity(timestamp: number | null): string | null {
+  if (!timestamp) return null
+  const diffMs = Date.now() - timestamp
+  const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24))
+  if (diffDays === 0) return 'today'
+  if (diffDays === 1) return '1 day ago'
+  return `${diffDays} days ago`
 }
 
 function formatPaymentTerms(terms: Connection['paymentTerms']): string | null {
@@ -59,9 +71,12 @@ function isSameConnections(a: ConnectionWithState[], b: ConnectionWithState[]) {
     return (
       conn.id === other.id &&
       conn.otherBusinessName === other.otherBusinessName &&
+      conn.otherBusinessType === other.otherBusinessType &&
       conn.computedState === other.computedState &&
       conn.outstandingBalance === other.outstandingBalance &&
       conn.totalOrders === other.totalOrders &&
+      conn.totalTradedAmount === other.totalTradedAmount &&
+      conn.lastActivityAt === other.lastActivityAt &&
       isSamePaymentTerms(conn.paymentTerms, other.paymentTerms)
     )
   })
@@ -109,17 +124,22 @@ export function ConnectionsScreen({ currentBusinessId, onSelectConnection, onAdd
         const otherBusiness = entityMap.get(otherId)
         const computedState = await behaviourEngine.computeConnectionState(conn.id)
         const orders = await dataStore.getOrdersWithPaymentStateByConnectionId(conn.id)
-        const outstandingBalance = orders.reduce((sum, o) => {
-          if (o.declinedAt) return sum
-          return sum + o.pendingAmount
-        }, 0)
+        const nonDeclined = orders.filter(o => !o.declinedAt)
+        const outstandingBalance = nonDeclined.reduce((sum, o) => sum + o.pendingAmount, 0)
+        const totalTradedAmount = nonDeclined.reduce((sum, o) => sum + o.orderValue, 0)
+        const lastActivityAt = nonDeclined.length > 0
+          ? Math.max(...nonDeclined.map(o => o.createdAt))
+          : null
 
         return {
           ...conn,
           otherBusinessName: otherBusiness?.businessName || 'Unknown',
+          otherBusinessType: otherBusiness?.businessType,
           computedState,
           outstandingBalance,
-          totalOrders: orders.filter(o => !o.declinedAt).length,
+          totalOrders: nonDeclined.length,
+          totalTradedAmount,
+          lastActivityAt,
         }
       })
     )
@@ -417,6 +437,9 @@ export function ConnectionsScreen({ currentBusinessId, onSelectConnection, onAdd
 
             const amountDirectionColor = isSupplier ? '#16A34A' : '#DC2626'
 
+            const lastActivity = formatLastActivity(conn.lastActivityAt)
+            const subtitleParts = [conn.otherBusinessType, formattedTerms].filter(Boolean)
+
             return (
               <button
                 key={conn.id}
@@ -431,6 +454,7 @@ export function ConnectionsScreen({ currentBusinessId, onSelectConnection, onAdd
                   minHeight: '44px',
                 }}
               >
+                {/* Row 1: Business name + Outstanding balance */}
                 <div className="flex items-baseline justify-between">
                   <div className="flex items-center gap-2 flex-1 mr-3">
                     {isUnread && (
@@ -439,38 +463,44 @@ export function ConnectionsScreen({ currentBusinessId, onSelectConnection, onAdd
                     <p style={{ fontSize: '15px', fontWeight: 700, color: 'var(--text-primary)' }}>{conn.otherBusinessName}</p>
                   </div>
                   {conn.outstandingBalance > 0 && (
-                    <div className="flex items-center gap-1">
+                    <div className="flex items-center gap-0.5">
                       <span
                         aria-hidden
-                        style={{
-                          fontSize: '15px',
-                          fontWeight: 700,
-                          color: amountDirectionColor,
-                          lineHeight: 1,
-                        }}
+                        style={{ fontSize: '15px', fontWeight: 700, color: amountDirectionColor, lineHeight: 1 }}
                       >
                         {isSupplier ? '↓' : '↑'}
                       </span>
-                      <p style={{ fontSize: '15px', fontWeight: 700, color: 'var(--text-primary)' }}>
+                      <p style={{ fontSize: '15px', fontWeight: 700, color: amountDirectionColor }}>
                         {conn.outstandingBalance.toLocaleString('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 })}
                       </p>
                     </div>
                   )}
                 </div>
-                <div className="flex items-center gap-2 mt-1">
-                  <p style={{ fontSize: '12px', fontWeight: 500, color: 'var(--text-secondary)' }}>
-                    {conn.totalOrders} Order{conn.totalOrders !== 1 ? 's' : ''}
+
+                {/* Row 2: Business type · Payment terms */}
+                {subtitleParts.length > 0 && (
+                  <p style={{ fontSize: '12px', fontWeight: 500, color: 'var(--text-secondary)', marginTop: '3px' }}>
+                    {subtitleParts.join(' · ')}
                   </p>
-                  {formattedTerms && (
-                    <>
-                      <span style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>·</span>
-                      <p style={{ fontSize: '12px', fontWeight: 500, color: 'var(--text-secondary)' }}>
-                        {formattedTerms}
-                      </p>
-                    </>
+                )}
+
+                {/* Divider */}
+                <div style={{ height: '1px', backgroundColor: 'var(--border-light)', margin: '10px 0' }} />
+
+                {/* Row 3: Orders · Traded amount */}
+                <p style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>
+                  <span style={{ fontWeight: 700, color: 'var(--text-primary)' }}>{conn.totalOrders}</span>
+                  {' Order'}{conn.totalOrders !== 1 ? 's' : ''}
+                  {conn.totalTradedAmount > 0 && (
+                    <> · <span style={{ fontWeight: 700, color: 'var(--text-primary)' }}>{conn.totalTradedAmount.toLocaleString('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 })}</span>{' traded'}</>
                   )}
-                </div>
-                <div className="mt-1">
+                </p>
+
+                {/* Divider */}
+                <div style={{ height: '1px', backgroundColor: 'var(--border-light)', margin: '10px 0' }} />
+
+                {/* Row 4: Status badge + Last activity */}
+                <div className="flex items-center justify-between">
                   <span
                     style={{
                       fontSize: '11px',
@@ -483,6 +513,11 @@ export function ConnectionsScreen({ currentBusinessId, onSelectConnection, onAdd
                   >
                     {conn.computedState === 'Friction Rising' || conn.computedState === 'Under Stress' ? '⚠ ' : ''}{relationshipLabel}
                   </span>
+                  {lastActivity && (
+                    <p style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>
+                      Last activity: <span style={{ fontWeight: 700, color: 'var(--text-primary)' }}>{lastActivity}</span>
+                    </p>
+                  )}
                 </div>
               </button>
             )
