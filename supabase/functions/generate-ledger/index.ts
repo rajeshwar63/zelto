@@ -193,6 +193,7 @@ serve(async (req) => {
           period: getPeriodLabel(period),
           periodStart,
           periodEnd,
+          scope,
           myBusiness: myBiz,
         },
         summary: {
@@ -373,6 +374,7 @@ serve(async (req) => {
       period: getPeriodLabel(period),
       periodStart,
       periodEnd,
+      scope,
       myBusiness: myBiz,
     }
 
