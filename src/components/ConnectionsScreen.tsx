@@ -464,12 +464,25 @@ export function ConnectionsScreen({ currentBusinessId, onSelectConnection, onAdd
                   </div>
                   {conn.outstandingBalance > 0 && (
                     <div className="flex items-center gap-0.5">
-                      <span
-                        aria-hidden
-                        style={{ fontSize: '15px', fontWeight: 700, color: amountDirectionColor, lineHeight: 1 }}
-                      >
-                        {isSupplier ? '↓' : '↑'}
-                      </span>
+                      {isSupplier ? (
+                        <span
+                          aria-hidden
+                          style={{ fontSize: '15px', fontWeight: 700, color: amountDirectionColor, lineHeight: 1 }}
+                        >
+                          ↓
+                        </span>
+                      ) : (
+                        <svg
+                          aria-hidden
+                          width="11"
+                          height="13"
+                          viewBox="0 0 11 13"
+                          fill={amountDirectionColor}
+                          style={{ flexShrink: 0 }}
+                        >
+                          <path d="M5.5 0L11 6.5H7.5V13H3.5V6.5H0L5.5 0Z" />
+                        </svg>
+                      )}
                       <p style={{ fontSize: '15px', fontWeight: 700, color: amountDirectionColor }}>
                         {conn.outstandingBalance.toLocaleString('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 })}
                       </p>
