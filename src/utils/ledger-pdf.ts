@@ -15,8 +15,13 @@ const RED = '#DC2626'
 const ORANGE = '#D97706'
 const LIGHT_GRAY = '#F3F4F6'
 
+const RUPEE = '\u20B9' // ₹
+
 function inr(amount: number): string {
-  return amount.toLocaleString('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 })
+  if (amount >= 10000000) return `${RUPEE}${(amount / 10000000).toFixed(1)}Cr`
+  if (amount >= 100000) return `${RUPEE}${(amount / 100000).toFixed(1)}L`
+  if (amount >= 1000) return `${RUPEE}${(amount / 1000).toFixed(1)}K`
+  return `${RUPEE}${amount.toLocaleString('en-IN')}`
 }
 
 function shortId(id: string): string {
@@ -62,7 +67,7 @@ function addFooter(doc: jsPDF, date: string): void {
 }
 
 export function generateLedgerPdf(data: LedgerData): void {
-  const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' })
+  const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' })
   const pageWidth = doc.internal.pageSize.getWidth()
   const margin = 14
   let y = margin
@@ -168,8 +173,6 @@ export function generateLedgerPdf(data: LedgerData): void {
         conn.myRole,
         order.itemSummary,
         inr(order.orderValue),
-        order.paymentTerms,
-        fmtDate(order.dueDate),
         { content: order.state, styles: { textColor: stateColor(order.state) } },
         inr(order.totalPaid),
         {
@@ -182,7 +185,7 @@ export function generateLedgerPdf(data: LedgerData): void {
                 : [26, 29, 46],
           },
         },
-        order.hasIssue ? '⚠' : '',
+        order.hasIssue ? '!' : '',
       ])
     }
   }
@@ -196,22 +199,20 @@ export function generateLedgerPdf(data: LedgerData): void {
 
     autoTable(doc, {
       startY: y,
-      head: [['Date', 'Connection', 'Role', 'Items', 'Value', 'Terms', 'Due', 'Status', 'Paid', 'Balance', 'Issues']],
+      head: [['Date', 'Connection', 'Role', 'Items', 'Value', 'Status', 'Paid', 'Balance', '!']],
       body: orderRows,
-      styles: { fontSize: 7, cellPadding: 2 },
-      headStyles: { fillColor: BRAND_BLUE, textColor: '#FFFFFF', fontStyle: 'bold' },
+      styles: { fontSize: 8, cellPadding: { top: 2, right: 3, bottom: 2, left: 3 }, overflow: 'ellipsize' },
+      headStyles: { fillColor: [26, 26, 46] as [number, number, number], textColor: 255, fontSize: 8, fontStyle: 'bold' },
       columnStyles: {
-        0: { cellWidth: 18 },
-        1: { cellWidth: 28 },
-        2: { cellWidth: 12 },
-        3: { cellWidth: 35 },
-        4: { cellWidth: 18 },
-        5: { cellWidth: 22 },
-        6: { cellWidth: 16 },
-        7: { cellWidth: 18 },
-        8: { cellWidth: 18 },
-        9: { cellWidth: 18 },
-        10: { cellWidth: 10 },
+        0: { cellWidth: 24 },
+        1: { cellWidth: 44 },
+        2: { cellWidth: 18 },
+        3: { cellWidth: 70 },
+        4: { cellWidth: 24 },
+        5: { cellWidth: 24 },
+        6: { cellWidth: 24 },
+        7: { cellWidth: 24 },
+        8: { cellWidth: 10 },
       },
       margin: { left: margin, right: margin },
       didDrawPage: () => {},
