@@ -5,7 +5,7 @@ interface Props {
 }
 
 const APP_VERSION = '1.0.0'
-const SUPPORT_EMAIL = 'rajeshwar63@gmail.com'
+const SUPPORT_EMAIL = 'raja@zeltoapp.com'
 const SUPPORT_PHONE = '+919999999999' // TODO: Replace with actual support phone number
 const WHATSAPP_NUMBER = '919999999999' // TODO: Replace with actual WhatsApp support number
 
