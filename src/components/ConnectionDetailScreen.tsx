@@ -223,6 +223,14 @@ export function ConnectionDetailScreen({ connectionId, currentBusinessId, onBack
             <CaretLeft size={20} weight="regular" />
           </button>
           <h1 style={{ fontSize: '17px', fontWeight: 700, color: 'var(--text-primary)', flex: 1 }}>{otherBusiness.businessName}</h1>
+          <button
+            onClick={() => setShowLedgerSheet(true)}
+            className="flex items-center gap-1"
+            style={{ color: 'var(--brand-primary)', minWidth: '44px', minHeight: '44px', paddingLeft: '4px', paddingRight: '8px' }}
+          >
+            <DownloadSimple size={17} weight="bold" />
+            <span style={{ fontSize: '13px', fontWeight: 600 }}>Ledger</span>
+          </button>
         </div>
       </div>
 
@@ -418,32 +426,6 @@ export function ConnectionDetailScreen({ connectionId, currentBusinessId, onBack
             })
           )}
         </div>
-      </div>
-
-      {/* Ledger download CTA — always visible */}
-      <div style={{ borderTop: '1px solid var(--border-light)', backgroundColor: 'var(--bg-card)', padding: '8px 12px' }}>
-        <button
-          onClick={() => setShowLedgerSheet(true)}
-          style={{
-            width: '100%',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            gap: '8px',
-            padding: '10px',
-            borderRadius: 'var(--radius-button)',
-            border: '1.5px solid var(--border-light)',
-            backgroundColor: 'var(--bg-card)',
-            color: 'var(--text-primary)',
-            fontSize: '14px',
-            fontWeight: 600,
-            minHeight: '44px',
-            cursor: 'pointer',
-          }}
-        >
-          <DownloadSimple size={18} weight="bold" style={{ color: 'var(--brand-primary)' }} />
-          Download Ledger
-        </button>
       </div>
 
       <LedgerDownloadSheet
