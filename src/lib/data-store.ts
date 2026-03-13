@@ -240,6 +240,14 @@ export class ZeltoDataStore {
     if (error) throw error
   }
 
+  async updateBusinessMobileNumber(businessId: string, mobileNumber: string | null): Promise<void> {
+    const { error } = await supabase
+      .from('business_entities')
+      .update({ mobile_number: mobileNumber })
+      .eq('id', businessId)
+    if (error) throw error
+  }
+
   async checkGSTExists(gstNumber: string, excludeEntityId?: string): Promise<boolean> {
     let query = supabase
       .from('business_entities')
