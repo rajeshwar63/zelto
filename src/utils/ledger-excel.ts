@@ -11,6 +11,7 @@ export interface LedgerData {
     period: string
     periodStart: number
     periodEnd: number
+    scope: 'all' | 'single'
     myBusiness: { name: string; zeltoCode: string; phone: string; city: string; area: string; address: string }
     otherBusiness?: { name: string; zeltoCode: string; phone: string; city: string; area: string; address: string }
   }

@@ -15,12 +15,12 @@ const RED = '#DC2626'
 const ORANGE = '#D97706'
 const LIGHT_GRAY = '#F3F4F6'
 
-const RUPEE = '\u20B9' // ₹
+const RUPEE = 'Rs.'
 
 function inr(amount: number): string {
-  if (amount >= 10000000) return `${RUPEE}${(amount / 10000000).toFixed(1)}Cr`
-  if (amount >= 100000) return `${RUPEE}${(amount / 100000).toFixed(1)}L`
-  if (amount >= 1000) return `${RUPEE}${(amount / 1000).toFixed(1)}K`
+  if (amount >= 10000000) return `${RUPEE}${Math.round(amount / 10000000)}Cr`
+  if (amount >= 100000) return `${RUPEE}${Math.round(amount / 100000)}L`
+  if (amount >= 1000) return `${RUPEE}${Math.round(amount / 1000)}K`
   return `${RUPEE}${amount.toLocaleString('en-IN')}`
 }
 
@@ -91,7 +91,7 @@ export function generateLedgerPdf(data: LedgerData): void {
   y += 14
 
   // ── Business info boxes ─────────────────────────────────────────────────
-  const boxW = data.meta.otherBusiness ? (pageWidth - margin * 2 - 6) / 2 : pageWidth - margin * 2
+  const boxW = (data.meta.scope === 'single' && data.meta.otherBusiness) ? (pageWidth - margin * 2 - 6) / 2 : pageWidth - margin * 2
   const boxH = 28
 
   // My business box
@@ -112,8 +112,8 @@ export function generateLedgerPdf(data: LedgerData): void {
   const cityLine = [data.meta.myBusiness.city, data.meta.myBusiness.area].filter(Boolean).join(', ')
   if (cityLine) doc.text(cityLine, margin + boxW / 2, y + 23)
 
-  // Other business box (single scope)
-  if (data.meta.otherBusiness) {
+  // Other business box (single scope only)
+  if (data.meta.scope === 'single' && data.meta.otherBusiness) {
     const otherX = margin + boxW + 6
     doc.setFillColor(LIGHT_GRAY)
     doc.roundedRect(otherX, y, boxW, boxH, 3, 3, 'F')
@@ -185,7 +185,6 @@ export function generateLedgerPdf(data: LedgerData): void {
                 : [26, 29, 46],
           },
         },
-        order.hasIssue ? '!' : '',
       ])
     }
   }
@@ -199,7 +198,7 @@ export function generateLedgerPdf(data: LedgerData): void {
 
     autoTable(doc, {
       startY: y,
-      head: [['Date', 'Connection', 'Role', 'Items', 'Value', 'Status', 'Paid', 'Balance', '!']],
+      head: [['Date', 'Connection', 'Role', 'Items', 'Value', 'Status', 'Paid', 'Balance']],
       body: orderRows,
       styles: { fontSize: 8, cellPadding: { top: 2, right: 3, bottom: 2, left: 3 }, overflow: 'ellipsize' },
       headStyles: { fillColor: [26, 26, 46] as [number, number, number], textColor: 255, fontSize: 8, fontStyle: 'bold' },
@@ -212,7 +211,6 @@ export function generateLedgerPdf(data: LedgerData): void {
         5: { cellWidth: 24 },
         6: { cellWidth: 24 },
         7: { cellWidth: 24 },
-        8: { cellWidth: 10 },
       },
       margin: { left: margin, right: margin },
       didDrawPage: () => {},
