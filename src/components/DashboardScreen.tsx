@@ -77,7 +77,7 @@ export function DashboardScreen({ currentBusinessId, onNavigateToOrders, onNavig
     <div className="flex flex-col h-full">
       <div className="sticky top-0 bg-white z-10" style={{ paddingTop: 'env(safe-area-inset-top)' }}>
         <div className="px-4" style={{ paddingTop: '20px', paddingBottom: '16px' }}>
-          <h1 className="text-[20px] font-semibold" style={{ color: '#111' }}>Welcome back{data.username ? ` ${data.username}` : ''},</h1>
+          <h1 className="text-[20px] font-semibold" style={{ color: '#111' }}>{data.username ? `Welcome back, ${data.username}` : 'Welcome back'}</h1>
           <p className="text-[13px] font-normal mt-1" style={{ color: '#8A8A8A' }}>Your trade snapshot today</p>
         </div>
       </div>
