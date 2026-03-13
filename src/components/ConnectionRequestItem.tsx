@@ -5,7 +5,7 @@ import { calculateCredibility, getBusinessActivityCounts, type CredibilityBreakd
 import type { BusinessEntity, ConnectionRequest } from '@/lib/types'
 import { Button } from '@/components/ui/button'
 import { formatDistanceToNow } from 'date-fns'
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Label } from '@/components/ui/label'
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group'
 import { toast } from 'sonner'
@@ -211,6 +211,9 @@ export function ConnectionRequestItem({ request, currentBusinessId, onUpdate, on
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Confirm Connection Roles</DialogTitle>
+            <DialogDescription>
+              Select your role in this connection. One party must be the Buyer and the other the Supplier.
+            </DialogDescription>
           </DialogHeader>
           <div className="space-y-4 py-4">
             <p className="text-sm text-muted-foreground">
