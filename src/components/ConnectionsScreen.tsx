@@ -318,10 +318,20 @@ export function ConnectionsScreen({ currentBusinessId, onSelectConnection, onAdd
       <div className="sticky top-0 z-10" style={{ backgroundColor: 'var(--bg-header)', paddingTop: 'env(safe-area-inset-top)' }}>
         <div className="h-11 flex items-center justify-between px-4">
           <h1 style={{ fontSize: '22px', fontWeight: 700, color: 'var(--text-primary)', letterSpacing: '-0.02em' }}>Connections</h1>
-          <button onClick={onAddConnection} className="flex items-center" style={{ color: 'var(--brand-primary)', minWidth: '44px', minHeight: '44px', justifyContent: 'center' }}>
-            <Plus size={20} weight="regular" />
-            <Users size={20} weight="regular" />
-          </button>
+          <div className="flex items-center gap-1">
+            <button
+              onClick={() => setShowLedgerSheet(true)}
+              className="flex items-center gap-1"
+              style={{ color: 'var(--brand-primary)', minWidth: '44px', minHeight: '44px', paddingLeft: '8px', paddingRight: '4px' }}
+            >
+              <DownloadSimple size={17} weight="bold" />
+              <span style={{ fontSize: '13px', fontWeight: 600 }}>Ledger</span>
+            </button>
+            <button onClick={onAddConnection} className="flex items-center" style={{ color: 'var(--brand-primary)', minWidth: '44px', minHeight: '44px', justifyContent: 'center' }}>
+              <Plus size={20} weight="regular" />
+              <Users size={20} weight="regular" />
+            </button>
+          </div>
         </div>
       </div>
 
@@ -375,34 +385,6 @@ export function ConnectionsScreen({ currentBusinessId, onSelectConnection, onAdd
             </div>
           </div>
         )}
-
-        {/* Ledger download entry point */}
-        <div className="mb-4">
-          <button
-            onClick={() => setShowLedgerSheet(true)}
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '8px',
-              width: '100%',
-              padding: '10px 14px',
-              borderRadius: 'var(--radius-button)',
-              border: '1.5px solid var(--border-light)',
-              backgroundColor: 'var(--bg-card)',
-              color: 'var(--text-primary)',
-              fontSize: '14px',
-              fontWeight: 600,
-              minHeight: '44px',
-              cursor: 'pointer',
-            }}
-          >
-            <DownloadSimple size={18} weight="bold" style={{ color: 'var(--brand-primary)' }} />
-            Download Ledger
-          </button>
-          <p style={{ fontSize: '12px', fontWeight: 500, color: 'var(--text-secondary)', marginTop: '6px', paddingLeft: '2px' }}>
-            Tap any connection to download its individual ledger
-          </p>
-        </div>
 
         <p style={{ fontSize: '13px', fontWeight: 700, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '10px' }}>
           ALL CONNECTIONS
