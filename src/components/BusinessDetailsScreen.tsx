@@ -2,9 +2,27 @@ import { useState, useEffect } from 'react'
 import { ArrowLeft } from '@phosphor-icons/react'
 import { CapacitorHttp } from '@capacitor/core'
 import { dataStore } from '@/lib/data-store'
+import { supabase } from '@/lib/supabase-client'
 import { calculateCredibility, type CredibilityBreakdown } from '@/lib/credibility'
 import { CredibilityBadge } from './CredibilityBadge'
 import { toast } from 'sonner'
+
+const MOBILE_REGEX = /^(\+91|91|0)?[6-9]\d{9}$/
+
+function validateMobileNumber(raw: string): string | null {
+  const stripped = raw.replace(/[\s\-]/g, '')
+  if (!stripped) return null
+  if (!MOBILE_REGEX.test(stripped)) return 'Enter a valid 10-digit Indian mobile number'
+  return null
+}
+
+function normalizeMobileNumber(raw: string): string {
+  const stripped = raw.replace(/[\s\-]/g, '')
+  if (stripped.startsWith('+91')) return stripped
+  if (stripped.startsWith('91') && stripped.length === 12) return `+${stripped}`
+  if (stripped.startsWith('0')) return `+91${stripped.slice(1)}`
+  return `+91${stripped}`
+}
 
 interface Props {
   currentBusinessId: string
@@ -61,6 +79,8 @@ export function BusinessDetailsScreen({ currentBusinessId, onBack, onSave }: Pro
   const [businessType, setBusinessType] = useState('')
   const [website, setWebsite] = useState('')
   const [phone, setPhone] = useState('')
+  const [mobileNumber, setMobileNumber] = useState('')
+  const [mobileNumberError, setMobileNumberError] = useState('')
   const [mapsUrl, setMapsUrl] = useState('')
   const [expandedMapsUrl, setExpandedMapsUrl] = useState('')
   const [parsedLocation, setParsedLocation] = useState<{ lat: number; lng: number; formattedAddress?: string } | null>(null)
@@ -90,6 +110,13 @@ export function BusinessDetailsScreen({ currentBusinessId, onBack, onSave }: Pro
         })
       }
       if (entity.googleMapsUrl) setMapsUrl(entity.googleMapsUrl)
+
+      if (entity.mobileNumber) {
+        setMobileNumber(entity.mobileNumber)
+      } else {
+        const { data: { user } } = await supabase.auth.getUser()
+        if (user?.phone) setMobileNumber(user.phone)
+      }
     }
     loadExisting()
   }, [currentBusinessId])
@@ -145,6 +172,14 @@ export function BusinessDetailsScreen({ currentBusinessId, onBack, onSave }: Pro
 
   const handleSave = async () => {
     setGstError('')
+    setMobileNumberError('')
+
+    const mobileError = validateMobileNumber(mobileNumber)
+    if (mobileError) {
+      setMobileNumberError(mobileError)
+      return
+    }
+
     if (gst.trim()) {
       const allEntities = await dataStore.getAllBusinessEntities()
       const duplicate = allEntities.find(
@@ -167,6 +202,12 @@ export function BusinessDetailsScreen({ currentBusinessId, onBack, onSave }: Pro
       if (phone.trim()) {
         await dataStore.updateBusinessPhone(currentBusinessId, phone.trim())
       }
+
+      const strippedMobile = mobileNumber.replace(/[\s\-]/g, '')
+      await dataStore.updateBusinessMobileNumber(
+        currentBusinessId,
+        strippedMobile ? normalizeMobileNumber(mobileNumber) : null
+      )
 
       const urlToStore = expandedMapsUrl || mapsUrl.trim()
       if (parsedLocation && urlToStore) {
@@ -252,7 +293,7 @@ export function BusinessDetailsScreen({ currentBusinessId, onBack, onSave }: Pro
 
         {/* Phone number */}
         <div style={{ marginBottom: '20px' }}>
-          <label style={{ fontSize: '13px', color: '#444', display: 'block', marginBottom: '6px' }}>Phone Number</label>
+          <label style={{ fontSize: '13px', color: '#444', display: 'block', marginBottom: '6px' }}>Business Phone</label>
           <input
             type="tel"
             inputMode="numeric"
@@ -262,6 +303,19 @@ export function BusinessDetailsScreen({ currentBusinessId, onBack, onSave }: Pro
             maxLength={15}
             style={{ width: '100%', padding: '10px 12px', fontSize: '14px', border: '1px solid #e0e0e0', borderRadius: '8px', boxSizing: 'border-box' }}
           />
+        </div>
+
+        {/* Mobile Number */}
+        <div style={{ marginBottom: '20px' }}>
+          <label style={{ fontSize: '13px', color: '#444', display: 'block', marginBottom: '6px' }}>Mobile Number</label>
+          <input
+            type="tel"
+            value={mobileNumber}
+            onChange={e => { setMobileNumber(e.target.value); setMobileNumberError('') }}
+            placeholder="+91 98765 43210"
+            style={{ width: '100%', padding: '10px 12px', fontSize: '14px', border: `1px solid ${mobileNumberError ? 'var(--status-overdue)' : '#e0e0e0'}`, borderRadius: '8px', boxSizing: 'border-box' }}
+          />
+          {mobileNumberError && <p style={{ color: 'var(--status-overdue)', fontSize: '12px', marginTop: '4px' }}>{mobileNumberError}</p>}
         </div>
 
         <div style={{ marginBottom: '20px' }}>

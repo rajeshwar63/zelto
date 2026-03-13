@@ -45,6 +45,7 @@ export interface BusinessEntity {
   city?: string
   area?: string
   nameNormalized?: string
+  mobileNumber: string | null
 }
 
 export type UserRole = 'owner' | 'admin' | 'member'
