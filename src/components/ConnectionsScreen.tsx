@@ -300,7 +300,7 @@ export function ConnectionsScreen({ currentBusinessId, onSelectConnection, onAdd
         </div>
         <button
           onClick={handleOpenOrderModal}
-          className="fixed bottom-20 right-4 w-14 h-14 flex items-center justify-center z-20"
+          className="fixed bottom-24 right-4 w-14 h-14 flex items-center justify-center z-20"
           style={{
             backgroundColor: 'var(--brand-primary)',
             borderRadius: 'var(--radius-card)',
@@ -492,7 +492,7 @@ export function ConnectionsScreen({ currentBusinessId, onSelectConnection, onAdd
 
       <button
         onClick={handleOpenOrderModal}
-        className="fixed bottom-20 right-4 w-14 h-14 flex items-center justify-center z-20"
+        className="fixed bottom-24 right-4 w-14 h-14 flex items-center justify-center z-20"
         style={{
           backgroundColor: 'var(--brand-primary)',
           borderRadius: 'var(--radius-card)',
