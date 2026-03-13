@@ -5,12 +5,13 @@ import { createOrder } from '@/lib/interactions'
 import { useDataListener } from '@/lib/data-events'
 import type { Connection, BusinessEntity, ConnectionState } from '@/lib/types'
 import { getConnectionStateColor } from '@/lib/semantic-colors'
-import { Plus, Users, PencilSimple, MagnifyingGlass, X, PaperPlaneTilt } from '@phosphor-icons/react'
+import { Plus, Users, PencilSimple, MagnifyingGlass, X, PaperPlaneTilt, DownloadSimple } from '@phosphor-icons/react'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import { toast } from 'sonner'
 import { ConnectionRequestItem } from '@/components/ConnectionRequestItem'
 import { useConnectionRequestsData } from '@/hooks/data/use-business-data'
+import { LedgerDownloadSheet } from '@/components/LedgerDownloadSheet'
 
 interface ConnectionWithState extends Connection {
   otherBusinessName: string
@@ -72,6 +73,7 @@ export function ConnectionsScreen({ currentBusinessId, onSelectConnection, onAdd
   )
   const [isLoading, setIsLoading] = useState(() => !cachedConnectionsByBusiness.has(currentBusinessId))
   const [showOrderModal, setShowOrderModal] = useState(false)
+  const [showLedgerSheet, setShowLedgerSheet] = useState(false)
   const [eligibleConnections, setEligibleConnections] = useState<Connection[]>([])
   const [businesses, setBusinesses] = useState<Map<string, BusinessEntity>>(new Map())
   const [supplierSearch, setSupplierSearch] = useState('')
@@ -374,6 +376,34 @@ export function ConnectionsScreen({ currentBusinessId, onSelectConnection, onAdd
           </div>
         )}
 
+        {/* Ledger download entry point */}
+        <div className="mb-4">
+          <button
+            onClick={() => setShowLedgerSheet(true)}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '8px',
+              width: '100%',
+              padding: '10px 14px',
+              borderRadius: 'var(--radius-button)',
+              border: '1.5px solid var(--border-light)',
+              backgroundColor: 'var(--bg-card)',
+              color: 'var(--text-primary)',
+              fontSize: '14px',
+              fontWeight: 600,
+              minHeight: '44px',
+              cursor: 'pointer',
+            }}
+          >
+            <DownloadSimple size={18} weight="bold" style={{ color: 'var(--brand-primary)' }} />
+            Download Ledger
+          </button>
+          <p style={{ fontSize: '12px', fontWeight: 500, color: 'var(--text-secondary)', marginTop: '6px', paddingLeft: '2px' }}>
+            Tap any connection to download its individual ledger
+          </p>
+        </div>
+
         <p style={{ fontSize: '13px', fontWeight: 700, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '10px' }}>
           ALL CONNECTIONS
         </p>
@@ -489,6 +519,13 @@ export function ConnectionsScreen({ currentBusinessId, onSelectConnection, onAdd
       >
         <PencilSimple size={24} weight="regular" color="#FFFFFF" />
       </button>
+
+      <LedgerDownloadSheet
+        isOpen={showLedgerSheet}
+        onClose={() => setShowLedgerSheet(false)}
+        scope="all"
+        currentBusinessId={currentBusinessId}
+      />
 
       {showOrderModal && (
         <div className="fixed inset-0 bg-black/50 z-50 flex items-end">
