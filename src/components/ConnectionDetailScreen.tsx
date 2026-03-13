@@ -5,7 +5,7 @@ import { createOrder } from '@/lib/interactions'
 import { useDataListener } from '@/lib/data-events'
 import { formatDistanceToNow, differenceInDays, format } from 'date-fns'
 import type { Connection, OrderWithPaymentState, BusinessEntity } from '@/lib/types'
-import { CaretLeft, CaretDown, CaretRight, Paperclip } from '@phosphor-icons/react'
+import { CaretLeft, CaretDown, CaretRight, Paperclip, DownloadSimple } from '@phosphor-icons/react'
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -21,6 +21,7 @@ import { OrderPaymentSummary } from '@/components/order/OrderPaymentSummary'
 import { OrderTimeline } from '@/components/order/OrderTimeline'
 import { OrderAttachmentsSection } from '@/components/order/OrderAttachmentsSection'
 import { buildOrderTimeline, formatDueDate, formatPaymentTerms, getLifecycleState } from '@/components/order/order-detail-utils'
+import { LedgerDownloadSheet } from '@/components/LedgerDownloadSheet'
 
 interface Props {
   connectionId: string
@@ -58,6 +59,7 @@ export function ConnectionDetailScreen({ connectionId, currentBusinessId, onBack
   const [archivedIds, setArchivedIds] = useState<Set<string>>(new Set())
   const [attachmentCounts, setAttachmentCounts] = useState<Record<string, number>>({})
   const [pullRevealHeight, setPullRevealHeight] = useState(0)
+  const [showLedgerSheet, setShowLedgerSheet] = useState(false)
   const pullStartY = useRef<number | null>(null)
   const lastTouchY = useRef<number | null>(null)
   const lastScrollTop = useRef(0)
@@ -417,6 +419,41 @@ export function ConnectionDetailScreen({ connectionId, currentBusinessId, onBack
           )}
         </div>
       </div>
+
+      {/* Ledger download CTA — always visible */}
+      <div style={{ borderTop: '1px solid var(--border-light)', backgroundColor: 'var(--bg-card)', padding: '8px 12px' }}>
+        <button
+          onClick={() => setShowLedgerSheet(true)}
+          style={{
+            width: '100%',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            gap: '8px',
+            padding: '10px',
+            borderRadius: 'var(--radius-button)',
+            border: '1.5px solid var(--border-light)',
+            backgroundColor: 'var(--bg-card)',
+            color: 'var(--text-primary)',
+            fontSize: '14px',
+            fontWeight: 600,
+            minHeight: '44px',
+            cursor: 'pointer',
+          }}
+        >
+          <DownloadSimple size={18} weight="bold" style={{ color: 'var(--brand-primary)' }} />
+          Download Ledger
+        </button>
+      </div>
+
+      <LedgerDownloadSheet
+        isOpen={showLedgerSheet}
+        onClose={() => setShowLedgerSheet(false)}
+        scope="single"
+        connectionId={connectionId}
+        connectionName={otherBusiness.businessName}
+        currentBusinessId={currentBusinessId}
+      />
 
       {canPlaceOrder && (
         <div style={{ borderTop: '1px solid var(--border-light)', backgroundColor: 'var(--bg-card)', padding: '8px 12px' }}>
