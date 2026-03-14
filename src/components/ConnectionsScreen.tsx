@@ -513,13 +513,13 @@ export function ConnectionsScreen({ currentBusinessId, onSelectConnection, onAdd
                         window.location.href = 'tel:' + conn.contactPhone
                       }}
                       className="flex items-center justify-center"
-                      style={{ width: '32px', height: '28px', backgroundColor: conn.contactPhone ? '#2D2D2D' : '#AAAAAA', cursor: conn.contactPhone ? 'pointer' : 'default' }}
+                      style={{ width: '44px', height: '36px', backgroundColor: conn.contactPhone ? '#2D2D2D' : '#AAAAAA', cursor: conn.contactPhone ? 'pointer' : 'default' }}
                       aria-label={conn.contactPhone ? 'Call' : 'Add number to call'}
                       aria-disabled={!conn.contactPhone}
                     >
                       <Phone size={13} color="#FFFFFF" />
                     </button>
-                    <div style={{ width: '1px', height: '28px', backgroundColor: '#D0D0D0', flexShrink: 0 }} />
+                    <div style={{ width: '1px', height: '36px', backgroundColor: '#D0D0D0', flexShrink: 0 }} />
                     <button
                       onClick={(e) => {
                         e.stopPropagation()
@@ -529,7 +529,7 @@ export function ConnectionsScreen({ currentBusinessId, onSelectConnection, onAdd
                         window.open(`https://wa.me/${number}`, '_blank')
                       }}
                       className="flex items-center justify-center"
-                      style={{ width: '32px', height: '28px', backgroundColor: conn.contactPhone ? '#25D366' : '#AAAAAA', cursor: conn.contactPhone ? 'pointer' : 'default' }}
+                      style={{ width: '44px', height: '36px', backgroundColor: conn.contactPhone ? '#25D366' : '#AAAAAA', cursor: conn.contactPhone ? 'pointer' : 'default' }}
                       aria-label={conn.contactPhone ? 'WhatsApp' : 'Add number to WhatsApp'}
                       aria-disabled={!conn.contactPhone}
                     >
