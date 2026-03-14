@@ -5,6 +5,7 @@ import { createOrder } from '@/lib/interactions'
 import { useDataListener } from '@/lib/data-events'
 import type { Connection, BusinessEntity, ConnectionState } from '@/lib/types'
 import { getConnectionStateColor } from '@/lib/semantic-colors'
+import { buildConnectionSubtitle } from '@/lib/utils'
 import { Plus, Users, PencilSimple, MagnifyingGlass, X, PaperPlaneTilt, DownloadSimple } from '@phosphor-icons/react'
 import { Phone } from 'lucide-react'
 import { Input } from '@/components/ui/input'
@@ -79,6 +80,8 @@ function isSameConnections(a: ConnectionWithState[], b: ConnectionWithState[]) {
       conn.totalTradedAmount === other.totalTradedAmount &&
       conn.lastActivityAt === other.lastActivityAt &&
       conn.contactPhone === other.contactPhone &&
+      conn.branchLabel === other.branchLabel &&
+      conn.contactName === other.contactName &&
       isSamePaymentTerms(conn.paymentTerms, other.paymentTerms)
     )
   })
@@ -481,6 +484,13 @@ export function ConnectionsScreen({ currentBusinessId, onSelectConnection, onAdd
                     </div>
                   )}
                 </div>
+
+                {/* Branch / contact subtitle */}
+                {buildConnectionSubtitle(conn.branchLabel, conn.contactName) && (
+                  <p className="text-[11px] text-muted-foreground mt-0.5">
+                    📍 {buildConnectionSubtitle(conn.branchLabel, conn.contactName)}
+                  </p>
+                )}
 
                 {/* Row 2: Business type · Payment terms */}
                 {subtitleParts.length > 0 && (

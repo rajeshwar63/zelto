@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { dataStore } from '@/lib/data-store'
 import { emitDataChange } from '@/lib/data-events'
 import { calculateCredibility, getBusinessActivityCounts, type CredibilityBreakdown } from '@/lib/credibility'
+import { setPendingConnectionLabels } from '@/lib/pending-connection-labels'
 import { ArrowLeft } from '@phosphor-icons/react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -19,6 +20,8 @@ export function AddConnectionScreen({ currentBusinessId, onBack, onSuccess }: Pr
   const [foundCredibility, setFoundCredibility] = useState<CredibilityBreakdown | null>(null)
   const [foundActivity, setFoundActivity] = useState<{ connectionCount: number; orderCount: number } | null>(null)
   const [selectedRole, setSelectedRole] = useState<'buyer' | 'supplier' | null>(null)
+  const [branchLabel, setBranchLabel] = useState('')
+  const [contactName, setContactName] = useState('')
   const [error, setError] = useState<string | null>(null)
   const [searching, setSearching] = useState(false)
   const [sending, setSending] = useState(false)
@@ -29,6 +32,8 @@ export function AddConnectionScreen({ currentBusinessId, onBack, onSuccess }: Pr
     setFoundCredibility(null)
     setFoundActivity(null)
     setSelectedRole(null)
+    setBranchLabel('')
+    setContactName('')
     setSearching(true)
 
     const trimmedId = zeltoId.trim()
@@ -119,6 +124,11 @@ export function AddConnectionScreen({ currentBusinessId, onBack, onSuccess }: Pr
         requesterRole,
         receiverRole
       })
+      setPendingConnectionLabels(
+        newRequest.id,
+        branchLabel.trim() || null,
+        contactName.trim() || null
+      )
       emitDataChange('connection-requests:changed', 'notifications:changed')
       setSending(false)
       onSuccess()
@@ -229,6 +239,34 @@ export function AddConnectionScreen({ currentBusinessId, onBack, onSuccess }: Pr
                 </p>
               </div>
             )}
+
+            {/* Optional branch/contact fields */}
+            <div className="space-y-2 pt-2">
+              <div>
+                <label className="text-[11px] text-muted-foreground mb-1 block">
+                  Branch / Location (optional)
+                </label>
+                <input
+                  type="text"
+                  value={branchLabel}
+                  onChange={(e) => setBranchLabel(e.target.value)}
+                  placeholder="e.g. Banjara Hills"
+                  className="w-full text-[13px] bg-background border border-border rounded-xl px-3 py-2 text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary"
+                />
+              </div>
+              <div>
+                <label className="text-[11px] text-muted-foreground mb-1 block">
+                  Contact Person (optional)
+                </label>
+                <input
+                  type="text"
+                  value={contactName}
+                  onChange={(e) => setContactName(e.target.value)}
+                  placeholder="e.g. Ravi"
+                  className="w-full text-[13px] bg-background border border-border rounded-xl px-3 py-2 text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary"
+                />
+              </div>
+            </div>
 
             {/* Role selection + send button */}
             <div className="space-y-2 pt-2">

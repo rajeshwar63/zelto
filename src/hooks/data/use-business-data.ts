@@ -10,6 +10,8 @@ export interface EnrichedOrder extends OrderWithPaymentState {
   connectionName: string
   lifecycleState: string
   latestActivity: number
+  branchLabel?: string | null
+  contactName?: string | null
 }
 
 interface AttentionCounts {
@@ -100,6 +102,8 @@ export function useOrdersData(currentBusinessId: string, isActive = true) {
             connectionName,
             lifecycleState: getLifecycleState(order),
             latestActivity: getLatestActivity(order),
+            branchLabel: conn?.branchLabel,
+            contactName: conn?.contactName,
           }
         })
         .sort((a, b) => b.latestActivity - a.latestActivity)

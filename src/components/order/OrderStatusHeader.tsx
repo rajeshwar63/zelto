@@ -6,9 +6,10 @@ interface Props {
   itemSummary: string
   orderValue: number
   counterpartName: string
+  counterpartSubtitle?: string | null
 }
 
-export function OrderStatusHeader({ lifecycleState, itemSummary, orderValue, counterpartName }: Props) {
+export function OrderStatusHeader({ lifecycleState, itemSummary, orderValue, counterpartName, counterpartSubtitle }: Props) {
   const statusColor = getLifecycleStatusColor(lifecycleState)
 
   return (
@@ -38,6 +39,11 @@ export function OrderStatusHeader({ lifecycleState, itemSummary, orderValue, cou
             </p>
           )}
           <p style={{ fontSize: '12px', fontWeight: 500, color: 'var(--text-secondary)', marginTop: '4px' }}>{counterpartName}</p>
+          {counterpartSubtitle && (
+            <p className="text-[11px] text-muted-foreground mt-0.5">
+              📍 {counterpartSubtitle}
+            </p>
+          )}
         </div>
       </div>
     </>

@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { dataStore } from '@/lib/data-store'
 import { emitDataChange } from '@/lib/data-events'
+import { consumePendingConnectionLabels } from '@/lib/pending-connection-labels'
 import { calculateCredibility, getBusinessActivityCounts, type CredibilityBreakdown } from '@/lib/credibility'
 import type { BusinessEntity, ConnectionRequest } from '@/lib/types'
 import { Button } from '@/components/ui/button'
@@ -70,6 +71,16 @@ export function ConnectionRequestItem({ request, currentBusinessId, onUpdate, on
 
     try {
       const result = await dataStore.acceptConnectionRequest(request.id, receiverRole, currentBusinessId)
+
+      // Apply any pending branch/contact labels the requester entered during the Add Connection flow
+      const pendingLabels = consumePendingConnectionLabels(request.id)
+      if (pendingLabels && result.connectionId) {
+        await dataStore.updateConnectionLabels(
+          result.connectionId,
+          pendingLabels.branchLabel,
+          pendingLabels.contactName
+        ).catch(() => {/* non-critical */})
+      }
 
       if (result.alreadyExisted) {
         setOutcomeMessage('This request was already accepted previously.')

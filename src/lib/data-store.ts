@@ -454,6 +454,22 @@ export class ZeltoDataStore {
     if (error) throw error
   }
 
+  async updateConnectionLabels(
+    connectionId: string,
+    branchLabel: string | null,
+    contactName: string | null
+  ): Promise<void> {
+    const { error } = await supabase
+      .from('connections')
+      .update({
+        branch_label: branchLabel || null,
+        contact_name: contactName || null,
+      })
+      .eq('id', connectionId)
+
+    if (error) throw error
+  }
+
   // ============ ORDERS ============
 
   async getAllOrders(): Promise<Order[]> {

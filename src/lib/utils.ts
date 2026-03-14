@@ -14,3 +14,11 @@ const INR_NO_FRACTION_FORMATTER = new Intl.NumberFormat('en-IN', {
 export function formatInrCurrency(amount: number): string {
   return INR_NO_FRACTION_FORMATTER.format(amount)
 }
+
+export function buildConnectionSubtitle(
+  branchLabel?: string | null,
+  contactName?: string | null
+): string | null {
+  const parts = [branchLabel, contactName].filter(Boolean)
+  return parts.length > 0 ? parts.join('  •  ') : null
+}

@@ -69,6 +69,8 @@ export interface Connection {
   behaviourHistory: Record<string, unknown>[]
   createdAt: number
   contactPhone: string | null
+  branchLabel?: string | null
+  contactName?: string | null
 }
 
 export interface Order {
