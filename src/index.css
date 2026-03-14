@@ -97,6 +97,51 @@ html, body, #root {
   --radius-modal: 20px;
 }
 
+/* Orders Filter Bar */
+.filter-bar {
+  display: flex;
+  gap: 3px;
+  background: white;
+  border: 0.5px solid rgba(0,0,0,0.12);
+  border-radius: 12px;
+  padding: 3px;
+  margin-bottom: 12px;
+}
+
+.filter-group {
+  display: flex;
+  gap: 2px;
+  flex: 1;
+}
+
+.filter-divider {
+  width: 0.5px;
+  background: rgba(0,0,0,0.15);
+  margin: 4px 2px;
+  flex-shrink: 0;
+}
+
+.filter-tab {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  padding: 7px 4px 6px;
+  border-radius: 7px;
+  cursor: pointer;
+}
+
+.filter-tab .icon  { font-size: 18px; line-height: 1; }
+.filter-tab .label { font-size: 10px; color: #888; font-weight: 400; }
+
+.filter-tab.active-delivery               { background: #185FA5; }
+.filter-tab.active-delivery .label        { color: #B5D4F4; }
+
+.filter-tab.active-payment                { background: #1D9E75; }
+.filter-tab.active-payment .label         { color: #9FE1CB; }
+
 @theme {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
