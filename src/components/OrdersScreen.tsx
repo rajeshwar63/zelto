@@ -216,8 +216,7 @@ export function OrdersScreen({ currentBusinessId, onSelectOrder, initialFilter, 
             {filteredOrders.map(order => (
               <OrderCard
                 key={order.id}
-                orderId={order.id}
-                createdAt={order.createdAt}
+                itemSummary={order.item_summary}
                 connectionName={order.connectionName}
                 branchLabel={order.branchLabel}
                 contactName={order.contactName}

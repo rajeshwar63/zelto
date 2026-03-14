@@ -3,8 +3,7 @@ import type { PaymentTermType } from '@/lib/types'
 import { formatInrCurrency } from '@/lib/utils'
 
 export interface OrderCardProps {
-  orderId: string
-  createdAt: number
+  itemSummary: string
   connectionName: string
   branchLabel?: string | null
   contactName?: string | null
@@ -17,12 +16,6 @@ export interface OrderCardProps {
   latestActivity: number
   paymentTermSnapshot: PaymentTermType | null
   onClick: () => void
-}
-
-function formatDisplayOrderId(id: string, createdAt: number): string {
-  const year = new Date(createdAt).getFullYear()
-  const seq = parseInt(id.replace(/-/g, '').slice(-4), 16) % 10000
-  return `#ORD-${year}-${String(seq).padStart(4, '0')}`
 }
 
 function formatPaymentTerm(term: PaymentTermType | null): string {
@@ -72,8 +65,7 @@ const DIVIDER: CSSProperties = {
 }
 
 export function OrderCard({
-  orderId,
-  createdAt,
+  itemSummary,
   connectionName,
   branchLabel,
   contactName,
@@ -143,7 +135,7 @@ export function OrderCard({
       {/* Row 1: Order ID + payment status */}
       <div className="flex items-center justify-between gap-3">
         <p style={{ fontSize: '15px', fontWeight: 500, color: 'var(--text-primary)', flex: 1 }}>
-          {formatDisplayOrderId(orderId, createdAt)}
+          {itemSummary}
         </p>
         {isPaid ? (
           <Pill variant="paid" label="Paid" />
