@@ -2,16 +2,14 @@ import { useEffect, useMemo, useState } from 'react'
 import { dataStore } from '@/lib/data-store'
 import { createOrder } from '@/lib/interactions'
 import { useOrdersData } from '@/hooks/data/use-business-data'
-import { formatDistanceToNow, isToday } from 'date-fns'
+import { isToday } from 'date-fns'
 import type { Connection, BusinessEntity } from '@/lib/types'
-import { getLifecycleStatusColor } from '@/lib/semantic-colors'
-import { PencilSimple, MagnifyingGlass, X, PaperPlaneTilt, MapPin, User } from '@phosphor-icons/react'
+import { PencilSimple, MagnifyingGlass, X, PaperPlaneTilt } from '@phosphor-icons/react'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
-import { CardAccent } from '@/components/ui/card'
+import { OrderCard } from '@/components/order/OrderCard'
 import { toast } from 'sonner'
 import { InlineRefreshSpinner, ScreenRefreshIndicator, useScreenLoadState } from '@/components/ScreenLoadState'
-import { formatInrCurrency } from '@/lib/utils'
 
 type OrderFilter = 'all' | 'today' | 'placed' | 'dispatched' | 'delivered' | 'payment_pending' | 'paid' | 'awaiting_dispatch' | 'overdue' | 'due_today'
 
@@ -215,113 +213,25 @@ export function OrdersScreen({ currentBusinessId, onSelectOrder, initialFilter, 
           </div>
         ) : (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--sp-sm)' }}>
-            {filteredOrders.map(order => {
-              const statusColor = getLifecycleStatusColor(order.lifecycleState)
-              const isOverdue = order.deliveredAt && order.calculatedDueDate && Date.now() > order.calculatedDueDate && order.settlementState !== 'Paid'
-              const isDueToday = order.deliveredAt && order.calculatedDueDate && isToday(order.calculatedDueDate) && order.settlementState !== 'Paid'
-              const orderAmount = order.orderValue
-              const paidAmount = order.totalPaid
-              const dueAmount = Math.max(order.pendingAmount ?? (orderAmount - paidAmount), 0)
-              const isAwaitingAmount = orderAmount === 0 && order.lifecycleState === 'Placed'
-              const dueStatus = isOverdue
-                ? { label: 'Overdue', color: 'var(--status-overdue)' }
-                : isDueToday
-                  ? { label: 'Due today', color: 'var(--status-dispatched)' }
-                  : null
-              const topRightLabel = dueAmount > 0
-                ? { text: `${formatInrCurrency(dueAmount)} due`, color: 'var(--status-overdue)' }
-                : { text: 'Paid', color: 'var(--status-success)' }
-
-              return (
-                <button
-                  key={order.id}
-                  onClick={() => onSelectOrder(order.id, order.connectionId)}
-                  className="w-full text-left relative overflow-hidden"
-                  style={{
-                    backgroundColor: 'var(--bg-card)',
-                    borderRadius: 'var(--radius-card)',
-                    padding: '14px 16px 14px 20px',
-                    minHeight: '44px',
-                  }}
-                >
-                  <CardAccent color={statusColor} />
-                  <div className="flex items-start justify-between">
-                    <p style={{ fontSize: '15px', fontWeight: 700, color: 'var(--text-primary)', flex: 1, marginRight: '12px' }}>
-                      {order.itemSummary}
-                    </p>
-                    <div style={{ marginLeft: '12px', flexShrink: 0, textAlign: 'right' }}>
-                      {isAwaitingAmount ? (
-                        <p style={{ fontSize: '14px', fontWeight: 600, color: 'var(--status-dispatched)' }}>Awaiting amount</p>
-                      ) : orderAmount === 0 ? (
-                        <p style={{ fontSize: '13px', fontWeight: 500, color: 'var(--text-secondary)' }}>Amount not recorded</p>
-                      ) : (
-                        <p style={{ fontSize: '15px', fontWeight: 700, color: topRightLabel.color }}>{topRightLabel.text}</p>
-                      )}
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-2 mt-1 min-w-0">
-                    <p style={{ fontSize: '12px', fontWeight: 500, color: 'var(--text-secondary)', flexShrink: 0 }}>
-                      {order.connectionName}
-                    </p>
-                    {(order.branchLabel || order.contactName) && (
-                      <div className="flex items-center gap-1 min-w-0">
-                        {order.branchLabel && (
-                          <>
-                            <MapPin size={11} color="var(--text-secondary)" style={{ flexShrink: 0 }} />
-                            <span style={{ fontSize: '11px', color: 'var(--text-secondary)', whiteSpace: 'nowrap' }}>
-                              {order.branchLabel.length > 10 ? order.branchLabel.slice(0, 10) + '…' : order.branchLabel}
-                            </span>
-                          </>
-                        )}
-                        {order.branchLabel && order.contactName && (
-                          <span style={{ fontSize: '11px', color: 'var(--text-secondary)', flexShrink: 0 }}>•</span>
-                        )}
-                        {order.contactName && (
-                          <>
-                            <User size={11} color="var(--text-secondary)" style={{ flexShrink: 0 }} />
-                            <span style={{ fontSize: '11px', color: 'var(--text-secondary)', whiteSpace: 'nowrap' }}>
-                              {order.contactName.length > 10 ? order.contactName.slice(0, 10) + '…' : order.contactName}
-                            </span>
-                          </>
-                        )}
-                      </div>
-                    )}
-                  </div>
-                  <div style={{ borderTop: '1px solid var(--border-section)', marginTop: '10px' }} />
-                  {orderAmount > 0 && (
-                    <div className="flex items-center justify-between mt-2" style={{ fontSize: '12px' }}>
-                      <span style={{ color: 'var(--text-secondary)', fontWeight: 600 }}>Order <span style={{ color: 'var(--text-primary)' }}>{formatInrCurrency(orderAmount)}</span></span>
-                      <span style={{ color: 'var(--text-secondary)', fontWeight: 600 }}>Paid <span style={{ color: 'var(--text-primary)' }}>{formatInrCurrency(paidAmount)}</span></span>
-                    </div>
-                  )}
-                  <div style={{ borderTop: '1px solid var(--border-section)', marginTop: '10px' }} />
-                  <div className="flex items-center gap-1.5 mt-2" style={{ fontSize: '12px' }}>
-                    <span
-                      style={{
-                        fontSize: '11px',
-                        fontWeight: 600,
-                        color: statusColor,
-                        backgroundColor: `${statusColor}26`,
-                        padding: '2px 8px',
-                        borderRadius: 'var(--radius-chip)',
-                      }}
-                    >
-                      {order.lifecycleState}
-                    </span>
-                    <span style={{ color: 'var(--text-secondary)' }}>·</span>
-                    <span style={{ color: 'var(--text-secondary)', fontSize: '12px', fontWeight: 500 }}>
-                      {formatDistanceToNow(order.latestActivity, { addSuffix: true })}
-                    </span>
-                    {dueStatus && (
-                      <>
-                        <span style={{ color: 'var(--text-secondary)' }}>·</span>
-                        <span style={{ color: dueStatus.color, fontSize: '11px', fontWeight: 600 }}>{dueStatus.label}</span>
-                      </>
-                    )}
-                  </div>
-                </button>
-              )
-            })}
+            {filteredOrders.map(order => (
+              <OrderCard
+                key={order.id}
+                orderId={order.id}
+                createdAt={order.createdAt}
+                connectionName={order.connectionName}
+                branchLabel={order.branchLabel}
+                contactName={order.contactName}
+                orderValue={order.orderValue}
+                pendingAmount={order.pendingAmount ?? Math.max(order.orderValue - order.totalPaid, 0)}
+                settlementState={order.settlementState}
+                lifecycleState={order.lifecycleState}
+                calculatedDueDate={order.calculatedDueDate}
+                deliveredAt={order.deliveredAt}
+                latestActivity={order.latestActivity}
+                paymentTermSnapshot={order.paymentTermSnapshot}
+                onClick={() => onSelectOrder(order.id, order.connectionId)}
+              />
+            ))}
           </div>
         )}
       </div>
