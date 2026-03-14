@@ -86,9 +86,6 @@ export function OrderCard({
     ? Math.ceil((calculatedDueDate - now) / (24 * 60 * 60 * 1000))
     : null
 
-  const daysAgo = Math.max(0, Math.floor((now - latestActivity) / (24 * 60 * 60 * 1000)))
-  const lastActivityText = daysAgo === 0 ? 'today' : daysAgo === 1 ? '1 day ago' : `${daysAgo} days ago`
-
   let paymentPillVariant: PillVariant | null = null
   let paymentPillLabel = ''
   if (!isPaid) {
@@ -119,6 +116,19 @@ export function OrderCard({
 
   const entityParts = [connectionName, branchLabel || null, contactName || null].filter(Boolean) as string[]
 
+  let dueDateText: string | null = null
+  let dueDateColor = 'var(--text-secondary)'
+  if (!isPaid) {
+    if (isOverdue) {
+      const overdueDays = calculatedDueDate != null ? Math.ceil((now - calculatedDueDate) / (24 * 60 * 60 * 1000)) : 0
+      dueDateText = `Overdue by ${overdueDays} day${overdueDays === 1 ? '' : 's'}`
+      dueDateColor = '#993C1D'
+    } else if (daysUntilDue !== null) {
+      dueDateText = daysUntilDue === 0 ? 'Due today' : `Due in ${daysUntilDue} day${daysUntilDue === 1 ? '' : 's'}`
+      dueDateColor = '#854F0B'
+    }
+  }
+
   return (
     <button
       onClick={onClick}
@@ -132,18 +142,23 @@ export function OrderCard({
         minHeight: '44px',
       }}
     >
-      {/* Row 1: Order ID + payment status */}
-      <div className="flex items-center justify-between gap-3">
+      {/* Row 1: Order ID + outstanding amount / Paid pill, with order value below */}
+      <div className="flex items-start justify-between gap-3">
         <p style={{ fontSize: '15px', fontWeight: 500, color: 'var(--text-primary)', flex: 1 }}>
           {itemSummary.length > 15 ? `${itemSummary.slice(0, 15)}…` : itemSummary}
         </p>
-        {isPaid ? (
-          <Pill variant="paid" label="Paid" />
-        ) : pendingAmount > 0 ? (
-          <p style={{ fontSize: '14px', fontWeight: 500, color: '#993C1D', flexShrink: 0 }}>
-            ↑ {formatInrCurrency(pendingAmount)}
+        <div style={{ textAlign: 'right', flexShrink: 0 }}>
+          {isPaid ? (
+            <Pill variant="paid" label="Paid" />
+          ) : pendingAmount > 0 ? (
+            <p style={{ fontSize: '14px', fontWeight: 500, color: '#993C1D' }}>
+              ↑ {formatInrCurrency(pendingAmount)}
+            </p>
+          ) : null}
+          <p style={{ fontSize: '12px', color: 'var(--text-secondary)', marginTop: '3px' }}>
+            {orderValue > 0 ? formatInrCurrency(orderValue) : '—'}
           </p>
-        ) : null}
+        </div>
       </div>
 
       {/* Row 2: Entity line */}
@@ -153,33 +168,24 @@ export function OrderCard({
 
       <div style={DIVIDER} />
 
-      {/* Row 3: Order value + pills */}
+      {/* Row 3: Lifecycle status (left) + payment status pill (right) */}
       <div className="flex items-center justify-between gap-2">
-        <p style={{ fontSize: '13px', color: 'var(--text-secondary)' }}>
-          Order value:{' '}
-          <span style={{ fontWeight: 500, color: 'var(--text-primary)' }}>
-            {orderValue > 0 ? formatInrCurrency(orderValue) : '—'}
-          </span>
-        </p>
-        <div className="flex items-center gap-1.5" style={{ flexShrink: 0 }}>
-          {paymentPillVariant && <Pill variant={paymentPillVariant} label={paymentPillLabel} />}
-          <Pill variant={fulfilmentPillVariant} label={fulfilmentPillLabel} />
-        </div>
+        <Pill variant={fulfilmentPillVariant} label={fulfilmentPillLabel} />
+        {paymentPillVariant && <Pill variant={paymentPillVariant} label={paymentPillLabel} />}
       </div>
 
       <div style={DIVIDER} />
 
-      {/* Row 4: Payment terms + last activity */}
+      {/* Row 4: Payment terms (left) + due date (right) */}
       <div className="flex items-center justify-between gap-2">
         <p style={{ fontSize: '13px', color: 'var(--text-secondary)' }}>
           {formatPaymentTerm(paymentTermSnapshot)}
         </p>
-        <p style={{ fontSize: '13px', color: 'var(--text-secondary)', flexShrink: 0 }}>
-          Last activity:{' '}
-          <span style={{ fontWeight: 500, color: 'var(--text-primary)' }}>
-            {lastActivityText}
-          </span>
-        </p>
+        {dueDateText && (
+          <p style={{ fontSize: '13px', fontWeight: 500, color: dueDateColor, flexShrink: 0 }}>
+            {dueDateText}
+          </p>
+        )}
       </div>
     </button>
   )
