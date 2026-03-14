@@ -182,17 +182,17 @@ export function OrdersScreen({ currentBusinessId, onSelectOrder, initialFilter, 
         <div style={{ borderBottom: '1px solid var(--border-light)', padding: '8px 16px' }}>
           <div className="filter-bar">
             {/* Left: Delivery zone */}
-            <div className="filter-group">
+            <div className="filter-group" style={{ flex: 4 }}>
               <FilterTab group="delivery" value="all"        icon="☰"  label="All"     deliveryFilter={deliveryFilter} paymentFilter={paymentFilter} onDeliveryChange={setDeliveryFilter} onPaymentChange={setPaymentFilter} />
               <FilterTab group="delivery" value="placed"     icon="📝" label="Placed"  deliveryFilter={deliveryFilter} paymentFilter={paymentFilter} onDeliveryChange={setDeliveryFilter} onPaymentChange={setPaymentFilter} />
-              <FilterTab group="delivery" value="dispatched" icon="🚚" label="Transit" deliveryFilter={deliveryFilter} paymentFilter={paymentFilter} onDeliveryChange={setDeliveryFilter} onPaymentChange={setPaymentFilter} />
+              <FilterTab group="delivery" value="dispatched" icon="🚚" label="Disp'd"  deliveryFilter={deliveryFilter} paymentFilter={paymentFilter} onDeliveryChange={setDeliveryFilter} onPaymentChange={setPaymentFilter} />
               <FilterTab group="delivery" value="delivered"  icon="📦" label="Deliv'd" deliveryFilter={deliveryFilter} paymentFilter={paymentFilter} onDeliveryChange={setDeliveryFilter} onPaymentChange={setPaymentFilter} />
             </div>
 
             <div className="filter-divider" />
 
             {/* Right: Payment zone */}
-            <div className="filter-group">
+            <div className="filter-group" style={{ flex: 2 }}>
               <FilterTab group="payment" value="pending" icon="₹⏳" label="Due"  deliveryFilter={deliveryFilter} paymentFilter={paymentFilter} onDeliveryChange={setDeliveryFilter} onPaymentChange={setPaymentFilter} />
               <FilterTab group="payment" value="paid"    icon="₹✓"  label="Paid" deliveryFilter={deliveryFilter} paymentFilter={paymentFilter} onDeliveryChange={setDeliveryFilter} onPaymentChange={setPaymentFilter} />
             </div>
