@@ -129,13 +129,13 @@ html, body, #root {
   align-items: center;
   justify-content: center;
   gap: 1px;
-  padding: 4px 4px 3px;
+  padding: 2px 3px 2px;
   border-radius: 7px;
   cursor: pointer;
 }
 
-.filter-tab .icon  { font-size: 18px; line-height: 1; }
-.filter-tab .label { font-size: 10px; color: #888; font-weight: 400; }
+.filter-tab .icon  { font-size: 16px; line-height: 1; }
+.filter-tab .label { font-size: 9px; color: #888; font-weight: 400; }
 
 .filter-tab.active-delivery               { background: #185FA5; }
 .filter-tab.active-delivery .icon         { color: white; }
