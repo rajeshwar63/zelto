@@ -194,6 +194,7 @@ export function OrderCard({
       className="w-full text-left"
       style={{
         backgroundColor: 'var(--bg-card)',
+        border: '1px solid var(--border-light)',
         borderRadius: 'var(--radius-card)',
         padding: '14px 16px',
         display: 'block',

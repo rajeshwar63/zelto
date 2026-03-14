@@ -212,7 +212,7 @@ export function OrdersScreen({ currentBusinessId, onSelectOrder, initialFilter, 
             <p style={{ fontSize: '14px', fontWeight: 500, color: 'var(--text-secondary)' }}>No orders found</p>
           </div>
         ) : (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--sp-sm)' }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--sp-md)' }}>
             {filteredOrders.map(order => (
               <OrderCard
                 key={order.id}
