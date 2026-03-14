@@ -5,6 +5,7 @@ import { useOrdersData } from '@/hooks/data/use-business-data'
 import { formatDistanceToNow, isToday } from 'date-fns'
 import type { Connection, BusinessEntity } from '@/lib/types'
 import { getLifecycleStatusColor } from '@/lib/semantic-colors'
+import { buildConnectionSubtitle } from '@/lib/utils'
 import { PencilSimple, MagnifyingGlass, X, PaperPlaneTilt } from '@phosphor-icons/react'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
@@ -262,6 +263,11 @@ export function OrdersScreen({ currentBusinessId, onSelectOrder, initialFilter, 
                   <p style={{ fontSize: '12px', fontWeight: 500, color: 'var(--text-secondary)', marginTop: '4px' }} className="truncate">
                     {order.connectionName}
                   </p>
+                  {buildConnectionSubtitle(order.branchLabel, order.contactName) && (
+                    <p className="text-[11px] text-muted-foreground mt-0.5">
+                      📍 {buildConnectionSubtitle(order.branchLabel, order.contactName)}
+                    </p>
+                  )}
                   <div style={{ borderTop: '1px solid var(--border-section)', marginTop: '10px' }} />
                   {orderAmount > 0 && (
                     <div className="flex items-center justify-between mt-2" style={{ fontSize: '12px' }}>

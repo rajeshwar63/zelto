@@ -17,6 +17,7 @@ import { OrderPaymentSummary } from '@/components/order/OrderPaymentSummary'
 import { OrderTimeline } from '@/components/order/OrderTimeline'
 import { OrderAttachmentsSection } from '@/components/order/OrderAttachmentsSection'
 import { buildOrderTimeline, formatDueDate, formatPaymentTerms, getLifecycleState } from '@/components/order/order-detail-utils'
+import { buildConnectionSubtitle } from '@/lib/utils'
 
 interface Props {
   orderId: string
@@ -347,6 +348,7 @@ export function OrderDetailScreen({ orderId, connectionId, currentBusinessId, mo
           itemSummary={order.itemSummary}
           orderValue={order.orderValue}
           counterpartName={otherBusiness?.businessName || 'Unknown'}
+          counterpartSubtitle={buildConnectionSubtitle(connection.branchLabel, connection.contactName)}
         />
 
         <OrderPaymentSummary

@@ -15,7 +15,7 @@ import { getConnectionStateColor, getDueDateColor, getLifecycleStatusColor } fro
 import { motion, useMotionValue, useTransform, animate, PanInfo, AnimatePresence } from 'framer-motion'
 import { getArchivedOrderIds, archiveOrder as doArchiveOrder, unarchiveOrder as doUnarchiveOrder } from '@/lib/archive-store'
 import { markOrderSeen, isOrderNew } from '@/lib/unread-tracker'
-import { formatInrCurrency } from '@/lib/utils'
+import { formatInrCurrency, buildConnectionSubtitle } from '@/lib/utils'
 import { OrderStatusHeader } from '@/components/order/OrderStatusHeader'
 import { OrderPaymentSummary } from '@/components/order/OrderPaymentSummary'
 import { OrderTimeline } from '@/components/order/OrderTimeline'
@@ -62,6 +62,9 @@ export function ConnectionDetailScreen({ connectionId, currentBusinessId, onBack
   const [pullRevealHeight, setPullRevealHeight] = useState(0)
   const [showLedgerSheet, setShowLedgerSheet] = useState(false)
   const [showContactPhoneSheet, setShowContactPhoneSheet] = useState(false)
+  const [branchLabel, setBranchLabel] = useState('')
+  const [contactName, setContactName] = useState('')
+  const [savingLabels, setSavingLabels] = useState(false)
   const pullStartY = useRef<number | null>(null)
   const lastTouchY = useRef<number | null>(null)
   const lastScrollTop = useRef(0)
@@ -87,6 +90,8 @@ export function ConnectionDetailScreen({ connectionId, currentBusinessId, onBack
       setConnection(conn)
       setOtherBusiness(otherBiz || null)
       setInsights(connectionInsights)
+      setBranchLabel(conn.branchLabel ?? '')
+      setContactName(conn.contactName ?? '')
       setLoading(false)
     } catch (err) {
       console.error('Failed to load connection data:', err)
@@ -154,6 +159,23 @@ export function ConnectionDetailScreen({ connectionId, currentBusinessId, onBack
       setNewOrderMessage(orderText)
     } finally {
       setCreatingOrder(false)
+    }
+  }
+
+  const handleSaveLabels = async () => {
+    setSavingLabels(true)
+    try {
+      await dataStore.updateConnectionLabels(
+        connectionId,
+        branchLabel.trim() || null,
+        contactName.trim() || null
+      )
+      toast.success('Saved')
+      await loadHeaderData()
+    } catch {
+      toast.error('Failed to save')
+    } finally {
+      setSavingLabels(false)
     }
   }
 
@@ -229,7 +251,14 @@ export function ConnectionDetailScreen({ connectionId, currentBusinessId, onBack
           <button onClick={onBack} className="flex items-center" style={{ color: 'var(--text-primary)', minWidth: '44px', minHeight: '44px' }}>
             <CaretLeft size={20} weight="regular" />
           </button>
-          <h1 style={{ fontSize: '17px', fontWeight: 700, color: 'var(--text-primary)', flex: 1 }}>{otherBusiness.businessName}</h1>
+          <div className="flex-1">
+            <h1 style={{ fontSize: '17px', fontWeight: 700, color: 'var(--text-primary)' }}>{otherBusiness.businessName}</h1>
+            {buildConnectionSubtitle(connection.branchLabel, connection.contactName) && (
+              <p className="text-[11px] text-muted-foreground mt-0.5">
+                📍 {buildConnectionSubtitle(connection.branchLabel, connection.contactName)}
+              </p>
+            )}
+          </div>
           <button
             onClick={() => setShowLedgerSheet(true)}
             className="flex items-center gap-1"
@@ -331,6 +360,47 @@ export function ConnectionDetailScreen({ connectionId, currentBusinessId, onBack
                 Edit terms
               </button>
             )}
+          </div>
+        </div>
+
+        {/* Connection Details (branch/contact edit) */}
+        <div className="px-4 mb-3">
+          <div className="rounded-2xl bg-card p-4">
+            <p className="text-[13px] font-semibold text-foreground mb-3">Connection Details</p>
+
+            <div className="mb-3">
+              <label className="text-[11px] text-muted-foreground mb-1 block">
+                Branch / Location (optional)
+              </label>
+              <input
+                type="text"
+                value={branchLabel}
+                onChange={(e) => setBranchLabel(e.target.value)}
+                placeholder="e.g. Banjara Hills, Gachibowli"
+                className="w-full text-[13px] bg-background border border-border rounded-xl px-3 py-2 text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary"
+              />
+            </div>
+
+            <div className="mb-3">
+              <label className="text-[11px] text-muted-foreground mb-1 block">
+                Contact Person (optional)
+              </label>
+              <input
+                type="text"
+                value={contactName}
+                onChange={(e) => setContactName(e.target.value)}
+                placeholder="e.g. Ravi"
+                className="w-full text-[13px] bg-background border border-border rounded-xl px-3 py-2 text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary"
+              />
+            </div>
+
+            <button
+              onClick={handleSaveLabels}
+              disabled={savingLabels}
+              className="w-full py-2 rounded-xl bg-primary text-primary-foreground text-[13px] font-medium disabled:opacity-50"
+            >
+              {savingLabels ? 'Saving...' : 'Save'}
+            </button>
           </div>
         </div>
 
