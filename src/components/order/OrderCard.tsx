@@ -135,7 +135,7 @@ export function OrderCard({
       {/* Row 1: Order ID + payment status */}
       <div className="flex items-center justify-between gap-3">
         <p style={{ fontSize: '15px', fontWeight: 500, color: 'var(--text-primary)', flex: 1 }}>
-          {itemSummary}
+          {itemSummary.length > 15 ? `${itemSummary.slice(0, 15)}…` : itemSummary}
         </p>
         {isPaid ? (
           <Pill variant="paid" label="Paid" />
