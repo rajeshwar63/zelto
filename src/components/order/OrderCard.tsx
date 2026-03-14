@@ -149,7 +149,7 @@ function getDueDateText(
 
 const DIVIDER: CSSProperties = {
   borderTop: '1px solid var(--border-light)',
-  margin: '7px 0',
+  margin: '11px 0',
 }
 
 // ─── Component ───────────────────────────────────────────────────────────────
@@ -195,7 +195,7 @@ export function OrderCard({
       style={{
         backgroundColor: 'var(--bg-card)',
         borderRadius: 'var(--radius-card)',
-        padding: '10px 14px',
+        padding: '14px 16px',
         display: 'block',
       }}
     >
