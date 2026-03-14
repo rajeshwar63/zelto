@@ -5,8 +5,7 @@ import { useOrdersData } from '@/hooks/data/use-business-data'
 import { formatDistanceToNow, isToday } from 'date-fns'
 import type { Connection, BusinessEntity } from '@/lib/types'
 import { getLifecycleStatusColor } from '@/lib/semantic-colors'
-import { buildConnectionSubtitle } from '@/lib/utils'
-import { PencilSimple, MagnifyingGlass, X, PaperPlaneTilt } from '@phosphor-icons/react'
+import { PencilSimple, MagnifyingGlass, X, PaperPlaneTilt, MapPin, User } from '@phosphor-icons/react'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import { CardAccent } from '@/components/ui/card'
@@ -260,14 +259,34 @@ export function OrdersScreen({ currentBusinessId, onSelectOrder, initialFilter, 
                       )}
                     </div>
                   </div>
-                  <p style={{ fontSize: '12px', fontWeight: 500, color: 'var(--text-secondary)', marginTop: '4px' }} className="truncate">
-                    {order.connectionName}
-                  </p>
-                  {buildConnectionSubtitle(order.branchLabel, order.contactName) && (
-                    <p className="text-[11px] text-muted-foreground mt-0.5">
-                      📍 {buildConnectionSubtitle(order.branchLabel, order.contactName)}
+                  <div className="flex items-center gap-2 mt-1 min-w-0">
+                    <p style={{ fontSize: '12px', fontWeight: 500, color: 'var(--text-secondary)', flexShrink: 0 }}>
+                      {order.connectionName}
                     </p>
-                  )}
+                    {(order.branchLabel || order.contactName) && (
+                      <div className="flex items-center gap-1 min-w-0">
+                        {order.branchLabel && (
+                          <>
+                            <MapPin size={11} color="var(--text-secondary)" style={{ flexShrink: 0 }} />
+                            <span style={{ fontSize: '11px', color: 'var(--text-secondary)', whiteSpace: 'nowrap' }}>
+                              {order.branchLabel.length > 10 ? order.branchLabel.slice(0, 10) + '…' : order.branchLabel}
+                            </span>
+                          </>
+                        )}
+                        {order.branchLabel && order.contactName && (
+                          <span style={{ fontSize: '11px', color: 'var(--text-secondary)', flexShrink: 0 }}>•</span>
+                        )}
+                        {order.contactName && (
+                          <>
+                            <User size={11} color="var(--text-secondary)" style={{ flexShrink: 0 }} />
+                            <span style={{ fontSize: '11px', color: 'var(--text-secondary)', whiteSpace: 'nowrap' }}>
+                              {order.contactName.length > 10 ? order.contactName.slice(0, 10) + '…' : order.contactName}
+                            </span>
+                          </>
+                        )}
+                      </div>
+                    )}
+                  </div>
                   <div style={{ borderTop: '1px solid var(--border-section)', marginTop: '10px' }} />
                   {orderAmount > 0 && (
                     <div className="flex items-center justify-between mt-2" style={{ fontSize: '12px' }}>
