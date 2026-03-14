@@ -12,6 +12,7 @@ export interface EnrichedOrder extends OrderWithPaymentState {
   latestActivity: number
   branchLabel?: string | null
   contactName?: string | null
+  isBuyer: boolean
 }
 
 interface AttentionCounts {
@@ -104,7 +105,7 @@ export function useOrdersData(currentBusinessId: string, isActive = true) {
             latestActivity: getLatestActivity(order),
             branchLabel: conn?.branchLabel,
             contactName: conn?.contactName,
-            buyerBusinessId: conn?.buyerBusinessId,
+            isBuyer: conn?.buyerBusinessId === currentBusinessId,
           }
         })
         .sort((a, b) => b.latestActivity - a.latestActivity)
@@ -280,6 +281,9 @@ export function useBusinessOverviewData(currentBusinessId: string, isActive = tr
             connectionName,
             lifecycleState: getLifecycleState(order),
             latestActivity: getLatestActivity(order),
+            isBuyer: connection?.buyerBusinessId === currentBusinessId,
+            branchLabel: connection?.branchLabel,
+            contactName: connection?.contactName,
           }
         })
         .sort((a, b) => b.latestActivity - a.latestActivity)

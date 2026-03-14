@@ -1,12 +1,9 @@
 import { ArrowDown, ArrowUp, CaretRight, CheckCircle, ClockClockwise, CurrencyInr, Package, ShieldWarning, Truck } from '@phosphor-icons/react'
 import { CredibilityBadge } from '@/components/CredibilityBadge'
 import { useEffect, useState } from 'react'
-import { formatDistanceToNow, isToday } from 'date-fns'
 import { useBusinessOverviewData } from '@/hooks/data/use-business-data'
-import { getLifecycleStatusColor } from '@/lib/semantic-colors'
-import { formatInrCurrency } from '@/lib/utils'
-import { CardAccent } from '@/components/ui/card'
 import { Carousel, CarouselApi, CarouselContent, CarouselItem } from '@/components/ui/carousel'
+import { OrderCard } from '@/components/order/OrderCard'
 
 interface Props {
   currentBusinessId: string
@@ -406,88 +403,25 @@ export function DashboardScreen({ currentBusinessId, onNavigateToOrders, onNavig
           <div>
             <h2 className="text-[10px] uppercase tracking-wide text-muted-foreground/60 mb-3">Recent Activity</h2>
             <div className="space-y-2">
-              {recentOrders.map(order => {
-                const statusColor = getLifecycleStatusColor(order.lifecycleState)
-                const orderAmount = order.orderValue
-                const paidAmount = order.totalPaid
-                const dueAmount = Math.max(order.pendingAmount ?? (orderAmount - paidAmount), 0)
-                const isOverdue = order.deliveredAt && order.calculatedDueDate && Date.now() > order.calculatedDueDate && order.settlementState !== 'Paid'
-                const isDueToday = order.deliveredAt && order.calculatedDueDate && isToday(order.calculatedDueDate) && order.settlementState !== 'Paid'
-                const isAwaitingAmount = orderAmount === 0 && order.lifecycleState === 'Placed'
-                const dueStatus = isOverdue
-                  ? { label: 'Overdue', color: 'var(--status-overdue)' }
-                  : isDueToday
-                    ? { label: 'Due today', color: 'var(--status-dispatched)' }
-                    : null
-                const topRightLabel = dueAmount > 0
-                  ? { text: `${formatInrCurrency(dueAmount)} due`, color: 'var(--status-overdue)' }
-                  : { text: 'Paid', color: 'var(--status-success)' }
-
-                return (
-                  <button
-                    key={order.id}
-                    onClick={() => onNavigateToConnection(order.connectionId, order.id)}
-                    className="w-full text-left relative overflow-hidden"
-                    style={{
-                      backgroundColor: 'var(--bg-card)',
-                      borderRadius: 'var(--radius-card)',
-                      padding: '14px 16px 14px 20px',
-                      minHeight: '44px',
-                    }}
-                  >
-                    <CardAccent color={statusColor} />
-                    <div className="flex items-start justify-between">
-                      <p style={{ fontSize: '15px', fontWeight: 700, color: 'var(--text-primary)', flex: 1, marginRight: '12px' }}>
-                        {order.itemSummary}
-                      </p>
-                      <div style={{ marginLeft: '12px', flexShrink: 0, textAlign: 'right' }}>
-                        {isAwaitingAmount ? (
-                          <p style={{ fontSize: '14px', fontWeight: 600, color: 'var(--status-dispatched)' }}>Awaiting amount</p>
-                        ) : orderAmount === 0 ? (
-                          <p style={{ fontSize: '13px', fontWeight: 500, color: 'var(--text-secondary)' }}>Amount not recorded</p>
-                        ) : (
-                          <p style={{ fontSize: '15px', fontWeight: 700, color: topRightLabel.color }}>{topRightLabel.text}</p>
-                        )}
-                      </div>
-                    </div>
-                    <p style={{ fontSize: '12px', fontWeight: 500, color: 'var(--text-secondary)', marginTop: '4px' }} className="truncate">
-                      {order.connectionName}
-                    </p>
-                    <div style={{ borderTop: '1px solid var(--border-section)', marginTop: '10px' }} />
-                    {orderAmount > 0 && (
-                      <div className="flex items-center justify-between mt-2" style={{ fontSize: '12px' }}>
-                        <span style={{ color: 'var(--text-secondary)', fontWeight: 600 }}>Order <span style={{ color: 'var(--text-primary)' }}>{formatInrCurrency(orderAmount)}</span></span>
-                        <span style={{ color: 'var(--text-secondary)', fontWeight: 600 }}>Paid <span style={{ color: 'var(--text-primary)' }}>{formatInrCurrency(paidAmount)}</span></span>
-                      </div>
-                    )}
-                    <div style={{ borderTop: '1px solid var(--border-section)', marginTop: '10px' }} />
-                    <div className="flex items-center gap-1.5 mt-2" style={{ fontSize: '12px' }}>
-                      <span
-                        style={{
-                          fontSize: '11px',
-                          fontWeight: 600,
-                          color: statusColor,
-                          backgroundColor: `${statusColor}26`,
-                          padding: '2px 8px',
-                          borderRadius: 'var(--radius-chip)',
-                        }}
-                      >
-                        {order.lifecycleState}
-                      </span>
-                      <span style={{ color: 'var(--text-secondary)' }}>·</span>
-                      <span style={{ color: 'var(--text-secondary)', fontSize: '12px', fontWeight: 500 }}>
-                        {formatDistanceToNow(order.latestActivity, { addSuffix: true })}
-                      </span>
-                      {dueStatus && (
-                        <>
-                          <span style={{ color: 'var(--text-secondary)' }}>·</span>
-                          <span style={{ color: dueStatus.color, fontSize: '11px', fontWeight: 600 }}>{dueStatus.label}</span>
-                        </>
-                      )}
-                    </div>
-                  </button>
-                )
-              })}
+              {recentOrders.map(order => (
+                <OrderCard
+                  key={order.id}
+                  itemSummary={order.itemSummary}
+                  connectionName={order.connectionName}
+                  branchLabel={order.branchLabel}
+                  contactName={order.contactName}
+                  orderValue={order.orderValue}
+                  pendingAmount={order.pendingAmount}
+                  settlementState={order.settlementState}
+                  lifecycleState={order.lifecycleState}
+                  calculatedDueDate={order.calculatedDueDate}
+                  deliveredAt={order.deliveredAt}
+                  latestActivity={order.latestActivity}
+                  paymentTermSnapshot={order.paymentTermSnapshot}
+                  isBuyer={order.isBuyer}
+                  onClick={() => onNavigateToConnection(order.connectionId, order.id)}
+                />
+              ))}
             </div>
           </div>
         )}

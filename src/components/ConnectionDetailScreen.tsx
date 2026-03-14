@@ -3,24 +3,23 @@ import { dataStore } from '@/lib/data-store'
 import { insightEngine } from '@/lib/insight-engine'
 import { createOrder } from '@/lib/interactions'
 import { useDataListener } from '@/lib/data-events'
-import { formatDistanceToNow, differenceInDays, format } from 'date-fns'
 import type { Connection, OrderWithPaymentState, BusinessEntity } from '@/lib/types'
-import { CaretLeft, CaretDown, CaretRight, Paperclip, DownloadSimple, Phone, PencilSimple, MapPin } from '@phosphor-icons/react'
+import { CaretLeft, CaretDown, CaretRight, DownloadSimple, Phone, PencilSimple, MapPin } from '@phosphor-icons/react'
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { CardAccent } from '@/components/ui/card'
 import { toast } from 'sonner'
-import { getConnectionStateColor, getDueDateColor, getLifecycleStatusColor } from '@/lib/semantic-colors'
+import { getConnectionStateColor } from '@/lib/semantic-colors'
 import { motion, useMotionValue, useTransform, animate, PanInfo } from 'framer-motion'
 import { getArchivedOrderIds, archiveOrder as doArchiveOrder, unarchiveOrder as doUnarchiveOrder } from '@/lib/archive-store'
-import { markOrderSeen, isOrderNew } from '@/lib/unread-tracker'
-import { formatInrCurrency, buildConnectionSubtitle } from '@/lib/utils'
+import { markOrderSeen } from '@/lib/unread-tracker'
+import { buildConnectionSubtitle } from '@/lib/utils'
 import { OrderStatusHeader } from '@/components/order/OrderStatusHeader'
 import { OrderPaymentSummary } from '@/components/order/OrderPaymentSummary'
 import { OrderTimeline } from '@/components/order/OrderTimeline'
 import { OrderAttachmentsSection } from '@/components/order/OrderAttachmentsSection'
-import { buildOrderTimeline, formatDueDate, formatPaymentTerms, getLifecycleState } from '@/components/order/order-detail-utils'
+import { buildOrderTimeline, formatPaymentTerms, getLifecycleState } from '@/components/order/order-detail-utils'
+import { OrderCard } from '@/components/order/OrderCard'
 import { LedgerDownloadSheet } from '@/components/LedgerDownloadSheet'
 
 interface Props {
@@ -32,11 +31,6 @@ interface Props {
 }
 
 type TimeFilter = '7d' | '30d' | '90d' | '1y'
-
-function formatTimestamp(timestamp: number, isOld: boolean): string {
-  if (isOld) return format(timestamp, 'MMM d, yyyy')
-  return formatDistanceToNow(timestamp, { addSuffix: true })
-}
 
 const filterDurations: Record<TimeFilter, number> = {
   '7d': 7 * 24 * 60 * 60 * 1000,
@@ -200,8 +194,7 @@ export function ConnectionDetailScreen({ connectionId, currentBusinessId, onBack
     if (order.settlementState !== 'Paid') return sum + (order.pendingAmount || 0)
     return sum
   }, 0)
-  const oldOrderThreshold = Date.now() - 30 * 24 * 60 * 60 * 1000
-  const isSupplier = connection.supplierBusinessId === currentBusinessId
+const isSupplier = connection.supplierBusinessId === currentBusinessId
   const isBuyer = connection.buyerBusinessId === currentBusinessId
   const canPlaceOrder = isBuyer && connection.paymentTerms !== null
   const pullRevealMax = 200
@@ -410,75 +403,32 @@ export function ConnectionDetailScreen({ connectionId, currentBusinessId, onBack
           ) : (
             filteredOrders.map(order => {
               const lifecycleState = getLifecycleState(order)
-              const orderAmount = order.orderValue
-              const paidAmount = order.totalPaid
-              const dueAmount = Math.max(order.pendingAmount ?? (orderAmount - paidAmount), 0)
-              const topRightLabel = dueAmount > 0
-                ? { text: `${formatInrCurrency(dueAmount)} due`, color: 'var(--status-overdue)' }
-                : { text: 'Paid', color: 'var(--status-success)' }
-              const dueLabel = formatDueDate(order)
-              const isNew = isOrderNew(currentBusinessId, order.id, order.createdAt)
-              const isOld = order.createdAt < oldOrderThreshold
-              const lifecycleColor = getLifecycleStatusColor(lifecycleState)
+              const latestActivity = Math.max(order.deliveredAt || 0, order.dispatchedAt || 0, order.acceptedAt || 0, order.createdAt)
               return (
                 <SwipeableOrderRow
                   key={order.id}
                   actionLabel={showArchived ? 'Unarchive' : 'Archive'}
                   onAction={() => showArchived ? handleUnarchiveOrder(order.id) : handleArchiveOrder(order.id)}
                 >
-                  <button
+                  <OrderCard
+                    itemSummary={order.itemSummary}
+                    connectionName={otherBusiness.businessName}
+                    branchLabel={connection.branchLabel}
+                    contactName={connection.contactName}
+                    orderValue={order.orderValue}
+                    pendingAmount={order.pendingAmount}
+                    settlementState={order.settlementState}
+                    lifecycleState={lifecycleState}
+                    calculatedDueDate={order.calculatedDueDate}
+                    deliveredAt={order.deliveredAt}
+                    latestActivity={latestActivity}
+                    paymentTermSnapshot={order.paymentTermSnapshot}
+                    isBuyer={isBuyer}
                     onClick={() => {
                       markOrderSeen(currentBusinessId, order.id)
                       onOpenOrderDetail(order.id, connection.id)
                     }}
-                    className="w-full text-left transition-colors relative overflow-hidden rounded-[14px]"
-                    style={{
-                      padding: '14px 16px 14px 20px',
-                      opacity: lifecycleState === 'Declined' ? 0.4 : 1,
-                      backgroundColor: isNew ? 'var(--brand-primary-bg)' : 'var(--bg-card)',
-                      minHeight: '44px',
-                    }}
-                  >
-                    <CardAccent color={lifecycleColor} />
-                    <div className="flex items-start justify-between mb-1">
-                      <p style={{ fontSize: isOld ? '14px' : '15px', fontWeight: 700, color: isOld ? 'var(--text-secondary)' : 'var(--text-primary)', lineHeight: 1.4, flex: 1, marginRight: '12px' }}>
-                        {order.itemSummary}
-                      </p>
-                      <div style={{ marginLeft: '12px', flexShrink: 0, textAlign: 'right' }}>
-                        {orderAmount === 0 && lifecycleState === 'Placed' ? (
-                          <p style={{ fontSize: '14px', fontWeight: 600, color: 'var(--status-dispatched)' }}>Awaiting amount</p>
-                        ) : orderAmount === 0 ? (
-                          <p style={{ fontSize: '13px', fontWeight: 500, color: 'var(--text-secondary)' }}>Amount not recorded</p>
-                        ) : (
-                          <p style={{ fontSize: isOld ? '13px' : '15px', fontWeight: 700, color: topRightLabel.color }}>
-                            {topRightLabel.text}
-                          </p>
-                        )}
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-2 mb-2" style={{ fontSize: '11px' }}>
-                      <span style={{ fontWeight: 600, color: lifecycleColor, backgroundColor: `${lifecycleColor}26`, padding: '3px 10px', borderRadius: '999px' }}>
-                        {lifecycleState}
-                      </span>
-                      {(attachmentCounts[order.id] || 0) > 0 && (
-                        <Paperclip size={12} style={{ color: 'var(--text-secondary)' }} />
-                      )}
-                    </div>
-                    <div style={{ borderTop: '1px solid var(--border-section)', marginTop: '10px' }} />
-                    {orderAmount > 0 && (
-                      <div className="flex items-center justify-between mt-2" style={{ fontSize: '12px' }}>
-                        <span style={{ color: 'var(--text-secondary)', fontWeight: 600 }}>Order <span style={{ color: 'var(--text-primary)' }}>{formatInrCurrency(orderAmount)}</span></span>
-                        <span style={{ color: 'var(--text-secondary)', fontWeight: 600 }}>Paid <span style={{ color: 'var(--text-primary)' }}>{formatInrCurrency(paidAmount)}</span></span>
-                      </div>
-                    )}
-                    <div style={{ borderTop: '1px solid var(--border-section)', marginTop: '10px' }} />
-                    <div className="flex items-center justify-between mt-2" style={{ fontSize: '12px' }}>
-                      <div className="flex items-center gap-1.5">
-                        <span style={{ color: 'var(--text-secondary)', fontWeight: 500 }}>{formatTimestamp(order.createdAt, isOld)}</span>
-                      </div>
-                      <p style={{ color: getDueDateColor(dueLabel), fontWeight: 500 }}>{dueLabel}</p>
-                    </div>
-                  </button>
+                  />
                 </SwipeableOrderRow>
               )
             })
