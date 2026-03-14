@@ -2,7 +2,6 @@ import { useEffect, useMemo, useState } from 'react'
 import { dataStore } from '@/lib/data-store'
 import { createOrder } from '@/lib/interactions'
 import { useOrdersData } from '@/hooks/data/use-business-data'
-import { isToday } from 'date-fns'
 import type { Connection, BusinessEntity } from '@/lib/types'
 import { PencilSimple, MagnifyingGlass, X, PaperPlaneTilt } from '@phosphor-icons/react'
 import { Input } from '@/components/ui/input'
@@ -11,7 +10,8 @@ import { OrderCard } from '@/components/order/OrderCard'
 import { toast } from 'sonner'
 import { InlineRefreshSpinner, ScreenRefreshIndicator, useScreenLoadState } from '@/components/ScreenLoadState'
 
-type OrderFilter = 'all' | 'today' | 'placed' | 'dispatched' | 'delivered' | 'payment_pending' | 'paid' | 'awaiting_dispatch' | 'overdue' | 'due_today'
+type DeliveryFilter = 'all' | 'placed' | 'dispatched' | 'delivered'
+type PaymentFilter = 'all' | 'pending' | 'paid'
 
 interface Props {
   currentBusinessId: string
@@ -20,35 +20,32 @@ interface Props {
   isActive?: boolean
 }
 
-const FILTER_LABELS: { key: OrderFilter; label: string }[] = [
-  { key: 'all', label: 'All' },
-  { key: 'placed', label: 'Placed' },
-  { key: 'dispatched', label: 'Dispatched' },
-  { key: 'delivered', label: 'Delivered' },
-  { key: 'payment_pending', label: 'Payment Pending' },
-  { key: 'paid', label: 'Paid' },
-]
-
-function getFilterColor(key: OrderFilter): string {
-  switch (key) {
-    case 'placed': return 'var(--status-new)'
-    case 'dispatched': return 'var(--status-dispatched)'
-    case 'delivered': return 'var(--status-delivered)'
-    case 'payment_pending': return 'var(--status-overdue)'
-    case 'paid': return 'var(--status-success)'
-    default: return 'var(--brand-primary)'
-  }
+interface FilterTabProps {
+  group: 'delivery' | 'payment'
+  value: string
+  icon: string
+  label: string
+  deliveryFilter: DeliveryFilter
+  paymentFilter: PaymentFilter
+  onDeliveryChange: (v: DeliveryFilter) => void
+  onPaymentChange: (v: PaymentFilter) => void
 }
 
-function getFilterBg(key: OrderFilter): string {
-  switch (key) {
-    case 'placed': return '#F0F4FF'
-    case 'dispatched': return '#FFF6F0'
-    case 'delivered': return '#F0FFF6'
-    case 'payment_pending': return '#FFF0F0'
-    case 'paid': return '#F0FFF6'
-    default: return 'var(--brand-primary-bg)'
+function FilterTab({ group, value, icon, label, deliveryFilter, paymentFilter, onDeliveryChange, onPaymentChange }: FilterTabProps) {
+  const isActive = group === 'delivery' ? deliveryFilter === value : paymentFilter === value
+  const activeClass = isActive ? (group === 'delivery' ? 'active-delivery' : 'active-payment') : ''
+
+  const handleClick = () => {
+    if (group === 'delivery') onDeliveryChange(value as DeliveryFilter)
+    else onPaymentChange(value as PaymentFilter)
   }
+
+  return (
+    <button className={`filter-tab ${activeClass}`} onClick={handleClick}>
+      <span className="icon">{icon}</span>
+      <span className="label">{label}</span>
+    </button>
+  )
 }
 
 function formatPaymentTerms(terms: Connection['paymentTerms']): string | null {
@@ -68,7 +65,8 @@ export function OrdersScreen({ currentBusinessId, onSelectOrder, initialFilter, 
     isInitialLoading,
     isRefreshing: isActive && isRefreshing,
   })
-  const [filter, setFilter] = useState<OrderFilter>((initialFilter as OrderFilter) || 'all')
+  const [deliveryFilter, setDeliveryFilter] = useState<DeliveryFilter>('all')
+  const [paymentFilter, setPaymentFilter] = useState<PaymentFilter>('all')
 
   // Order creation modal state
   const [showOrderModal, setShowOrderModal] = useState(false)
@@ -81,29 +79,31 @@ export function OrdersScreen({ currentBusinessId, onSelectOrder, initialFilter, 
   const [sendError, setSendError] = useState<string | null>(null)
 
   useEffect(() => {
-    if (initialFilter) {
-      setFilter(initialFilter as OrderFilter)
+    if (!initialFilter) return
+    switch (initialFilter) {
+      case 'placed':     setDeliveryFilter('placed'); break
+      case 'dispatched': setDeliveryFilter('dispatched'); break
+      case 'delivered':  setDeliveryFilter('delivered'); break
+      case 'payment_pending': setPaymentFilter('pending'); break
+      case 'paid':       setPaymentFilter('paid'); break
     }
   }, [initialFilter])
 
   const filteredOrders = useMemo(() => {
     return orders.filter(order => {
-      if (order.declinedAt) return filter === 'all'
-      switch (filter) {
-        case 'all': return true
-        case 'today': return isToday(order.createdAt)
-        case 'placed': return order.lifecycleState === 'Placed'
-        case 'awaiting_dispatch': return order.lifecycleState === 'Placed' || order.lifecycleState === 'Accepted'
-        case 'dispatched': return order.lifecycleState === 'Dispatched'
-        case 'delivered': return order.lifecycleState === 'Delivered' && order.settlementState !== 'Paid'
-        case 'payment_pending': return order.deliveredAt && order.settlementState !== 'Paid'
-        case 'paid': return order.settlementState === 'Paid'
-        case 'overdue': return order.deliveredAt != null && order.calculatedDueDate != null && Date.now() > order.calculatedDueDate && order.settlementState !== 'Paid'
-        case 'due_today': return order.deliveredAt != null && order.calculatedDueDate != null && isToday(order.calculatedDueDate) && order.settlementState !== 'Paid'
-        default: return true
-      }
+      if (order.declinedAt) return deliveryFilter === 'all' && paymentFilter === 'all'
+      const deliveryMatch =
+        deliveryFilter === 'all' ||
+        (deliveryFilter === 'placed'     && order.lifecycleState === 'Placed') ||
+        (deliveryFilter === 'dispatched' && order.lifecycleState === 'Dispatched') ||
+        (deliveryFilter === 'delivered'  && order.lifecycleState === 'Delivered')
+      const paymentMatch =
+        paymentFilter === 'all' ||
+        (paymentFilter === 'paid'    && order.settlementState === 'Paid') ||
+        (paymentFilter === 'pending' && order.settlementState !== 'Paid')
+      return deliveryMatch && paymentMatch
     })
-  }, [orders, filter])
+  }, [orders, deliveryFilter, paymentFilter])
 
   const handleOpenOrderModal = async () => {
     const allConnections = await dataStore.getConnectionsByBusinessId(currentBusinessId)
@@ -147,6 +147,14 @@ export function OrdersScreen({ currentBusinessId, onSelectOrder, initialFilter, 
       : eligibleConnections
   ), [businesses, eligibleConnections, search])
 
+  const sectionLabel = useMemo(() => {
+    if (deliveryFilter === 'all' && paymentFilter === 'all') return 'ALL ORDERS'
+    const parts: string[] = []
+    if (deliveryFilter !== 'all') parts.push(deliveryFilter.toUpperCase())
+    if (paymentFilter !== 'all') parts.push(paymentFilter === 'pending' ? 'PAYMENT DUE' : 'PAID')
+    return parts.join(' · ')
+  }, [deliveryFilter, paymentFilter])
+
   if (initialLoading) {
     return (
       <div className="flex flex-col h-full" style={{ backgroundColor: 'var(--bg-screen)' }}>
@@ -172,30 +180,22 @@ export function OrdersScreen({ currentBusinessId, onSelectOrder, initialFilter, 
         </div>
         <ScreenRefreshIndicator refreshing={refreshing} />
         <div style={{ borderBottom: '1px solid var(--border-light)', padding: '8px 16px' }}>
-          <div className="flex gap-2 overflow-x-auto scrollbar-hide">
-            {FILTER_LABELS.map(({ key, label }) => {
-              const isActive = filter === key
-              return (
-                <button
-                  key={key}
-                  onClick={() => setFilter(key)}
-                  className="whitespace-nowrap transition-colors"
-                  style={{
-                    fontSize: '13px',
-                    fontWeight: 600,
-                    padding: '8px 14px',
-                    borderRadius: 'var(--radius-chip)',
-                    backgroundColor: isActive ? 'var(--brand-primary)' : getFilterBg(key),
-                    color: isActive ? '#FFFFFF' : getFilterColor(key),
-                    minHeight: '44px',
-                    display: 'flex',
-                    alignItems: 'center',
-                  }}
-                >
-                  {label}
-                </button>
-              )
-            })}
+          <div className="filter-bar">
+            {/* Left: Delivery zone */}
+            <div className="filter-group">
+              <FilterTab group="delivery" value="all"        icon="☰"  label="All"     deliveryFilter={deliveryFilter} paymentFilter={paymentFilter} onDeliveryChange={setDeliveryFilter} onPaymentChange={setPaymentFilter} />
+              <FilterTab group="delivery" value="placed"     icon="📝" label="Placed"  deliveryFilter={deliveryFilter} paymentFilter={paymentFilter} onDeliveryChange={setDeliveryFilter} onPaymentChange={setPaymentFilter} />
+              <FilterTab group="delivery" value="dispatched" icon="🚚" label="Transit" deliveryFilter={deliveryFilter} paymentFilter={paymentFilter} onDeliveryChange={setDeliveryFilter} onPaymentChange={setPaymentFilter} />
+              <FilterTab group="delivery" value="delivered"  icon="📦" label="Deliv'd" deliveryFilter={deliveryFilter} paymentFilter={paymentFilter} onDeliveryChange={setDeliveryFilter} onPaymentChange={setPaymentFilter} />
+            </div>
+
+            <div className="filter-divider" />
+
+            {/* Right: Payment zone */}
+            <div className="filter-group">
+              <FilterTab group="payment" value="pending" icon="₹⏳" label="Due"  deliveryFilter={deliveryFilter} paymentFilter={paymentFilter} onDeliveryChange={setDeliveryFilter} onPaymentChange={setPaymentFilter} />
+              <FilterTab group="payment" value="paid"    icon="₹✓"  label="Paid" deliveryFilter={deliveryFilter} paymentFilter={paymentFilter} onDeliveryChange={setDeliveryFilter} onPaymentChange={setPaymentFilter} />
+            </div>
           </div>
         </div>
       </div>
@@ -203,7 +203,7 @@ export function OrdersScreen({ currentBusinessId, onSelectOrder, initialFilter, 
       <div className="flex-1 overflow-y-auto px-4 pt-3 pb-24">
         <div className="flex items-center justify-between mb-[10px]">
           <p style={{ fontSize: '13px', fontWeight: 700, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.08em' }}>
-            {filter === 'all' ? 'ALL ORDERS' : (FILTER_LABELS.find(f => f.key === filter)?.label.toUpperCase() || 'ORDERS')}
+            {sectionLabel}
           </p>
           <InlineRefreshSpinner refreshing={refreshing} />
         </div>
