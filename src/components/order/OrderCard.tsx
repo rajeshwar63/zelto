@@ -31,12 +31,12 @@ function formatPaymentTerm(term: PaymentTermType | null): string {
 type PillVariant = 'overdue' | 'dueSoon' | 'paid' | 'placed' | 'dispatched' | 'delivered'
 
 const PILL_STYLES: Record<PillVariant, { background: string; border: string; color: string }> = {
-  overdue:    { background: '#DC2626', border: '#B91C1C', color: '#FFFFFF' },
-  dueSoon:    { background: '#F59E0B', border: '#D97706', color: '#FFFFFF' },
-  paid:       { background: '#4ADE80', border: '#22C55E', color: '#14532D' },
-  placed:     { background: '#2563EB', border: '#1D4ED8', color: '#FFFFFF' },
-  dispatched: { background: '#EA580C', border: '#C2410C', color: '#FFFFFF' },
-  delivered:  { background: '#16A34A', border: '#15803D', color: '#FFFFFF' },
+  overdue:    { background: '#E66767', border: '#CE6060', color: '#FFFFFF' },
+  dueSoon:    { background: '#F8BB54', border: '#E4A051', color: '#FFFFFF' },
+  paid:       { background: '#80E8A6', border: '#64D68E', color: '#5B876C' },
+  placed:     { background: '#6692F1', border: '#6183E4', color: '#FFFFFF' },
+  dispatched: { background: '#F08A55', border: '#D47A55', color: '#FFFFFF' },
+  delivered:  { background: '#5CBF80', border: '#5BA677', color: '#FFFFFF' },
 }
 
 const PILL_BASE: CSSProperties = {
@@ -124,10 +124,10 @@ export function OrderCard({
     if (isOverdue) {
       const overdueDays = calculatedDueDate != null ? Math.ceil((now - calculatedDueDate) / (24 * 60 * 60 * 1000)) : 0
       dueDateText = `Overdue by ${overdueDays} day${overdueDays === 1 ? '' : 's'}`
-      dueDateColor = '#993C1D'
+      dueDateColor = '#B87761'
     } else if (daysUntilDue !== null) {
       dueDateText = daysUntilDue === 0 ? 'Due today' : `Due in ${daysUntilDue} day${daysUntilDue === 1 ? '' : 's'}`
-      dueDateColor = '#854F0B'
+      dueDateColor = '#AA8454'
     }
   }
 
@@ -150,19 +150,21 @@ export function OrderCard({
           {itemSummary.length > 15 ? `${itemSummary.slice(0, 15)}…` : itemSummary}
         </p>
         {!isPaid && pendingAmount > 0 && (
-          <p style={{ fontSize: '14px', fontWeight: 500, color: '#DC2626', flexShrink: 0 }}>
-            ↑ {formatInrCurrency(pendingAmount)}
-          </p>
+          <div style={{ flexShrink: 0, textAlign: 'right' }}>
+            <p style={{ fontSize: '14px', fontWeight: 500, color: '#E66767' }}>
+              ↑ {formatInrCurrency(pendingAmount)}
+            </p>
+            <p style={{ fontSize: '11px', fontWeight: 400, color: 'var(--text-secondary)', marginTop: '2px' }}>
+              Order Value · {formatInrCurrency(orderValue)}
+            </p>
+          </div>
         )}
       </div>
 
-      {/* Row 2: entity | order value */}
+      {/* Row 2: entity */}
       <div className="flex items-center justify-between gap-2" style={{ marginTop: '10px' }}>
         <p style={{ fontSize: '13px', color: 'var(--text-secondary)' }} className="truncate">
           {entityParts.join(' · ')}
-        </p>
-        <p style={{ fontSize: '13px', fontWeight: 500, color: 'var(--text-secondary)', flexShrink: 0 }}>
-          {orderValue > 0 ? formatInrCurrency(orderValue) : '—'}
         </p>
       </div>
 
