@@ -519,7 +519,7 @@ export function ConnectionsScreen({ currentBusinessId, onSelectConnection, onAdd
                     >
                       <Phone size={13} color="#FFFFFF" />
                     </button>
-                    <div style={{ width: '1px', height: '36px', backgroundColor: '#D0D0D0', flexShrink: 0 }} />
+                    <div style={{ width: '1px', height: '22px', backgroundColor: '#D0D0D0', flexShrink: 0 }} />
                     <button
                       onClick={(e) => {
                         e.stopPropagation()
