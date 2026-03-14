@@ -37,6 +37,7 @@ interface BusinessOverviewData {
   overdueChangeFromYesterday: number
   recentOrders: EnrichedOrder[]
   attentionCounts: AttentionCounts
+  credibility: CredibilityBreakdown | null
 }
 
 interface AttentionItemWithConnection extends AttentionItem {
@@ -112,12 +113,13 @@ export function useBusinessOverviewData(currentBusinessId: string, isActive = tr
     isActive,
     events: ['orders:changed', 'payments:changed', 'connections:changed', 'issues:changed'],
     fetcher: async () => {
-      const [orders, connections, entities, attentionItems, session] = await Promise.all([
+      const [orders, connections, entities, attentionItems, session, credibility] = await Promise.all([
         dataStore.getOrdersWithPaymentStateByBusinessId(currentBusinessId),
         dataStore.getConnectionsByBusinessId(currentBusinessId),
         dataStore.getAllBusinessEntities(),
         attentionEngine.getAttentionItems(currentBusinessId),
         getAuthSession(),
+        calculateCredibility(currentBusinessId),
       ])
 
       const orderIds = orders.map(order => order.id)
@@ -323,6 +325,7 @@ export function useBusinessOverviewData(currentBusinessId: string, isActive = tr
           paymentPending,
           disputes,
         },
+        credibility,
       }
     },
   })
