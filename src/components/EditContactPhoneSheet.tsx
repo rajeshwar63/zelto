@@ -26,7 +26,7 @@ export function EditContactPhoneSheet({ isOpen, onClose, connectionId, currentPh
     setSaving(true)
     setError(null)
     try {
-      await dataStore.updateConnectionContactPhone(connectionId, digits)
+      await dataStore.updateConnectionContact(connectionId, digits, null, null)
       emitDataChange('connections:changed')
       onClose()
     } catch {
@@ -40,7 +40,7 @@ export function EditContactPhoneSheet({ isOpen, onClose, connectionId, currentPh
     setSaving(true)
     setError(null)
     try {
-      await dataStore.updateConnectionContactPhone(connectionId, null)
+      await dataStore.updateConnectionContact(connectionId, null, null, null)
       emitDataChange('connections:changed')
       onClose()
     } catch {
