@@ -138,9 +138,11 @@ html, body, #root {
 .filter-tab .label { font-size: 10px; color: #888; font-weight: 400; }
 
 .filter-tab.active-delivery               { background: #185FA5; }
+.filter-tab.active-delivery .icon         { color: white; }
 .filter-tab.active-delivery .label        { color: #B5D4F4; }
 
 .filter-tab.active-payment                { background: #1D9E75; }
+.filter-tab.active-payment .icon          { color: white; }
 .filter-tab.active-payment .label         { color: #9FE1CB; }
 
 @theme {

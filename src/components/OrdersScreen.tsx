@@ -1,9 +1,9 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useState, type ReactNode } from 'react'
 import { dataStore } from '@/lib/data-store'
 import { createOrder } from '@/lib/interactions'
 import { useOrdersData } from '@/hooks/data/use-business-data'
 import type { Connection, BusinessEntity } from '@/lib/types'
-import { PencilSimple, MagnifyingGlass, X, PaperPlaneTilt } from '@phosphor-icons/react'
+import { PencilSimple, MagnifyingGlass, X, PaperPlaneTilt, List, NotePencil, Truck, Package, Hourglass, Check } from '@phosphor-icons/react'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import { OrderCard } from '@/components/order/OrderCard'
@@ -23,7 +23,8 @@ interface Props {
 interface FilterTabProps {
   group: 'delivery' | 'payment'
   value: string
-  icon: string
+  icon: ReactNode
+  iconColor: string
   label: string
   deliveryFilter: DeliveryFilter
   paymentFilter: PaymentFilter
@@ -31,7 +32,7 @@ interface FilterTabProps {
   onPaymentChange: (v: PaymentFilter) => void
 }
 
-function FilterTab({ group, value, icon, label, deliveryFilter, paymentFilter, onDeliveryChange, onPaymentChange }: FilterTabProps) {
+function FilterTab({ group, value, icon, iconColor, label, deliveryFilter, paymentFilter, onDeliveryChange, onPaymentChange }: FilterTabProps) {
   const isActive = group === 'delivery' ? deliveryFilter === value : paymentFilter === value
   const activeClass = isActive ? (group === 'delivery' ? 'active-delivery' : 'active-payment') : ''
 
@@ -42,7 +43,7 @@ function FilterTab({ group, value, icon, label, deliveryFilter, paymentFilter, o
 
   return (
     <button className={`filter-tab ${activeClass}`} onClick={handleClick}>
-      <span className="icon">{icon}</span>
+      <span className="icon" style={!isActive ? { color: iconColor } : undefined}>{icon}</span>
       <span className="label">{label}</span>
     </button>
   )
@@ -183,18 +184,18 @@ export function OrdersScreen({ currentBusinessId, onSelectOrder, initialFilter, 
           <div className="filter-bar">
             {/* Left: Delivery zone */}
             <div className="filter-group" style={{ flex: 4 }}>
-              <FilterTab group="delivery" value="all"        icon="☰"  label="All"     deliveryFilter={deliveryFilter} paymentFilter={paymentFilter} onDeliveryChange={setDeliveryFilter} onPaymentChange={setPaymentFilter} />
-              <FilterTab group="delivery" value="placed"     icon="📝" label="Placed"  deliveryFilter={deliveryFilter} paymentFilter={paymentFilter} onDeliveryChange={setDeliveryFilter} onPaymentChange={setPaymentFilter} />
-              <FilterTab group="delivery" value="dispatched" icon="🚚" label="Disp'd"  deliveryFilter={deliveryFilter} paymentFilter={paymentFilter} onDeliveryChange={setDeliveryFilter} onPaymentChange={setPaymentFilter} />
-              <FilterTab group="delivery" value="delivered"  icon="📦" label="Deliv'd" deliveryFilter={deliveryFilter} paymentFilter={paymentFilter} onDeliveryChange={setDeliveryFilter} onPaymentChange={setPaymentFilter} />
+              <FilterTab group="delivery" value="all"        icon={<List size={20} weight="regular" />}        iconColor="#185FA5" label="All"     deliveryFilter={deliveryFilter} paymentFilter={paymentFilter} onDeliveryChange={setDeliveryFilter} onPaymentChange={setPaymentFilter} />
+              <FilterTab group="delivery" value="placed"     icon={<NotePencil size={20} weight="regular" />}  iconColor="#D97706" label="Placed"  deliveryFilter={deliveryFilter} paymentFilter={paymentFilter} onDeliveryChange={setDeliveryFilter} onPaymentChange={setPaymentFilter} />
+              <FilterTab group="delivery" value="dispatched" icon={<Truck size={20} weight="regular" />}       iconColor="#2563EB" label="Disp'd"  deliveryFilter={deliveryFilter} paymentFilter={paymentFilter} onDeliveryChange={setDeliveryFilter} onPaymentChange={setPaymentFilter} />
+              <FilterTab group="delivery" value="delivered"  icon={<Package size={20} weight="regular" />}     iconColor="#059669" label="Deliv'd" deliveryFilter={deliveryFilter} paymentFilter={paymentFilter} onDeliveryChange={setDeliveryFilter} onPaymentChange={setPaymentFilter} />
             </div>
 
             <div className="filter-divider" />
 
             {/* Right: Payment zone */}
             <div className="filter-group" style={{ flex: 2 }}>
-              <FilterTab group="payment" value="pending" icon="₹⏳" label="Due"  deliveryFilter={deliveryFilter} paymentFilter={paymentFilter} onDeliveryChange={setDeliveryFilter} onPaymentChange={setPaymentFilter} />
-              <FilterTab group="payment" value="paid"    icon="₹✓"  label="Paid" deliveryFilter={deliveryFilter} paymentFilter={paymentFilter} onDeliveryChange={setDeliveryFilter} onPaymentChange={setPaymentFilter} />
+              <FilterTab group="payment" value="pending" icon={<span style={{ display: 'flex', alignItems: 'center', gap: '1px', fontWeight: 600, fontSize: '11px', lineHeight: 1 }}>₹<Hourglass size={13} weight="regular" /></span>} iconColor="#D97706" label="Due"  deliveryFilter={deliveryFilter} paymentFilter={paymentFilter} onDeliveryChange={setDeliveryFilter} onPaymentChange={setPaymentFilter} />
+              <FilterTab group="payment" value="paid"    icon={<span style={{ display: 'flex', alignItems: 'center', gap: '1px', fontWeight: 600, fontSize: '11px', lineHeight: 1 }}>₹<Check size={13} weight="bold" /></span>}     iconColor="#1D9E75" label="Paid" deliveryFilter={deliveryFilter} paymentFilter={paymentFilter} onDeliveryChange={setDeliveryFilter} onPaymentChange={setPaymentFilter} />
             </div>
           </div>
         </div>
