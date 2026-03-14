@@ -1,7 +1,7 @@
 import { dataStore } from './data-store'
 import { createConnection, createOrder, transitionOrderState, recordPayment } from './interactions'
 
-const DEMO_DATA_INITIALIZED_KEY = 'zelto:demo-data-initialized'
+const DEMO_DATA_INITIALIZED_KEY = 'zelto:demo-data-initialized-v2'
 
 export async function initializeDemoData(): Promise<string> {
   const initialized = await spark.kv.get<boolean>(DEMO_DATA_INITIALIZED_KEY)
@@ -15,6 +15,9 @@ export async function initializeDemoData(): Promise<string> {
 
   const mehfilRestaurant = await dataStore.createBusinessEntity('Mehfil Restaurant')
   const freshFoodsSupply = await dataStore.createBusinessEntity('Fresh Foods Supply')
+
+  await dataStore.updateBusinessMobileNumber(mehfilRestaurant.id, '+919988776655')
+  await dataStore.updateBusinessMobileNumber(freshFoodsSupply.id, '+919876543210')
 
   const connection = await createConnection(
     mehfilRestaurant.id,
