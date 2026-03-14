@@ -15,56 +15,144 @@ export interface OrderCardProps {
   deliveredAt: number | null
   latestActivity: number
   paymentTermSnapshot: PaymentTermType | null
+  isBuyer: boolean
+  // true = money going OUT (red ↑), false = money coming IN (green ↓)
   onClick: () => void
 }
+
+// ─── Helpers ────────────────────────────────────────────────────────────────
 
 function formatPaymentTerm(term: PaymentTermType | null): string {
   if (!term) return '—'
   switch (term.type) {
-    case 'Advance Required': return 'Advance Required'
+    case 'Advance Required':    return 'Advance Required'
     case 'Payment on Delivery': return 'Payment on Delivery'
-    case 'Bill to Bill': return 'Bill to Bill'
+    case 'Bill to Bill':        return 'Bill to Bill'
     case 'Days After Delivery': return `Net ${term.days} days`
   }
 }
 
-type PillVariant = 'overdue' | 'dueSoon' | 'paid' | 'placed' | 'dispatched' | 'delivered'
+// ─── Delivery pill colors (green ramp) ──────────────────────────────────────
+// Placed = grey, Dispatched = orange, Delivered = dark green
 
-const PILL_STYLES: Record<PillVariant, { background: string; border: string; color: string }> = {
-  overdue:    { background: '#E66767', border: '#CE6060', color: '#FFFFFF' },
-  dueSoon:    { background: '#F8BB54', border: '#E4A051', color: '#FFFFFF' },
-  paid:       { background: '#80E8A6', border: '#64D68E', color: '#5B876C' },
-  placed:     { background: '#6692F1', border: '#6183E4', color: '#FFFFFF' },
-  dispatched: { background: '#F08A55', border: '#D47A55', color: '#FFFFFF' },
-  delivered:  { background: '#5CBF80', border: '#5BA677', color: '#FFFFFF' },
+function getDeliveryPillStyle(lifecycleState: string): CSSProperties {
+  switch (lifecycleState) {
+    case 'Dispatched': return { background: '#FF8C42' }
+    case 'Delivered':  return { background: '#22B573' }
+    default:           return { background: '#8492A6' }  // Placed or unknown
+  }
 }
 
-const PILL_BASE: CSSProperties = {
-  borderRadius: '999px',
+function getDeliveryLabel(lifecycleState: string): string {
+  switch (lifecycleState) {
+    case 'Placed':     return 'Placed'
+    case 'Dispatched': return 'Dispatched'
+    case 'Delivered':  return 'Delivered'
+    default:           return lifecycleState
+  }
+}
+
+// ─── Payment pill colors ─────────────────────────────────────────────────────
+// Due Soon = grey, Overdue = red, Paid = dark green
+
+type PaymentPillState = 'paid' | 'overdue' | 'dueSoon'
+
+function getPaymentPillStyle(state: PaymentPillState): CSSProperties {
+  switch (state) {
+    case 'paid':    return { background: '#1A9460' }
+    case 'overdue': return { background: '#E05555' }
+    default:        return { background: '#B0B8C4' }  // dueSoon
+  }
+}
+
+function getPaymentPillLabel(state: PaymentPillState): string {
+  switch (state) {
+    case 'paid':    return 'Paid'
+    case 'overdue': return 'Overdue'
+    default:        return 'Due soon'
+  }
+}
+
+function resolvePaymentPillState(
+  settlementState: string,
+  calculatedDueDate: number | null,
+  deliveredAt: number | null
+): PaymentPillState {
+  if (settlementState === 'Paid') return 'paid'
+  const now = Date.now()
+  if (deliveredAt != null && calculatedDueDate != null && now > calculatedDueDate) return 'overdue'
+  return 'dueSoon'
+}
+
+// ─── Shared pill base style ──────────────────────────────────────────────────
+
+const HALF_PILL_BASE: CSSProperties = {
   height: '22px',
   lineHeight: '22px',
   padding: '0 10px',
   fontSize: '11px',
   fontWeight: 600,
-  borderWidth: '1px',
-  borderStyle: 'solid',
-  whiteSpace: 'nowrap',
+  color: '#FFFFFF',
   display: 'inline-block',
+  whiteSpace: 'nowrap',
 }
 
-function Pill({ variant, label }: { variant: PillVariant; label: string }) {
-  const s = PILL_STYLES[variant]
-  return (
-    <span style={{ ...PILL_BASE, backgroundColor: s.background, borderColor: s.border, color: s.color }}>
-      {label}
-    </span>
-  )
+// ─── Due date text helpers ───────────────────────────────────────────────────
+
+function getDueDateText(
+  settlementState: string,
+  calculatedDueDate: number | null,
+  deliveredAt: number | null,
+  latestActivity: number
+): { label: string; color: string; suffix: string; suffixColor: string } | null {
+  const now = Date.now()
+  const isPaid = settlementState === 'Paid'
+
+  if (isPaid) {
+    const d = new Date(latestActivity)
+    const dateStr = d.toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })
+    return {
+      label: 'Settled',
+      color: '#22B573',
+      suffix: `Paid ${dateStr}`,
+      suffixColor: '#8492A6',
+    }
+  }
+
+  if (calculatedDueDate == null) return null
+
+  const msPerDay = 86400000
+  const isOverdue = deliveredAt != null && now > calculatedDueDate
+  const dueDate = new Date(calculatedDueDate)
+  const dateStr = dueDate.toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })
+
+  if (isOverdue) {
+    const days = Math.ceil((now - calculatedDueDate) / msPerDay)
+    return {
+      label: `⚠ Overdue by ${days} day${days > 1 ? 's' : ''}`,
+      color: '#E05555',
+      suffix: `Due ${dateStr}`,
+      suffixColor: '#8492A6',
+    }
+  }
+
+  const days = Math.ceil((calculatedDueDate - now) / msPerDay)
+  return {
+    label: `Due in ${days} day${days > 1 ? 's' : ''}`,
+    color: '#8492A6',
+    suffix: `Due ${dateStr}`,
+    suffixColor: '#8492A6',
+  }
 }
+
+// ─── Divider ─────────────────────────────────────────────────────────────────
 
 const DIVIDER: CSSProperties = {
   borderTop: '1px solid var(--border-light)',
-  margin: '10px 0',
+  margin: '11px 0',
 }
+
+// ─── Component ───────────────────────────────────────────────────────────────
 
 export function OrderCard({
   itemSummary,
@@ -79,57 +167,26 @@ export function OrderCard({
   deliveredAt,
   latestActivity,
   paymentTermSnapshot,
+  isBuyer,
   onClick,
 }: OrderCardProps) {
-  const now = Date.now()
+  // ── Amount display ──────────────────────────────────────────────────────────
   const isPaid = settlementState === 'Paid'
-  const isOverdue = !isPaid && deliveredAt != null && calculatedDueDate != null && now > calculatedDueDate
-  const daysUntilDue = !isPaid && calculatedDueDate != null && !isOverdue
-    ? Math.ceil((calculatedDueDate - now) / (24 * 60 * 60 * 1000))
-    : null
+  const amountValue = isPaid ? orderValue : pendingAmount
+  const amountColor = isBuyer ? '#E05555' : '#22B573'
+  const amountArrow = isBuyer ? '↑' : '↓'
 
-  let paymentPillVariant: PillVariant | null = null
-  let paymentPillLabel = ''
-  if (!isPaid) {
-    if (isOverdue) {
-      paymentPillVariant = 'overdue'
-      paymentPillLabel = 'Overdue'
-    } else if (daysUntilDue !== null) {
-      paymentPillVariant = 'dueSoon'
-      paymentPillLabel = daysUntilDue === 0 ? 'Due today' : `Due in ${daysUntilDue} day${daysUntilDue === 1 ? '' : 's'}`
-    }
-  }
+  // ── Delivery pill ───────────────────────────────────────────────────────────
+  const deliveryStyle = getDeliveryPillStyle(lifecycleState)
+  const deliveryLabel = getDeliveryLabel(lifecycleState)
 
-  let fulfilmentPillVariant: PillVariant
-  let fulfilmentPillLabel: string
-  switch (lifecycleState) {
-    case 'Dispatched':
-      fulfilmentPillVariant = 'dispatched'
-      fulfilmentPillLabel = 'Dispatched'
-      break
-    case 'Delivered':
-      fulfilmentPillVariant = 'delivered'
-      fulfilmentPillLabel = 'Delivered'
-      break
-    default:
-      fulfilmentPillVariant = 'placed'
-      fulfilmentPillLabel = 'Placed'
-  }
+  // ── Payment pill ────────────────────────────────────────────────────────────
+  const paymentState = resolvePaymentPillState(settlementState, calculatedDueDate, deliveredAt)
+  const paymentStyle = getPaymentPillStyle(paymentState)
+  const paymentLabel = getPaymentPillLabel(paymentState)
 
-  const entityParts = [connectionName, branchLabel || null, contactName || null].filter(Boolean) as string[]
-
-  let dueDateText: string | null = null
-  let dueDateColor = 'var(--text-secondary)'
-  if (!isPaid) {
-    if (isOverdue) {
-      const overdueDays = calculatedDueDate != null ? Math.ceil((now - calculatedDueDate) / (24 * 60 * 60 * 1000)) : 0
-      dueDateText = `Overdue by ${overdueDays} day${overdueDays === 1 ? '' : 's'}`
-      dueDateColor = '#B87761'
-    } else if (daysUntilDue !== null) {
-      dueDateText = daysUntilDue === 0 ? 'Due today' : `Due in ${daysUntilDue} day${daysUntilDue === 1 ? '' : 's'}`
-      dueDateColor = '#AA8454'
-    }
-  }
+  // ── Bottom row ──────────────────────────────────────────────────────────────
+  const dueInfo = getDueDateText(settlementState, calculatedDueDate, deliveredAt, latestActivity)
 
   return (
     <button
@@ -139,59 +196,93 @@ export function OrderCard({
         backgroundColor: 'var(--bg-card)',
         borderRadius: 'var(--radius-card)',
         padding: '14px 16px',
-        border: '1px solid var(--border-light)',
-        boxShadow: '0 1px 2px rgba(16,24,40,0.04)',
-        minHeight: '44px',
+        display: 'block',
       }}
     >
-      {/* Row 1: title | pending amount */}
-      <div className="flex items-start justify-between gap-3">
-        <p style={{ fontSize: '15px', fontWeight: 600, color: 'var(--text-primary)', flex: 1 }}>
-          {itemSummary.length > 15 ? `${itemSummary.slice(0, 15)}…` : itemSummary}
-        </p>
-        {!isPaid && pendingAmount > 0 && (
-          <div style={{ flexShrink: 0, textAlign: 'right' }}>
-            <p style={{ fontSize: '14px', fontWeight: 500, color: '#E66767' }}>
-              ↑ {formatInrCurrency(pendingAmount)}
-            </p>
-            <p style={{ fontSize: '11px', fontWeight: 400, color: 'var(--text-secondary)', marginTop: '2px' }}>
-              Order Value · {formatInrCurrency(orderValue)}
-            </p>
+      {/* Row 1: Business name + amount */}
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+        <div style={{ flex: 1, marginRight: '12px', minWidth: 0 }}>
+          <span style={{ fontSize: '15px', fontWeight: 700, color: 'var(--text-primary)' }}>
+            {connectionName}
+          </span>
+          {(branchLabel || contactName) && (
+            <span style={{ fontSize: '13px', color: 'var(--text-secondary)' }}>
+              {branchLabel ? ` · ${branchLabel}` : ''}{contactName ? ` · ${contactName}` : ''}
+            </span>
+          )}
+        </div>
+        <div style={{ textAlign: 'right', flexShrink: 0, lineHeight: 1.2 }}>
+          <div style={{ fontSize: '15px', fontWeight: 700, color: amountColor }}>
+            {amountArrow} {formatInrCurrency(amountValue)}
           </div>
-        )}
+          <div style={{ fontSize: '11px', color: 'var(--text-tertiary)', marginTop: '1px' }}>
+            {formatInrCurrency(orderValue)} total
+          </div>
+        </div>
       </div>
 
-      {/* Row 2: entity */}
-      <div className="flex items-center justify-between gap-2" style={{ marginTop: '10px' }}>
-        <p style={{ fontSize: '13px', color: 'var(--text-secondary)' }} className="truncate">
-          {entityParts.join(' · ')}
-        </p>
-      </div>
-
-      <div style={DIVIDER} />
-
-      {/* Row 3: Lifecycle status (left) + paid/overdue pill (right) */}
-      <div className="flex items-center justify-between gap-2">
-        <Pill variant={fulfilmentPillVariant} label={fulfilmentPillLabel} />
-        {isPaid
-          ? <Pill variant="paid" label="Paid" />
-          : paymentPillVariant && <Pill variant={paymentPillVariant} label={paymentPillLabel} />
-        }
+      {/* Row 2: Payment term */}
+      <div style={{ fontSize: '13px', color: 'var(--text-secondary)', marginTop: '3px' }}>
+        {formatPaymentTerm(paymentTermSnapshot)}
       </div>
 
       <div style={DIVIDER} />
 
-      {/* Row 4: Payment terms (left) + due date (right) */}
-      <div className="flex items-center justify-between gap-2">
-        <p style={{ fontSize: '13px', color: 'var(--text-secondary)' }}>
-          {formatPaymentTerm(paymentTermSnapshot)}
-        </p>
-        {dueDateText && (
-          <p style={{ fontSize: '13px', fontWeight: 500, color: dueDateColor, flexShrink: 0 }}>
-            {dueDateText}
-          </p>
-        )}
+      {/* Row 3: Order title + half-capsule status pills */}
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <span
+          style={{
+            fontSize: '14px',
+            fontWeight: 600,
+            color: 'var(--text-primary)',
+            flex: 1,
+            marginRight: '10px',
+            overflow: 'hidden',
+            textOverflow: 'ellipsis',
+            whiteSpace: 'nowrap',
+          }}
+        >
+          {itemSummary}
+        </span>
+        {/* Half-capsule joined pills */}
+        <div style={{ display: 'flex', flexShrink: 0 }}>
+          <span
+            style={{
+              ...HALF_PILL_BASE,
+              ...deliveryStyle,
+              borderRadius: '11px 0 0 11px',
+            }}
+          >
+            {deliveryLabel}
+          </span>
+          <span
+            style={{
+              ...HALF_PILL_BASE,
+              ...paymentStyle,
+              borderRadius: '0 11px 11px 0',
+            }}
+          >
+            {paymentLabel}
+          </span>
+        </div>
       </div>
+
+      <div style={DIVIDER} />
+
+      {/* Row 4: Due label + due date */}
+      {dueInfo && (
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <span style={{ fontSize: '13px', fontWeight: 600, color: dueInfo.color }}>
+            {dueInfo.label}
+          </span>
+          <span style={{ fontSize: '13px', color: dueInfo.suffixColor }}>
+            <span style={{ fontWeight: 700, color: 'var(--text-primary)' }}>
+              {dueInfo.suffix.split(' ')[0]}
+            </span>{' '}
+            {dueInfo.suffix.split(' ').slice(1).join(' ')}
+          </span>
+        </div>
+      )}
     </button>
   )
 }

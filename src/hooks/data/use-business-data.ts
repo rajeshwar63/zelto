@@ -104,6 +104,7 @@ export function useOrdersData(currentBusinessId: string, isActive = true) {
             latestActivity: getLatestActivity(order),
             branchLabel: conn?.branchLabel,
             contactName: conn?.contactName,
+            buyerBusinessId: conn?.buyerBusinessId,
           }
         })
         .sort((a, b) => b.latestActivity - a.latestActivity)
