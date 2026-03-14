@@ -5,9 +5,8 @@ import { createOrder } from '@/lib/interactions'
 import { useDataListener } from '@/lib/data-events'
 import type { Connection, BusinessEntity, ConnectionState } from '@/lib/types'
 import { getConnectionStateColor } from '@/lib/semantic-colors'
-import { buildConnectionSubtitle } from '@/lib/utils'
 import { Plus, Users, PencilSimple, MagnifyingGlass, X, PaperPlaneTilt, DownloadSimple } from '@phosphor-icons/react'
-import { Phone } from 'lucide-react'
+import { Phone, MapPin, User } from 'lucide-react'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import { toast } from 'sonner'
@@ -462,16 +461,39 @@ export function ConnectionsScreen({ currentBusinessId, onSelectConnection, onAdd
                   minHeight: '44px',
                 }}
               >
-                {/* Row 1: Business name + Outstanding balance */}
-                <div className="flex items-baseline justify-between">
-                  <div className="flex items-center gap-2 flex-1 mr-3">
+                {/* Row 1: Business name + inline branch/contact + Outstanding balance */}
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2 flex-1 min-w-0 mr-3">
                     {isUnread && (
                       <span style={{ width: '6px', height: '6px', borderRadius: '50%', backgroundColor: 'var(--status-new)', flexShrink: 0 }} />
                     )}
-                    <p style={{ fontSize: '15px', fontWeight: 700, color: 'var(--text-primary)' }}>{conn.otherBusinessName}</p>
+                    <p style={{ fontSize: '15px', fontWeight: 700, color: 'var(--text-primary)', flexShrink: 0 }}>{conn.otherBusinessName}</p>
+                    {(conn.branchLabel || conn.contactName) && (
+                      <div className="flex items-center gap-1 min-w-0" style={{ flexShrink: 1 }}>
+                        {conn.branchLabel && (
+                          <>
+                            <MapPin size={12} color="var(--text-secondary)" style={{ flexShrink: 0 }} />
+                            <span style={{ fontSize: '12px', color: 'var(--text-secondary)', whiteSpace: 'nowrap' }}>
+                              {conn.branchLabel.length > 8 ? conn.branchLabel.slice(0, 8) + '…' : conn.branchLabel}
+                            </span>
+                          </>
+                        )}
+                        {conn.branchLabel && conn.contactName && (
+                          <span style={{ fontSize: '12px', color: 'var(--text-secondary)', flexShrink: 0 }}>•</span>
+                        )}
+                        {conn.contactName && (
+                          <>
+                            <User size={12} color="var(--text-secondary)" style={{ flexShrink: 0 }} />
+                            <span style={{ fontSize: '12px', color: 'var(--text-secondary)', whiteSpace: 'nowrap' }}>
+                              {conn.contactName.length > 8 ? conn.contactName.slice(0, 8) + '…' : conn.contactName}
+                            </span>
+                          </>
+                        )}
+                      </div>
+                    )}
                   </div>
                   {conn.outstandingBalance > 0 && (
-                    <div className="flex items-center gap-0.5">
+                    <div className="flex items-center gap-0.5" style={{ flexShrink: 0 }}>
                       <span
                         aria-hidden
                         style={{ fontSize: '15px', fontWeight: 700, color: amountDirectionColor, lineHeight: 1 }}
@@ -484,13 +506,6 @@ export function ConnectionsScreen({ currentBusinessId, onSelectConnection, onAdd
                     </div>
                   )}
                 </div>
-
-                {/* Branch / contact subtitle */}
-                {buildConnectionSubtitle(conn.branchLabel, conn.contactName) && (
-                  <p className="text-[11px] text-muted-foreground mt-0.5">
-                    📍 {buildConnectionSubtitle(conn.branchLabel, conn.contactName)}
-                  </p>
-                )}
 
                 {/* Row 2: Business type · Payment terms */}
                 {subtitleParts.length > 0 && (
