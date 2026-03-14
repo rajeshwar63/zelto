@@ -20,5 +20,5 @@ export function buildConnectionSubtitle(
   contactName?: string | null
 ): string | null {
   const parts = [branchLabel, contactName].filter(Boolean)
-  return parts.length > 0 ? parts.join('  •  ') : null
+  return parts.length > 0 ? parts.join('  ·  ') : null
 }

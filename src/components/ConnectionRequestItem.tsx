@@ -75,8 +75,9 @@ export function ConnectionRequestItem({ request, currentBusinessId, onUpdate, on
       // Apply any pending branch/contact labels the requester entered during the Add Connection flow
       const pendingLabels = consumePendingConnectionLabels(request.id)
       if (pendingLabels && result.connectionId) {
-        await dataStore.updateConnectionLabels(
+        await dataStore.updateConnectionContact(
           result.connectionId,
+          null,
           pendingLabels.branchLabel,
           pendingLabels.contactName
         ).catch(() => {/* non-critical */})

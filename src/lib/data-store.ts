@@ -442,26 +442,16 @@ export class ZeltoDataStore {
     return toCamelCase(data)
   }
 
-  async updateConnectionContactPhone(
+  async updateConnectionContact(
     connectionId: string,
-    contactPhone: string | null
-  ): Promise<void> {
-    const { error } = await supabase
-      .from('connections')
-      .update({ contact_phone: contactPhone })
-      .eq('id', connectionId)
-
-    if (error) throw error
-  }
-
-  async updateConnectionLabels(
-    connectionId: string,
+    phone: string | null,
     branchLabel: string | null,
     contactName: string | null
   ): Promise<void> {
     const { error } = await supabase
       .from('connections')
       .update({
+        contact_phone: phone || null,
         branch_label: branchLabel || null,
         contact_name: contactName || null,
       })

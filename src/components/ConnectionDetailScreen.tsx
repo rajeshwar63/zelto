@@ -5,14 +5,14 @@ import { createOrder } from '@/lib/interactions'
 import { useDataListener } from '@/lib/data-events'
 import { formatDistanceToNow, differenceInDays, format } from 'date-fns'
 import type { Connection, OrderWithPaymentState, BusinessEntity } from '@/lib/types'
-import { CaretLeft, CaretDown, CaretRight, Paperclip, DownloadSimple, Phone, PencilSimple, Plus } from '@phosphor-icons/react'
+import { CaretLeft, CaretDown, CaretRight, Paperclip, DownloadSimple, Phone, PencilSimple, MapPin } from '@phosphor-icons/react'
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { CardAccent } from '@/components/ui/card'
 import { toast } from 'sonner'
 import { getConnectionStateColor, getDueDateColor, getLifecycleStatusColor } from '@/lib/semantic-colors'
-import { motion, useMotionValue, useTransform, animate, PanInfo, AnimatePresence } from 'framer-motion'
+import { motion, useMotionValue, useTransform, animate, PanInfo } from 'framer-motion'
 import { getArchivedOrderIds, archiveOrder as doArchiveOrder, unarchiveOrder as doUnarchiveOrder } from '@/lib/archive-store'
 import { markOrderSeen, isOrderNew } from '@/lib/unread-tracker'
 import { formatInrCurrency, buildConnectionSubtitle } from '@/lib/utils'
@@ -22,7 +22,6 @@ import { OrderTimeline } from '@/components/order/OrderTimeline'
 import { OrderAttachmentsSection } from '@/components/order/OrderAttachmentsSection'
 import { buildOrderTimeline, formatDueDate, formatPaymentTerms, getLifecycleState } from '@/components/order/order-detail-utils'
 import { LedgerDownloadSheet } from '@/components/LedgerDownloadSheet'
-import { EditContactPhoneSheet } from '@/components/EditContactPhoneSheet'
 
 interface Props {
   connectionId: string
@@ -61,10 +60,11 @@ export function ConnectionDetailScreen({ connectionId, currentBusinessId, onBack
   const [attachmentCounts, setAttachmentCounts] = useState<Record<string, number>>({})
   const [pullRevealHeight, setPullRevealHeight] = useState(0)
   const [showLedgerSheet, setShowLedgerSheet] = useState(false)
-  const [showContactPhoneSheet, setShowContactPhoneSheet] = useState(false)
-  const [branchLabel, setBranchLabel] = useState('')
-  const [contactName, setContactName] = useState('')
-  const [savingLabels, setSavingLabels] = useState(false)
+  const [showContactEdit, setShowContactEdit] = useState(false)
+  const [editPhone, setEditPhone] = useState('')
+  const [editBranch, setEditBranch] = useState('')
+  const [editContact, setEditContact] = useState('')
+  const [savingContact, setSavingContact] = useState(false)
   const pullStartY = useRef<number | null>(null)
   const lastTouchY = useRef<number | null>(null)
   const lastScrollTop = useRef(0)
@@ -90,8 +90,9 @@ export function ConnectionDetailScreen({ connectionId, currentBusinessId, onBack
       setConnection(conn)
       setOtherBusiness(otherBiz || null)
       setInsights(connectionInsights)
-      setBranchLabel(conn.branchLabel ?? '')
-      setContactName(conn.contactName ?? '')
+      setEditPhone(conn.contactPhone ?? '')
+      setEditBranch(conn.branchLabel ?? '')
+      setEditContact(conn.contactName ?? '')
       setLoading(false)
     } catch (err) {
       console.error('Failed to load connection data:', err)
@@ -162,20 +163,22 @@ export function ConnectionDetailScreen({ connectionId, currentBusinessId, onBack
     }
   }
 
-  const handleSaveLabels = async () => {
-    setSavingLabels(true)
+  const handleSaveContact = async () => {
+    setSavingContact(true)
     try {
-      await dataStore.updateConnectionLabels(
+      await dataStore.updateConnectionContact(
         connectionId,
-        branchLabel.trim() || null,
-        contactName.trim() || null
+        editPhone.trim() || null,
+        editBranch.trim() || null,
+        editContact.trim() || null
       )
+      setShowContactEdit(false)
       toast.success('Saved')
       await loadHeaderData()
     } catch {
       toast.error('Failed to save')
     } finally {
-      setSavingLabels(false)
+      setSavingContact(false)
     }
   }
 
@@ -289,33 +292,27 @@ export function ConnectionDetailScreen({ connectionId, currentBusinessId, onBack
         onTouchEnd={handleListTouchEnd}
         onTouchCancel={handleListTouchEnd}
       >
-        {/* Contact Number Row */}
-        <div
-          className="flex items-center px-4 py-3 cursor-pointer"
-          style={{ borderBottom: '1px solid var(--border-light)' }}
-          onClick={() => setShowContactPhoneSheet(true)}
-          role="button"
-          tabIndex={0}
-          onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') setShowContactPhoneSheet(true) }}
-        >
-          <div className="flex items-center justify-center mr-3" style={{ width: '36px', height: '36px', backgroundColor: 'var(--brand-primary-bg)', borderRadius: '50%', flexShrink: 0 }}>
+        {/* Unified Contact Row */}
+        <div className="flex items-center gap-3 px-4 py-3" style={{ borderBottom: '1px solid var(--border-light)' }}>
+          <div className="flex items-center justify-center" style={{ width: '36px', height: '36px', backgroundColor: 'var(--brand-primary-bg)', borderRadius: '50%', flexShrink: 0 }}>
             <Phone size={18} weight="regular" style={{ color: 'var(--brand-primary)' }} />
           </div>
-          <div className="flex-1">
-            <p style={{ fontSize: '12px', fontWeight: 600, color: 'var(--text-secondary)' }}>Contact Number</p>
-            {connection.contactPhone ? (
-              <p style={{ fontSize: '15px', fontWeight: 600, color: 'var(--text-primary)', marginTop: '1px' }}>
-                {`+91 ${connection.contactPhone.replace(/(\d{5})(\d{5})/, '$1 $2')}`}
+          <div className="flex-1 min-w-0">
+            {buildConnectionSubtitle(connection.branchLabel, connection.contactName) && (
+              <p className="text-[12px] text-muted-foreground flex items-center gap-1 mb-0.5">
+                <MapPin size={11} weight="regular" />
+                {buildConnectionSubtitle(connection.branchLabel, connection.contactName)}
               </p>
-            ) : (
-              <p style={{ fontSize: '14px', fontWeight: 500, color: 'var(--text-secondary)', marginTop: '1px' }}>Tap to add</p>
             )}
+            <p style={{ fontSize: '14px', fontWeight: 600, color: connection.contactPhone ? 'var(--text-primary)' : 'var(--text-secondary)' }}>
+              {connection.contactPhone
+                ? `+91 ${connection.contactPhone.replace(/(\d{5})(\d{5})/, '$1 $2')}`
+                : 'Add contact number'}
+            </p>
           </div>
-          {connection.contactPhone ? (
-            <PencilSimple size={18} weight="regular" style={{ color: 'var(--text-secondary)', flexShrink: 0 }} />
-          ) : (
-            <Plus size={18} weight="regular" style={{ color: 'var(--brand-primary)', flexShrink: 0 }} />
-          )}
+          <button onClick={() => setShowContactEdit(true)} style={{ padding: '4px', minWidth: '32px', minHeight: '32px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <PencilSimple size={16} weight="regular" style={{ color: 'var(--text-secondary)' }} />
+          </button>
         </div>
 
         {/* Relationship Summary Card */}
@@ -363,48 +360,6 @@ export function ConnectionDetailScreen({ connectionId, currentBusinessId, onBack
           </div>
         </div>
 
-        {/* Connection Details (branch/contact edit) — only shown when not yet filled */}
-        {!connection?.branchLabel && !connection?.contactName && (
-          <div className="px-4 mb-3">
-            <div className="rounded-2xl bg-card p-4">
-              <p className="text-[13px] font-semibold text-foreground mb-3">Connection Details</p>
-
-              <div className="mb-3">
-                <label className="text-[11px] text-muted-foreground mb-1 block">
-                  Branch / Location (optional)
-                </label>
-                <input
-                  type="text"
-                  value={branchLabel}
-                  onChange={(e) => setBranchLabel(e.target.value)}
-                  placeholder="e.g. Banjara Hills, Gachibowli"
-                  className="w-full text-[13px] bg-background border border-border rounded-xl px-3 py-2 text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary"
-                />
-              </div>
-
-              <div className="mb-3">
-                <label className="text-[11px] text-muted-foreground mb-1 block">
-                  Contact Person (optional)
-                </label>
-                <input
-                  type="text"
-                  value={contactName}
-                  onChange={(e) => setContactName(e.target.value)}
-                  placeholder="e.g. Ravi"
-                  className="w-full text-[13px] bg-background border border-border rounded-xl px-3 py-2 text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary"
-                />
-              </div>
-
-              <button
-                onClick={handleSaveLabels}
-                disabled={savingLabels}
-                className="w-full py-2 rounded-xl bg-primary text-primary-foreground text-[13px] font-medium disabled:opacity-50"
-              >
-                {savingLabels ? 'Saving...' : 'Save'}
-              </button>
-            </div>
-          </div>
-        )}
 
         <div
           className="overflow-hidden transition-all duration-200 ease-out"
@@ -545,12 +500,85 @@ export function ConnectionDetailScreen({ connectionId, currentBusinessId, onBack
         currentBusinessId={currentBusinessId}
       />
 
-      <EditContactPhoneSheet
-        isOpen={showContactPhoneSheet}
-        onClose={() => setShowContactPhoneSheet(false)}
-        connectionId={connectionId}
-        currentPhone={connection.contactPhone ?? null}
-      />
+      {showContactEdit && (
+        <div
+          className="fixed inset-0 z-50 flex items-end"
+          style={{ backgroundColor: 'rgba(0,0,0,0.5)' }}
+          onClick={() => setShowContactEdit(false)}
+        >
+          <div
+            className="w-full"
+            style={{
+              backgroundColor: 'var(--bg-card)',
+              borderTopLeftRadius: 'var(--radius-modal)',
+              borderTopRightRadius: 'var(--radius-modal)',
+              paddingBottom: 'env(safe-area-inset-bottom)',
+            }}
+            onClick={e => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between px-4 py-4" style={{ borderBottom: '1px solid var(--border-light)' }}>
+              <h2 style={{ fontSize: '17px', fontWeight: 700, color: 'var(--text-primary)' }}>Contact Details</h2>
+              <button
+                onClick={() => setShowContactEdit(false)}
+                style={{ minWidth: '44px', minHeight: '44px', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-secondary)' }}
+              >
+                ✕
+              </button>
+            </div>
+            <div className="px-4 py-4">
+              <div className="mb-3">
+                <label className="text-[11px] text-muted-foreground mb-1 block">Phone number</label>
+                <input
+                  type="tel"
+                  value={editPhone}
+                  onChange={e => setEditPhone(e.target.value)}
+                  placeholder="+91 98765 43210"
+                  className="w-full text-[13px] bg-background border border-border rounded-xl px-3 py-2 text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary"
+                />
+              </div>
+              <div className="mb-3">
+                <label className="text-[11px] text-muted-foreground mb-1 block">
+                  Branch / location <span className="text-muted-foreground/50">optional</span>
+                </label>
+                <input
+                  type="text"
+                  value={editBranch}
+                  onChange={e => setEditBranch(e.target.value)}
+                  placeholder="e.g. Banjara Hills, Madhapur"
+                  className="w-full text-[13px] bg-background border border-border rounded-xl px-3 py-2 text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary"
+                />
+              </div>
+              <div className="mb-4">
+                <label className="text-[11px] text-muted-foreground mb-1 block">
+                  Contact person <span className="text-muted-foreground/50">optional</span>
+                </label>
+                <input
+                  type="text"
+                  value={editContact}
+                  onChange={e => setEditContact(e.target.value)}
+                  placeholder="e.g. Ravi"
+                  className="w-full text-[13px] bg-background border border-border rounded-xl px-3 py-2 text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary"
+                />
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <button
+                  onClick={() => setShowContactEdit(false)}
+                  className="py-2.5 rounded-xl border border-border text-[13px] text-muted-foreground"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleSaveContact}
+                  disabled={savingContact}
+                  className="py-2.5 rounded-xl bg-primary text-primary-foreground text-[13px] font-medium disabled:opacity-50"
+                >
+                  {savingContact ? 'Saving...' : 'Save'}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {canPlaceOrder && (
         <div style={{ borderTop: '1px solid var(--border-light)', backgroundColor: 'var(--bg-card)', padding: '8px 12px' }}>
