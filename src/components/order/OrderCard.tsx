@@ -31,20 +31,22 @@ function formatPaymentTerm(term: PaymentTermType | null): string {
 type PillVariant = 'overdue' | 'dueSoon' | 'paid' | 'placed' | 'dispatched' | 'delivered'
 
 const PILL_STYLES: Record<PillVariant, { background: string; border: string; color: string }> = {
-  overdue:    { background: '#FAECE7', border: '#F0997B', color: '#993C1D' },
-  dueSoon:    { background: '#FAEEDA', border: '#EF9F27', color: '#854F0B' },
-  paid:       { background: '#EAF3DE', border: '#97C459', color: '#3B6D11' },
-  placed:     { background: '#F1EFE8', border: '#B4B2A9', color: '#5F5E5A' },
-  dispatched: { background: '#EEEDFE', border: '#AFA9EC', color: '#534AB7' },
-  delivered:  { background: '#E6F1FB', border: '#85B7EB', color: '#0C447C' },
+  overdue:    { background: '#DC2626', border: '#B91C1C', color: '#FFFFFF' },
+  dueSoon:    { background: '#F59E0B', border: '#D97706', color: '#FFFFFF' },
+  paid:       { background: '#4ADE80', border: '#22C55E', color: '#14532D' },
+  placed:     { background: '#2563EB', border: '#1D4ED8', color: '#FFFFFF' },
+  dispatched: { background: '#EA580C', border: '#C2410C', color: '#FFFFFF' },
+  delivered:  { background: '#16A34A', border: '#15803D', color: '#FFFFFF' },
 }
 
 const PILL_BASE: CSSProperties = {
   borderRadius: '999px',
-  padding: '5px 12px',
-  fontSize: '12px',
-  fontWeight: 500,
-  borderWidth: '0.5px',
+  height: '22px',
+  lineHeight: '22px',
+  padding: '0 10px',
+  fontSize: '11px',
+  fontWeight: 600,
+  borderWidth: '1px',
   borderStyle: 'solid',
   whiteSpace: 'nowrap',
   display: 'inline-block',
@@ -142,36 +144,37 @@ export function OrderCard({
         minHeight: '44px',
       }}
     >
-      {/* Row 1: Order ID + outstanding amount / Paid pill, with order value below */}
+      {/* Row 1: title | pending amount */}
       <div className="flex items-start justify-between gap-3">
-        <p style={{ fontSize: '15px', fontWeight: 500, color: 'var(--text-primary)', flex: 1 }}>
+        <p style={{ fontSize: '15px', fontWeight: 600, color: 'var(--text-primary)', flex: 1 }}>
           {itemSummary.length > 15 ? `${itemSummary.slice(0, 15)}…` : itemSummary}
         </p>
-        <div style={{ textAlign: 'right', flexShrink: 0 }}>
-          {isPaid ? (
-            <Pill variant="paid" label="Paid" />
-          ) : pendingAmount > 0 ? (
-            <p style={{ fontSize: '14px', fontWeight: 500, color: '#993C1D' }}>
-              ↑ {formatInrCurrency(pendingAmount)}
-            </p>
-          ) : null}
-          <p style={{ fontSize: '12px', color: 'var(--text-secondary)', marginTop: '3px' }}>
-            {orderValue > 0 ? formatInrCurrency(orderValue) : '—'}
+        {!isPaid && pendingAmount > 0 && (
+          <p style={{ fontSize: '14px', fontWeight: 500, color: '#DC2626', flexShrink: 0 }}>
+            ↑ {formatInrCurrency(pendingAmount)}
           </p>
-        </div>
+        )}
       </div>
 
-      {/* Row 2: Entity line */}
-      <p style={{ fontSize: '13px', color: 'var(--text-secondary)', marginTop: '4px' }} className="truncate">
-        {entityParts.join(' · ')}
-      </p>
+      {/* Row 2: entity | order value */}
+      <div className="flex items-center justify-between gap-2" style={{ marginTop: '10px' }}>
+        <p style={{ fontSize: '13px', color: 'var(--text-secondary)' }} className="truncate">
+          {entityParts.join(' · ')}
+        </p>
+        <p style={{ fontSize: '13px', fontWeight: 500, color: 'var(--text-secondary)', flexShrink: 0 }}>
+          {orderValue > 0 ? formatInrCurrency(orderValue) : '—'}
+        </p>
+      </div>
 
       <div style={DIVIDER} />
 
-      {/* Row 3: Lifecycle status (left) + payment status pill (right) */}
+      {/* Row 3: Lifecycle status (left) + paid/overdue pill (right) */}
       <div className="flex items-center justify-between gap-2">
         <Pill variant={fulfilmentPillVariant} label={fulfilmentPillLabel} />
-        {paymentPillVariant && <Pill variant={paymentPillVariant} label={paymentPillLabel} />}
+        {isPaid
+          ? <Pill variant="paid" label="Paid" />
+          : paymentPillVariant && <Pill variant={paymentPillVariant} label={paymentPillLabel} />
+        }
       </div>
 
       <div style={DIVIDER} />
