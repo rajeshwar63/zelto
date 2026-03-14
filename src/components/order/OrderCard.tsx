@@ -172,9 +172,10 @@ export function OrderCard({
 }: OrderCardProps) {
   // ── Amount display ──────────────────────────────────────────────────────────
   const isPaid = settlementState === 'Paid'
-  const amountValue = isPaid ? orderValue : pendingAmount
-  const amountColor = isBuyer ? '#E05555' : '#22B573'
-  const amountArrow = isBuyer ? '↑' : '↓'
+  const isSettled = isPaid || pendingAmount === 0
+  const amountValue = isSettled ? orderValue : pendingAmount
+  const amountColor = isSettled ? 'var(--text-secondary)' : isBuyer ? '#E05555' : '#22B573'
+  const amountArrow = isSettled ? null : isBuyer ? '↑' : '↓'
 
   // ── Delivery pill ───────────────────────────────────────────────────────────
   const deliveryStyle = getDeliveryPillStyle(lifecycleState)
@@ -214,7 +215,7 @@ export function OrderCard({
         </div>
         <div style={{ textAlign: 'right', flexShrink: 0, lineHeight: 1.2 }}>
           <div style={{ fontSize: '15px', fontWeight: 700, color: amountColor }}>
-            {amountArrow} {formatInrCurrency(amountValue)}
+            {amountArrow ? `${amountArrow} ` : ''}{formatInrCurrency(amountValue)}
           </div>
           <div style={{ fontSize: '11px', color: 'var(--text-tertiary)', marginTop: '1px' }}>
             {formatInrCurrency(orderValue)} total
