@@ -5,7 +5,7 @@ import { createOrder } from '@/lib/interactions'
 import { useDataListener } from '@/lib/data-events'
 import { formatDistanceToNow, differenceInDays, format } from 'date-fns'
 import type { Connection, OrderWithPaymentState, BusinessEntity } from '@/lib/types'
-import { CaretLeft, CaretDown, CaretRight, Paperclip, DownloadSimple } from '@phosphor-icons/react'
+import { CaretLeft, CaretDown, CaretRight, Paperclip, DownloadSimple, Phone, PencilSimple, Plus } from '@phosphor-icons/react'
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -22,6 +22,7 @@ import { OrderTimeline } from '@/components/order/OrderTimeline'
 import { OrderAttachmentsSection } from '@/components/order/OrderAttachmentsSection'
 import { buildOrderTimeline, formatDueDate, formatPaymentTerms, getLifecycleState } from '@/components/order/order-detail-utils'
 import { LedgerDownloadSheet } from '@/components/LedgerDownloadSheet'
+import { EditContactPhoneSheet } from '@/components/EditContactPhoneSheet'
 
 interface Props {
   connectionId: string
@@ -60,6 +61,7 @@ export function ConnectionDetailScreen({ connectionId, currentBusinessId, onBack
   const [attachmentCounts, setAttachmentCounts] = useState<Record<string, number>>({})
   const [pullRevealHeight, setPullRevealHeight] = useState(0)
   const [showLedgerSheet, setShowLedgerSheet] = useState(false)
+  const [showContactPhoneSheet, setShowContactPhoneSheet] = useState(false)
   const pullStartY = useRef<number | null>(null)
   const lastTouchY = useRef<number | null>(null)
   const lastScrollTop = useRef(0)
@@ -112,6 +114,11 @@ export function ConnectionDetailScreen({ connectionId, currentBusinessId, onBack
   }
 
   useEffect(() => { loadHeaderData(); loadOrders(); refreshArchivedIds() }, [connectionId, currentBusinessId])
+
+  useDataListener(
+    ['connections:changed'],
+    () => { loadHeaderData() }
+  )
 
   useDataListener(
     ['orders:changed', 'payments:changed', 'issues:changed', 'attachments:changed'],
@@ -253,6 +260,35 @@ export function ConnectionDetailScreen({ connectionId, currentBusinessId, onBack
         onTouchEnd={handleListTouchEnd}
         onTouchCancel={handleListTouchEnd}
       >
+        {/* Contact Number Row */}
+        <div
+          className="flex items-center px-4 py-3 cursor-pointer"
+          style={{ borderBottom: '1px solid var(--border-light)' }}
+          onClick={() => setShowContactPhoneSheet(true)}
+          role="button"
+          tabIndex={0}
+          onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') setShowContactPhoneSheet(true) }}
+        >
+          <div className="flex items-center justify-center mr-3" style={{ width: '36px', height: '36px', backgroundColor: 'var(--brand-primary-bg)', borderRadius: '50%', flexShrink: 0 }}>
+            <Phone size={18} weight="regular" style={{ color: 'var(--brand-primary)' }} />
+          </div>
+          <div className="flex-1">
+            <p style={{ fontSize: '12px', fontWeight: 600, color: 'var(--text-secondary)' }}>Contact Number</p>
+            {connection.contactPhone ? (
+              <p style={{ fontSize: '15px', fontWeight: 600, color: 'var(--text-primary)', marginTop: '1px' }}>
+                {`+91 ${connection.contactPhone.replace(/(\d{5})(\d{5})/, '$1 $2')}`}
+              </p>
+            ) : (
+              <p style={{ fontSize: '14px', fontWeight: 500, color: 'var(--text-secondary)', marginTop: '1px' }}>Tap to add</p>
+            )}
+          </div>
+          {connection.contactPhone ? (
+            <PencilSimple size={18} weight="regular" style={{ color: 'var(--text-secondary)', flexShrink: 0 }} />
+          ) : (
+            <Plus size={18} weight="regular" style={{ color: 'var(--brand-primary)', flexShrink: 0 }} />
+          )}
+        </div>
+
         {/* Relationship Summary Card */}
         <div className="px-4 py-3">
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
@@ -435,6 +471,13 @@ export function ConnectionDetailScreen({ connectionId, currentBusinessId, onBack
         connectionId={connectionId}
         connectionName={otherBusiness.businessName}
         currentBusinessId={currentBusinessId}
+      />
+
+      <EditContactPhoneSheet
+        isOpen={showContactPhoneSheet}
+        onClose={() => setShowContactPhoneSheet(false)}
+        connectionId={connectionId}
+        currentPhone={connection.contactPhone ?? null}
       />
 
       {canPlaceOrder && (
