@@ -445,10 +445,13 @@ export function ConnectionsScreen({ currentBusinessId, onSelectConnection, onAdd
             const subtitleParts = [conn.otherBusinessType, formattedTerms].filter(Boolean)
 
             return (
-              <button
+              <div
                 key={conn.id}
+                role="button"
+                tabIndex={0}
                 onClick={() => onSelectConnection(conn.id)}
-                className="w-full text-left"
+                onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') onSelectConnection(conn.id) }}
+                className="w-full text-left cursor-pointer"
                 style={{
                   backgroundColor: 'var(--bg-card)',
                   borderRadius: 'var(--radius-card)',
@@ -557,7 +560,7 @@ export function ConnectionsScreen({ currentBusinessId, onSelectConnection, onAdd
                     </p>
                   )}
                 </div>
-              </button>
+              </div>
             )
           })}
         </div>
