@@ -256,11 +256,6 @@ export function ConnectionDetailScreen({ connectionId, currentBusinessId, onBack
           </button>
           <div className="flex-1">
             <h1 style={{ fontSize: '17px', fontWeight: 700, color: 'var(--text-primary)' }}>{otherBusiness.businessName}</h1>
-            {buildConnectionSubtitle(connection.branchLabel, connection.contactName) && (
-              <p className="text-[11px] text-muted-foreground mt-0.5">
-                📍 {buildConnectionSubtitle(connection.branchLabel, connection.contactName)}
-              </p>
-            )}
           </div>
           <button
             onClick={() => setShowLedgerSheet(true)}
