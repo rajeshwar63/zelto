@@ -68,6 +68,7 @@ export interface Connection {
   connectionState: ConnectionState
   behaviourHistory: Record<string, unknown>[]
   createdAt: number
+  contactPhone: string | null
 }
 
 export interface Order {

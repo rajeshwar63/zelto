@@ -437,9 +437,21 @@ export class ZeltoDataStore {
       .eq('id', connectionId)
       .select()
       .single()
-    
+
     if (error) throw error
     return toCamelCase(data)
+  }
+
+  async updateConnectionContactPhone(
+    connectionId: string,
+    contactPhone: string | null
+  ): Promise<void> {
+    const { error } = await supabase
+      .from('connections')
+      .update({ contact_phone: contactPhone })
+      .eq('id', connectionId)
+
+    if (error) throw error
   }
 
   // ============ ORDERS ============

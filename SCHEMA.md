@@ -90,6 +90,9 @@
 | connection_state | varchar | NO | 'Stable' |
 | behaviour_history | jsonb | NO | '[]' |
 | created_at | bigint | NO | epoch ms |
+| contact_phone | text | YES | — |
+
+> **`contact_phone`**: Phone number stored by the viewing user for this connection. Used for call/WhatsApp actions. Not shared with the other party. Run migration: `ALTER TABLE connections ADD COLUMN IF NOT EXISTS contact_phone text;`
 
 ---
 
