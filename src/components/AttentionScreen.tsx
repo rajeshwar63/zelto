@@ -1,12 +1,9 @@
 import { useEffect, useRef, useState } from 'react'
-import { ShieldWarning } from '@phosphor-icons/react'
 import { formatDistanceToNow } from 'date-fns'
 import { markOrderSeen, getUnreadState, updateTabLastSeen } from '@/lib/unread-tracker'
 import { useAttentionData } from '@/hooks/data/use-business-data'
 import { ScreenRefreshIndicator, useScreenLoadState } from '@/components/ScreenLoadState'
-import { getLifecycleStatusColor } from '@/lib/semantic-colors'
-import { formatInrCurrency } from '@/lib/utils'
-import { CardAccent } from '@/components/ui/card'
+import { IssueCard } from '@/components/dispute/IssueCard'
 
 interface Props {
   currentBusinessId: string
@@ -144,104 +141,26 @@ export function AttentionScreen({ currentBusinessId, onNavigateToIssue, isActive
               </h2>
             </div>
             <div className="space-y-2">
-              {sortedItems.map(item => {
-              const issueType = item.metadata?.issueType || 'Issue'
-              const isNew = item.orderId != null && isItemNew(item.orderId, item.frictionStartedAt)
-              const orderAmount = item.orderValue ?? 0
-              const paidAmount = item.totalPaid ?? 0
-              const pendingAmt = item.pendingAmount ?? Math.max(orderAmount - paidAmount, 0)
-              const lifecycleState = item.lifecycleState
-              const lifecycleColor = lifecycleState ? getLifecycleStatusColor(lifecycleState) : 'var(--status-issue)'
-              const leftBorderColor = isNew ? 'var(--status-issue)' : 'var(--status-dispute)'
-
-              return (
-                <button
-                  key={item.id}
-                  onClick={() => {
-                    const { orderId, issueId, connectionId } = item
-                    if (!orderId || !issueId) return
-                    markOrderSeen(currentBusinessId, orderId)
-                    setSeenOrders(prev => new Set(prev).add(orderId))
-                    onNavigateToIssue(connectionId, orderId, issueId)
-                  }}
-                  className="w-full text-left relative overflow-hidden"
-                  style={{
-                    backgroundColor: 'var(--bg-card)',
-                    borderRadius: 'var(--radius-card)',
-                    padding: '14px 16px 14px 20px',
-                    minHeight: '44px',
-                  }}
-                >
-                  <CardAccent color={leftBorderColor} />
-                  <div className="flex items-start justify-between">
-                    <p style={{ fontSize: '15px', fontWeight: 700, color: 'var(--text-primary)', flex: 1, marginRight: '12px' }}>
-                      {item.metadata?.orderSummary || item.description}
-                    </p>
-                    <div style={{ marginLeft: '12px', flexShrink: 0, textAlign: 'right' }}>
-                      {orderAmount === 0 ? (
-                        <p style={{ fontSize: '13px', fontWeight: 500, color: 'var(--text-secondary)' }}>Dispute</p>
-                      ) : pendingAmt > 0 ? (
-                        <p style={{ fontSize: '15px', fontWeight: 700, color: 'var(--status-overdue)' }}>{formatInrCurrency(pendingAmt)} due</p>
-                      ) : (
-                        <p style={{ fontSize: '15px', fontWeight: 700, color: 'var(--status-success)' }}>Paid</p>
-                      )}
-                    </div>
-                  </div>
-                  <p style={{ fontSize: '12px', fontWeight: 500, color: 'var(--text-secondary)', marginTop: '4px' }} className="truncate">
-                    {item.connectionName}
-                  </p>
-                  <div style={{ borderTop: '1px solid var(--border-section)', marginTop: '10px' }} />
-                  {orderAmount > 0 && (
-                    <div className="flex items-center justify-between mt-2" style={{ fontSize: '12px' }}>
-                      <span style={{ color: 'var(--text-secondary)', fontWeight: 600 }}>Order <span style={{ color: 'var(--text-primary)' }}>{formatInrCurrency(orderAmount)}</span></span>
-                      <span style={{ color: 'var(--text-secondary)', fontWeight: 600 }}>Paid <span style={{ color: 'var(--text-primary)' }}>{formatInrCurrency(paidAmount)}</span></span>
-                    </div>
-                  )}
-                  <div style={{ borderTop: '1px solid var(--border-section)', marginTop: '10px' }} />
-                  <div className="flex items-center gap-1.5 mt-2" style={{ fontSize: '12px' }}>
-                    {lifecycleState && (
-                      <>
-                        <span
-                          style={{
-                            fontSize: '11px',
-                            fontWeight: 600,
-                            color: lifecycleColor,
-                            backgroundColor: `${lifecycleColor}26`,
-                            padding: '2px 8px',
-                            borderRadius: 'var(--radius-chip)',
-                          }}
-                        >
-                          {lifecycleState}
-                        </span>
-                        <span style={{ color: 'var(--text-secondary)' }}>·</span>
-                      </>
-                    )}
-                    <span
-                      style={{
-                        fontSize: '11px',
-                        fontWeight: 600,
-                        color: 'var(--status-issue)',
-                        backgroundColor: '#FFFBF0',
-                        padding: '2px 8px',
-                        borderRadius: 'var(--radius-chip)',
-                      }}
-                    >
-                      {issueType}
-                    </span>
-                    <span style={{ color: 'var(--text-secondary)' }}>·</span>
-                    <span style={{ color: 'var(--text-secondary)', fontSize: '12px', fontWeight: 500 }}>
-                      {formatDistanceToNow(item.frictionStartedAt, { addSuffix: true })}
-                    </span>
-                    {isNew && (
-                      <>
-                        <span style={{ color: 'var(--text-secondary)' }}>·</span>
-                        <span style={{ color: 'var(--status-overdue)', fontSize: '11px', fontWeight: 600 }}>New</span>
-                      </>
-                    )}
-                  </div>
-                </button>
-              )
-            })}
+              {sortedItems.map(item => (
+              <IssueCard
+                key={item.id}
+                issueType={item.metadata?.issueType ?? 'Issue'}
+                severity={item.issueSeverity ?? 'Medium'}
+                status={item.issueStatus ?? 'Open'}
+                orderSummary={item.metadata?.orderSummary ?? item.description}
+                connectionName={item.connectionName}
+                branchLabel={item.branchLabel}
+                contactName={item.contactName}
+                raisedAt={item.issueRaisedAt ?? item.frictionStartedAt}
+                onClick={() => {
+                  const { orderId, issueId, connectionId } = item
+                  if (!orderId || !issueId) return
+                  markOrderSeen(currentBusinessId, orderId)
+                  setSeenOrders(prev => new Set(prev).add(orderId))
+                  onNavigateToIssue(connectionId, orderId, issueId)
+                }}
+              />
+            ))}
             </div>
           </div>
         )}
