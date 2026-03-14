@@ -3,7 +3,7 @@ import { attentionEngine, type AttentionItem } from '@/lib/attention-engine'
 import { getAuthSession } from '@/lib/auth'
 import { calculateCredibility, getBusinessActivityCounts, type CredibilityBreakdown } from '@/lib/credibility'
 import { dataStore } from '@/lib/data-store'
-import type { BusinessEntity, Connection, ConnectionRequest, OrderWithPaymentState, UserAccount } from '@/lib/types'
+import type { BusinessEntity, Connection, ConnectionRequest, IssueSeverity, IssueStatus, OrderWithPaymentState, UserAccount } from '@/lib/types'
 import { useCachedQuery } from './cache'
 
 export interface EnrichedOrder extends OrderWithPaymentState {
@@ -49,6 +49,11 @@ interface AttentionItemWithConnection extends AttentionItem {
   totalPaid?: number
   pendingAmount?: number
   lifecycleState?: string
+  branchLabel?: string | null
+  contactName?: string | null
+  issueSeverity?: IssueSeverity
+  issueStatus?: IssueStatus
+  issueRaisedAt?: number
 }
 
 interface AttentionData {
@@ -346,15 +351,17 @@ export function useAttentionData(currentBusinessId: string, isActive = true) {
     isActive,
     events: ['orders:changed', 'payments:changed', 'issues:changed', 'connections:changed'],
     fetcher: async () => {
-      const [attentionItems, connections, entities, orders] = await Promise.all([
+      const [attentionItems, connections, entities, orders, allIssues] = await Promise.all([
         attentionEngine.getAttentionItems(currentBusinessId),
         dataStore.getConnectionsByBusinessId(currentBusinessId),
         dataStore.getAllBusinessEntities(),
         dataStore.getOrdersWithPaymentStateByBusinessId(currentBusinessId),
+        dataStore.getAllIssueReports(),
       ])
 
       const entityMap = new Map(entities.map(entity => [entity.id, entity]))
       const orderMap = new Map(orders.map(o => [o.id, o]))
+      const issueMap = new Map(allIssues.map(i => [i.id, i]))
       const items = attentionItems
         .filter(item => item.category === 'Disputes')
         .map(item => {
@@ -365,6 +372,15 @@ export function useAttentionData(currentBusinessId: string, isActive = true) {
             connectionName = entityMap.get(otherId)?.businessName || 'Unknown'
           }
           const order = item.orderId ? orderMap.get(item.orderId) : undefined
+
+          const branchLabel = connection?.branchLabel ?? null
+          const contactName = connection?.contactName ?? null
+
+          const issue = item.issueId ? issueMap.get(item.issueId) : undefined
+          const issueSeverity = issue?.severity
+          const issueStatus = issue?.status
+          const issueRaisedAt = issue?.createdAt
+
           return {
             ...item,
             connectionName,
@@ -372,6 +388,11 @@ export function useAttentionData(currentBusinessId: string, isActive = true) {
             totalPaid: order?.totalPaid,
             pendingAmount: order?.pendingAmount,
             lifecycleState: order ? getLifecycleState(order) : undefined,
+            branchLabel,
+            contactName,
+            issueSeverity,
+            issueStatus,
+            issueRaisedAt,
           }
         })
 
