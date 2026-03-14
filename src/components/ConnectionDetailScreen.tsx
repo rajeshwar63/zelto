@@ -363,46 +363,48 @@ export function ConnectionDetailScreen({ connectionId, currentBusinessId, onBack
           </div>
         </div>
 
-        {/* Connection Details (branch/contact edit) */}
-        <div className="px-4 mb-3">
-          <div className="rounded-2xl bg-card p-4">
-            <p className="text-[13px] font-semibold text-foreground mb-3">Connection Details</p>
+        {/* Connection Details (branch/contact edit) — only shown when not yet filled */}
+        {!connection?.branchLabel && !connection?.contactName && (
+          <div className="px-4 mb-3">
+            <div className="rounded-2xl bg-card p-4">
+              <p className="text-[13px] font-semibold text-foreground mb-3">Connection Details</p>
 
-            <div className="mb-3">
-              <label className="text-[11px] text-muted-foreground mb-1 block">
-                Branch / Location (optional)
-              </label>
-              <input
-                type="text"
-                value={branchLabel}
-                onChange={(e) => setBranchLabel(e.target.value)}
-                placeholder="e.g. Banjara Hills, Gachibowli"
-                className="w-full text-[13px] bg-background border border-border rounded-xl px-3 py-2 text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary"
-              />
+              <div className="mb-3">
+                <label className="text-[11px] text-muted-foreground mb-1 block">
+                  Branch / Location (optional)
+                </label>
+                <input
+                  type="text"
+                  value={branchLabel}
+                  onChange={(e) => setBranchLabel(e.target.value)}
+                  placeholder="e.g. Banjara Hills, Gachibowli"
+                  className="w-full text-[13px] bg-background border border-border rounded-xl px-3 py-2 text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary"
+                />
+              </div>
+
+              <div className="mb-3">
+                <label className="text-[11px] text-muted-foreground mb-1 block">
+                  Contact Person (optional)
+                </label>
+                <input
+                  type="text"
+                  value={contactName}
+                  onChange={(e) => setContactName(e.target.value)}
+                  placeholder="e.g. Ravi"
+                  className="w-full text-[13px] bg-background border border-border rounded-xl px-3 py-2 text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary"
+                />
+              </div>
+
+              <button
+                onClick={handleSaveLabels}
+                disabled={savingLabels}
+                className="w-full py-2 rounded-xl bg-primary text-primary-foreground text-[13px] font-medium disabled:opacity-50"
+              >
+                {savingLabels ? 'Saving...' : 'Save'}
+              </button>
             </div>
-
-            <div className="mb-3">
-              <label className="text-[11px] text-muted-foreground mb-1 block">
-                Contact Person (optional)
-              </label>
-              <input
-                type="text"
-                value={contactName}
-                onChange={(e) => setContactName(e.target.value)}
-                placeholder="e.g. Ravi"
-                className="w-full text-[13px] bg-background border border-border rounded-xl px-3 py-2 text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary"
-              />
-            </div>
-
-            <button
-              onClick={handleSaveLabels}
-              disabled={savingLabels}
-              className="w-full py-2 rounded-xl bg-primary text-primary-foreground text-[13px] font-medium disabled:opacity-50"
-            >
-              {savingLabels ? 'Saving...' : 'Save'}
-            </button>
           </div>
-        </div>
+        )}
 
         <div
           className="overflow-hidden transition-all duration-200 ease-out"
