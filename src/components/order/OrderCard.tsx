@@ -59,11 +59,11 @@ export function OrderCard({
         <p style={{ fontSize: '14px', fontWeight: 700, color: 'var(--text-primary)', flexShrink: 0 }}>{dueText}</p>
       </div>
 
-      <p style={{ fontSize: '12px', fontWeight: 500, color: 'var(--text-secondary)', marginTop: '4px' }} className="truncate">
+      <p style={{ fontSize: '12px', fontWeight: 500, color: 'var(--text-secondary)', marginTop: '3px' }} className="truncate">
         {connectionName}
       </p>
 
-      <div className="flex items-center gap-2 mt-2" style={{ fontSize: '11px' }}>
+      <div className="flex items-center gap-2 mt-1" style={{ fontSize: '11px' }}>
         <span
           style={{
             fontWeight: 600,
@@ -89,9 +89,9 @@ export function OrderCard({
         {trailingMeta}
       </div>
 
-      <div style={{ borderTop: '1px solid var(--border-section)', marginTop: '10px' }} />
+      <div style={{ borderTop: '1px solid var(--border-section)', marginTop: '8px' }} />
 
-      <div className="flex items-center justify-between mt-2">
+      <div className="flex items-center justify-between mt-1">
         <p style={{ fontSize: '12px', fontWeight: 600, color: 'var(--text-secondary)' }}>
           Order <span style={{ color: 'var(--text-primary)' }}>{formatCurrency(orderValue)}</span>
         </p>
@@ -100,9 +100,9 @@ export function OrderCard({
         </p>
       </div>
 
-      <div style={{ borderTop: '1px solid var(--border-section)', marginTop: '10px' }} />
+      <div style={{ borderTop: '1px solid var(--border-section)', marginTop: '8px' }} />
 
-      <p style={{ fontSize: '12px', fontWeight: 500, color: 'var(--text-secondary)', marginTop: '8px' }}>
+      <p style={{ fontSize: '12px', fontWeight: 500, color: 'var(--text-secondary)', marginTop: '6px' }}>
         {relativeTime}
       </p>
     </button>
