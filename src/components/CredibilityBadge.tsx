@@ -7,19 +7,19 @@ interface Props {
 
 const BADGE_CONFIG = {
   basic: {
-    label: 'Basic',
+    label: 'Zelto Basic',
     color: '#92400E',
     bg: '#FEF3C7',
     border: '#FDE68A',
   },
   verified: {
-    label: 'Verified',
+    label: 'Zelto Verified',
     color: '#1E40AF',
     bg: '#DBEAFE',
     border: '#BFDBFE',
   },
   trusted: {
-    label: 'Trusted',
+    label: 'Zelto Trusted',
     color: '#166534',
     bg: '#DCFCE7',
     border: '#BBF7D0',
