@@ -1,4 +1,4 @@
-name: Build Signed APK
+name: Build Signed AAB
 
 on:
   push:
@@ -20,16 +20,16 @@ jobs:
 
       - name: Install dependencies
         run: npm ci
-        
+
       - name: Create .env file
         run: |
           echo "VITE_SUPABASE_URL=${{ secrets.VITE_SUPABASE_URL }}" >> .env
           echo "VITE_SUPABASE_ANON_KEY=${{ secrets.VITE_SUPABASE_ANON_KEY }}" >> .env
-          
+
       - name: Build web app
         run: npm run build
 
-      - name: Set up JDK 17
+      - name: Set up JDK 21
         uses: actions/setup-java@v4
         with:
           java-version: '21'
@@ -52,18 +52,18 @@ jobs:
         run: |
           echo "${{ secrets.KEYSTORE_BASE64 }}" | base64 --decode > android/app/zelto-keystore.jks
 
-      - name: Build signed APK
+      - name: Build signed AAB
         working-directory: android
         run: |
-          ./gradlew assembleRelease \
+          ./gradlew bundleRelease \
             -Pandroid.injected.signing.store.file=$GITHUB_WORKSPACE/android/app/zelto-keystore.jks \
             -Pandroid.injected.signing.store.password=${{ secrets.KEYSTORE_PASSWORD }} \
             -Pandroid.injected.signing.key.alias=${{ secrets.KEY_ALIAS }} \
             -Pandroid.injected.signing.key.password=${{ secrets.KEY_PASSWORD }}
 
-      - name: Upload APK
+      - name: Upload AAB
         uses: actions/upload-artifact@v4
         with:
-          name: zelto-release-apk
-          path: android/app/build/outputs/apk/release/app-release.apk
+          name: zelto-release-aab
+          path: android/app/build/outputs/bundle/release/app-release.aab
           retention-days: 30
