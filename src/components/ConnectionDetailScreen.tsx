@@ -329,14 +329,14 @@ const isSupplier = connection.supplierBusinessId === currentBusinessId
 
                 <div style={{ flex: 1, minWidth: 0 }}>
                   {/* Row 1 — 3-col stats */}
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', borderBottom: '0.5px solid var(--border-subtle)' }}>
-                    <div style={{ padding: '10px 12px', borderRight: '0.5px solid var(--border-subtle)' }}>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', borderBottom: '0.5px solid rgba(0,0,0,0.08)' }}>
+                    <div style={{ padding: '10px 12px', borderRight: '0.5px solid rgba(0,0,0,0.08)' }}>
                       <p style={{ fontSize: 11, color: 'var(--text-secondary)', marginBottom: 3 }}>{isSupplier ? 'To Receive' : 'To Pay'}</p>
                       <p style={{ fontSize: 17, fontWeight: 700, color: isSupplier ? 'var(--status-delivered)' : 'var(--status-overdue)' }}>
                         {formatInrCurrency(outstandingBalance)}
                       </p>
                     </div>
-                    <div style={{ padding: '10px 12px', borderRight: '0.5px solid var(--border-subtle)' }}>
+                    <div style={{ padding: '10px 12px', borderRight: '0.5px solid rgba(0,0,0,0.08)' }}>
                       <p style={{ fontSize: 11, color: 'var(--text-secondary)', marginBottom: 3 }}>Total Value</p>
                       <p style={{ fontSize: 17, fontWeight: 700, color: 'var(--text-primary)' }}>
                         {formatInrCurrency(totalValue)}
@@ -351,10 +351,10 @@ const isSupplier = connection.supplierBusinessId === currentBusinessId
                   </div>
 
                   {/* Row 2 — Risk badge + Payment Terms + Edit */}
-                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, padding: '10px 12px', borderBottom: insights.length > 0 ? '0.5px solid var(--border-subtle)' : undefined, fontSize: 12 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, padding: '10px 12px', fontSize: 12 }}>
                     {isRisky ? (
-                      <div style={{ display: 'inline-flex', alignItems: 'center', gap: 5, backgroundColor: stateColor, color: '#FFFFFF', borderRadius: 999, padding: '5px 12px', fontWeight: 700, fontSize: 13 }}>
-                        <Warning size={14} weight="fill" />
+                      <div style={{ display: 'inline-flex', alignItems: 'center', gap: 4, backgroundColor: stateColor, color: '#FFFFFF', borderRadius: 999, padding: '3.5px 8.5px', fontWeight: 700, fontSize: 9 }}>
+                        <Warning size={10} weight="fill" />
                         {connection.connectionState}
                       </div>
                     ) : (
@@ -376,7 +376,7 @@ const isSupplier = connection.supplierBusinessId === currentBusinessId
 
                   {/* Row 3 — Insights */}
                   {insights.length > 0 && (
-                    <div style={{ padding: '12px 14px 14px' }}>
+                    <div style={{ padding: '12px 14px 14px', borderTop: '0.5px solid rgba(0,0,0,0.08)' }}>
                       <p style={{ fontSize: 13, fontWeight: 700, color: 'var(--text-primary)', marginBottom: 8 }}>Insights</p>
                       <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
                         {insights.map((insight, idx) => {
