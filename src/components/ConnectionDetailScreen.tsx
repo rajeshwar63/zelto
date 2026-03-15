@@ -4,7 +4,7 @@ import { insightEngine } from '@/lib/insight-engine'
 import { createOrder } from '@/lib/interactions'
 import { useDataListener } from '@/lib/data-events'
 import type { Connection, OrderWithPaymentState, BusinessEntity } from '@/lib/types'
-import { CaretLeft, DownloadSimple, Phone, PencilSimple, MapPin } from '@phosphor-icons/react'
+import { CaretLeft, DownloadSimple, Phone, PencilSimple, MapPin, Warning } from '@phosphor-icons/react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { toast } from 'sonner'
@@ -319,70 +319,83 @@ const isSupplier = connection.supplierBusinessId === currentBusinessId
 
         {/* Relationship Summary Card */}
         <div className="px-4 py-3">
-          <div style={{ backgroundColor: 'var(--bg-card)', borderRadius: '14px', overflow: 'hidden', marginBottom: '12px' }}>
-            {/* Row 1 — 3-col stats */}
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', borderBottom: '0.5px solid var(--border-subtle)' }}>
-              <div style={{ padding: '10px 12px', borderRight: '0.5px solid var(--border-subtle)' }}>
-                <p style={{ fontSize: 11, color: 'var(--text-secondary)', marginBottom: 3 }}>{isSupplier ? 'To receive' : 'To pay'}</p>
-                <p style={{ fontSize: 17, fontWeight: 700, color: isSupplier ? 'var(--status-delivered)' : 'var(--status-overdue)' }}>
-                  {formatInrCurrency(outstandingBalance)}
-                </p>
-              </div>
-              <div style={{ padding: '10px 12px', borderRight: '0.5px solid var(--border-subtle)' }}>
-                <p style={{ fontSize: 11, color: 'var(--text-secondary)', marginBottom: 3 }}>Total value</p>
-                <p style={{ fontSize: 17, fontWeight: 700, color: 'var(--text-primary)' }}>
-                  {formatInrCurrency(totalValue)}
-                </p>
-              </div>
-              <div style={{ padding: '10px 12px' }}>
-                <p style={{ fontSize: 11, color: 'var(--text-secondary)', marginBottom: 3 }}>Total orders</p>
-                <p style={{ fontSize: 17, fontWeight: 700, color: 'var(--status-new)' }}>
-                  {totalOrders}
-                </p>
-              </div>
-            </div>
+          {(() => {
+            const isRisky = connection.connectionState !== 'Stable' && connection.connectionState !== 'Active'
+            const stateColor = isRisky ? getConnectionStateColor(connection.connectionState) : 'var(--brand-primary)'
+            return (
+              <div style={{ display: 'flex', backgroundColor: 'var(--bg-card)', borderRadius: '14px', overflow: 'hidden', marginBottom: '12px' }}>
+                {/* Left accent border */}
+                <div style={{ width: 5, flexShrink: 0, backgroundColor: stateColor }} />
 
-            {/* Row 2 — Risk + Payment Terms + Edit */}
-            <div style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '8px 12px', borderBottom: '0.5px solid var(--border-subtle)', fontSize: 12 }}>
-              {connection.connectionState !== 'Stable' && connection.connectionState !== 'Active' && (() => {
-                const stateColor = getConnectionStateColor(connection.connectionState)
-                return (
-                  <>
-                    <div style={{ width: 6, height: 6, borderRadius: '50%', backgroundColor: stateColor, flexShrink: 0 }} />
-                    <span style={{ color: stateColor, fontWeight: 500 }}>{connection.connectionState}</span>
-                    <span style={{ color: 'var(--text-secondary)' }}>·</span>
-                  </>
-                )
-              })()}
-              <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 6 }}>
-                <span style={{ color: 'var(--text-primary)', fontWeight: 500 }}>{formatPaymentTerms(connection.paymentTerms)}</span>
-                <span
-                  onClick={() => onNavigateToPaymentTermsSetup(connectionId, otherBusiness.businessName)}
-                  style={{ color: 'var(--accent-blue)', cursor: 'pointer' }}
-                >
-                  (Edit)
-                </span>
-              </div>
-            </div>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  {/* Row 1 — 3-col stats */}
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', borderBottom: '0.5px solid var(--border-subtle)' }}>
+                    <div style={{ padding: '10px 12px', borderRight: '0.5px solid var(--border-subtle)' }}>
+                      <p style={{ fontSize: 11, color: 'var(--text-secondary)', marginBottom: 3 }}>{isSupplier ? 'To Receive' : 'To Pay'}</p>
+                      <p style={{ fontSize: 17, fontWeight: 700, color: isSupplier ? 'var(--status-delivered)' : 'var(--status-overdue)' }}>
+                        {formatInrCurrency(outstandingBalance)}
+                      </p>
+                    </div>
+                    <div style={{ padding: '10px 12px', borderRight: '0.5px solid var(--border-subtle)' }}>
+                      <p style={{ fontSize: 11, color: 'var(--text-secondary)', marginBottom: 3 }}>Total Value</p>
+                      <p style={{ fontSize: 17, fontWeight: 700, color: 'var(--text-primary)' }}>
+                        {formatInrCurrency(totalValue)}
+                      </p>
+                    </div>
+                    <div style={{ padding: '10px 12px' }}>
+                      <p style={{ fontSize: 11, color: 'var(--text-secondary)', marginBottom: 3 }}>Orders</p>
+                      <p style={{ fontSize: 17, fontWeight: 700, color: 'var(--text-primary)' }}>
+                        {totalOrders}
+                      </p>
+                    </div>
+                  </div>
 
-            {/* Row 3 — Insights strip */}
-            {insights.length > 0 && (
-              <div style={{ padding: '12px 14px 14px', display: 'flex', flexDirection: 'column', gap: 10 }}>
-                {insights.map((insight, idx) => {
-                  const sentimentBorder = insight.sentiment === 'negative' ? '#D85A30' : insight.sentiment === 'positive' ? '#1D9E75' : '#888780'
-                  const sentimentText = insight.sentiment === 'negative' ? '#993C1D' : insight.sentiment === 'positive' ? '#0F6E56' : 'var(--text-secondary)'
-                  return (
-                    <div key={idx} style={{ display: 'flex', alignItems: 'flex-start', gap: 10 }}>
-                      <div style={{ width: 3, minWidth: 3, alignSelf: 'stretch', background: sentimentBorder, borderRadius: 0 }} />
-                      <div>
-                        <div style={{ fontSize: 13, fontWeight: 600, color: sentimentText }}>{insight.text}</div>
+                  {/* Row 2 — Risk badge + Payment Terms + Edit */}
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, padding: '10px 12px', borderBottom: insights.length > 0 ? '0.5px solid var(--border-subtle)' : undefined, fontSize: 12 }}>
+                    {isRisky ? (
+                      <div style={{ display: 'inline-flex', alignItems: 'center', gap: 5, backgroundColor: stateColor, color: '#FFFFFF', borderRadius: 999, padding: '5px 12px', fontWeight: 700, fontSize: 13 }}>
+                        <Warning size={14} weight="fill" />
+                        {connection.connectionState}
+                      </div>
+                    ) : (
+                      <div />
+                    )}
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+                      <span style={{ color: 'var(--text-primary)', fontWeight: 500, fontSize: 13 }}>{formatPaymentTerms(connection.paymentTerms)}</span>
+                      {isSupplier && (
+                        <span
+                          onClick={() => onNavigateToPaymentTermsSetup(connectionId, otherBusiness.businessName)}
+                          style={{ color: 'var(--accent-blue)', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 3, fontSize: 13 }}
+                        >
+                          <PencilSimple size={12} weight="regular" />
+                          Edit
+                        </span>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Row 3 — Insights */}
+                  {insights.length > 0 && (
+                    <div style={{ padding: '12px 14px 14px' }}>
+                      <p style={{ fontSize: 13, fontWeight: 700, color: 'var(--text-primary)', marginBottom: 8 }}>Insights</p>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                        {insights.map((insight, idx) => {
+                          const dotColor = insight.sentiment === 'negative' ? '#D85A30' : insight.sentiment === 'positive' ? '#1D9E75' : '#888780'
+                          const textColor = insight.sentiment === 'negative' ? 'var(--text-primary)' : insight.sentiment === 'positive' ? '#0F6E56' : 'var(--text-secondary)'
+                          return (
+                            <div key={idx} style={{ display: 'flex', alignItems: 'flex-start', gap: 8 }}>
+                              <span style={{ color: dotColor, fontSize: 16, lineHeight: '20px', flexShrink: 0 }}>•</span>
+                              <span style={{ fontSize: 13, color: textColor }}>{insight.text}</span>
+                            </div>
+                          )
+                        })}
                       </div>
                     </div>
-                  )
-                })}
+                  )}
+                </div>
               </div>
-            )}
-          </div>
+            )
+          })()}
         </div>
 
         <div
