@@ -10,76 +10,79 @@ import type { ActiveFrictionSummary } from './attention-engine'
 
 export type ViewerRole = 'buyer' | 'supplier'
 
-export type InsightTemplate =
-  | 'Payments usually on time'
-  | 'Partial payments common'
-  | 'Payments often completed in stages'
-  | 'Delay increasing recently'
-  | 'Stable payment rhythm'
-  | 'Payments frequently overdue'
-  | 'Dispatch timing consistent'
-  | 'Acceptance slow recently'
-  | 'Delivery timing reliable'
-  | 'Dispatch delays observed'
-  | 'Orders accepted quickly'
-  | 'Issues reported recently'
-  | 'Low issue frequency'
-  | 'Recurring issues observed'
-  | 'Issue rate increasing'
-  | 'No issues reported recently'
+export type InsightText = string
 
-const POSITIVE_SETTLEMENT_INSIGHTS: InsightTemplate[] = [
-  'Payments usually on time',
-  'Stable payment rhythm',
-  'Payments often completed in stages',
-]
+export interface Insight {
+  text: InsightText
+  category: 'settlement' | 'operational' | 'quality'
+  sentiment: 'positive' | 'negative' | 'neutral'
+}
 
-const POSITIVE_OPERATIONAL_INSIGHTS: InsightTemplate[] = [
-  'Orders accepted quickly',
-  'Delivery timing reliable',
-  'Dispatch timing consistent',
-]
+function plural(count: number, word: string): string {
+  return count === 1 ? word : `${word}s`
+}
 
-const POSITIVE_QUALITY_INSIGHTS: InsightTemplate[] = [
-  'No issues reported recently',
-  'Low issue frequency',
-]
+function roundHours(hours: number | null): string {
+  if (hours === null) return 'unknown'
+  if (hours < 1) return 'under 1 hour'
+  return `${Math.round(hours)} hours`
+}
 
 export class InsightEngine {
   private selectSettlementInsight(
-    signals: SettlementBehaviourSignals
-  ): InsightTemplate | null {
+    signals: SettlementBehaviourSignals,
+    shortSignals: SettlementBehaviourSignals
+  ): Insight | null {
     if (signals.overdue_count >= 1) {
-      return 'Payments frequently overdue'
+      let text = `${signals.overdue_count} ${plural(signals.overdue_count, 'payment')} overdue.`
+      if (shortSignals.late_payment_count > signals.late_payment_count / 2) {
+        text += ' Pattern is worsening.'
+      } else if (shortSignals.late_payment_count === 0 && signals.overdue_count >= 1) {
+        text += ' Showing signs of improvement.'
+      }
+      return { text, category: 'settlement', sentiment: 'negative' }
     }
+
+    const total = signals.on_time_payment_count + signals.late_payment_count
 
     if (signals.late_payment_count > signals.on_time_payment_count) {
-      return 'Delay increasing recently'
+      return {
+        text: `${signals.late_payment_count} of ${total} payments were late. Delays are increasing.`,
+        category: 'settlement',
+        sentiment: 'negative',
+      }
     }
 
-    if (
-      signals.on_time_payment_count >= 3 &&
-      signals.late_payment_count === 0
-    ) {
-      return 'Stable payment rhythm'
+    if (signals.on_time_payment_count >= 3 && signals.late_payment_count === 0) {
+      return {
+        text: `All ${signals.on_time_payment_count} recent payments on time. Reliable payment history.`,
+        category: 'settlement',
+        sentiment: 'positive',
+      }
     }
 
     if (signals.partial_payment_count >= 2) {
-      return 'Partial payments common'
+      return {
+        text: `Payments usually split across multiple transactions — ${signals.partial_payment_count} partial payments recorded.`,
+        category: 'settlement',
+        sentiment: 'neutral',
+      }
     }
 
-    if (
-      signals.partial_payment_count >= 1 &&
-      signals.on_time_payment_count > 0
-    ) {
-      return 'Payments often completed in stages'
+    if (signals.partial_payment_count >= 1 && signals.on_time_payment_count > 0) {
+      return {
+        text: `Mix of partial and full payments. ${signals.on_time_payment_count} paid in full, ${signals.partial_payment_count} in stages.`,
+        category: 'settlement',
+        sentiment: 'neutral',
+      }
     }
 
-    if (
-      signals.on_time_payment_count > signals.late_payment_count &&
-      signals.overdue_count === 0
-    ) {
-      return 'Payments usually on time'
+    if (signals.on_time_payment_count > signals.late_payment_count && signals.overdue_count === 0) {
+      return {
+        text: `Payments mostly on time — ${signals.on_time_payment_count} on time vs ${signals.late_payment_count} late.`,
+        category: 'settlement',
+        sentiment: 'positive',
+      }
     }
 
     return null
@@ -88,100 +91,103 @@ export class InsightEngine {
   private selectOperationalInsight(
     signals: OperationalBehaviourSignals,
     orderCount: number
-  ): InsightTemplate | null {
-    if (
-      signals.avg_acceptance_delay !== null &&
-      signals.avg_acceptance_delay > 48
-    ) {
-      return 'Acceptance slow recently'
+  ): Insight | null {
+    if (signals.avg_acceptance_delay !== null && signals.avg_acceptance_delay > 48) {
+      return {
+        text: `Orders are taking ${roundHours(signals.avg_acceptance_delay)} on average to be accepted — slower than expected.`,
+        category: 'operational',
+        sentiment: 'negative',
+      }
     }
 
-    if (
-      signals.avg_dispatch_delay !== null &&
-      signals.avg_dispatch_delay > 72
-    ) {
-      return 'Dispatch delays observed'
+    if (signals.avg_dispatch_delay !== null && signals.avg_dispatch_delay > 72) {
+      return {
+        text: `Average dispatch time is ${roundHours(signals.avg_dispatch_delay)} after acceptance.`,
+        category: 'operational',
+        sentiment: 'negative',
+      }
     }
 
-    if (
-      signals.avg_dispatch_delay !== null &&
-      signals.avg_dispatch_delay < 24 &&
-      orderCount >= 3
-    ) {
-      return 'Dispatch timing consistent'
+    if (signals.avg_dispatch_delay !== null && signals.avg_dispatch_delay < 24 && orderCount >= 3) {
+      return {
+        text: `Dispatching within ${roundHours(signals.avg_dispatch_delay)} on average. Consistently fast.`,
+        category: 'operational',
+        sentiment: 'positive',
+      }
     }
 
-    if (
-      signals.delivery_consistency !== null &&
-      signals.delivery_consistency >= 90 &&
-      orderCount >= 3
-    ) {
-      return 'Delivery timing reliable'
+    if (signals.delivery_consistency !== null && signals.delivery_consistency >= 90 && orderCount >= 3) {
+      return {
+        text: `${signals.delivery_consistency}% of orders delivered on time. Strong delivery record.`,
+        category: 'operational',
+        sentiment: 'positive',
+      }
     }
 
-    if (
-      signals.avg_acceptance_delay !== null &&
-      signals.avg_acceptance_delay < 4 &&
-      orderCount >= 3
-    ) {
-      return 'Orders accepted quickly'
+    if (signals.avg_acceptance_delay !== null && signals.avg_acceptance_delay < 4 && orderCount >= 3) {
+      return {
+        text: `Orders accepted within ${roundHours(signals.avg_acceptance_delay)} on average. Very responsive.`,
+        category: 'operational',
+        sentiment: 'positive',
+      }
     }
 
     return null
   }
 
-  private selectQualityInsight(
-    signals: QualityBehaviourSignals
-  ): InsightTemplate | null {
+  private selectQualityInsight(signals: QualityBehaviourSignals): Insight | null {
     if (signals.total_open_issues >= 1) {
-      return 'Issues reported recently'
+      let text = `${signals.total_open_issues} open ${plural(signals.total_open_issues, 'issue')} on this connection.`
+      if (signals.recurring_issue_types.length >= 1) {
+        text += ` Most common: ${signals.recurring_issue_types[0]}.`
+      }
+      return { text, category: 'quality', sentiment: 'negative' }
     }
 
     if (signals.recurring_issue_types.length >= 1) {
-      return 'Recurring issues observed'
+      return {
+        text: `${signals.recurring_issue_types[0]} issues are recurring — reported multiple times in the last 30 days.`,
+        category: 'quality',
+        sentiment: 'negative',
+      }
     }
 
     if (signals.total_issues_30_days > 3) {
-      return 'Issue rate increasing'
+      return {
+        text: `${signals.total_issues_30_days} issues raised in the last 30 days — frequency is high.`,
+        category: 'quality',
+        sentiment: 'negative',
+      }
     }
 
     if (signals.total_issues_30_days === 0) {
-      return 'No issues reported recently'
+      return {
+        text: 'No issues reported in the last 30 days. Clean record.',
+        category: 'quality',
+        sentiment: 'positive',
+      }
     }
 
-    if (
-      (signals.total_issues_30_days === 1 || signals.total_issues_30_days === 2) &&
-      signals.total_open_issues === 0
-    ) {
-      return 'Low issue frequency'
+    if (signals.total_issues_30_days <= 2 && signals.total_open_issues === 0) {
+      return {
+        text: `${signals.total_issues_30_days} minor ${plural(signals.total_issues_30_days, 'issue')} last month, all resolved.`,
+        category: 'quality',
+        sentiment: 'neutral',
+      }
     }
 
     return null
   }
 
-  private isPositiveInsight(insight: InsightTemplate): boolean {
-    return (
-      POSITIVE_SETTLEMENT_INSIGHTS.includes(insight) ||
-      POSITIVE_OPERATIONAL_INSIGHTS.includes(insight) ||
-      POSITIVE_QUALITY_INSIGHTS.includes(insight)
-    )
-  }
-
   private shouldSuppressInsight(
-    insight: InsightTemplate,
+    insight: Insight,
     frictionSummary: ActiveFrictionSummary
   ): boolean {
-    if (POSITIVE_SETTLEMENT_INSIGHTS.includes(insight)) {
-      return frictionSummary.hasSettlementFriction
-    }
+    if (insight.sentiment !== 'positive') return false
 
-    if (POSITIVE_OPERATIONAL_INSIGHTS.includes(insight)) {
-      return frictionSummary.hasOperationalFriction
-    }
-
-    if (POSITIVE_QUALITY_INSIGHTS.includes(insight)) {
-      return frictionSummary.hasQualityFriction
-    }
+    if (insight.category === 'settlement') return frictionSummary.hasSettlementFriction
+    if (insight.category === 'operational') return frictionSummary.hasOperationalFriction
+    if (insight.category === 'quality') return frictionSummary.hasQualityFriction
 
     return false
   }
@@ -189,14 +195,13 @@ export class InsightEngine {
   private async selectInsightsInternal(
     connectionId: string,
     viewerRole: ViewerRole
-  ): Promise<InsightTemplate[]> {
+  ): Promise<Insight[]> {
     const signals = await behaviourEngine.computeAllSignals(connectionId)
-    const frictionSummary = await attentionEngine.getActiveFrictionSummary(
-      connectionId
-    )
+    const frictionSummary = await attentionEngine.getActiveFrictionSummary(connectionId)
 
     const settlementInsight = this.selectSettlementInsight(
-      signals.settlement.medium
+      signals.settlement.medium,
+      signals.settlement.short
     )
     const operationalInsight = this.selectOperationalInsight(
       signals.operational,
@@ -205,17 +210,11 @@ export class InsightEngine {
     )
     const qualityInsight = this.selectQualityInsight(signals.quality)
 
-    const candidateInsights: InsightTemplate[] = []
+    const candidateInsights: Insight[] = []
 
-    if (settlementInsight) {
-      candidateInsights.push(settlementInsight)
-    }
-    if (operationalInsight) {
-      candidateInsights.push(operationalInsight)
-    }
-    if (qualityInsight) {
-      candidateInsights.push(qualityInsight)
-    }
+    if (settlementInsight) candidateInsights.push(settlementInsight)
+    if (operationalInsight) candidateInsights.push(operationalInsight)
+    if (qualityInsight) candidateInsights.push(qualityInsight)
 
     const ungatedInsights = candidateInsights.filter(
       (insight) => !this.shouldSuppressInsight(insight, frictionSummary)
@@ -226,25 +225,8 @@ export class InsightEngine {
     }
 
     if (viewerRole === 'buyer') {
-      const settlement = ungatedInsights.find((i) =>
-        POSITIVE_SETTLEMENT_INSIGHTS.includes(i) ||
-        [
-          'Delay increasing recently',
-          'Payments frequently overdue',
-          'Partial payments common',
-        ].includes(i)
-      )
-      const nonSettlement = ungatedInsights.find(
-        (i) =>
-          !(
-            POSITIVE_SETTLEMENT_INSIGHTS.includes(i) ||
-            [
-              'Delay increasing recently',
-              'Payments frequently overdue',
-              'Partial payments common',
-            ].includes(i)
-          )
-      )
+      const settlement = ungatedInsights.find((i) => i.category === 'settlement')
+      const nonSettlement = ungatedInsights.find((i) => i.category !== 'settlement')
 
       if (settlement && nonSettlement) {
         return [settlement, nonSettlement]
@@ -253,20 +235,8 @@ export class InsightEngine {
     }
 
     if (viewerRole === 'supplier') {
-      const operational = ungatedInsights.find(
-        (i) =>
-          POSITIVE_OPERATIONAL_INSIGHTS.includes(i) ||
-          ['Acceptance slow recently', 'Dispatch delays observed'].includes(i)
-      )
-      const quality = ungatedInsights.find(
-        (i) =>
-          POSITIVE_QUALITY_INSIGHTS.includes(i) ||
-          [
-            'Issues reported recently',
-            'Recurring issues observed',
-            'Issue rate increasing',
-          ].includes(i)
-      )
+      const operational = ungatedInsights.find((i) => i.category === 'operational')
+      const quality = ungatedInsights.find((i) => i.category === 'quality')
 
       if (operational && quality) {
         return [operational, quality]
@@ -274,16 +244,12 @@ export class InsightEngine {
 
       if (operational) {
         const other = ungatedInsights.find((i) => i !== operational)
-        if (other) {
-          return [operational, other]
-        }
+        if (other) return [operational, other]
       }
 
       if (quality) {
         const other = ungatedInsights.find((i) => i !== quality)
-        if (other) {
-          return [quality, other]
-        }
+        if (other) return [quality, other]
       }
 
       return ungatedInsights.slice(0, 2)
@@ -295,29 +261,13 @@ export class InsightEngine {
   async getInsightsForConnection(
     connectionId: string,
     viewerRole: ViewerRole
-  ): Promise<InsightTemplate[]> {
+  ): Promise<Insight[]> {
     return this.selectInsightsInternal(connectionId, viewerRole)
   }
 
-  getAllInsightTemplates(): InsightTemplate[] {
-    return [
-      'Payments usually on time',
-      'Partial payments common',
-      'Payments often completed in stages',
-      'Delay increasing recently',
-      'Stable payment rhythm',
-      'Payments frequently overdue',
-      'Dispatch timing consistent',
-      'Acceptance slow recently',
-      'Delivery timing reliable',
-      'Dispatch delays observed',
-      'Orders accepted quickly',
-      'Issues reported recently',
-      'Low issue frequency',
-      'Recurring issues observed',
-      'Issue rate increasing',
-      'No issues reported recently',
-    ]
+  getAllInsightTemplates(): Insight[] {
+    // Templates are no longer static — dynamic insights are computed per connection.
+    return []
   }
 }
 
