@@ -1,4 +1,4 @@
-import { ArrowDown, ArrowUp, CaretRight, CheckCircle, ClockClockwise, CurrencyInr, Package, ShieldWarning, Truck } from '@phosphor-icons/react'
+import { ArrowDown, ArrowUp, CaretRight, CurrencyInr, Hourglass, NotePencil, Package, ShieldWarning, Truck } from '@phosphor-icons/react'
 import { CredibilityBadge } from '@/components/CredibilityBadge'
 import { useEffect, useState } from 'react'
 import { useBusinessOverviewData } from '@/hooks/data/use-business-data'
@@ -283,17 +283,17 @@ export function DashboardScreen({ currentBusinessId, onNavigateToOrders, onNavig
                 className="w-full flex items-center justify-between rounded-xl px-4 py-3 text-left"
                 style={{
                   backgroundColor: 'var(--bg-card)',
-                  borderLeft: '3px solid var(--status-new)',
+                  borderLeft: '3px solid #D97706',
                 }}
               >
                 <div className="flex items-center gap-3">
-                  <div className="w-7 h-7 rounded-lg flex items-center justify-center" style={{ backgroundColor: 'var(--brand-primary-bg)' }}>
-                    <ClockClockwise size={15} weight="bold" color="var(--status-new)" />
+                  <div className="w-7 h-7 rounded-lg flex items-center justify-center" style={{ backgroundColor: '#FFFBEB' }}>
+                    <NotePencil size={15} weight="regular" color="#D97706" />
                   </div>
                   <p className="text-[14px] text-foreground font-semibold">Approval Needed</p>
                 </div>
                 <div className="flex items-center gap-2">
-                  <span className="inline-flex items-center justify-center min-w-6 h-6 px-2 rounded-full text-[12px] font-bold text-white" style={{ backgroundColor: 'var(--status-new)' }}>{attentionCounts.approvalNeeded}</span>
+                  <span className="inline-flex items-center justify-center min-w-6 h-6 px-2 rounded-full text-[12px] font-bold text-white" style={{ backgroundColor: '#D97706' }}>{attentionCounts.approvalNeeded}</span>
                   <CaretRight size={16} style={{ color: 'var(--text-muted)' }} />
                 </div>
               </button>
@@ -305,17 +305,17 @@ export function DashboardScreen({ currentBusinessId, onNavigateToOrders, onNavig
                 className="w-full flex items-center justify-between rounded-xl px-4 py-3 text-left"
                 style={{
                   backgroundColor: 'var(--bg-card)',
-                  borderLeft: '3px solid var(--status-dispatched)',
+                  borderLeft: '3px solid #2563EB',
                 }}
               >
                 <div className="flex items-center gap-3">
-                  <div className="w-7 h-7 rounded-lg flex items-center justify-center" style={{ backgroundColor: '#FFF6F0' }}>
-                    <Truck size={15} weight="fill" color="var(--status-dispatched)" />
+                  <div className="w-7 h-7 rounded-lg flex items-center justify-center" style={{ backgroundColor: '#EFF6FF' }}>
+                    <Truck size={15} weight="regular" color="#2563EB" />
                   </div>
                   <p className="text-[14px] text-foreground font-semibold">Dispatched</p>
                 </div>
                 <div className="flex items-center gap-2">
-                  <span className="inline-flex items-center justify-center min-w-6 h-6 px-2 rounded-full text-[12px] font-bold text-white" style={{ backgroundColor: 'var(--status-dispatched)' }}>{attentionCounts.dispatched}</span>
+                  <span className="inline-flex items-center justify-center min-w-6 h-6 px-2 rounded-full text-[12px] font-bold text-white" style={{ backgroundColor: '#2563EB' }}>{attentionCounts.dispatched}</span>
                   <CaretRight size={16} className="text-muted-foreground" />
                 </div>
               </button>
@@ -327,17 +327,17 @@ export function DashboardScreen({ currentBusinessId, onNavigateToOrders, onNavig
                 className="w-full flex items-center justify-between rounded-xl px-4 py-3 text-left"
                 style={{
                   backgroundColor: 'var(--bg-card)',
-                  borderLeft: '3px solid var(--status-delivered)',
+                  borderLeft: '3px solid #059669',
                 }}
               >
                 <div className="flex items-center gap-3">
-                  <div className="w-7 h-7 rounded-lg flex items-center justify-center" style={{ backgroundColor: '#F0FFF6' }}>
-                    <CheckCircle size={15} weight="fill" color="var(--status-delivered)" />
+                  <div className="w-7 h-7 rounded-lg flex items-center justify-center" style={{ backgroundColor: '#ECFDF5' }}>
+                    <Package size={15} weight="regular" color="#059669" />
                   </div>
                   <p className="text-[14px] text-foreground font-semibold">Delivered</p>
                 </div>
                 <div className="flex items-center gap-2">
-                  <span className="inline-flex items-center justify-center min-w-6 h-6 px-2 rounded-full text-[12px] font-bold text-white" style={{ backgroundColor: 'var(--status-delivered)' }}>{attentionCounts.delivered}</span>
+                  <span className="inline-flex items-center justify-center min-w-6 h-6 px-2 rounded-full text-[12px] font-bold text-white" style={{ backgroundColor: '#059669' }}>{attentionCounts.delivered}</span>
                   <CaretRight size={16} className="text-muted-foreground" />
                 </div>
               </button>
@@ -349,17 +349,17 @@ export function DashboardScreen({ currentBusinessId, onNavigateToOrders, onNavig
                 className="w-full flex items-center justify-between rounded-xl px-4 py-3 text-left"
                 style={{
                   backgroundColor: 'var(--bg-card)',
-                  borderLeft: '3px solid var(--status-payment)',
+                  borderLeft: '3px solid #D97706',
                 }}
               >
                 <div className="flex items-center gap-3">
-                  <div className="w-7 h-7 rounded-lg flex items-center justify-center" style={{ backgroundColor: '#FFF0F8' }}>
-                    <Package size={15} weight="fill" color="var(--status-payment)" />
+                  <div className="w-7 h-7 rounded-lg flex items-center justify-center" style={{ backgroundColor: '#FEF3C7' }}>
+                    <span style={{ display: 'flex', alignItems: 'center', gap: '1px', fontWeight: 600, fontSize: '11px', lineHeight: 1, color: '#D97706' }}>₹<Hourglass size={13} weight="regular" color="#D97706" /></span>
                   </div>
                   <p className="text-[14px] text-foreground font-semibold">Payment Pending</p>
                 </div>
                 <div className="flex items-center gap-2">
-                  <span className="inline-flex items-center justify-center min-w-6 h-6 px-2 rounded-full text-[12px] font-bold text-white" style={{ backgroundColor: 'var(--status-payment)' }}>{attentionCounts.paymentPending}</span>
+                  <span className="inline-flex items-center justify-center min-w-6 h-6 px-2 rounded-full text-[12px] font-bold text-white" style={{ backgroundColor: '#D97706' }}>{attentionCounts.paymentPending}</span>
                   <CaretRight size={16} className="text-muted-foreground" />
                 </div>
               </button>
