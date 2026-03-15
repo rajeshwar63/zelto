@@ -4,8 +4,7 @@ import { insightEngine } from '@/lib/insight-engine'
 import { createOrder } from '@/lib/interactions'
 import { useDataListener } from '@/lib/data-events'
 import type { Connection, OrderWithPaymentState, BusinessEntity } from '@/lib/types'
-import { CaretLeft, CaretDown, CaretRight, DownloadSimple, Phone, PencilSimple, MapPin } from '@phosphor-icons/react'
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible'
+import { CaretLeft, DownloadSimple, Phone, PencilSimple, MapPin } from '@phosphor-icons/react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { toast } from 'sonner'
@@ -13,7 +12,7 @@ import { getConnectionStateColor } from '@/lib/semantic-colors'
 import { motion, useMotionValue, useTransform, animate, PanInfo } from 'framer-motion'
 import { getArchivedOrderIds, archiveOrder as doArchiveOrder, unarchiveOrder as doUnarchiveOrder } from '@/lib/archive-store'
 import { markOrderSeen } from '@/lib/unread-tracker'
-import { buildConnectionSubtitle } from '@/lib/utils'
+import { buildConnectionSubtitle, formatInrCurrency } from '@/lib/utils'
 import { OrderStatusHeader } from '@/components/order/OrderStatusHeader'
 import { OrderPaymentSummary } from '@/components/order/OrderPaymentSummary'
 import { OrderTimeline } from '@/components/order/OrderTimeline'
@@ -21,6 +20,12 @@ import { OrderAttachmentsSection } from '@/components/order/OrderAttachmentsSect
 import { buildOrderTimeline, formatPaymentTerms, getLifecycleState } from '@/components/order/order-detail-utils'
 import { OrderCard } from '@/components/order/OrderCard'
 import { LedgerDownloadSheet } from '@/components/LedgerDownloadSheet'
+
+interface Insight {
+  text: string
+  category: 'settlement' | 'operational' | 'quality'
+  sentiment: 'positive' | 'negative' | 'neutral'
+}
 
 interface Props {
   connectionId: string
@@ -43,9 +48,8 @@ export function ConnectionDetailScreen({ connectionId, currentBusinessId, onBack
   const [connection, setConnection] = useState<Connection | null>(null)
   const [otherBusiness, setOtherBusiness] = useState<BusinessEntity | null>(null)
   const [orders, setOrders] = useState<OrderWithPaymentState[]>([])
-  const [insights, setInsights] = useState<string[]>([])
+  const [insights, setInsights] = useState<Insight[]>([])
   const [timeFilter, setTimeFilter] = useState<TimeFilter>('30d')
-  const [insightsOpen, setInsightsOpen] = useState(true)
   const [loading, setLoading] = useState(true)
   const [newOrderMessage, setNewOrderMessage] = useState('')
   const [creatingOrder, setCreatingOrder] = useState(false)
@@ -75,9 +79,15 @@ export function ConnectionDetailScreen({ connectionId, currentBusinessId, onBack
         return
       }
       const viewerRole = conn.buyerBusinessId === currentBusinessId ? 'buyer' : 'supplier'
-      let connectionInsights: string[] = []
+      let connectionInsights: Insight[] = []
       try {
-        connectionInsights = await insightEngine.getInsightsForConnection(connectionId, viewerRole)
+        const rawInsights = await insightEngine.getInsightsForConnection(connectionId, viewerRole)
+        // Temporary shim — remove when Phase A ships
+        connectionInsights = (rawInsights as string[]).map(text => ({
+          text,
+          category: 'settlement' as const,
+          sentiment: 'negative' as const,
+        }))
       } catch {
         // Insights are non-critical, don't block data refresh
       }
@@ -306,49 +316,70 @@ const isSupplier = connection.supplierBusinessId === currentBusinessId
 
         {/* Relationship Summary Card */}
         <div className="px-4 py-3">
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
-            <div style={{ backgroundColor: 'var(--bg-card)', borderRadius: '14px', padding: '14px 16px' }}>
-              <p style={{ fontSize: '12px', fontWeight: 600, color: 'var(--text-secondary)' }}>{isSupplier ? 'To Receive' : 'To Pay'}</p>
-              <p style={{ fontSize: '20px', fontWeight: 800, color: isSupplier ? 'var(--status-delivered)' : 'var(--status-overdue)', letterSpacing: '-0.02em', marginTop: '4px' }}>
-                {outstandingBalance.toLocaleString('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 })}
-              </p>
+          <div style={{ backgroundColor: 'var(--bg-card)', borderRadius: '14px', overflow: 'hidden', marginBottom: '12px' }}>
+            {/* Row 1 — 3-col stats */}
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', borderBottom: '0.5px solid var(--border-subtle)' }}>
+              <div style={{ padding: '10px 12px', borderRight: '0.5px solid var(--border-subtle)' }}>
+                <p style={{ fontSize: 11, color: 'var(--text-secondary)', marginBottom: 3 }}>{isSupplier ? 'To receive' : 'To pay'}</p>
+                <p style={{ fontSize: 17, fontWeight: 700, color: isSupplier ? 'var(--status-delivered)' : 'var(--status-overdue)' }}>
+                  {formatInrCurrency(outstandingBalance)}
+                </p>
+              </div>
+              <div style={{ padding: '10px 12px', borderRight: '0.5px solid var(--border-subtle)' }}>
+                <p style={{ fontSize: 11, color: 'var(--text-secondary)', marginBottom: 3 }}>Total value</p>
+                <p style={{ fontSize: 17, fontWeight: 700, color: 'var(--text-primary)' }}>
+                  {formatInrCurrency(totalValue)}
+                </p>
+              </div>
+              <div style={{ padding: '10px 12px' }}>
+                <p style={{ fontSize: 11, color: 'var(--text-secondary)', marginBottom: 3 }}>Total orders</p>
+                <p style={{ fontSize: 17, fontWeight: 700, color: 'var(--status-new)' }}>
+                  {totalOrders}
+                </p>
+              </div>
             </div>
-            <div style={{ backgroundColor: 'var(--bg-card)', borderRadius: '14px', padding: '14px 16px' }}>
-              <p style={{ fontSize: '12px', fontWeight: 600, color: 'var(--text-secondary)' }}>Total Orders</p>
-              <p style={{ fontSize: '20px', fontWeight: 800, color: 'var(--status-new)', letterSpacing: '-0.02em', marginTop: '4px' }}>{totalOrders}</p>
-            </div>
-            <div style={{ backgroundColor: 'var(--bg-card)', borderRadius: '14px', padding: '14px 16px' }}>
-              <p style={{ fontSize: '12px', fontWeight: 600, color: 'var(--text-secondary)' }}>Total Value</p>
-              <p style={{ fontSize: '20px', fontWeight: 800, color: 'var(--text-primary)', letterSpacing: '-0.02em', marginTop: '4px' }}>
-                {totalValue.toLocaleString('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 })}
-              </p>
-            </div>
-            <div style={{ backgroundColor: 'var(--bg-card)', borderRadius: '14px', padding: '14px 16px' }}>
-              <p style={{ fontSize: '12px', fontWeight: 600, color: 'var(--text-secondary)' }}>Payment Terms</p>
-              <p style={{ fontSize: '13px', fontWeight: 600, color: 'var(--text-primary)', marginTop: '4px' }}>{formatPaymentTerms(connection.paymentTerms)}</p>
-            </div>
-          </div>
-          <div className="flex items-center justify-between mt-3">
-            {(() => {
-              const stateColor = getConnectionStateColor(connection.connectionState)
-              const stateLabel = connection.connectionState === 'Active' ? 'Healthy' : connection.connectionState === 'Under Stress' ? '⚠ High Risk' : connection.connectionState === 'Friction Rising' ? '⚠ Friction Rising' : connection.connectionState
-              return (
-                <span style={{ fontSize: '11px', fontWeight: 600, color: stateColor, backgroundColor: `${stateColor}26`, padding: '2px 8px', borderRadius: 'var(--radius-chip)' }}>
-                  {stateLabel}
-                </span>
-              )
-            })()}
-            {isSupplier && (
-              <button
+
+            {/* Row 2 — Risk + Payment Terms + Edit */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '8px 12px', borderBottom: '0.5px solid var(--border-subtle)', fontSize: 12 }}>
+              {connection.connectionState !== 'Stable' && connection.connectionState !== 'Active' && (() => {
+                const stateColor = getConnectionStateColor(connection.connectionState)
+                return (
+                  <>
+                    <div style={{ width: 6, height: 6, borderRadius: '50%', backgroundColor: stateColor, flexShrink: 0 }} />
+                    <span style={{ color: stateColor, fontWeight: 500 }}>{connection.connectionState}</span>
+                    <span style={{ color: 'var(--text-secondary)' }}>·</span>
+                  </>
+                )
+              })()}
+              <span style={{ color: 'var(--text-secondary)' }}>Payment terms:</span>
+              <span style={{ color: 'var(--text-primary)', fontWeight: 500 }}>{formatPaymentTerms(connection.paymentTerms)}</span>
+              <span
                 onClick={() => onNavigateToPaymentTermsSetup(connectionId, otherBusiness.businessName)}
-                style={{ fontSize: '12px', fontWeight: 600, color: 'var(--brand-primary)', minHeight: '44px', display: 'flex', alignItems: 'center' }}
+                style={{ color: 'var(--accent-blue)', cursor: 'pointer', marginLeft: 4 }}
               >
-                Edit terms
-              </button>
+                (Edit)
+              </span>
+            </div>
+
+            {/* Row 3 — Insights strip */}
+            {insights.length > 0 && (
+              <div style={{ padding: '12px 14px 14px', display: 'flex', flexDirection: 'column', gap: 10 }}>
+                {insights.map((insight, idx) => {
+                  const sentimentBorder = insight.sentiment === 'negative' ? '#D85A30' : insight.sentiment === 'positive' ? '#1D9E75' : '#888780'
+                  const sentimentText = insight.sentiment === 'negative' ? '#993C1D' : insight.sentiment === 'positive' ? '#0F6E56' : 'var(--text-secondary)'
+                  return (
+                    <div key={idx} style={{ display: 'flex', alignItems: 'flex-start', gap: 10 }}>
+                      <div style={{ width: 3, minWidth: 3, alignSelf: 'stretch', background: sentimentBorder, borderRadius: 0 }} />
+                      <div>
+                        <div style={{ fontSize: 13, fontWeight: 600, color: sentimentText }}>{insight.text}</div>
+                      </div>
+                    </div>
+                  )
+                })}
+              </div>
             )}
           </div>
         </div>
-
 
         <div
           className="overflow-hidden transition-all duration-200 ease-out"
@@ -374,24 +405,39 @@ const isSupplier = connection.supplierBusinessId === currentBusinessId
               />
             )}
           </div>
+        </div>
 
-          {insights.length > 0 && (
-            <div className="px-4 py-3">
-              <Collapsible open={insightsOpen} onOpenChange={setInsightsOpen}>
-                <CollapsibleTrigger className="flex items-center gap-1 text-[10px] text-muted-foreground/60 uppercase tracking-wide mb-2">
-                  <span>Insights</span>
-                  {insightsOpen ? <CaretDown size={12} weight="bold" /> : <CaretRight size={12} weight="bold" />}
-                </CollapsibleTrigger>
-                <CollapsibleContent>
-                  <div className="space-y-1.5">
-                    {insights.map((insight, idx) => (
-                      <p key={idx} className="text-[12px] text-muted-foreground leading-relaxed">{insight}</p>
-                    ))}
-                  </div>
-                </CollapsibleContent>
-              </Collapsible>
-            </div>
-          )}
+        {/* Orders section header with inline time filter */}
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '8px 16px 6px' }}>
+          <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-primary)' }}>
+            Orders ({filteredOrders.length})
+          </span>
+          <div style={{ display: 'flex', gap: 4 }}>
+            {(['7d', '30d', '90d', '1y'] as TimeFilter[]).map(f => (
+              <button
+                key={f}
+                onClick={() => setTimeFilter(f)}
+                style={{
+                  fontSize: 11,
+                  padding: '3px 8px',
+                  borderRadius: 20,
+                  border: timeFilter === f
+                    ? '0.5px solid var(--accent-blue)'
+                    : '0.5px solid var(--border-subtle)',
+                  background: timeFilter === f
+                    ? 'var(--accent-blue-subtle)'
+                    : 'transparent',
+                  color: timeFilter === f
+                    ? 'var(--accent-blue)'
+                    : 'var(--text-secondary)',
+                  fontWeight: timeFilter === f ? 500 : 400,
+                  cursor: 'pointer',
+                }}
+              >
+                {f === '1y' ? '1yr' : f}
+              </button>
+            ))}
+          </div>
         </div>
 
         <div className="px-3 pb-4 space-y-3">
