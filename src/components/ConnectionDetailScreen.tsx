@@ -66,7 +66,7 @@ export function ConnectionDetailScreen({ connectionId, currentBusinessId, onBack
 
   const loadHeaderData = async () => {
     try {
-      const conn = await dataStore.getConnectionById(connectionId)
+      const conn = await dataStore.getConnectionById(connectionId, currentBusinessId)
       if (!conn) return
       const otherId = conn.buyerBusinessId === currentBusinessId ? conn.supplierBusinessId : conn.buyerBusinessId
       const otherBiz = await dataStore.getBusinessEntityById(otherId)
@@ -162,6 +162,7 @@ export function ConnectionDetailScreen({ connectionId, currentBusinessId, onBack
     try {
       await dataStore.updateConnectionContact(
         connectionId,
+        currentBusinessId,
         editPhone.trim() || null,
         editBranch.trim() || null,
         editContact.trim() || null
