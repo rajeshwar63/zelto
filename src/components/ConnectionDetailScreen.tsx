@@ -56,18 +56,12 @@ export function ConnectionDetailScreen({ connectionId, currentBusinessId, onBack
   const [showArchived, setShowArchived] = useState(false)
   const [archivedIds, setArchivedIds] = useState<Set<string>>(new Set())
   const [attachmentCounts, setAttachmentCounts] = useState<Record<string, number>>({})
-  const [pullRevealHeight, setPullRevealHeight] = useState(0)
   const [showLedgerSheet, setShowLedgerSheet] = useState(false)
   const [showContactEdit, setShowContactEdit] = useState(false)
   const [editPhone, setEditPhone] = useState('')
   const [editBranch, setEditBranch] = useState('')
   const [editContact, setEditContact] = useState('')
   const [savingContact, setSavingContact] = useState(false)
-  const pullStartY = useRef<number | null>(null)
-  const lastTouchY = useRef<number | null>(null)
-  const lastScrollTop = useRef(0)
-  const isPullingReveal = useRef(false)
-
   const loadHeaderData = async () => {
     try {
       const conn = await dataStore.getConnectionById(connectionId, currentBusinessId)
@@ -208,48 +202,6 @@ export function ConnectionDetailScreen({ connectionId, currentBusinessId, onBack
 const isSupplier = connection.supplierBusinessId === currentBusinessId
   const isBuyer = connection.buyerBusinessId === currentBusinessId
   const canPlaceOrder = isBuyer && connection.paymentTerms !== null
-  const pullRevealMax = 200
-  const pullRevealThreshold = 18
-  const showPullReveal = pullRevealHeight > pullRevealThreshold
-
-  const handleListTouchStart = (event: TouchEvent<HTMLDivElement>) => {
-    const touchY = event.touches[0]?.clientY ?? null
-    pullStartY.current = event.currentTarget.scrollTop === 0 ? touchY : null
-    lastTouchY.current = touchY
-    isPullingReveal.current = false
-  }
-
-  const handleListTouchMove = (event: TouchEvent<HTMLDivElement>) => {
-    const touchY = event.touches[0]?.clientY
-    if (touchY === undefined) return
-    if (pullRevealHeight > 0 && lastTouchY.current !== null && touchY < lastTouchY.current) {
-      setPullRevealHeight(0)
-      pullStartY.current = null
-      isPullingReveal.current = false
-      lastTouchY.current = touchY
-      return
-    }
-    lastTouchY.current = touchY
-    if (pullStartY.current === null) return
-    if (event.currentTarget.scrollTop > 0) return
-    const deltaY = touchY - pullStartY.current
-    if (deltaY <= 0) {
-      setPullRevealHeight(0)
-      return
-    }
-    isPullingReveal.current = true
-    setPullRevealHeight(Math.min(deltaY, pullRevealMax))
-  }
-
-  const handleListTouchEnd = () => {
-    pullStartY.current = null
-    lastTouchY.current = null
-    if (!isPullingReveal.current && pullRevealHeight === 0) return
-    if (isPullingReveal.current) {
-      setPullRevealHeight(pullRevealHeight > pullRevealThreshold ? pullRevealMax : 0)
-    }
-    isPullingReveal.current = false
-  }
 
   return (
     <div className="h-full flex flex-col" style={{ backgroundColor: 'var(--bg-screen)' }}>
@@ -274,22 +226,6 @@ const isSupplier = connection.supplierBusinessId === currentBusinessId
 
       <div
         className="flex-1 overflow-y-auto"
-        onScroll={event => {
-          const currentScrollTop = event.currentTarget.scrollTop
-          if (pullRevealHeight > 0 && currentScrollTop > lastScrollTop.current) {
-            setPullRevealHeight(0)
-          }
-          lastScrollTop.current = currentScrollTop
-        }}
-        onWheel={event => {
-          if (pullRevealHeight > 0 && event.deltaY > 0) {
-            setPullRevealHeight(0)
-          }
-        }}
-        onTouchStart={handleListTouchStart}
-        onTouchMove={handleListTouchMove}
-        onTouchEnd={handleListTouchEnd}
-        onTouchCancel={handleListTouchEnd}
       >
         {/* Unified Contact Row — single line */}
         <div className="flex items-center gap-3 px-4 py-3" style={{ borderBottom: '1px solid var(--border-light)' }}>
@@ -396,32 +332,6 @@ const isSupplier = connection.supplierBusinessId === currentBusinessId
               </div>
             )
           })()}
-        </div>
-
-        <div
-          className="overflow-hidden transition-all duration-200 ease-out"
-          style={{
-            maxHeight: showPullReveal ? `${pullRevealHeight}px` : '0px',
-            opacity: showPullReveal ? 1 : 0,
-          }}
-        >
-          <div className="px-4 py-2 flex items-center gap-2 overflow-x-auto">
-            {(['7d', '30d', '90d', '1y'] as TimeFilter[]).map(f => (
-              <FilterButton
-                key={f}
-                label={f === '7d' ? 'Last 7 days' : f === '30d' ? 'Last 30 days' : f === '90d' ? '90 days' : '1 year'}
-                active={timeFilter === f && !showArchived}
-                onClick={() => { setTimeFilter(f); setShowArchived(false) }}
-              />
-            ))}
-            {archivedOrders.length > 0 && (
-              <FilterButton
-                label={`Archived (${archivedOrders.length})`}
-                active={showArchived}
-                onClick={() => setShowArchived(!showArchived)}
-              />
-            )}
-          </div>
         </div>
 
         {/* Orders section header with inline time filter */}
@@ -723,24 +633,3 @@ function SwipeableOrderRow({
   )
 }
 
-function FilterButton({ label, active, onClick }: { label: string; active: boolean; onClick: () => void }) {
-  return (
-    <button
-      onClick={onClick}
-      className="whitespace-nowrap transition-colors"
-      style={{
-        padding: '6px 12px',
-        fontSize: '13px',
-        fontWeight: active ? 600 : 500,
-        color: active ? '#FFFFFF' : 'var(--text-secondary)',
-        backgroundColor: active ? 'var(--brand-primary)' : 'var(--brand-primary-bg)',
-        borderRadius: 'var(--radius-chip)',
-        minHeight: '44px',
-        display: 'flex',
-        alignItems: 'center',
-      }}
-    >
-      {label}
-    </button>
-  )
-}
