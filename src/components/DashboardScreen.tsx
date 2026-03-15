@@ -1,4 +1,4 @@
-import { ArrowDown, ArrowUp, CaretRight, CheckCircle, ClockClockwise, CurrencyInr, Package, ShieldWarning, Truck } from '@phosphor-icons/react'
+import { ArrowDown, ArrowUp, CaretRight, CurrencyInr, ShieldWarning } from '@phosphor-icons/react'
 import { CredibilityBadge } from '@/components/CredibilityBadge'
 import { useEffect, useState } from 'react'
 import { useBusinessOverviewData } from '@/hooks/data/use-business-data'
@@ -287,9 +287,7 @@ export function DashboardScreen({ currentBusinessId, onNavigateToOrders, onNavig
                 }}
               >
                 <div className="flex items-center gap-3">
-                  <div className="w-7 h-7 rounded-lg flex items-center justify-center" style={{ backgroundColor: 'var(--brand-primary-bg)' }}>
-                    <ClockClockwise size={15} weight="bold" color="var(--status-new)" />
-                  </div>
+                  <div style={{ width: 40, height: 40, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 18, flexShrink: 0, backgroundColor: '#E8E7E3' }}>📝</div>
                   <p className="text-[14px] text-foreground font-semibold">Approval Needed</p>
                 </div>
                 <div className="flex items-center gap-2">
@@ -309,9 +307,7 @@ export function DashboardScreen({ currentBusinessId, onNavigateToOrders, onNavig
                 }}
               >
                 <div className="flex items-center gap-3">
-                  <div className="w-7 h-7 rounded-lg flex items-center justify-center" style={{ backgroundColor: '#FFF6F0' }}>
-                    <Truck size={15} weight="fill" color="var(--status-dispatched)" />
-                  </div>
+                  <div style={{ width: 40, height: 40, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 18, flexShrink: 0, backgroundColor: '#FAEEDA' }}>🚚</div>
                   <p className="text-[14px] text-foreground font-semibold">Dispatched</p>
                 </div>
                 <div className="flex items-center gap-2">
@@ -331,9 +327,7 @@ export function DashboardScreen({ currentBusinessId, onNavigateToOrders, onNavig
                 }}
               >
                 <div className="flex items-center gap-3">
-                  <div className="w-7 h-7 rounded-lg flex items-center justify-center" style={{ backgroundColor: '#F0FFF6' }}>
-                    <CheckCircle size={15} weight="fill" color="var(--status-delivered)" />
-                  </div>
+                  <div style={{ width: 40, height: 40, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 18, flexShrink: 0, backgroundColor: '#EAF3DE' }}>📦</div>
                   <p className="text-[14px] text-foreground font-semibold">Delivered</p>
                 </div>
                 <div className="flex items-center gap-2">
@@ -353,9 +347,7 @@ export function DashboardScreen({ currentBusinessId, onNavigateToOrders, onNavig
                 }}
               >
                 <div className="flex items-center gap-3">
-                  <div className="w-7 h-7 rounded-lg flex items-center justify-center" style={{ backgroundColor: '#FFF0F8' }}>
-                    <Package size={15} weight="fill" color="var(--status-payment)" />
-                  </div>
+                  <div style={{ width: 40, height: 40, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 18, flexShrink: 0, backgroundColor: '#FCEBEB' }}>₹⏳</div>
                   <p className="text-[14px] text-foreground font-semibold">Payment Pending</p>
                 </div>
                 <div className="flex items-center gap-2">
