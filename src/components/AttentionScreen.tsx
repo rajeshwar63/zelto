@@ -69,7 +69,7 @@ export function AttentionScreen({ currentBusinessId, onNavigateToIssue, isActive
       <div className="flex flex-col h-full" style={{ backgroundColor: 'var(--bg-screen)' }}>
         <div className="sticky top-0 bg-white z-10" style={{ paddingTop: 'env(safe-area-inset-top)' }}>
           <div className="h-11 flex items-center px-4">
-            <h1 className="text-[17px] text-foreground font-normal">Disputes</h1>
+            <h1 className="text-[17px] text-foreground font-bold">Disputes</h1>
           </div>
         </div>
         <div className="flex-1 overflow-y-auto px-4 pt-4 space-y-2">
@@ -86,7 +86,7 @@ export function AttentionScreen({ currentBusinessId, onNavigateToIssue, isActive
       <div className="flex flex-col h-full" style={{ backgroundColor: 'var(--bg-screen)' }}>
         <div className="sticky top-0 bg-white z-10" style={{ paddingTop: 'env(safe-area-inset-top)' }}>
           <div className="h-11 flex items-center px-4">
-            <h1 className="text-[17px] text-foreground font-normal">Disputes</h1>
+            <h1 className="text-[17px] text-foreground font-bold">Disputes</h1>
           </div>
           <div className="px-4 pb-1 text-[11px] text-muted-foreground">{updatedLabel}</div>
           <ScreenRefreshIndicator refreshing={showRefreshAffordance} />
@@ -119,7 +119,7 @@ export function AttentionScreen({ currentBusinessId, onNavigateToIssue, isActive
     <div className="flex flex-col h-full" style={{ backgroundColor: 'var(--bg-screen)' }}>
       <div className="sticky top-0 bg-white z-10" style={{ paddingTop: 'env(safe-area-inset-top)' }}>
         <div className="h-11 flex items-center px-4">
-          <h1 className="text-[17px] text-foreground font-normal">Disputes</h1>
+          <h1 className="text-[17px] text-foreground font-bold">Disputes</h1>
           {newCount > 0 && (
             <span className="ml-2 inline-flex items-center text-[11px] font-medium px-2 py-0.5 rounded-full bg-red-50 text-red-600">
               {newCount} new
