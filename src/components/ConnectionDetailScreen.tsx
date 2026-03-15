@@ -353,8 +353,8 @@ const isSupplier = connection.supplierBusinessId === currentBusinessId
                   {/* Row 2 — Risk badge + Payment Terms + Edit */}
                   <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, padding: '10px 12px', fontSize: 12 }}>
                     {isRisky ? (
-                      <div style={{ display: 'inline-flex', alignItems: 'center', gap: 4, backgroundColor: stateColor, color: '#FFFFFF', borderRadius: 999, padding: '3.5px 8.5px', fontWeight: 700, fontSize: 9 }}>
-                        <Warning size={10} weight="fill" />
+                      <div style={{ display: 'inline-flex', alignItems: 'center', gap: 4, backgroundColor: stateColor, color: '#FFFFFF', borderRadius: 999, padding: '4px 10px', fontWeight: 700, fontSize: 10.5 }}>
+                        <Warning size={11} weight="fill" />
                         {connection.connectionState}
                       </div>
                     ) : (
