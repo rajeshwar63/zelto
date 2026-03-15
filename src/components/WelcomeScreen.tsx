@@ -97,6 +97,9 @@ export function WelcomeScreen({ onContinue, onLoginOnly }: WelcomeScreenProps) {
             padding: '24px 20px',
           }}
         >
+          <h2 style={{ fontSize: 20, fontWeight: 700, color: 'var(--text-primary)', marginBottom: 16, letterSpacing: '-0.02em' }}>
+            {isLoginMode ? 'Login' : 'Sign up'}
+          </h2>
           <form onSubmit={handleSubmit} className="space-y-4">
             {!isLoginMode && (
               <>
