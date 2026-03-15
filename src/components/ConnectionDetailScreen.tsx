@@ -1,6 +1,7 @@
 import { useEffect, useState, useRef, type TouchEvent } from 'react'
 import { dataStore } from '@/lib/data-store'
 import { insightEngine } from '@/lib/insight-engine'
+import type { Insight } from '@/lib/insight-engine'
 import { createOrder } from '@/lib/interactions'
 import { useDataListener } from '@/lib/data-events'
 import type { Connection, OrderWithPaymentState, BusinessEntity } from '@/lib/types'
@@ -21,11 +22,6 @@ import { buildOrderTimeline, formatPaymentTerms, getLifecycleState } from '@/com
 import { OrderCard } from '@/components/order/OrderCard'
 import { LedgerDownloadSheet } from '@/components/LedgerDownloadSheet'
 
-interface Insight {
-  text: string
-  category: 'settlement' | 'operational' | 'quality'
-  sentiment: 'positive' | 'negative' | 'neutral'
-}
 
 interface Props {
   connectionId: string
@@ -75,13 +71,7 @@ export function ConnectionDetailScreen({ connectionId, currentBusinessId, onBack
       const viewerRole = conn.buyerBusinessId === currentBusinessId ? 'buyer' : 'supplier'
       let connectionInsights: Insight[] = []
       try {
-        const rawInsights = await insightEngine.getInsightsForConnection(connectionId, viewerRole)
-        // Temporary shim — remove when Phase A ships
-        connectionInsights = (rawInsights as string[]).map(text => ({
-          text,
-          category: 'settlement' as const,
-          sentiment: 'negative' as const,
-        }))
+        connectionInsights = await insightEngine.getInsightsForConnection(connectionId, viewerRole)
       } catch {
         // Insights are non-critical, don't block data refresh
       }
