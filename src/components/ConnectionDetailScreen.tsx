@@ -263,7 +263,7 @@ const isSupplier = connection.supplierBusinessId === currentBusinessId
                       </p>
                     </div>
                     <div style={{ padding: '10px 12px', borderRight: '0.5px solid rgba(0,0,0,0.08)' }}>
-                      <p style={{ fontSize: 11, color: 'var(--text-secondary)', marginBottom: 3 }}>Total Value</p>
+                      <p style={{ fontSize: 11, color: 'var(--text-secondary)', marginBottom: 3 }}>Total Traded</p>
                       <p style={{ fontSize: 17, fontWeight: 700, color: 'var(--text-primary)' }}>
                         {formatInrCurrency(totalValue)}
                       </p>
