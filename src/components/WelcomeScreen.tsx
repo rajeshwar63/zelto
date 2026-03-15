@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { sendEmailOTP } from '@/lib/auth'
+import { sendEmailOTP, checkEmailRegistered } from '@/lib/auth'
 import { toast } from 'sonner'
 
 interface WelcomeScreenProps {
@@ -44,6 +44,14 @@ export function WelcomeScreen({ onContinue, onLoginOnly }: WelcomeScreenProps) {
     setIsLoading(true)
     setErrors({})
     try {
+      if (isLoginMode) {
+        const exists = await checkEmailRegistered(email)
+        if (!exists) {
+          setErrors({ email: 'No account found with this email. Please sign up.' })
+          setIsLoading(false)
+          return
+        }
+      }
       await sendEmailOTP(email)
       if (isLoginMode) {
         onLoginOnly(email)

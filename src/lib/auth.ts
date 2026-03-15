@@ -45,6 +45,11 @@ export async function sendEmailOTP(email: string): Promise<void> {
   if (error) throw new Error(error.message)
 }
 
+export async function checkEmailRegistered(email: string): Promise<boolean> {
+  const userAccount = await dataStore.getUserAccountByEmail(email).catch(() => undefined)
+  return !!userAccount
+}
+
 export async function verifyEmailOTP(email: string, token: string): Promise<void> {
   const { error } = await supabase.auth.verifyOtp({
     email,
