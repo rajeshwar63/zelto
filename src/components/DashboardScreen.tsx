@@ -1,5 +1,6 @@
 import { ArrowDown, ArrowUp, CaretRight, CurrencyInr, Hourglass, NotePencil, Package, ShieldWarning, Truck } from '@phosphor-icons/react'
 import { CredibilityBadge } from '@/components/CredibilityBadge'
+import { BadgeInfoSheet } from '@/components/BadgeInfoSheet'
 import { useEffect, useState } from 'react'
 import { useBusinessOverviewData } from '@/hooks/data/use-business-data'
 import { Carousel, CarouselApi, CarouselContent, CarouselItem } from '@/components/ui/carousel'
@@ -15,9 +16,10 @@ interface Props {
   isActive?: boolean
 }
 
-export function DashboardScreen({ currentBusinessId, onNavigateToOrders, onNavigateToConnection, onNavigateToConnections, onNavigateToAttention, isActive = true }: Props) {
+export function DashboardScreen({ currentBusinessId, onNavigateToOrders, onNavigateToConnection, onNavigateToProfile, onNavigateToConnections, onNavigateToAttention, isActive = true }: Props) {
   const [tradePositionCarouselApi, setTradePositionCarouselApi] = useState<CarouselApi>()
   const [activeTradePositionSlide, setActiveTradePositionSlide] = useState(0)
+  const [showBadgeInfo, setShowBadgeInfo] = useState(false)
 
   useEffect(() => {
     if (!tradePositionCarouselApi) {
@@ -80,7 +82,31 @@ export function DashboardScreen({ currentBusinessId, onNavigateToOrders, onNavig
             <p className="text-[13px] font-normal mt-1" style={{ color: '#8A8A8A' }}>Your trade snapshot today</p>
           </div>
           {overview.credibility && overview.credibility.level !== 'none' && (
-            <CredibilityBadge level={overview.credibility.level} />
+            <div className="flex items-center gap-1">
+              <CredibilityBadge level={overview.credibility.level} />
+              <button
+                onClick={() => setShowBadgeInfo(true)}
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  width: '18px',
+                  height: '18px',
+                  borderRadius: '50%',
+                  backgroundColor: 'transparent',
+                  border: '1.5px solid #AAAAAA',
+                  color: '#AAAAAA',
+                  fontSize: '10px',
+                  fontWeight: '700',
+                  lineHeight: 1,
+                  cursor: 'pointer',
+                  flexShrink: 0,
+                }}
+                aria-label="What does my badge mean?"
+              >
+                i
+              </button>
+            </div>
           )}
         </div>
       </div>
@@ -426,6 +452,17 @@ export function DashboardScreen({ currentBusinessId, onNavigateToOrders, onNavig
           </div>
         )}
       </div>
+      {showBadgeInfo && overview.credibility && (
+        <BadgeInfoSheet
+          currentLevel={overview.credibility.level}
+          missingItems={overview.credibility.missingItems}
+          onClose={() => setShowBadgeInfo(false)}
+          onCompleteProfile={() => {
+            setShowBadgeInfo(false)
+            onNavigateToProfile()
+          }}
+        />
+      )}
     </div>
   )
 }
