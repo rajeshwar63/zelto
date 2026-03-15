@@ -291,23 +291,26 @@ const isSupplier = connection.supplierBusinessId === currentBusinessId
         onTouchEnd={handleListTouchEnd}
         onTouchCancel={handleListTouchEnd}
       >
-        {/* Unified Contact Row */}
+        {/* Unified Contact Row — single line */}
         <div className="flex items-center gap-3 px-4 py-3" style={{ borderBottom: '1px solid var(--border-light)' }}>
           <div className="flex items-center justify-center" style={{ width: '36px', height: '36px', backgroundColor: 'var(--brand-primary-bg)', borderRadius: '50%', flexShrink: 0 }}>
             <Phone size={18} weight="regular" style={{ color: 'var(--brand-primary)' }} />
           </div>
-          <div className="flex-1 min-w-0">
+          <div className="flex-1 min-w-0 flex items-center gap-1.5 flex-wrap">
             {buildConnectionSubtitle(connection.branchLabel, connection.contactName) && (
-              <p className="text-[12px] text-muted-foreground flex items-center gap-1 mb-0.5">
-                <MapPin size={11} weight="regular" />
-                {buildConnectionSubtitle(connection.branchLabel, connection.contactName)}
-              </p>
+              <>
+                <MapPin size={11} weight="regular" style={{ color: 'var(--text-secondary)', flexShrink: 0 }} />
+                <span style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>
+                  {buildConnectionSubtitle(connection.branchLabel, connection.contactName)}
+                </span>
+                <span style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>·</span>
+              </>
             )}
-            <p style={{ fontSize: '14px', fontWeight: 600, color: connection.contactPhone ? 'var(--text-primary)' : 'var(--text-secondary)' }}>
+            <span style={{ fontSize: '14px', fontWeight: 600, color: connection.contactPhone ? 'var(--text-primary)' : 'var(--text-secondary)' }}>
               {connection.contactPhone
                 ? `+91 ${connection.contactPhone.replace(/(\d{5})(\d{5})/, '$1 $2')}`
                 : 'Add contact number'}
-            </p>
+            </span>
           </div>
           <button onClick={() => setShowContactEdit(true)} style={{ padding: '4px', minWidth: '32px', minHeight: '32px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
             <PencilSimple size={16} weight="regular" style={{ color: 'var(--text-secondary)' }} />
@@ -351,14 +354,15 @@ const isSupplier = connection.supplierBusinessId === currentBusinessId
                   </>
                 )
               })()}
-              <span style={{ color: 'var(--text-secondary)' }}>Payment terms:</span>
-              <span style={{ color: 'var(--text-primary)', fontWeight: 500 }}>{formatPaymentTerms(connection.paymentTerms)}</span>
-              <span
-                onClick={() => onNavigateToPaymentTermsSetup(connectionId, otherBusiness.businessName)}
-                style={{ color: 'var(--accent-blue)', cursor: 'pointer', marginLeft: 4 }}
-              >
-                (Edit)
-              </span>
+              <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 6 }}>
+                <span style={{ color: 'var(--text-primary)', fontWeight: 500 }}>{formatPaymentTerms(connection.paymentTerms)}</span>
+                <span
+                  onClick={() => onNavigateToPaymentTermsSetup(connectionId, otherBusiness.businessName)}
+                  style={{ color: 'var(--accent-blue)', cursor: 'pointer' }}
+                >
+                  (Edit)
+                </span>
+              </div>
             </div>
 
             {/* Row 3 — Insights strip */}
