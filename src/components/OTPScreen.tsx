@@ -1,8 +1,8 @@
 import { useState, useEffect } from 'react'
-import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { sendEmailOTP, verifyEmailOTP, findOrCreateBusinessSession } from '@/lib/auth'
 import { toast } from 'sonner'
+import { ArrowLeft, EnvelopeSimple } from '@phosphor-icons/react'
 
 interface OTPScreenProps {
   email: string
@@ -62,30 +62,87 @@ export function OTPScreen({ email, signupData, onSuccess, onBack }: OTPScreenPro
   }
 
   return (
-    <div className="min-h-screen flex flex-col items-center justify-center bg-background px-6">
+    <div
+      className="min-h-screen flex flex-col items-center justify-center px-4"
+      style={{ backgroundColor: 'var(--bg-screen)' }}
+    >
       <div className="w-full max-w-sm">
+        {/* Back button */}
         <button
           onClick={onBack}
-          className="mb-8 text-sm text-muted-foreground hover:text-foreground transition-colors"
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: 6,
+            color: 'var(--text-primary)',
+            background: 'none',
+            border: 'none',
+            cursor: 'pointer',
+            fontSize: 14,
+            fontWeight: 600,
+            padding: 0,
+            marginBottom: 16,
+            minHeight: 44,
+          }}
         >
-          ← Back
+          <ArrowLeft size={20} weight="bold" />
+          Back
         </button>
 
-        <div className="mb-8">
-          <h1 className="text-2xl font-semibold text-foreground mb-2">Enter the code</h1>
-          <p className="text-sm text-muted-foreground">
-            Enter the 6-digit code sent to {email}
+        {/* Card */}
+        <div
+          style={{
+            backgroundColor: 'var(--bg-card)',
+            borderRadius: 'var(--radius-modal)',
+            border: '1px solid var(--border-light)',
+            padding: '24px 20px',
+          }}
+        >
+          <h1
+            style={{
+              fontSize: 22,
+              fontWeight: 700,
+              color: 'var(--text-primary)',
+              letterSpacing: '-0.02em',
+              marginBottom: 8,
+            }}
+          >
+            Enter the code
+          </h1>
+
+          <p style={{ fontSize: 13, fontWeight: 500, color: 'var(--text-secondary)', marginBottom: 8 }}>
+            We sent a code to
           </p>
-        </div>
-
-        {error && (
-          <div className="mb-4 p-3 rounded-md bg-destructive/10 border border-destructive/20">
-            <p className="text-sm text-destructive">{error}</p>
+          <div
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: 6,
+              backgroundColor: 'var(--brand-primary-bg)',
+              borderRadius: 8,
+              padding: '6px 10px',
+              marginBottom: 20,
+            }}
+          >
+            <EnvelopeSimple size={14} weight="bold" color="var(--brand-primary)" />
+            <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--brand-primary)' }}>{email}</span>
           </div>
-        )}
 
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div className="space-y-2">
+          {error && (
+            <div
+              style={{
+                marginBottom: 16,
+                padding: 12,
+                borderRadius: 'var(--radius-input)',
+                backgroundColor: 'rgba(255, 107, 107, 0.1)',
+                border: '1px solid rgba(255, 107, 107, 0.25)',
+              }}
+            >
+              <p style={{ fontSize: 13, fontWeight: 500, color: 'var(--status-overdue)' }}>{error}</p>
+            </div>
+          )}
+
+          <form onSubmit={handleSubmit} className="space-y-4">
             <Input
               id="otp"
               type="text"
@@ -98,35 +155,63 @@ export function OTPScreen({ email, signupData, onSuccess, onBack }: OTPScreenPro
                 setError(null)
               }}
               disabled={isLoading}
-              className="h-11 text-center text-lg font-mono tracking-widest"
+              className="h-16 text-center text-2xl font-mono"
+              style={{
+                borderRadius: 'var(--radius-input)',
+                color: 'var(--text-primary)',
+                fontWeight: 700,
+                letterSpacing: '0.5em',
+              }}
               autoFocus
             />
-          </div>
 
-          <Button
-            type="submit"
-            className="w-full h-11 mt-6"
-            disabled={isLoading || otp.length !== 6}
-          >
-            {isLoading ? 'Verifying…' : 'Verify'}
-          </Button>
-        </form>
-
-        <div className="mt-4 text-center">
-          {resendCooldown > 0 ? (
-            <p className="text-sm text-muted-foreground">
-              Resend code in {resendCooldown}s
-            </p>
-          ) : (
             <button
-              type="button"
-              onClick={handleResend}
-              disabled={isResending || isLoading}
-              className="text-sm text-muted-foreground hover:text-foreground transition-colors disabled:opacity-50"
+              type="submit"
+              disabled={isLoading || otp.length !== 6}
+              style={{
+                width: '100%',
+                height: 48,
+                backgroundColor: 'var(--brand-primary)',
+                color: '#FFFFFF',
+                fontSize: 15,
+                fontWeight: 600,
+                borderRadius: 'var(--radius-button)',
+                border: 'none',
+                cursor: isLoading || otp.length !== 6 ? 'not-allowed' : 'pointer',
+                opacity: isLoading || otp.length !== 6 ? 0.4 : 1,
+                transition: 'opacity 0.15s ease',
+              }}
             >
-              Didn't receive a code? <span className="font-medium">Resend code</span>
+              {isLoading ? 'Verifying…' : 'Verify'}
             </button>
-          )}
+          </form>
+
+          <div style={{ marginTop: 16, textAlign: 'center' }}>
+            {resendCooldown > 0 ? (
+              <p style={{ fontSize: 13, fontWeight: 500, color: 'var(--text-secondary)' }}>
+                Resend code in{' '}
+                <span style={{ fontWeight: 700, color: 'var(--text-primary)' }}>{resendCooldown}s</span>
+              </p>
+            ) : (
+              <button
+                type="button"
+                onClick={handleResend}
+                disabled={isResending || isLoading}
+                style={{
+                  fontSize: 13,
+                  fontWeight: 500,
+                  color: 'var(--text-secondary)',
+                  background: 'none',
+                  border: 'none',
+                  cursor: isResending || isLoading ? 'not-allowed' : 'pointer',
+                  opacity: isResending || isLoading ? 0.4 : 1,
+                }}
+              >
+                Didn't receive a code?{' '}
+                <span style={{ fontWeight: 700, color: 'var(--brand-primary)' }}>Resend code</span>
+              </button>
+            )}
+          </div>
         </div>
       </div>
     </div>
