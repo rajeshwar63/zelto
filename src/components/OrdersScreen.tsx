@@ -229,7 +229,7 @@ export function OrdersScreen({ currentBusinessId, onSelectOrder, initialFilter, 
                 deliveredAt={order.deliveredAt}
                 latestActivity={order.latestActivity}
                 paymentTermSnapshot={order.paymentTermSnapshot}
-                isBuyer={order.buyerBusinessId === currentBusinessId}
+                isBuyer={order.isBuyer}
                 onClick={() => onSelectOrder(order.id, order.connectionId)}
               />
             ))}
