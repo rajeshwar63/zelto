@@ -388,28 +388,73 @@ export class ZeltoDataStore {
     return toCamelCase(data)
   }
 
-  async getConnectionById(id: string): Promise<Connection | undefined> {
+  async getConnectionById(id: string, businessId?: string): Promise<Connection | undefined> {
     const { data, error } = await supabase
       .from('connections')
       .select('*')
       .eq('id', id)
       .single()
-    
+
     if (error) {
       if (error.code === 'PGRST116') return undefined
       throw error
     }
-    return toCamelCase(data)
+
+    let contactPhone = null
+    let branchLabel = null
+    let contactName = null
+
+    if (businessId) {
+      const { data: contactData } = await supabase
+        .from('connection_contacts')
+        .select('*')
+        .eq('connection_id', id)
+        .eq('business_id', businessId)
+        .maybeSingle()
+
+      if (contactData) {
+        contactPhone = contactData.contact_phone ?? null
+        branchLabel = contactData.branch_label ?? null
+        contactName = contactData.contact_name ?? null
+      }
+    }
+
+    return toCamelCase({
+      ...data,
+      contact_phone: contactPhone,
+      branch_label: branchLabel,
+      contact_name: contactName,
+    })
   }
 
   async getConnectionsByBusinessId(businessId: string): Promise<Connection[]> {
-    const { data, error} = await supabase
+    const { data: connectionsData, error } = await supabase
       .from('connections')
       .select('*')
       .or(`buyer_business_id.eq.${businessId},supplier_business_id.eq.${businessId}`)
-    
+
     if (error) throw error
-    return toCamelCase(data || [])
+    if (!connectionsData || connectionsData.length === 0) return []
+
+    const connectionIds = connectionsData.map(c => c.id)
+
+    const { data: contactsData } = await supabase
+      .from('connection_contacts')
+      .select('*')
+      .eq('business_id', businessId)
+      .in('connection_id', connectionIds)
+
+    const contactMap = new Map((contactsData || []).map(c => [c.connection_id, c]))
+
+    return connectionsData.map(conn => {
+      const contact = contactMap.get(conn.id)
+      return toCamelCase({
+        ...conn,
+        contact_phone: contact?.contact_phone ?? null,
+        branch_label: contact?.branch_label ?? null,
+        contact_name: contact?.contact_name ?? null,
+      })
+    })
   }
 
   async updateConnectionPaymentTerms(
@@ -444,18 +489,23 @@ export class ZeltoDataStore {
 
   async updateConnectionContact(
     connectionId: string,
+    businessId: string,
     phone: string | null,
     branchLabel: string | null,
     contactName: string | null
   ): Promise<void> {
     const { error } = await supabase
-      .from('connections')
-      .update({
-        contact_phone: phone || null,
-        branch_label: branchLabel || null,
-        contact_name: contactName || null,
-      })
-      .eq('id', connectionId)
+      .from('connection_contacts')
+      .upsert(
+        {
+          connection_id: connectionId,
+          business_id: businessId,
+          contact_phone: phone || null,
+          branch_label: branchLabel || null,
+          contact_name: contactName || null,
+        },
+        { onConflict: 'connection_id,business_id' }
+      )
 
     if (error) throw error
   }

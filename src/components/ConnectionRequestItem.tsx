@@ -77,6 +77,7 @@ export function ConnectionRequestItem({ request, currentBusinessId, onUpdate, on
       if (pendingLabels && result.connectionId) {
         await dataStore.updateConnectionContact(
           result.connectionId,
+          currentBusinessId,
           null,
           pendingLabels.branchLabel,
           pendingLabels.contactName

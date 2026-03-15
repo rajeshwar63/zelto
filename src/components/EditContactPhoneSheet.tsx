@@ -7,10 +7,11 @@ interface Props {
   isOpen: boolean
   onClose: () => void
   connectionId: string
+  currentBusinessId: string
   currentPhone: string | null
 }
 
-export function EditContactPhoneSheet({ isOpen, onClose, connectionId, currentPhone }: Props) {
+export function EditContactPhoneSheet({ isOpen, onClose, connectionId, currentBusinessId, currentPhone }: Props) {
   const [input, setInput] = useState(currentPhone ?? '')
   const [error, setError] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
@@ -26,7 +27,7 @@ export function EditContactPhoneSheet({ isOpen, onClose, connectionId, currentPh
     setSaving(true)
     setError(null)
     try {
-      await dataStore.updateConnectionContact(connectionId, digits, null, null)
+      await dataStore.updateConnectionContact(connectionId, currentBusinessId, digits, null, null)
       emitDataChange('connections:changed')
       onClose()
     } catch {
@@ -40,7 +41,7 @@ export function EditContactPhoneSheet({ isOpen, onClose, connectionId, currentPh
     setSaving(true)
     setError(null)
     try {
-      await dataStore.updateConnectionContact(connectionId, null, null, null)
+      await dataStore.updateConnectionContact(connectionId, currentBusinessId, null, null, null)
       emitDataChange('connections:changed')
       onClose()
     } catch {
