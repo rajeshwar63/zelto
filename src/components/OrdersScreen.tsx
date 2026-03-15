@@ -1,52 +1,22 @@
-import { useEffect, useMemo, useState, type ReactNode } from 'react'
+import { useEffect, useMemo, useState, useRef } from 'react'
 import { dataStore } from '@/lib/data-store'
 import { createOrder } from '@/lib/interactions'
 import { useOrdersData } from '@/hooks/data/use-business-data'
 import type { Connection, BusinessEntity } from '@/lib/types'
-import { PencilSimple, MagnifyingGlass, X, PaperPlaneTilt, List, NotePencil, Truck, Package, Hourglass, Check } from '@phosphor-icons/react'
+import { PencilSimple, MagnifyingGlass, X, PaperPlaneTilt } from '@phosphor-icons/react'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import { OrderCard } from '@/components/order/OrderCard'
 import { toast } from 'sonner'
 import { InlineRefreshSpinner, ScreenRefreshIndicator, useScreenLoadState } from '@/components/ScreenLoadState'
-
-type DeliveryFilter = 'all' | 'placed' | 'dispatched' | 'delivered'
-type PaymentFilter = 'all' | 'pending' | 'paid'
+import { OrderSearchPanel, type OrderFilters, type StatusChip, CHIP_LABELS, formatDateShort } from '@/components/order/OrderSearchPanel'
+import { startOfDay } from 'date-fns'
 
 interface Props {
   currentBusinessId: string
   onSelectOrder: (orderId: string, connectionId: string) => void
   initialFilter?: string
   isActive?: boolean
-}
-
-interface FilterTabProps {
-  group: 'delivery' | 'payment'
-  value: string
-  icon: ReactNode
-  iconColor: string
-  label: string
-  deliveryFilter: DeliveryFilter
-  paymentFilter: PaymentFilter
-  onDeliveryChange: (v: DeliveryFilter) => void
-  onPaymentChange: (v: PaymentFilter) => void
-}
-
-function FilterTab({ group, value, icon, iconColor, label, deliveryFilter, paymentFilter, onDeliveryChange, onPaymentChange }: FilterTabProps) {
-  const isActive = group === 'delivery' ? deliveryFilter === value : paymentFilter === value
-  const activeClass = isActive ? (group === 'delivery' ? 'active-delivery' : 'active-payment') : ''
-
-  const handleClick = () => {
-    if (group === 'delivery') onDeliveryChange(value as DeliveryFilter)
-    else onPaymentChange(value as PaymentFilter)
-  }
-
-  return (
-    <button className={`filter-tab ${activeClass}`} onClick={handleClick}>
-      <span className="icon" style={!isActive ? { color: iconColor } : undefined}>{icon}</span>
-      <span className="label">{label}</span>
-    </button>
-  )
 }
 
 function formatPaymentTerms(terms: Connection['paymentTerms']): string | null {
@@ -59,6 +29,13 @@ function formatPaymentTerms(terms: Connection['paymentTerms']): string | null {
   }
 }
 
+const EMPTY_FILTERS: OrderFilters = {
+  searchText: '',
+  activeChips: new Set<StatusChip>(),
+  fromDate: null,
+  toDate: null,
+}
+
 export function OrdersScreen({ currentBusinessId, onSelectOrder, initialFilter, isActive = true }: Props) {
   const { data: orders = [], isInitialLoading, isRefreshing } = useOrdersData(currentBusinessId, isActive)
   const { initialLoading, refreshing } = useScreenLoadState({
@@ -66,8 +43,11 @@ export function OrdersScreen({ currentBusinessId, onSelectOrder, initialFilter, 
     isInitialLoading,
     isRefreshing: isActive && isRefreshing,
   })
-  const [deliveryFilter, setDeliveryFilter] = useState<DeliveryFilter>('all')
-  const [paymentFilter, setPaymentFilter] = useState<PaymentFilter>('all')
+
+  const [orderFilters, setOrderFilters] = useState<OrderFilters>(EMPTY_FILTERS)
+  const [panelVisible, setPanelVisible] = useState(false)
+  const listScrollRef = useRef<HTMLDivElement>(null)
+  const lastScrollTop = useRef(0)
 
   // Order creation modal state
   const [showOrderModal, setShowOrderModal] = useState(false)
@@ -81,30 +61,102 @@ export function OrdersScreen({ currentBusinessId, onSelectOrder, initialFilter, 
 
   useEffect(() => {
     if (!initialFilter) return
-    switch (initialFilter) {
-      case 'placed':     setDeliveryFilter('placed'); break
-      case 'dispatched': setDeliveryFilter('dispatched'); break
-      case 'delivered':  setDeliveryFilter('delivered'); break
-      case 'payment_pending': setPaymentFilter('pending'); break
-      case 'paid':       setPaymentFilter('paid'); break
+    const chipMap: Record<string, StatusChip> = {
+      placed: 'placed',
+      dispatched: 'dispatched',
+      delivered: 'delivered',
+      payment_pending: 'payment_pending',
+      paid: 'paid',
+    }
+    const chip = chipMap[initialFilter]
+    if (chip) {
+      setOrderFilters(prev => ({ ...prev, activeChips: new Set([chip]) }))
+      setPanelVisible(true)
     }
   }, [initialFilter])
 
+  const handleListScroll = () => {
+    const el = listScrollRef.current
+    if (!el) return
+    const st = el.scrollTop
+    if (st < lastScrollTop.current && st <= 20) {
+      setPanelVisible(true)
+    } else if (st > lastScrollTop.current && st > 40) {
+      setPanelVisible(false)
+    }
+    lastScrollTop.current = st
+  }
+
   const filteredOrders = useMemo(() => {
+    const { searchText, activeChips, fromDate, toDate } = orderFilters
+    const hasFilters = searchText.trim() || activeChips.size > 0 || fromDate || toDate
     return orders.filter(order => {
-      if (order.declinedAt) return deliveryFilter === 'all' && paymentFilter === 'all'
-      const deliveryMatch =
-        deliveryFilter === 'all' ||
-        (deliveryFilter === 'placed'     && order.lifecycleState === 'Placed') ||
-        (deliveryFilter === 'dispatched' && order.lifecycleState === 'Dispatched') ||
-        (deliveryFilter === 'delivered'  && order.lifecycleState === 'Delivered')
-      const paymentMatch =
-        paymentFilter === 'all' ||
-        (paymentFilter === 'paid'    && order.settlementState === 'Paid') ||
-        (paymentFilter === 'pending' && order.settlementState !== 'Paid')
-      return deliveryMatch && paymentMatch
+      if (order.declinedAt) return !hasFilters
+
+      if (searchText.trim()) {
+        const q = searchText.toLowerCase()
+        const matchText = order.itemSummary?.toLowerCase().includes(q)
+        const matchConn = order.connectionName?.toLowerCase().includes(q)
+        if (!matchText && !matchConn) return false
+      }
+
+      if (activeChips.size > 0) {
+        const matchChip = [...activeChips].some(chip => {
+          if (chip === 'placed')          return order.lifecycleState === 'Placed'
+          if (chip === 'dispatched')      return order.lifecycleState === 'Dispatched'
+          if (chip === 'delivered')       return order.lifecycleState === 'Delivered'
+          if (chip === 'payment_pending') return order.settlementState !== 'Paid' && order.lifecycleState === 'Delivered'
+          if (chip === 'paid')            return order.settlementState === 'Paid'
+          return false
+        })
+        if (!matchChip) return false
+      }
+
+      if (fromDate) {
+        if (startOfDay(new Date(order.createdAt)) < startOfDay(fromDate)) return false
+      }
+      if (toDate) {
+        if (startOfDay(new Date(order.createdAt)) > startOfDay(toDate)) return false
+      }
+
+      return true
     })
-  }, [orders, deliveryFilter, paymentFilter])
+  }, [orders, orderFilters])
+
+  const sectionLabel = useMemo(() => {
+    const { searchText, activeChips, fromDate, toDate } = orderFilters
+    const parts: string[] = []
+
+    if (activeChips.size > 0) {
+      const chipUpperLabels: Record<StatusChip, string> = {
+        placed: 'PLACED',
+        dispatched: 'DISPATCHED',
+        delivered: 'DELIVERED',
+        payment_pending: 'PAYMENT PENDING',
+        paid: 'PAID',
+      }
+      parts.push([...activeChips].map(c => chipUpperLabels[c]).join(' · '))
+    }
+
+    if (fromDate || toDate) {
+      const fmt = (d: Date) =>
+        d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' }).toUpperCase()
+      if (fromDate && toDate) {
+        parts.push(`${fmt(fromDate)} – ${fmt(toDate)}`)
+      } else if (fromDate) {
+        parts.push(`FROM ${fmt(fromDate)}`)
+      }
+    }
+
+    let label = parts.length > 0 ? parts.join(' · ') : 'ALL ORDERS'
+    if (searchText.trim()) {
+      label += ` · "${searchText.trim()}"`
+    }
+    return label
+  }, [orderFilters])
+
+  const hasActiveFilters =
+    orderFilters.activeChips.size > 0 || !!orderFilters.fromDate || !!orderFilters.toDate
 
   const handleOpenOrderModal = async () => {
     const allConnections = await dataStore.getConnectionsByBusinessId(currentBusinessId)
@@ -148,14 +200,6 @@ export function OrdersScreen({ currentBusinessId, onSelectOrder, initialFilter, 
       : eligibleConnections
   ), [businesses, eligibleConnections, search])
 
-  const sectionLabel = useMemo(() => {
-    if (deliveryFilter === 'all' && paymentFilter === 'all') return 'ALL ORDERS'
-    const parts: string[] = []
-    if (deliveryFilter !== 'all') parts.push(deliveryFilter.toUpperCase())
-    if (paymentFilter !== 'all') parts.push(paymentFilter === 'pending' ? 'PAYMENT DUE' : 'PAID')
-    return parts.join(' · ')
-  }, [deliveryFilter, paymentFilter])
-
   if (initialLoading) {
     return (
       <div className="flex flex-col h-full" style={{ backgroundColor: 'var(--bg-screen)' }}>
@@ -180,37 +224,98 @@ export function OrdersScreen({ currentBusinessId, onSelectOrder, initialFilter, 
           <h1 style={{ fontSize: '22px', fontWeight: 700, color: 'var(--text-primary)', letterSpacing: '-0.02em' }}>Orders</h1>
         </div>
         <ScreenRefreshIndicator refreshing={refreshing} />
-        <div style={{ borderBottom: '1px solid var(--border-light)', padding: '8px 16px' }}>
-          <div className="filter-bar">
-            {/* Left: Delivery zone */}
-            <div className="filter-group" style={{ flex: 4 }}>
-              <FilterTab group="delivery" value="all"        icon={<List size={20} weight="regular" />}        iconColor="#185FA5" label="All"     deliveryFilter={deliveryFilter} paymentFilter={paymentFilter} onDeliveryChange={setDeliveryFilter} onPaymentChange={setPaymentFilter} />
-              <FilterTab group="delivery" value="placed"     icon={<NotePencil size={20} weight="regular" />}  iconColor="#D97706" label="Placed"  deliveryFilter={deliveryFilter} paymentFilter={paymentFilter} onDeliveryChange={setDeliveryFilter} onPaymentChange={setPaymentFilter} />
-              <FilterTab group="delivery" value="dispatched" icon={<Truck size={20} weight="regular" />}       iconColor="#2563EB" label="Disp'd"  deliveryFilter={deliveryFilter} paymentFilter={paymentFilter} onDeliveryChange={setDeliveryFilter} onPaymentChange={setPaymentFilter} />
-              <FilterTab group="delivery" value="delivered"  icon={<Package size={20} weight="regular" />}     iconColor="#059669" label="Deliv'd" deliveryFilter={deliveryFilter} paymentFilter={paymentFilter} onDeliveryChange={setDeliveryFilter} onPaymentChange={setPaymentFilter} />
-            </div>
+        <OrderSearchPanel
+          visible={panelVisible}
+          filters={orderFilters}
+          onFiltersChange={setOrderFilters}
+          placeholder="Search orders…"
+        />
 
-            <div className="filter-divider" />
-
-            {/* Right: Payment zone */}
-            <div className="filter-group" style={{ flex: 2 }}>
-              <FilterTab group="payment" value="pending" icon={<span style={{ display: 'flex', alignItems: 'center', gap: '1px', fontWeight: 600, fontSize: '11px', lineHeight: 1 }}>₹<Hourglass size={13} weight="regular" /></span>} iconColor="#D97706" label="Due"  deliveryFilter={deliveryFilter} paymentFilter={paymentFilter} onDeliveryChange={setDeliveryFilter} onPaymentChange={setPaymentFilter} />
-              <FilterTab group="payment" value="paid"    icon={<span style={{ display: 'flex', alignItems: 'center', gap: '1px', fontWeight: 600, fontSize: '11px', lineHeight: 1 }}>₹<Check size={13} weight="bold" /></span>}     iconColor="#1D9E75" label="Paid" deliveryFilter={deliveryFilter} paymentFilter={paymentFilter} onDeliveryChange={setDeliveryFilter} onPaymentChange={setPaymentFilter} />
-            </div>
+        {/* Active filter pills */}
+        {hasActiveFilters && (
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px', padding: '6px 16px 8px' }}>
+            {[...orderFilters.activeChips].map(chip => (
+              <div
+                key={chip}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '2px',
+                  backgroundColor: '#E8EDFF',
+                  borderRadius: '20px',
+                  padding: '3px 6px 3px 10px',
+                }}
+              >
+                <span style={{ fontSize: '10px', fontWeight: 600, color: '#4A6CF7' }}>
+                  {CHIP_LABELS[chip]}
+                </span>
+                <button
+                  onClick={() => {
+                    const newChips = new Set(orderFilters.activeChips)
+                    newChips.delete(chip)
+                    setOrderFilters(prev => ({ ...prev, activeChips: newChips }))
+                  }}
+                  style={{ display: 'flex', alignItems: 'center', color: '#4A6CF7', paddingLeft: '4px', background: 'none', border: 'none', cursor: 'pointer' }}
+                >
+                  <X size={10} weight="bold" />
+                </button>
+              </div>
+            ))}
+            {(orderFilters.fromDate || orderFilters.toDate) && (
+              <div
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '2px',
+                  backgroundColor: '#E8EDFF',
+                  borderRadius: '20px',
+                  padding: '3px 6px 3px 10px',
+                }}
+              >
+                <span style={{ fontSize: '10px', fontWeight: 600, color: '#4A6CF7' }}>
+                  {orderFilters.fromDate && orderFilters.toDate
+                    ? `${formatDateShort(orderFilters.fromDate)} – ${formatDateShort(orderFilters.toDate)}`
+                    : orderFilters.fromDate
+                    ? `From ${formatDateShort(orderFilters.fromDate)}`
+                    : `To ${formatDateShort(orderFilters.toDate!)}`}
+                </span>
+                <button
+                  onClick={() => setOrderFilters(prev => ({ ...prev, fromDate: null, toDate: null }))}
+                  style={{ display: 'flex', alignItems: 'center', color: '#4A6CF7', paddingLeft: '4px', background: 'none', border: 'none', cursor: 'pointer' }}
+                >
+                  <X size={10} weight="bold" />
+                </button>
+              </div>
+            )}
           </div>
-        </div>
+        )}
       </div>
 
-      <div className="flex-1 overflow-y-auto px-4 pt-3 pb-24">
+      <div
+        ref={listScrollRef}
+        onScroll={handleListScroll}
+        className="flex-1 overflow-y-auto px-4 pt-3 pb-24"
+      >
         <div className="flex items-center justify-between mb-[10px]">
           <p style={{ fontSize: '13px', fontWeight: 700, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.08em' }}>
             {sectionLabel}
           </p>
-          <InlineRefreshSpinner refreshing={refreshing} />
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            {orders.length > 0 && filteredOrders.length !== orders.length && (
+              <p style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>
+                {filteredOrders.length} of {orders.length} orders
+              </p>
+            )}
+            <InlineRefreshSpinner refreshing={refreshing} />
+          </div>
         </div>
         {filteredOrders.length === 0 ? (
           <div className="flex items-center justify-center py-16">
-            <p style={{ fontSize: '14px', fontWeight: 500, color: 'var(--text-secondary)' }}>No orders found</p>
+            <p style={{ fontSize: '13px', color: 'var(--text-secondary)' }}>
+              {hasActiveFilters || orderFilters.searchText.trim()
+                ? 'No orders match your filters'
+                : 'No orders found'}
+            </p>
           </div>
         ) : (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--sp-md)' }}>

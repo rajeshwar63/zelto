@@ -1,4 +1,4 @@
-import { useEffect, useState, useRef, type TouchEvent } from 'react'
+import { useEffect, useState, useRef } from 'react'
 import { dataStore } from '@/lib/data-store'
 import { insightEngine } from '@/lib/insight-engine'
 import type { Insight } from '@/lib/insight-engine'
@@ -21,6 +21,8 @@ import { OrderAttachmentsSection } from '@/components/order/OrderAttachmentsSect
 import { buildOrderTimeline, formatPaymentTerms, getLifecycleState } from '@/components/order/order-detail-utils'
 import { OrderCard } from '@/components/order/OrderCard'
 import { LedgerDownloadSheet } from '@/components/LedgerDownloadSheet'
+import { OrderSearchPanel, type OrderFilters, type StatusChip } from '@/components/order/OrderSearchPanel'
+import { startOfDay } from 'date-fns'
 
 
 interface Props {
@@ -31,13 +33,11 @@ interface Props {
   onOpenOrderDetail: (orderId: string, connectionId: string) => void
 }
 
-type TimeFilter = '7d' | '30d' | '90d' | '1y'
-
-const filterDurations: Record<TimeFilter, number> = {
-  '7d': 7 * 24 * 60 * 60 * 1000,
-  '30d': 30 * 24 * 60 * 60 * 1000,
-  '90d': 90 * 24 * 60 * 60 * 1000,
-  '1y': 365 * 24 * 60 * 60 * 1000,
+const EMPTY_FILTERS: OrderFilters = {
+  searchText: '',
+  activeChips: new Set<StatusChip>(),
+  fromDate: null,
+  toDate: null,
 }
 
 export function ConnectionDetailScreen({ connectionId, currentBusinessId, onBack, onNavigateToPaymentTermsSetup, onOpenOrderDetail }: Props) {
@@ -45,7 +45,10 @@ export function ConnectionDetailScreen({ connectionId, currentBusinessId, onBack
   const [otherBusiness, setOtherBusiness] = useState<BusinessEntity | null>(null)
   const [orders, setOrders] = useState<OrderWithPaymentState[]>([])
   const [insights, setInsights] = useState<Insight[]>([])
-  const [timeFilter, setTimeFilter] = useState<TimeFilter>('30d')
+  const [orderFilters, setOrderFilters] = useState<OrderFilters>(EMPTY_FILTERS)
+  const [panelVisible, setPanelVisible] = useState(false)
+  const listScrollRef = useRef<HTMLDivElement>(null)
+  const lastScrollTop = useRef(0)
   const [loading, setLoading] = useState(true)
   const [newOrderMessage, setNewOrderMessage] = useState('')
   const [creatingOrder, setCreatingOrder] = useState(false)
@@ -58,6 +61,7 @@ export function ConnectionDetailScreen({ connectionId, currentBusinessId, onBack
   const [editBranch, setEditBranch] = useState('')
   const [editContact, setEditContact] = useState('')
   const [savingContact, setSavingContact] = useState(false)
+
   const loadHeaderData = async () => {
     try {
       const conn = await dataStore.getConnectionById(connectionId, currentBusinessId)
@@ -119,6 +123,18 @@ export function ConnectionDetailScreen({ connectionId, currentBusinessId, onBack
     () => { loadOrders() }
   )
 
+  const handleListScroll = () => {
+    const el = listScrollRef.current
+    if (!el) return
+    const st = el.scrollTop
+    if (st < lastScrollTop.current && st <= 20) {
+      setPanelVisible(true)
+    } else if (st > lastScrollTop.current && st > 40) {
+      setPanelVisible(false)
+    }
+    lastScrollTop.current = st
+  }
+
   const handleArchiveOrder = (orderId: string) => {
     doArchiveOrder(currentBusinessId, orderId)
     refreshArchivedIds()
@@ -179,17 +195,51 @@ export function ConnectionDetailScreen({ connectionId, currentBusinessId, onBack
     )
   }
 
-  const timeFilteredOrders = orders.filter(order => order.createdAt >= Date.now() - filterDurations[timeFilter])
-  const activeOrders = timeFilteredOrders.filter(o => !archivedIds.has(o.id))
-  const archivedOrders = timeFilteredOrders.filter(o => archivedIds.has(o.id))
+  // Apply search/chip/date filters to orders
+  const { searchText, activeChips, fromDate, toDate } = orderFilters
+  const searchFiltered = orders.filter(order => {
+    if (searchText.trim()) {
+      const q = searchText.toLowerCase()
+      if (!order.itemSummary?.toLowerCase().includes(q)) return false
+    }
+
+    if (activeChips.size > 0) {
+      const lifecycle = getLifecycleState(order)
+      const matchChip = [...activeChips].some(chip => {
+        if (chip === 'placed')          return lifecycle === 'Placed'
+        if (chip === 'dispatched')      return lifecycle === 'Dispatched'
+        if (chip === 'delivered')       return lifecycle === 'Delivered'
+        if (chip === 'payment_pending') return order.settlementState !== 'Paid' && lifecycle === 'Delivered'
+        if (chip === 'paid')            return order.settlementState === 'Paid'
+        return false
+      })
+      if (!matchChip) return false
+    }
+
+    if (fromDate) {
+      if (startOfDay(new Date(order.createdAt)) < startOfDay(fromDate)) return false
+    }
+    if (toDate) {
+      if (startOfDay(new Date(order.createdAt)) > startOfDay(toDate)) return false
+    }
+
+    return true
+  })
+
+  // Stats are based on all non-archived active orders (not affected by search filter)
+  const allActiveOrders = orders.filter(o => !archivedIds.has(o.id))
+  const activeOrders = searchFiltered.filter(o => !archivedIds.has(o.id))
+  const archivedOrders = searchFiltered.filter(o => archivedIds.has(o.id))
   const filteredOrders = showArchived ? archivedOrders : activeOrders
-  const totalOrders = activeOrders.length
-  const totalValue = activeOrders.reduce((sum, order) => sum + order.orderValue, 0)
-  const outstandingBalance = activeOrders.reduce((sum, order) => {
+
+  const totalOrders = allActiveOrders.length
+  const totalValue = allActiveOrders.reduce((sum, order) => sum + order.orderValue, 0)
+  const outstandingBalance = allActiveOrders.reduce((sum, order) => {
     if (order.settlementState !== 'Paid') return sum + (order.pendingAmount || 0)
     return sum
   }, 0)
-const isSupplier = connection.supplierBusinessId === currentBusinessId
+
+  const isSupplier = connection.supplierBusinessId === currentBusinessId
   const isBuyer = connection.buyerBusinessId === currentBusinessId
   const canPlaceOrder = isBuyer && connection.paymentTerms !== null
 
@@ -212,9 +262,17 @@ const isSupplier = connection.supplierBusinessId === currentBusinessId
             <span style={{ fontSize: '13px', fontWeight: 600 }}>Ledger</span>
           </button>
         </div>
+        <OrderSearchPanel
+          visible={panelVisible}
+          filters={orderFilters}
+          onFiltersChange={setOrderFilters}
+          placeholder="Search orders in this connection…"
+        />
       </div>
 
       <div
+        ref={listScrollRef}
+        onScroll={handleListScroll}
         className="flex-1 overflow-y-auto"
       >
         {/* Unified Contact Row — single line */}
@@ -324,44 +382,27 @@ const isSupplier = connection.supplierBusinessId === currentBusinessId
           })()}
         </div>
 
-        {/* Orders section header with inline time filter */}
+        {/* Orders section header */}
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '8px 16px 6px' }}>
           <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-primary)' }}>
             Orders ({filteredOrders.length})
           </span>
-          <div style={{ display: 'flex', gap: 4 }}>
-            {(['7d', '30d', '90d', '1y'] as TimeFilter[]).map(f => (
-              <button
-                key={f}
-                onClick={() => setTimeFilter(f)}
-                style={{
-                  fontSize: 11,
-                  padding: '3px 8px',
-                  borderRadius: 20,
-                  border: timeFilter === f
-                    ? '0.5px solid var(--accent-blue)'
-                    : '0.5px solid var(--border-subtle)',
-                  background: timeFilter === f
-                    ? 'var(--accent-blue-subtle)'
-                    : 'transparent',
-                  color: timeFilter === f
-                    ? 'var(--accent-blue)'
-                    : 'var(--text-secondary)',
-                  fontWeight: timeFilter === f ? 500 : 400,
-                  cursor: 'pointer',
-                }}
-              >
-                {f === '1y' ? '1yr' : f}
-              </button>
-            ))}
-          </div>
+          {filteredOrders.length !== allActiveOrders.length && !showArchived && (
+            <span style={{ fontSize: 12, color: 'var(--text-secondary)' }}>
+              {filteredOrders.length} of {allActiveOrders.length}
+            </span>
+          )}
         </div>
 
         <div className="px-3 pb-4 space-y-3">
           {filteredOrders.length === 0 ? (
             <div className="px-4 py-8 text-center">
               <p className="text-[13px] text-muted-foreground">
-                {showArchived ? 'No archived orders' : 'No orders in this period'}
+                {showArchived
+                  ? 'No archived orders'
+                  : (searchText.trim() || activeChips.size > 0 || fromDate || toDate)
+                  ? 'No orders match your filters'
+                  : 'No orders in this connection'}
               </p>
             </div>
           ) : (
@@ -622,4 +663,3 @@ function SwipeableOrderRow({
     </div>
   )
 }
-
