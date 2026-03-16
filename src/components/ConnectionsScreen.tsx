@@ -346,14 +346,7 @@ export function ConnectionsScreen({ currentBusinessId, onSelectConnection, onAdd
               <DownloadSimple size={17} weight="bold" />
               <span style={{ fontSize: '13px', fontWeight: 600 }}>Ledger</span>
             </button>
-            <button
-              onClick={onNavigateToIncomingRequests}
-              className="flex items-center"
-              style={{ color: 'var(--brand-primary)', minWidth: '44px', minHeight: '44px', justifyContent: 'center' }}
-            >
-              <Inbox size={20} color="#333" />
-            </button>
-            <button onClick={onAddConnection} className="flex items-center" style={{ color: 'var(--brand-primary)', minWidth: '44px', minHeight: '44px', justifyContent: 'center' }}>
+<button onClick={onAddConnection} className="flex items-center" style={{ color: 'var(--brand-primary)', minWidth: '44px', minHeight: '44px', justifyContent: 'center' }}>
               <Plus size={20} weight="regular" />
               <Users size={20} weight="regular" />
             </button>
