@@ -10,7 +10,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { toast } from 'sonner'
 import { getConnectionStateColor } from '@/lib/semantic-colors'
-import { motion, useMotionValue, useTransform, animate, PanInfo } from 'framer-motion'
+import { motion, AnimatePresence, useMotionValue, useTransform, animate, PanInfo } from 'framer-motion'
 import { getArchivedOrderIds, archiveOrder as doArchiveOrder, unarchiveOrder as doUnarchiveOrder } from '@/lib/archive-store'
 import { markOrderSeen } from '@/lib/unread-tracker'
 import { buildConnectionSubtitle, formatInrCurrency } from '@/lib/utils'
@@ -262,12 +262,24 @@ export function ConnectionDetailScreen({ connectionId, currentBusinessId, onBack
             <span style={{ fontSize: '13px', fontWeight: 600 }}>Ledger</span>
           </button>
         </div>
-        <OrderSearchPanel
-          visible={panelVisible}
-          filters={orderFilters}
-          onFiltersChange={setOrderFilters}
-          placeholder="Search orders in this connection…"
-        />
+        <AnimatePresence>
+          {panelVisible && (
+            <motion.div
+              key="filter-panel"
+              initial={{ opacity: 0, y: -10 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -10 }}
+              transition={{ duration: 0.22, ease: [0.4, 0, 0.2, 1] }}
+              style={{ overflow: 'hidden' }}
+            >
+              <OrderSearchPanel
+                filters={orderFilters}
+                onFiltersChange={setOrderFilters}
+                placeholder="Search orders in this connection…"
+              />
+            </motion.div>
+          )}
+        </AnimatePresence>
       </div>
 
       <div
