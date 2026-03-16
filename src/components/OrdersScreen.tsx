@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState, useRef } from 'react'
+import { motion, AnimatePresence } from 'framer-motion'
 import { dataStore } from '@/lib/data-store'
 import { createOrder } from '@/lib/interactions'
 import { useOrdersData } from '@/hooks/data/use-business-data'
@@ -79,8 +80,9 @@ export function OrdersScreen({ currentBusinessId, onSelectOrder, initialFilter, 
     const el = listScrollRef.current
     if (!el) return
     const st = el.scrollTop
-    setPanelVisible(st > 20)
     lastScrollTop.current = st
+    if (st > 30) setPanelVisible(true)
+    else if (st <= 8) setPanelVisible(false)
   }
 
   const filteredOrders = useMemo(() => {
@@ -220,71 +222,83 @@ export function OrdersScreen({ currentBusinessId, onSelectOrder, initialFilter, 
           <h1 style={{ fontSize: '22px', fontWeight: 700, color: 'var(--text-primary)', letterSpacing: '-0.02em' }}>Orders</h1>
         </div>
         <ScreenRefreshIndicator refreshing={refreshing} />
-        <OrderSearchPanel
-          visible={panelVisible}
-          filters={orderFilters}
-          onFiltersChange={setOrderFilters}
-          placeholder="Search orders…"
-        />
+        <AnimatePresence>
+          {panelVisible && (
+            <motion.div
+              key="filter-panel"
+              initial={{ opacity: 0, y: -10 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -10 }}
+              transition={{ duration: 0.22, ease: [0.4, 0, 0.2, 1] }}
+              style={{ overflow: 'hidden' }}
+            >
+              <OrderSearchPanel
+                filters={orderFilters}
+                onFiltersChange={setOrderFilters}
+                placeholder="Search orders…"
+              />
 
-        {/* Active filter pills */}
-        {hasActiveFilters && (
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px', padding: '6px 16px 8px' }}>
-            {[...orderFilters.activeChips].map(chip => (
-              <div
-                key={chip}
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '2px',
-                  backgroundColor: '#E8EDFF',
-                  borderRadius: '20px',
-                  padding: '3px 6px 3px 10px',
-                }}
-              >
-                <span style={{ fontSize: '10px', fontWeight: 600, color: '#4A6CF7' }}>
-                  {CHIP_LABELS[chip]}
-                </span>
-                <button
-                  onClick={() => {
-                    const newChips = new Set(orderFilters.activeChips)
-                    newChips.delete(chip)
-                    setOrderFilters(prev => ({ ...prev, activeChips: newChips }))
-                  }}
-                  style={{ display: 'flex', alignItems: 'center', color: '#4A6CF7', paddingLeft: '4px', background: 'none', border: 'none', cursor: 'pointer' }}
-                >
-                  <X size={10} weight="bold" />
-                </button>
-              </div>
-            ))}
-            {(orderFilters.fromDate || orderFilters.toDate) && (
-              <div
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '2px',
-                  backgroundColor: '#E8EDFF',
-                  borderRadius: '20px',
-                  padding: '3px 6px 3px 10px',
-                }}
-              >
-                <span style={{ fontSize: '10px', fontWeight: 600, color: '#4A6CF7' }}>
-                  {orderFilters.fromDate && orderFilters.toDate
-                    ? `${formatDateShort(orderFilters.fromDate)} – ${formatDateShort(orderFilters.toDate)}`
-                    : orderFilters.fromDate
-                    ? `From ${formatDateShort(orderFilters.fromDate)}`
-                    : `To ${formatDateShort(orderFilters.toDate!)}`}
-                </span>
-                <button
-                  onClick={() => setOrderFilters(prev => ({ ...prev, fromDate: null, toDate: null }))}
-                  style={{ display: 'flex', alignItems: 'center', color: '#4A6CF7', paddingLeft: '4px', background: 'none', border: 'none', cursor: 'pointer' }}
-                >
-                  <X size={10} weight="bold" />
-                </button>
-              </div>
-            )}
-          </div>
-        )}
+              {/* Active filter pills */}
+              {hasActiveFilters && (
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px', padding: '6px 16px 8px' }}>
+                  {[...orderFilters.activeChips].map(chip => (
+                    <div
+                      key={chip}
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '2px',
+                        backgroundColor: '#E8EDFF',
+                        borderRadius: '20px',
+                        padding: '3px 6px 3px 10px',
+                      }}
+                    >
+                      <span style={{ fontSize: '10px', fontWeight: 600, color: '#4A6CF7' }}>
+                        {CHIP_LABELS[chip]}
+                      </span>
+                      <button
+                        onClick={() => {
+                          const newChips = new Set(orderFilters.activeChips)
+                          newChips.delete(chip)
+                          setOrderFilters(prev => ({ ...prev, activeChips: newChips }))
+                        }}
+                        style={{ display: 'flex', alignItems: 'center', color: '#4A6CF7', paddingLeft: '4px', background: 'none', border: 'none', cursor: 'pointer' }}
+                      >
+                        <X size={10} weight="bold" />
+                      </button>
+                    </div>
+                  ))}
+                  {(orderFilters.fromDate || orderFilters.toDate) && (
+                    <div
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '2px',
+                        backgroundColor: '#E8EDFF',
+                        borderRadius: '20px',
+                        padding: '3px 6px 3px 10px',
+                      }}
+                    >
+                      <span style={{ fontSize: '10px', fontWeight: 600, color: '#4A6CF7' }}>
+                        {orderFilters.fromDate && orderFilters.toDate
+                          ? `${formatDateShort(orderFilters.fromDate)} – ${formatDateShort(orderFilters.toDate)}`
+                          : orderFilters.fromDate
+                          ? `From ${formatDateShort(orderFilters.fromDate)}`
+                          : `To ${formatDateShort(orderFilters.toDate!)}`}
+                      </span>
+                      <button
+                        onClick={() => setOrderFilters(prev => ({ ...prev, fromDate: null, toDate: null }))}
+                        style={{ display: 'flex', alignItems: 'center', color: '#4A6CF7', paddingLeft: '4px', background: 'none', border: 'none', cursor: 'pointer' }}
+                      >
+                        <X size={10} weight="bold" />
+                      </button>
+                    </div>
+                  )}
+                </div>
+              )}
+            </motion.div>
+          )}
+        </AnimatePresence>
       </div>
 
       <div
