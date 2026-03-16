@@ -1,4 +1,4 @@
-import { ArrowDown, ArrowUp, CaretRight, CurrencyInr, Hourglass, NotePencil, Package, ShieldWarning, Truck } from '@phosphor-icons/react'
+import { ArrowDown, ArrowUp, CaretRight, CurrencyInr, Hourglass, NotePencil, Package, ShieldWarning, Truck, UsersThree } from '@phosphor-icons/react'
 import { CredibilityBadge } from '@/components/CredibilityBadge'
 import { BadgeInfoSheet } from '@/components/BadgeInfoSheet'
 import { useEffect, useState } from 'react'
@@ -13,10 +13,11 @@ interface Props {
   onNavigateToProfile: () => void
   onNavigateToConnections: (filter?: string) => void
   onNavigateToAttention: (filter?: string) => void
+  onNavigateToManageConnections?: () => void
   isActive?: boolean
 }
 
-export function DashboardScreen({ currentBusinessId, onNavigateToOrders, onNavigateToConnection, onNavigateToProfile, onNavigateToConnections, onNavigateToAttention, isActive = true }: Props) {
+export function DashboardScreen({ currentBusinessId, onNavigateToOrders, onNavigateToConnection, onNavigateToProfile, onNavigateToConnections, onNavigateToAttention, onNavigateToManageConnections, isActive = true }: Props) {
   const [tradePositionCarouselApi, setTradePositionCarouselApi] = useState<CarouselApi>()
   const [activeTradePositionSlide, setActiveTradePositionSlide] = useState(0)
   const [showBadgeInfo, setShowBadgeInfo] = useState(false)
@@ -303,6 +304,28 @@ export function DashboardScreen({ currentBusinessId, onNavigateToOrders, onNavig
             Needs Attention
           </h2>
           <div className="space-y-3">
+            {attentionCounts.pendingReceivedRequests > 0 && onNavigateToManageConnections && (
+              <button
+                onClick={onNavigateToManageConnections}
+                className="w-full flex items-center justify-between rounded-xl px-4 py-3 text-left"
+                style={{
+                  backgroundColor: 'var(--bg-card)',
+                  borderLeft: '3px solid #4A6CF7',
+                }}
+              >
+                <div className="flex items-center gap-3">
+                  <div className="w-7 h-7 rounded-lg flex items-center justify-center" style={{ backgroundColor: '#EEF2FF' }}>
+                    <UsersThree size={15} weight="regular" color="#4A6CF7" />
+                  </div>
+                  <p className="text-[14px] text-foreground font-semibold">Connection Requests</p>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="inline-flex items-center justify-center min-w-6 h-6 px-2 rounded-full text-[12px] font-bold text-white" style={{ backgroundColor: '#4A6CF7' }}>{attentionCounts.pendingReceivedRequests}</span>
+                  <CaretRight size={16} className="text-muted-foreground" />
+                </div>
+              </button>
+            )}
+
             {attentionCounts.approvalNeeded > 0 && (
               <button
                 onClick={() => onNavigateToOrders('placed')}
@@ -417,7 +440,8 @@ export function DashboardScreen({ currentBusinessId, onNavigateToOrders, onNavig
               attentionCounts.dispatched === 0 &&
               attentionCounts.delivered === 0 &&
               attentionCounts.paymentPending === 0 &&
-              attentionCounts.disputes === 0 && (
+              attentionCounts.disputes === 0 &&
+              attentionCounts.pendingReceivedRequests === 0 && (
                 <div className="bg-white border border-border rounded-xl px-4 py-6 text-center">
                   <p className="text-[13px] text-muted-foreground">All caught up — nothing needs attention right now.</p>
                 </div>

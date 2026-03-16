@@ -21,6 +21,7 @@ interface AttentionCounts {
   delivered: number
   paymentPending: number
   disputes: number
+  pendingReceivedRequests: number
 }
 
 interface BusinessOverviewData {
@@ -122,16 +123,20 @@ export function useBusinessOverviewData(currentBusinessId: string, isActive = tr
   return useCachedQuery<BusinessOverviewData>({
     key: `business-overview:${currentBusinessId}`,
     isActive,
-    events: ['orders:changed', 'payments:changed', 'connections:changed', 'issues:changed'],
+    events: ['orders:changed', 'payments:changed', 'connections:changed', 'issues:changed', 'connection-requests:changed'],
     fetcher: async () => {
-      const [orders, connections, entities, attentionItems, session, credibility] = await Promise.all([
+      const [orders, connections, entities, attentionItems, session, credibility, allRequests] = await Promise.all([
         dataStore.getOrdersWithPaymentStateByBusinessId(currentBusinessId),
         dataStore.getConnectionsByBusinessId(currentBusinessId),
         dataStore.getAllBusinessEntities(),
         attentionEngine.getAttentionItems(currentBusinessId),
         getAuthSession(),
         calculateCredibility(currentBusinessId),
+        dataStore.getAllConnectionRequests(),
       ])
+      const pendingReceivedRequests = allRequests.filter(
+        r => r.receiverBusinessId === currentBusinessId && r.status === 'Pending'
+      ).length
 
       const orderIds = orders.map(order => order.id)
       const paymentEvents = orderIds.length > 0
@@ -338,6 +343,7 @@ export function useBusinessOverviewData(currentBusinessId: string, isActive = tr
           delivered,
           paymentPending,
           disputes,
+          pendingReceivedRequests,
         },
         credibility,
       }

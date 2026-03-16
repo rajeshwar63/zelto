@@ -18,6 +18,7 @@ interface Props {
   currentBusinessId: string
   onBack: () => void
   onSuccess: () => void
+  initialTab?: Tab
 }
 
 function formatPaymentTerms(terms: Connection['paymentTerms']): string | null {
@@ -37,8 +38,8 @@ const TABS: { id: Tab; label: string }[] = [
   { id: 'archived', label: 'Archived' },
 ]
 
-export function ManageConnectionsScreen({ currentBusinessId, onBack, onSuccess }: Props) {
-  const [activeTab, setActiveTab] = useState<Tab>('add')
+export function ManageConnectionsScreen({ currentBusinessId, onBack, onSuccess, initialTab }: Props) {
+  const [activeTab, setActiveTab] = useState<Tab>(initialTab ?? 'add')
   const [requests, setRequests] = useState<ConnectionRequest[]>([])
   const [entities, setEntities] = useState<BusinessEntity[]>([])
   const [connections, setConnections] = useState<Connection[]>([])
@@ -62,6 +63,9 @@ export function ManageConnectionsScreen({ currentBusinessId, onBack, onSuccess }
   const [sentSearch, setSentSearch] = useState('')
   const [receivedSearch, setReceivedSearch] = useState('')
   const [archivedSearch, setArchivedSearch] = useState('')
+
+  // Credibility data for received request senders
+  const [receivedActivityMap, setReceivedActivityMap] = useState<Map<string, { connectionCount: number; orderCount: number }>>(new Map())
 
   // Action state
   const [actionInProgress, setActionInProgress] = useState<string | null>(null)
@@ -93,6 +97,18 @@ export function ManageConnectionsScreen({ currentBusinessId, onBack, onSuccess }
   useDataListener(['connection-requests:changed'], () => {
     void dataStore.getAllConnectionRequests().then(reqs => setRequests(reqs))
   })
+
+  useEffect(() => {
+    const pending = requests.filter(r => r.receiverBusinessId === currentBusinessId && r.status === 'Pending')
+    if (pending.length === 0) return
+    void Promise.all(
+      pending.map(r =>
+        getBusinessActivityCounts(r.requesterBusinessId).then(counts => ({ id: r.requesterBusinessId, counts }))
+      )
+    ).then(results => {
+      setReceivedActivityMap(new Map(results.map(r => [r.id, r.counts])))
+    })
+  }, [requests, currentBusinessId])
 
   const entityMap = new Map<string, BusinessEntity>(entities.map(e => [e.id, e] as [string, BusinessEntity]))
 
@@ -465,6 +481,130 @@ export function ManageConnectionsScreen({ currentBusinessId, onBack, onSuccess }
 
     const showActions = isPending || isBlocked
 
+    if (isPending) {
+      const score = otherBusiness?.credibilityScore ?? 0
+      const level = scoreToLevel(score)
+      const activity = receivedActivityMap.get(request.requesterBusinessId)
+
+      return (
+        <div key={request.id} style={{ padding: '12px 16px', borderBottom: '1px solid var(--border-light)', backgroundColor: 'var(--bg-screen)' }}>
+          <div style={{ borderRadius: 'var(--radius-card)', border: '1px solid var(--border-light)', backgroundColor: 'var(--bg-card)', boxShadow: '0 2px 12px rgba(0,0,0,0.06)', padding: '16px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
+            {/* Header */}
+            <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '8px' }}>
+              <div style={{ minWidth: 0 }}>
+                <p style={{ fontSize: '17px', fontWeight: 700, color: 'var(--text-primary)', margin: 0, lineHeight: 1.25, letterSpacing: '-0.01em' }}>
+                  {otherBusiness?.businessName || 'Unknown Business'}
+                </p>
+                <p style={{ fontSize: '11px', fontFamily: 'monospace', color: 'var(--text-tertiary)', marginTop: '3px', marginBottom: 0, letterSpacing: '0.04em' }}>
+                  {otherBusiness?.zeltoId}
+                </p>
+              </div>
+              <CredibilityBadge level={level} />
+            </div>
+
+            {/* Details */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '5px' }}>
+              {otherBusiness?.formattedAddress && (
+                <div style={{ display: 'flex', alignItems: 'flex-start', gap: '7px' }}>
+                  <MapPin size={13} weight="regular" style={{ color: 'var(--text-tertiary)', flexShrink: 0, marginTop: '1px' }} />
+                  <p style={{ fontSize: '12.5px', color: 'var(--text-secondary)', margin: 0, lineHeight: 1.4 }}>{otherBusiness.formattedAddress}</p>
+                </div>
+              )}
+              {otherBusiness?.phone && (
+                <div style={{ display: 'flex', alignItems: 'center', gap: '7px' }}>
+                  <Phone size={13} weight="regular" style={{ color: 'var(--text-tertiary)', flexShrink: 0 }} />
+                  <p style={{ fontSize: '12.5px', color: 'var(--text-secondary)', margin: 0 }}>{otherBusiness.phone}</p>
+                </div>
+              )}
+              {otherBusiness?.gstNumber && (
+                <div style={{ display: 'flex', alignItems: 'center', gap: '7px' }}>
+                  <Receipt size={13} weight="regular" style={{ color: 'var(--text-tertiary)', flexShrink: 0 }} />
+                  <p style={{ fontSize: '12.5px', color: 'var(--text-secondary)', margin: 0 }}>GST: {otherBusiness.gstNumber}</p>
+                </div>
+              )}
+              {otherBusiness?.businessType && (
+                <div style={{ display: 'flex', alignItems: 'center', gap: '7px' }}>
+                  <Briefcase size={13} weight="regular" style={{ color: 'var(--text-tertiary)', flexShrink: 0 }} />
+                  <p style={{ fontSize: '12.5px', color: 'var(--text-secondary)', margin: 0 }}>{otherBusiness.businessType}</p>
+                </div>
+              )}
+              {!otherBusiness?.phone && !otherBusiness?.gstNumber && !otherBusiness?.formattedAddress && (
+                <p style={{ fontSize: '12px', color: 'var(--text-tertiary)', fontStyle: 'italic', margin: 0 }}>No details added</p>
+              )}
+            </div>
+
+            {/* Activity stat block */}
+            {activity && (
+              <div style={{ display: 'flex', background: 'var(--color-background-secondary)', borderRadius: '10px', border: '1px solid var(--border-light)', overflow: 'hidden' }}>
+                <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '10px 8px', gap: '3px' }}>
+                  <UsersThree size={16} weight="duotone" style={{ color: '#4A6CF7' }} />
+                  <p style={{ fontSize: '17px', fontWeight: 600, margin: 0, lineHeight: 1.1, color: 'var(--text-primary)' }}>{activity.connectionCount}</p>
+                  <p style={{ fontSize: '10px', color: 'var(--text-secondary)', margin: 0, textAlign: 'center', lineHeight: 1.3 }}>connections</p>
+                </div>
+                <div style={{ width: '1px', background: 'var(--border-light)', alignSelf: 'stretch' }} />
+                <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '10px 8px', gap: '3px' }}>
+                  <Package size={16} weight="duotone" style={{ color: '#FF8C42' }} />
+                  <p style={{ fontSize: '17px', fontWeight: 600, margin: 0, lineHeight: 1.1, color: 'var(--text-primary)' }}>{activity.orderCount}</p>
+                  <p style={{ fontSize: '10px', color: 'var(--text-secondary)', margin: 0, textAlign: 'center', lineHeight: 1.3 }}>orders placed</p>
+                </div>
+                <div style={{ width: '1px', background: 'var(--border-light)', alignSelf: 'stretch' }} />
+                <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '10px 8px', gap: '3px' }}>
+                  <Medal size={16} weight="duotone" style={{ color: '#0D9488' }} />
+                  <p style={{ fontSize: '17px', fontWeight: 600, margin: 0, lineHeight: 1.1, color: 'var(--text-primary)' }}>
+                    {score}<span style={{ fontSize: '11px', fontWeight: 400, color: 'var(--text-secondary)' }}>/100</span>
+                  </p>
+                  <p style={{ fontSize: '10px', color: 'var(--text-secondary)', margin: 0, textAlign: 'center', lineHeight: 1.3 }}>trust score</p>
+                </div>
+              </div>
+            )}
+
+            {/* Low-trust warning */}
+            {score < 20 && (
+              <div style={{ background: 'var(--color-background-warning)', borderLeft: '3px solid #EF9F27', borderRadius: '6px', padding: '8px 10px' }}>
+                <p style={{ fontSize: '12px', color: 'var(--color-text-warning)', margin: 0 }}>
+                  This business hasn't built a history on Zelto yet. Verify before connecting.
+                </p>
+              </div>
+            )}
+
+            {/* Role + time */}
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px' }}>
+              <p style={{ fontSize: '13px', color: 'var(--text-secondary)', margin: 0 }}>{roleLabel}</p>
+              <p style={{ fontSize: '12px', color: 'var(--text-tertiary)', margin: 0 }}>{formatDistanceToNow(request.createdAt, { addSuffix: true })}</p>
+            </div>
+
+            {/* Actions */}
+            <div style={{ display: 'flex', gap: '8px' }}>
+              <Button
+                size="sm"
+                onClick={() => handleAcceptRequest(request)}
+                disabled={actionInProgress === request.id}
+              >
+                Accept
+              </Button>
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => handleDeclineRequest(request.id)}
+                disabled={actionInProgress === request.id}
+              >
+                Decline
+              </Button>
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => handleBlockRequest(request)}
+                disabled={actionInProgress === request.id}
+                className="text-destructive border-destructive/40 hover:bg-destructive/5"
+              >
+                Block
+              </Button>
+            </div>
+          </div>
+        </div>
+      )
+    }
+
     return (
       <div key={request.id} style={{ padding: '12px 16px', borderBottom: '1px solid var(--border-light)', backgroundColor: 'var(--bg-card)' }}>
         <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: '4px', gap: '8px' }}>
@@ -477,34 +617,6 @@ export function ManageConnectionsScreen({ currentBusinessId, onBack, onSuccess }
         <p style={{ fontSize: '12px', color: 'var(--text-secondary)', margin: `0 0 ${showActions ? '10px' : '0'}` }}>
           {formatDistanceToNow(request.createdAt, { addSuffix: true })}
         </p>
-        {isPending && (
-          <div style={{ display: 'flex', gap: '8px' }}>
-            <Button
-              size="sm"
-              onClick={() => handleAcceptRequest(request)}
-              disabled={actionInProgress === request.id}
-            >
-              Accept
-            </Button>
-            <Button
-              size="sm"
-              variant="outline"
-              onClick={() => handleDeclineRequest(request.id)}
-              disabled={actionInProgress === request.id}
-            >
-              Decline
-            </Button>
-            <Button
-              size="sm"
-              variant="outline"
-              onClick={() => handleBlockRequest(request)}
-              disabled={actionInProgress === request.id}
-              className="text-destructive border-destructive/40 hover:bg-destructive/5"
-            >
-              Block
-            </Button>
-          </div>
-        )}
         {isBlocked && (
           <Button
             size="sm"
@@ -557,7 +669,12 @@ export function ManageConnectionsScreen({ currentBusinessId, onBack, onSuccess }
                 whiteSpace: 'nowrap',
               }}
             >
-              {tab.label}
+              <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                {tab.label}
+                {tab.id === 'received' && receivedPending.length > 0 && !loading && (
+                  <span style={{ width: '6px', height: '6px', borderRadius: '50%', backgroundColor: 'var(--status-overdue)', display: 'inline-block', flexShrink: 0 }} />
+                )}
+              </span>
             </button>
           ))}
         </div>

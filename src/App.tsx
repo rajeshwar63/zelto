@@ -28,6 +28,7 @@ import { setupBackButtonHandler } from '@/lib/capacitor'
 import { PushNotifications } from '@capacitor/push-notifications'
 import { Capacitor } from '@capacitor/core'
 import { attentionEngine } from '@/lib/attention-engine'
+import { dataStore } from '@/lib/data-store'
 import { updateTabLastSeen, updateConnectionLastSeen, hasAnyUnreadConnections, hasUnreadConnectionActivity } from '@/lib/unread-tracker'
 
 import { behaviourEngine } from '@/lib/behaviour-engine'
@@ -40,7 +41,7 @@ type Screen =
   | { type: 'tab'; tab: Tab; filter?: string }
   | { type: 'connection-detail'; connectionId: string }
   | { type: 'order-detail'; orderId: string; connectionId: string; initialIssueId?: string; mode?: 'connection' | 'issue' }
-  | { type: 'manage-connections' }
+  | { type: 'manage-connections'; initialTab?: 'add' | 'sent' | 'received' | 'archived' }
   | { type: 'payment-terms-setup'; connectionId: string; businessName: string; returnTo?: 'connection-detail' | 'connections' }
   | { type: 'business-details' }
   | { type: 'notifications' }
@@ -65,6 +66,7 @@ function App() {
   const [isCheckingAuth, setIsCheckingAuth] = useState(!bootstrappedSession)
 
   const [hasUnreadConnections, setHasUnreadConnections] = useState(false)
+  const [hasPendingReceivedRequests, setHasPendingReceivedRequests] = useState(false)
   const [unreadConnectionIds, setUnreadConnectionIds] = useState<Set<string>>(new Set())
   
   const screen = navigationStack[navigationStack.length - 1]
@@ -131,10 +133,17 @@ function App() {
     if (!currentBusinessId) return
     const currentScreen = navigationStack[navigationStack.length - 1]
     const isOnConnections = currentScreen.type === 'tab' && currentScreen.tab === 'connections'
-    const items = await attentionEngine.getAttentionItems(currentBusinessId)
+    const [items, allRequests] = await Promise.all([
+      attentionEngine.getAttentionItems(currentBusinessId),
+      dataStore.getAllConnectionRequests(),
+    ])
     if (!isOnConnections) {
       setHasUnreadConnections(hasAnyUnreadConnections(currentBusinessId, items))
     }
+    const pendingReceived = allRequests.filter(
+      r => r.receiverBusinessId === currentBusinessId && r.status === 'Pending'
+    ).length
+    setHasPendingReceivedRequests(pendingReceived > 0)
     const connIds = [...new Set(items.map(item => item.connectionId))]
     const unread = new Set(connIds.filter(id => hasUnreadConnectionActivity(currentBusinessId, id, items)))
     setUnreadConnectionIds(unread)
@@ -324,6 +333,10 @@ function App() {
     setNavigationStack(stack => [...stack, { type: 'manage-connections' }])
   }
 
+  const navigateToManageConnectionsReceived = () => {
+    setNavigationStack(stack => [...stack, { type: 'manage-connections', initialTab: 'received' }])
+  }
+
   const handleAddConnectionSuccess = () => {
     navigateBack()
   }
@@ -437,6 +450,7 @@ function App() {
           currentBusinessId={currentBusinessId}
           onBack={navigateBack}
           onSuccess={handleAddConnectionSuccess}
+          initialTab={detailScreen.initialTab}
         />
       )
     }
@@ -493,7 +507,7 @@ function App() {
         <TabShell
           currentBusinessId={currentBusinessId}
           activeTabScreen={screen}
-          hasUnreadConnections={hasUnreadConnections}
+          hasUnreadConnections={hasUnreadConnections || hasPendingReceivedRequests}
           unreadConnectionIds={unreadConnectionIds}
           onNavigateToTab={navigateToTab}
           onNavigateToTabWithFilter={navigateToTabWithFilter}
@@ -502,6 +516,7 @@ function App() {
           onNavigateToIssueDetail={navigateToIssueDetail}
           onNavigateToAddConnection={navigateToManageConnections}
           onNavigateToIncomingRequests={navigateToIncomingRequests}
+          onNavigateToManageConnectionsReceived={navigateToManageConnectionsReceived}
           onLogout={handleLogout}
           onNavigateToBusinessDetails={navigateToBusinessDetails}
           onNavigateToNotifications={navigateToNotifications}
@@ -528,6 +543,7 @@ function TabShell({
   onNavigateToIssueDetail,
   onNavigateToAddConnection,
   onNavigateToIncomingRequests,
+  onNavigateToManageConnectionsReceived,
   onLogout,
   onNavigateToBusinessDetails,
   onNavigateToNotifications,
@@ -546,6 +562,7 @@ function TabShell({
   onNavigateToIssueDetail: (connectionId: string, orderId: string, issueId: string) => void
   onNavigateToAddConnection: () => void
   onNavigateToIncomingRequests: () => void
+  onNavigateToManageConnectionsReceived: () => void
   onLogout: () => Promise<void>
   onNavigateToBusinessDetails: () => void
   onNavigateToNotifications: () => void
@@ -565,6 +582,7 @@ function TabShell({
             onNavigateToProfile={() => onNavigateToTab('profile')}
             onNavigateToConnections={(filter) => onNavigateToTabWithFilter('connections', filter)}
             onNavigateToAttention={(filter) => onNavigateToTabWithFilter('attention', filter)}
+            onNavigateToManageConnections={onNavigateToManageConnectionsReceived}
           />
         ) : activeTabScreen.tab === 'attention' ? (
           <AttentionScreen
