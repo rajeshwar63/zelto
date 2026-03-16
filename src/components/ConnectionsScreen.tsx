@@ -30,7 +30,6 @@ interface Props {
   onNavigateToIncomingRequests: () => void
   unreadConnectionIds?: Set<string>
   isActive?: boolean
-  hasPendingReceivedRequests?: boolean
 }
 
 function formatLastActivity(timestamp: number | null): string | null {
@@ -87,7 +86,7 @@ function isSameConnections(a: ConnectionWithState[], b: ConnectionWithState[]) {
   })
 }
 
-export function ConnectionsScreen({ currentBusinessId, onSelectConnection, onAddConnection, onNavigateToIncomingRequests, unreadConnectionIds, isActive = true, hasPendingReceivedRequests = false }: Props) {
+export function ConnectionsScreen({ currentBusinessId, onSelectConnection, onAddConnection, onNavigateToIncomingRequests, unreadConnectionIds, isActive = true }: Props) {
   const [connections, setConnections] = useState<ConnectionWithState[]>(
     () => cachedConnectionsByBusiness.get(currentBusinessId) || []
   )
@@ -281,9 +280,6 @@ export function ConnectionsScreen({ currentBusinessId, onSelectConnection, onAdd
               <button onClick={onAddConnection} className="relative flex items-center" style={{ color: 'var(--brand-primary)', minWidth: '44px', minHeight: '44px', justifyContent: 'center' }}>
                 <Plus size={20} weight="regular" />
                 <Users size={20} weight="regular" />
-                {hasPendingReceivedRequests && (
-                  <span className="absolute rounded-full" style={{ width: '8px', height: '8px', backgroundColor: '#F97316', top: '6px', right: '4px', border: '2px solid var(--bg-header)' }} />
-                )}
               </button>
             </div>
           </div>
@@ -353,9 +349,6 @@ export function ConnectionsScreen({ currentBusinessId, onSelectConnection, onAdd
 <button onClick={onAddConnection} className="relative flex items-center" style={{ color: 'var(--brand-primary)', minWidth: '44px', minHeight: '44px', justifyContent: 'center' }}>
               <Plus size={20} weight="regular" />
               <Users size={20} weight="regular" />
-              {hasPendingReceivedRequests && (
-                <span className="absolute rounded-full" style={{ width: '8px', height: '8px', backgroundColor: '#F97316', top: '6px', right: '4px', border: '2px solid var(--bg-header)' }} />
-              )}
             </button>
           </div>
         </div>

@@ -66,7 +66,6 @@ function App() {
   const [isCheckingAuth, setIsCheckingAuth] = useState(!bootstrappedSession)
 
   const [hasUnreadConnections, setHasUnreadConnections] = useState(false)
-  const [hasPendingReceivedRequests, setHasPendingReceivedRequests] = useState(false)
   const [unreadConnectionIds, setUnreadConnectionIds] = useState<Set<string>>(new Set())
   
   const screen = navigationStack[navigationStack.length - 1]
@@ -133,17 +132,10 @@ function App() {
     if (!currentBusinessId) return
     const currentScreen = navigationStack[navigationStack.length - 1]
     const isOnConnections = currentScreen.type === 'tab' && currentScreen.tab === 'connections'
-    const [items, allRequests] = await Promise.all([
-      attentionEngine.getAttentionItems(currentBusinessId),
-      dataStore.getAllConnectionRequests(),
-    ])
+    const items = await attentionEngine.getAttentionItems(currentBusinessId)
     if (!isOnConnections) {
       setHasUnreadConnections(hasAnyUnreadConnections(currentBusinessId, items))
     }
-    const pendingReceived = allRequests.filter(
-      r => r.receiverBusinessId === currentBusinessId && r.status === 'Pending'
-    ).length
-    setHasPendingReceivedRequests(pendingReceived > 0)
     const connIds = [...new Set(items.map(item => item.connectionId))]
     const unread = new Set(connIds.filter(id => hasUnreadConnectionActivity(currentBusinessId, id, items)))
     setUnreadConnectionIds(unread)
@@ -507,7 +499,7 @@ function App() {
         <TabShell
           currentBusinessId={currentBusinessId}
           activeTabScreen={screen}
-          hasUnreadConnections={hasUnreadConnections || hasPendingReceivedRequests}
+          hasUnreadConnections={hasUnreadConnections}
           unreadConnectionIds={unreadConnectionIds}
           onNavigateToTab={navigateToTab}
           onNavigateToTabWithFilter={navigateToTabWithFilter}
@@ -598,7 +590,6 @@ function TabShell({
             onAddConnection={onNavigateToAddConnection}
             onNavigateToIncomingRequests={onNavigateToIncomingRequests}
             unreadConnectionIds={unreadConnectionIds}
-            hasPendingReceivedRequests={hasPendingReceivedRequests}
           />
         ) : activeTabScreen.tab === 'orders' ? (
           <OrdersScreen
