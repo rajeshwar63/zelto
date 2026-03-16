@@ -10,7 +10,7 @@ import { OTPScreen } from '@/components/OTPScreen'
 import { AdminApp } from '@/components/admin/AdminApp'
 import { PrivacyPolicyScreen } from '@/components/PrivacyPolicyScreen'
 import { TermsScreen } from '@/components/TermsScreen'
-import { AddConnectionScreen } from '@/components/AddConnectionScreen'
+import { ManageConnectionsScreen } from '@/components/ManageConnectionsScreen'
 import { PaymentTermsSetupScreen } from '@/components/PaymentTermsSetupScreen'
 import { BusinessDetailsScreen } from '@/components/BusinessDetailsScreen'
 import { NotificationHistoryScreen } from '@/components/NotificationHistoryScreen'
@@ -40,7 +40,7 @@ type Screen =
   | { type: 'tab'; tab: Tab; filter?: string }
   | { type: 'connection-detail'; connectionId: string }
   | { type: 'order-detail'; orderId: string; connectionId: string; initialIssueId?: string; mode?: 'connection' | 'issue' }
-  | { type: 'add-connection' }
+  | { type: 'manage-connections' }
   | { type: 'payment-terms-setup'; connectionId: string; businessName: string; returnTo?: 'connection-detail' | 'connections' }
   | { type: 'business-details' }
   | { type: 'notifications' }
@@ -320,8 +320,8 @@ function App() {
     setNavigationStack([{ type: 'tab', tab }])
   }
 
-  const navigateToAddConnection = () => {
-    setNavigationStack(stack => [...stack, { type: 'add-connection' }])
+  const navigateToManageConnections = () => {
+    setNavigationStack(stack => [...stack, { type: 'manage-connections' }])
   }
 
   const handleAddConnectionSuccess = () => {
@@ -431,9 +431,9 @@ function App() {
         />
       )
     }
-    if (detailScreen.type === 'add-connection') {
+    if (detailScreen.type === 'manage-connections') {
       return (
-        <AddConnectionScreen
+        <ManageConnectionsScreen
           currentBusinessId={currentBusinessId}
           onBack={navigateBack}
           onSuccess={handleAddConnectionSuccess}
@@ -500,7 +500,7 @@ function App() {
           onNavigateToConnection={navigateToConnection}
           onNavigateToOrderDetail={navigateToOrderDetail}
           onNavigateToIssueDetail={navigateToIssueDetail}
-          onNavigateToAddConnection={navigateToAddConnection}
+          onNavigateToAddConnection={navigateToManageConnections}
           onNavigateToIncomingRequests={navigateToIncomingRequests}
           onLogout={handleLogout}
           onNavigateToBusinessDetails={navigateToBusinessDetails}
