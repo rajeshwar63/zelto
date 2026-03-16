@@ -12,14 +12,14 @@ import { toast } from 'sonner'
 import { getConnectionStateLabel, getConnectionStateColor } from '@/lib/connection-state-utils'
 import { motion, AnimatePresence, useMotionValue, useTransform, animate, PanInfo } from 'framer-motion'
 import { getArchivedOrderIds, archiveOrder as doArchiveOrder, unarchiveOrder as doUnarchiveOrder } from '@/lib/archive-store'
-import { markOrderSeen } from '@/lib/unread-tracker'
+import { markOrderSeen, isOrderNew } from '@/lib/unread-tracker'
 import { buildConnectionSubtitle, formatInrCurrency } from '@/lib/utils'
 import { OrderStatusHeader } from '@/components/order/OrderStatusHeader'
 import { OrderPaymentSummary } from '@/components/order/OrderPaymentSummary'
 import { OrderTimeline } from '@/components/order/OrderTimeline'
 import { OrderAttachmentsSection } from '@/components/order/OrderAttachmentsSection'
 import { buildOrderTimeline, formatPaymentTerms, getLifecycleState } from '@/components/order/order-detail-utils'
-import { OrderCard } from '@/components/order/OrderCard'
+import { ConnectionDetailOrderCard } from '@/components/order/ConnectionDetailOrderCard'
 import { LedgerDownloadSheet } from '@/components/LedgerDownloadSheet'
 import { OrderSearchPanel, type OrderFilters, type StatusChip } from '@/components/order/OrderSearchPanel'
 import { startOfDay } from 'date-fns'
@@ -417,26 +417,26 @@ export function ConnectionDetailScreen({ connectionId, currentBusinessId, onBack
             filteredOrders.map(order => {
               const lifecycleState = getLifecycleState(order)
               const latestActivity = Math.max(order.deliveredAt || 0, order.dispatchedAt || 0, order.acceptedAt || 0, order.createdAt)
+              const isNew = isOrderNew(currentBusinessId, order.id, latestActivity)
+              const isOld = order.settlementState === 'Paid'
               return (
                 <SwipeableOrderRow
                   key={order.id}
                   actionLabel={showArchived ? 'Unarchive' : 'Archive'}
                   onAction={() => showArchived ? handleUnarchiveOrder(order.id) : handleArchiveOrder(order.id)}
                 >
-                  <OrderCard
+                  <ConnectionDetailOrderCard
                     itemSummary={order.itemSummary}
-                    connectionName={otherBusiness.businessName}
-                    branchLabel={connection.branchLabel}
-                    contactName={connection.contactName}
                     orderValue={order.orderValue}
                     pendingAmount={order.pendingAmount}
                     settlementState={order.settlementState}
                     lifecycleState={lifecycleState}
-                    calculatedDueDate={order.calculatedDueDate}
+                    createdAt={order.createdAt}
                     deliveredAt={order.deliveredAt}
+                    calculatedDueDate={order.calculatedDueDate}
                     latestActivity={latestActivity}
-                    paymentTermSnapshot={order.paymentTermSnapshot}
-                    isBuyer={isBuyer}
+                    isNew={isNew}
+                    isOld={isOld}
                     onClick={() => {
                       markOrderSeen(currentBusinessId, order.id)
                       onOpenOrderDetail(order.id, connection.id)
