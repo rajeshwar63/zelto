@@ -20,6 +20,7 @@ import { HelpSupportScreen } from '@/components/HelpSupportScreen'
 import { ReportIssueScreen } from '@/components/ReportIssueScreen'
 import { House, Users, Package, User, Bell } from '@phosphor-icons/react'
 import { AttentionScreen } from '@/components/AttentionScreen'
+import { IncomingRequestsScreen } from '@/components/IncomingRequestsScreen'
 import { getAuthState, getLocalAuthSessionSync, logout, clearAuthSession } from '@/lib/auth'
 import { registerPushNotifications, removeDeviceTokens } from '@/lib/push-notifications'
 import { supabase } from '@/lib/supabase-client'
@@ -47,6 +48,7 @@ type Screen =
   | { type: 'profile-account' }
   | { type: 'profile-support' }
   | { type: 'report-issue'; orderId: string; connectionId: string }
+  | { type: 'incoming-requests' }
 type AuthScreen = 'welcome' | { type: 'otp'; email: string; signupData?: { name: string; businessName: string } } | { type: 'business_setup'; email: string }
 type TabShellScreen = Extract<Screen, { type: 'tab' }>
 type DetailScreen = Exclude<Screen, { type: 'tab' }>
@@ -374,6 +376,10 @@ function App() {
     setNavigationStack(stack => [...stack, { type: 'order-detail', orderId, connectionId, initialIssueId: issueId, mode: 'issue' }])
   }
 
+  const navigateToIncomingRequests = () => {
+    setNavigationStack(stack => [...stack, { type: 'incoming-requests' }])
+  }
+
   const navigateToTabWithFilter = (tab: Tab, filter?: string) => {
     if (currentBusinessId) {
       if (tab === 'connections') {
@@ -389,6 +395,15 @@ function App() {
   }
 
   const renderDetailScreen = (detailScreen: DetailScreen) => {
+    if (detailScreen.type === 'incoming-requests') {
+      return (
+        <IncomingRequestsScreen
+          currentBusinessId={currentBusinessId}
+          onBack={navigateBack}
+          onNavigateToConnections={() => navigateToTab('connections')}
+        />
+      )
+    }
     if (detailScreen.type === 'profile-notifications') {
       return <NotificationSettingsScreen onBack={navigateBack} />
     }
@@ -486,6 +501,7 @@ function App() {
           onNavigateToOrderDetail={navigateToOrderDetail}
           onNavigateToIssueDetail={navigateToIssueDetail}
           onNavigateToAddConnection={navigateToAddConnection}
+          onNavigateToIncomingRequests={navigateToIncomingRequests}
           onLogout={handleLogout}
           onNavigateToBusinessDetails={navigateToBusinessDetails}
           onNavigateToNotifications={navigateToNotifications}
@@ -511,6 +527,7 @@ function TabShell({
   onNavigateToOrderDetail,
   onNavigateToIssueDetail,
   onNavigateToAddConnection,
+  onNavigateToIncomingRequests,
   onLogout,
   onNavigateToBusinessDetails,
   onNavigateToNotifications,
@@ -528,6 +545,7 @@ function TabShell({
   onNavigateToOrderDetail: (orderId: string, connectionId: string) => void
   onNavigateToIssueDetail: (connectionId: string, orderId: string, issueId: string) => void
   onNavigateToAddConnection: () => void
+  onNavigateToIncomingRequests: () => void
   onLogout: () => Promise<void>
   onNavigateToBusinessDetails: () => void
   onNavigateToNotifications: () => void
@@ -560,6 +578,7 @@ function TabShell({
             isActive
             onSelectConnection={onNavigateToConnection}
             onAddConnection={onNavigateToAddConnection}
+            onNavigateToIncomingRequests={onNavigateToIncomingRequests}
             unreadConnectionIds={unreadConnectionIds}
           />
         ) : activeTabScreen.tab === 'orders' ? (

@@ -1003,6 +1003,17 @@ export class ZeltoDataStore {
     requesterRole: 'buyer' | 'supplier',
     receiverRole: 'buyer' | 'supplier'
   ): Promise<ConnectionRequest> {
+    const { data: blockRow } = await supabase
+      .from('connection_blocks')
+      .select('id')
+      .eq('blocker_business_id', receiverBusinessId)
+      .eq('blocked_business_id', requesterBusinessId)
+      .maybeSingle()
+
+    if (blockRow) {
+      throw new Error('Unable to send connection request to this business.')
+    }
+
     const { data, error } = await supabase
       .from('connection_requests')
       .insert([{
@@ -1015,7 +1026,7 @@ export class ZeltoDataStore {
       }])
       .select()
       .single()
-    
+
     if (error) throw error
     return toCamelCase(data)
   }
@@ -1072,6 +1083,38 @@ export class ZeltoDataStore {
     
     if (error) throw error
     return toCamelCase(data)
+  }
+
+  async getIncomingConnectionRequests(businessId: string): Promise<ConnectionRequest[]> {
+    const { data, error } = await supabase
+      .from('connection_requests')
+      .select('*')
+      .eq('receiver_business_id', businessId)
+      .in('status', ['Pending', 'Archived'])
+      .order('created_at', { ascending: false })
+
+    if (error) throw error
+    return toCamelCase(data || [])
+  }
+
+  async archiveConnectionRequest(requestId: string, actorBusinessId: string): Promise<void> {
+    const { error } = await supabase
+      .rpc('archive_connection_request', {
+        p_request_id: requestId,
+        p_actor_business_id: actorBusinessId,
+      })
+
+    if (error) throw error
+  }
+
+  async blockBusinessFromRequest(requestId: string, actorBusinessId: string): Promise<void> {
+    const { error } = await supabase
+      .rpc('block_business_from_request', {
+        p_request_id: requestId,
+        p_actor_business_id: actorBusinessId,
+      })
+
+    if (error) throw error
   }
 
   // ============ ROLE CHANGE REQUESTS ============

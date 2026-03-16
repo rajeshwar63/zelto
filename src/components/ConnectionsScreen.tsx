@@ -7,12 +7,10 @@ import { useDataListener } from '@/lib/data-events'
 import type { Connection, BusinessEntity, ConnectionState } from '@/lib/types'
 import { getConnectionStateLabel, getConnectionStateColor } from '@/lib/connection-state-utils'
 import { Plus, Users, PencilSimple, MagnifyingGlass, X, PaperPlaneTilt, DownloadSimple } from '@phosphor-icons/react'
-import { Phone, MapPin, User } from 'lucide-react'
+import { Phone, MapPin, User, Inbox } from 'lucide-react'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import { toast } from 'sonner'
-import { ConnectionRequestItem } from '@/components/ConnectionRequestItem'
-import { useConnectionRequestsData } from '@/hooks/data/use-business-data'
 import { LedgerDownloadSheet } from '@/components/LedgerDownloadSheet'
 
 interface ConnectionWithState extends Connection {
@@ -29,6 +27,7 @@ interface Props {
   currentBusinessId: string
   onSelectConnection: (connectionId: string) => void
   onAddConnection: () => void
+  onNavigateToIncomingRequests: () => void
   unreadConnectionIds?: Set<string>
   isActive?: boolean
 }
@@ -87,7 +86,7 @@ function isSameConnections(a: ConnectionWithState[], b: ConnectionWithState[]) {
   })
 }
 
-export function ConnectionsScreen({ currentBusinessId, onSelectConnection, onAddConnection, unreadConnectionIds, isActive = true }: Props) {
+export function ConnectionsScreen({ currentBusinessId, onSelectConnection, onAddConnection, onNavigateToIncomingRequests, unreadConnectionIds, isActive = true }: Props) {
   const [connections, setConnections] = useState<ConnectionWithState[]>(
     () => cachedConnectionsByBusiness.get(currentBusinessId) || []
   )
@@ -105,8 +104,6 @@ export function ConnectionsScreen({ currentBusinessId, onSelectConnection, onAdd
   const [message, setMessage] = useState('')
   const [isSending, setIsSending] = useState(false)
   const [sendError, setSendError] = useState<string | null>(null)
-
-  const { data: connectionRequests = [], refresh: refreshConnectionRequests } = useConnectionRequestsData(currentBusinessId, isActive)
 
   useEffect(() => {
     console.debug('[ConnectionsScreen] mount', Date.now(), { currentBusinessId })
@@ -193,7 +190,7 @@ export function ConnectionsScreen({ currentBusinessId, onSelectConnection, onAdd
   }, [currentBusinessId, isActive, loadConnections])
 
   useDataListener(
-    ['connections:changed', 'connection-requests:changed', 'orders:changed', 'payments:changed', 'issues:changed'],
+    ['connections:changed', 'orders:changed', 'payments:changed', 'issues:changed'],
     () => { void loadConnections() },
     isActive
   )
@@ -266,16 +263,25 @@ export function ConnectionsScreen({ currentBusinessId, onSelectConnection, onAdd
     else if (st <= 8) setPanelVisible(false)
   }
 
-  if (connections.length === 0 && connectionRequests.length === 0) {
+  if (connections.length === 0) {
     return (
       <div style={{ backgroundColor: 'var(--bg-screen)', minHeight: '100%' }}>
         <div className="sticky top-0 z-10" style={{ backgroundColor: 'var(--bg-header)', paddingTop: 'env(safe-area-inset-top)' }}>
           <div className="h-11 flex items-center justify-between px-4">
             <h1 style={{ fontSize: '22px', fontWeight: 700, color: 'var(--text-primary)', letterSpacing: '-0.02em' }}>Connections</h1>
-            <button onClick={onAddConnection} className="flex items-center" style={{ color: 'var(--brand-primary)', minWidth: '44px', minHeight: '44px', justifyContent: 'center' }}>
-              <Plus size={20} weight="regular" />
-              <Users size={20} weight="regular" />
-            </button>
+            <div className="flex items-center gap-1">
+              <button
+                onClick={onNavigateToIncomingRequests}
+                className="flex items-center"
+                style={{ color: 'var(--brand-primary)', minWidth: '44px', minHeight: '44px', justifyContent: 'center' }}
+              >
+                <Inbox size={20} color="#333" />
+              </button>
+              <button onClick={onAddConnection} className="flex items-center" style={{ color: 'var(--brand-primary)', minWidth: '44px', minHeight: '44px', justifyContent: 'center' }}>
+                <Plus size={20} weight="regular" />
+                <Users size={20} weight="regular" />
+              </button>
+            </div>
           </div>
         </div>
         <div className="flex items-center justify-center min-h-[calc(100vh-44px)] px-4">
@@ -340,6 +346,13 @@ export function ConnectionsScreen({ currentBusinessId, onSelectConnection, onAdd
               <DownloadSimple size={17} weight="bold" />
               <span style={{ fontSize: '13px', fontWeight: 600 }}>Ledger</span>
             </button>
+            <button
+              onClick={onNavigateToIncomingRequests}
+              className="flex items-center"
+              style={{ color: 'var(--brand-primary)', minWidth: '44px', minHeight: '44px', justifyContent: 'center' }}
+            >
+              <Inbox size={20} color="#333" />
+            </button>
             <button onClick={onAddConnection} className="flex items-center" style={{ color: 'var(--brand-primary)', minWidth: '44px', minHeight: '44px', justifyContent: 'center' }}>
               <Plus size={20} weight="regular" />
               <Users size={20} weight="regular" />
@@ -403,28 +416,6 @@ export function ConnectionsScreen({ currentBusinessId, onSelectConnection, onAdd
         className="px-4 pt-3 pb-24 overflow-y-auto"
         onScroll={handleListScroll}
       >
-        {connectionRequests.length > 0 && (
-          <div className="mb-4">
-            <p style={{ fontSize: '13px', fontWeight: 700, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '10px' }}>
-              PENDING REQUESTS
-            </p>
-            <div className="space-y-2">
-              {connectionRequests.map(request => (
-                <ConnectionRequestItem
-                  key={request.id}
-                  request={request}
-                  currentBusinessId={currentBusinessId}
-                  onUpdate={() => {
-                    void refreshConnectionRequests(true)
-                    void loadConnections()
-                  }}
-                  onNavigateToConnections={() => undefined}
-                />
-              ))}
-            </div>
-          </div>
-        )}
-
         <p style={{ fontSize: '13px', fontWeight: 700, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '10px' }}>
           ALL CONNECTIONS
         </p>
