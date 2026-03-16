@@ -435,6 +435,7 @@ export function ConnectionDetailScreen({ connectionId, currentBusinessId, onBack
                     deliveredAt={order.deliveredAt}
                     calculatedDueDate={order.calculatedDueDate}
                     latestActivity={latestActivity}
+                    isBuyer={isBuyer}
                     isNew={isNew}
                     isOld={isOld}
                     onClick={() => {
