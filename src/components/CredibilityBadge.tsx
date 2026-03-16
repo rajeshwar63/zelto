@@ -20,9 +20,9 @@ const BADGE_CONFIG = {
   },
   trusted: {
     label: 'Zelto Trusted',
-    color: '#166534',
-    bg: '#DCFCE7',
-    border: '#BBF7D0',
+    color: '#0F766E',
+    bg: '#F0FDFA',
+    border: '#99F6E4',
   },
 } as const
 
