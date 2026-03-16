@@ -82,14 +82,20 @@ export function OrderSearchPanel({ filters, onFiltersChange, placeholder = 'Sear
     update({ activeChips: next })
   }, [activeChips, update])
 
-  const handleFromClick = () => {
-    setCalMode('from')
-    setCalOpen(true)
+  const handleDatePillClick = () => {
+    if (calOpen) {
+      setCalOpen(false)
+      setCalMode(null)
+    } else {
+      setCalMode('from')
+      setCalOpen(true)
+    }
   }
 
-  const handleToClick = () => {
-    setCalMode(fromDate ? 'to' : 'from')
-    setCalOpen(true)
+  const formatDateRange = () => {
+    if (fromDate && toDate) return `${formatDateShort(fromDate)} – ${formatDateShort(toDate)}`
+    if (fromDate) return `From ${formatDateShort(fromDate)}`
+    return 'Date'
   }
 
   const handleDayClick = (date: Date) => {
@@ -132,7 +138,7 @@ export function OrderSearchPanel({ filters, onFiltersChange, placeholder = 'Sear
     <div
       style={{
         overflow: 'hidden',
-        maxHeight: calOpen ? '700px' : '420px',
+        maxHeight: calOpen ? '700px' : '160px',
         backgroundColor: 'var(--bg-header)',
         borderBottom: '1px solid var(--border-light)',
         transition: 'max-height 420ms cubic-bezier(0.4, 0, 0.2, 1)',
@@ -195,9 +201,9 @@ export function OrderSearchPanel({ filters, onFiltersChange, placeholder = 'Sear
           )}
         </div>
 
-        {/* Status chips */}
-        <div style={{ marginBottom: '12px' }}>
-          <div style={{ display: 'flex', flexWrap: 'nowrap', gap: '6px', overflowX: 'auto', paddingBottom: '2px' }}>
+        {/* Status chips + Date pill */}
+        <div style={{ marginBottom: calOpen ? '10px' : 0 }}>
+          <div style={{ display: 'flex', flexWrap: 'nowrap', gap: '6px', overflowX: 'auto', paddingBottom: '2px', alignItems: 'center' }}>
             {ALL_CHIPS.map(chip => {
               const isActive = activeChips.has(chip)
               return (
@@ -214,55 +220,41 @@ export function OrderSearchPanel({ filters, onFiltersChange, placeholder = 'Sear
                     color: isActive ? CHIP_COLORS[chip] : 'var(--text-secondary)',
                     cursor: 'pointer',
                     transition: 'all 150ms',
+                    flexShrink: 0,
                   }}
                 >
                   {CHIP_LABELS[chip]}
                 </button>
               )
             })}
+
+            {/* Divider */}
+            <div style={{ width: '1px', height: '18px', backgroundColor: 'var(--border-light)', flexShrink: 0, margin: '0 2px' }} />
+
+            {/* Date pill */}
+            <button
+              onClick={handleDatePillClick}
+              style={{
+                fontSize: '12px',
+                fontWeight: 500,
+                padding: '4px 10px',
+                borderRadius: '20px',
+                border: `1.5px solid ${fromDate ? '#a855f7' : 'var(--border-light)'}`,
+                backgroundColor: fromDate ? '#a855f722' : 'transparent',
+                color: fromDate ? '#a855f7' : 'var(--text-secondary)',
+                cursor: 'pointer',
+                transition: 'all 150ms',
+                flexShrink: 0,
+                whiteSpace: 'nowrap',
+              }}
+            >
+              {formatDateRange()}
+            </button>
           </div>
         </div>
 
-        {/* Date range */}
+        {/* Inline calendar */}
         <div>
-          <div style={{ display: 'flex', gap: '8px', marginBottom: calOpen ? '10px' : 0 }}>
-            <button
-              onClick={handleFromClick}
-              style={{
-                flex: 1,
-                padding: '7px 10px',
-                fontSize: '13px',
-                fontWeight: fromDate ? 600 : 400,
-                color: fromDate ? 'var(--text-primary)' : 'var(--text-secondary)',
-                backgroundColor: 'var(--bg-screen)',
-                border: `1.5px solid ${fromDate ? 'var(--brand-primary)' : 'var(--border-light)'}`,
-                borderRadius: 'var(--radius-input)',
-                textAlign: 'left',
-                cursor: 'pointer',
-              }}
-            >
-              {fromDate ? formatDateShort(fromDate) : 'Select date'}
-            </button>
-            <button
-              onClick={handleToClick}
-              style={{
-                flex: 1,
-                padding: '7px 10px',
-                fontSize: '13px',
-                fontWeight: toDate ? 600 : 400,
-                color: toDate ? 'var(--text-primary)' : 'var(--text-secondary)',
-                backgroundColor: 'var(--bg-screen)',
-                border: `1.5px solid ${toDate ? 'var(--brand-primary)' : 'var(--border-light)'}`,
-                borderRadius: 'var(--radius-input)',
-                textAlign: 'left',
-                cursor: 'pointer',
-              }}
-            >
-              {toDate ? formatDateShort(toDate) : 'Select date'}
-            </button>
-          </div>
-
-          {/* Inline calendar */}
           {calOpen && (
             <div
               style={{
