@@ -598,6 +598,7 @@ function TabShell({
             onAddConnection={onNavigateToAddConnection}
             onNavigateToIncomingRequests={onNavigateToIncomingRequests}
             unreadConnectionIds={unreadConnectionIds}
+            hasPendingReceivedRequests={hasPendingReceivedRequests}
           />
         ) : activeTabScreen.tab === 'orders' ? (
           <OrdersScreen
