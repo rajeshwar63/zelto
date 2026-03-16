@@ -1,4 +1,4 @@
-import { Check } from '@phosphor-icons/react'
+import { Check, SealCheck } from '@phosphor-icons/react'
 import type { CredibilityBreakdown } from '@/lib/credibility'
 
 interface Props {
@@ -18,16 +18,37 @@ const BADGE_CONFIG = {
     bg: '#DBEAFE',
     border: '#BFDBFE',
   },
-  trusted: {
-    label: 'Zelto Trusted',
-    color: '#0F766E',
-    bg: '#F0FDFA',
-    border: '#99F6E4',
-  },
 } as const
 
 export function CredibilityBadge({ level }: Props) {
   if (level === 'none') return null
+
+  // Premium trusted treatment
+  if (level === 'trusted') {
+    return (
+      <span
+        style={{
+          display: 'inline-flex',
+          alignItems: 'center',
+          gap: '5px',
+          padding: '4px 10px 4px 7px',
+          borderRadius: '999px',
+          background: 'linear-gradient(135deg, #0D9488 0%, #059669 100%)',
+          color: '#ffffff',
+          fontSize: '11.5px',
+          fontWeight: '700',
+          letterSpacing: '0.01em',
+          whiteSpace: 'nowrap',
+          boxShadow: '0 1px 6px rgba(13, 148, 136, 0.40), 0 0 0 1px rgba(13, 148, 136, 0.25)',
+        }}
+      >
+        <SealCheck size={14} weight="fill" />
+        Zelto Trusted
+      </span>
+    )
+  }
+
+  // basic / verified
   const config = BADGE_CONFIG[level]
   return (
     <span
@@ -35,7 +56,7 @@ export function CredibilityBadge({ level }: Props) {
         display: 'inline-flex',
         alignItems: 'center',
         gap: '3px',
-        padding: '1px 7px 1px 5px',
+        padding: '2px 8px 2px 6px',
         borderRadius: '999px',
         border: `1px solid ${config.border}`,
         backgroundColor: config.bg,

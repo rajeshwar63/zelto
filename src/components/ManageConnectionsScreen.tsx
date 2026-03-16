@@ -6,7 +6,7 @@ import { scoreToLevel, getBusinessActivityCounts, type CredibilityBreakdown } fr
 import { setPendingConnectionLabels, consumePendingConnectionLabels } from '@/lib/pending-connection-labels'
 import { getArchivedConnectionIds, unarchiveConnection } from '@/lib/connection-archive-store'
 import { getBlockedBusinessIds, blockBusiness, unblockBusiness } from '@/lib/blocked-connections'
-import { ArrowLeft, MagnifyingGlass, X } from '@phosphor-icons/react'
+import { ArrowLeft, MagnifyingGlass, X, Phone, Receipt, Briefcase, MapPin, UsersThree, Package, Medal } from '@phosphor-icons/react'
 import { Button } from '@/components/ui/button'
 import type { BusinessEntity, ConnectionRequest, Connection } from '@/lib/types'
 import { CredibilityBadge } from '@/components/CredibilityBadge'
@@ -602,24 +602,44 @@ export function ManageConnectionsScreen({ currentBusinessId, onBack, onSuccess }
             )}
 
             {foundBusiness && (
-              <div style={{ borderRadius: 'var(--radius-card)', border: '1px solid var(--border-light)', padding: '16px', display: 'flex', flexDirection: 'column', gap: '12px', marginTop: '8px' }}>
+              <div style={{ borderRadius: 'var(--radius-card)', border: '1px solid var(--border-light)', backgroundColor: 'var(--bg-card)', boxShadow: '0 2px 12px rgba(0,0,0,0.06)', padding: '18px 16px 16px', display: 'flex', flexDirection: 'column', gap: '14px', marginTop: '12px' }}>
                 {/* Header */}
-                <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between' }}>
-                  <div>
-                    <p style={{ fontSize: '15px', fontWeight: 600, color: 'var(--text-primary)', margin: 0 }}>{foundBusiness.businessName}</p>
-                    <p style={{ fontSize: '11px', fontFamily: 'monospace', color: 'var(--text-secondary)', marginTop: '2px', marginBottom: 0 }}>{foundBusiness.zeltoId}</p>
+                <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '8px' }}>
+                  <div style={{ minWidth: 0 }}>
+                    <p style={{ fontSize: '17px', fontWeight: 700, color: 'var(--text-primary)', margin: 0, lineHeight: 1.25, letterSpacing: '-0.01em' }}>{foundBusiness.businessName}</p>
+                    <p style={{ fontSize: '11px', fontFamily: 'monospace', color: 'var(--text-tertiary)', marginTop: '3px', marginBottom: 0, letterSpacing: '0.04em' }}>{foundBusiness.zeltoId}</p>
                   </div>
                   {foundCredibility && <CredibilityBadge level={foundCredibility.level} />}
                 </div>
 
                 {/* Details */}
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
-                  {foundBusiness.formattedAddress && <p style={{ fontSize: '12px', color: 'var(--text-secondary)', margin: 0 }}>{foundBusiness.formattedAddress}</p>}
-                  {foundBusiness.phone && <p style={{ fontSize: '12px', color: 'var(--text-secondary)', margin: 0 }}>{foundBusiness.phone}</p>}
-                  {foundBusiness.gstNumber && <p style={{ fontSize: '12px', color: 'var(--text-secondary)', margin: 0 }}>GST: {foundBusiness.gstNumber}</p>}
-                  {foundBusiness.businessType && <p style={{ fontSize: '12px', color: 'var(--text-secondary)', margin: 0 }}>{foundBusiness.businessType}</p>}
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                  {foundBusiness.formattedAddress && (
+                    <div style={{ display: 'flex', alignItems: 'flex-start', gap: '7px' }}>
+                      <MapPin size={13} weight="regular" style={{ color: 'var(--text-tertiary)', flexShrink: 0, marginTop: '1px' }} />
+                      <p style={{ fontSize: '12.5px', color: 'var(--text-secondary)', margin: 0, lineHeight: 1.4 }}>{foundBusiness.formattedAddress}</p>
+                    </div>
+                  )}
+                  {foundBusiness.phone && (
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '7px' }}>
+                      <Phone size={13} weight="regular" style={{ color: 'var(--text-tertiary)', flexShrink: 0 }} />
+                      <p style={{ fontSize: '12.5px', color: 'var(--text-secondary)', margin: 0 }}>{foundBusiness.phone}</p>
+                    </div>
+                  )}
+                  {foundBusiness.gstNumber && (
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '7px' }}>
+                      <Receipt size={13} weight="regular" style={{ color: 'var(--text-tertiary)', flexShrink: 0 }} />
+                      <p style={{ fontSize: '12.5px', color: 'var(--text-secondary)', margin: 0 }}>GST: {foundBusiness.gstNumber}</p>
+                    </div>
+                  )}
+                  {foundBusiness.businessType && (
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '7px' }}>
+                      <Briefcase size={13} weight="regular" style={{ color: 'var(--text-tertiary)', flexShrink: 0 }} />
+                      <p style={{ fontSize: '12.5px', color: 'var(--text-secondary)', margin: 0 }}>{foundBusiness.businessType}</p>
+                    </div>
+                  )}
                   {!foundBusiness.phone && !foundBusiness.gstNumber && !foundBusiness.formattedAddress && (
-                    <p style={{ fontSize: '12px', color: 'var(--text-secondary)', fontStyle: 'italic', margin: 0 }}>No details added</p>
+                    <p style={{ fontSize: '12px', color: 'var(--text-tertiary)', fontStyle: 'italic', margin: 0 }}>No details added</p>
                   )}
                 </div>
 
@@ -627,24 +647,27 @@ export function ManageConnectionsScreen({ currentBusinessId, onBack, onSuccess }
                 {foundActivity && foundCredibility && (
                   <div style={{
                     display: 'flex',
-                    gap: '16px',
-                    padding: '10px 12px',
                     background: 'var(--color-background-secondary)',
-                    borderRadius: '8px',
+                    borderRadius: '10px',
+                    border: '1px solid var(--border-light)',
+                    overflow: 'hidden',
                   }}>
-                    <div>
-                      <p style={{ fontSize: '18px', fontWeight: 500, margin: 0, lineHeight: 1.2 }}>{foundActivity.connectionCount}</p>
-                      <p style={{ fontSize: '11px', color: 'var(--color-text-secondary)', margin: 0 }}>connections</p>
+                    <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '10px 8px', gap: '3px' }}>
+                      <UsersThree size={16} weight="duotone" style={{ color: '#4A6CF7' }} />
+                      <p style={{ fontSize: '17px', fontWeight: 600, margin: 0, lineHeight: 1.1, color: 'var(--text-primary)' }}>{foundActivity.connectionCount}</p>
+                      <p style={{ fontSize: '10px', color: 'var(--text-secondary)', margin: 0, textAlign: 'center', lineHeight: 1.3 }}>connections</p>
                     </div>
-                    <div style={{ width: '0.5px', background: 'var(--color-border-tertiary)' }} />
-                    <div>
-                      <p style={{ fontSize: '18px', fontWeight: 500, margin: 0, lineHeight: 1.2 }}>{foundActivity.orderCount}</p>
-                      <p style={{ fontSize: '11px', color: 'var(--color-text-secondary)', margin: 0 }}>orders placed</p>
+                    <div style={{ width: '1px', background: 'var(--border-light)', alignSelf: 'stretch' }} />
+                    <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '10px 8px', gap: '3px' }}>
+                      <Package size={16} weight="duotone" style={{ color: '#FF8C42' }} />
+                      <p style={{ fontSize: '17px', fontWeight: 600, margin: 0, lineHeight: 1.1, color: 'var(--text-primary)' }}>{foundActivity.orderCount}</p>
+                      <p style={{ fontSize: '10px', color: 'var(--text-secondary)', margin: 0, textAlign: 'center', lineHeight: 1.3 }}>orders placed</p>
                     </div>
-                    <div style={{ width: '0.5px', background: 'var(--color-border-tertiary)' }} />
-                    <div>
-                      <p style={{ fontSize: '18px', fontWeight: 500, margin: 0, lineHeight: 1.2 }}>{foundCredibility.score}/100</p>
-                      <p style={{ fontSize: '11px', color: 'var(--color-text-secondary)', margin: 0 }}>score</p>
+                    <div style={{ width: '1px', background: 'var(--border-light)', alignSelf: 'stretch' }} />
+                    <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '10px 8px', gap: '3px' }}>
+                      <Medal size={16} weight="duotone" style={{ color: '#0D9488' }} />
+                      <p style={{ fontSize: '17px', fontWeight: 600, margin: 0, lineHeight: 1.1, color: 'var(--text-primary)' }}>{foundCredibility.score}<span style={{ fontSize: '11px', fontWeight: 400, color: 'var(--text-secondary)' }}>/100</span></p>
+                      <p style={{ fontSize: '10px', color: 'var(--text-secondary)', margin: 0, textAlign: 'center', lineHeight: 1.3 }}>trust score</p>
                     </div>
                   </div>
                 )}
