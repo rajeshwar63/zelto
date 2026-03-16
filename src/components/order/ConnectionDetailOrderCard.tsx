@@ -1,5 +1,5 @@
 import type { CSSProperties } from 'react'
-import { formatDistanceToNow, format } from 'date-fns'
+import { format } from 'date-fns'
 import { formatInrCurrency } from '@/lib/utils'
 import { CardAccent } from '@/components/ui/card'
 import { getLifecycleStatusColor } from '@/lib/semantic-colors'
@@ -14,60 +14,61 @@ export interface ConnectionDetailOrderCardProps {
   deliveredAt: number | null
   calculatedDueDate: number | null
   latestActivity: number
+  isBuyer: boolean
   isNew: boolean
   isOld: boolean
   onClick: () => void
 }
 
-type PillVariant = 'overdue' | 'dueSoon' | 'paid' | 'placed' | 'dispatched' | 'delivered'
+// ─── Half-pill helpers (mirrors OrderCard style) ─────────────────────────────
 
-const PILL_STYLES: Record<PillVariant, { background: string; border: string; color: string }> = {
-  overdue:    { background: '#E66767', border: '#CE6060', color: '#FFFFFF' },
-  dueSoon:    { background: '#F8BB54', border: '#E4A051', color: '#FFFFFF' },
-  paid:       { background: '#80E8A6', border: '#64D68E', color: '#5B876C' },
-  placed:     { background: '#6692F1', border: '#6183E4', color: '#FFFFFF' },
-  dispatched: { background: '#F08A55', border: '#D47A55', color: '#FFFFFF' },
-  delivered:  { background: '#5CBF80', border: '#5BA677', color: '#FFFFFF' },
-}
-
-const PILL_BASE: CSSProperties = {
-  borderRadius: '999px',
+const HALF_PILL_BASE: CSSProperties = {
   height: '22px',
   lineHeight: '22px',
   padding: '0 10px',
   fontSize: '11px',
   fontWeight: 600,
-  borderWidth: '1px',
-  borderStyle: 'solid',
-  whiteSpace: 'nowrap',
+  color: '#FFFFFF',
   display: 'inline-block',
+  whiteSpace: 'nowrap',
 }
 
-function Pill({ variant, label }: { variant: PillVariant; label: string }) {
-  const s = PILL_STYLES[variant]
-  return (
-    <span style={{ ...PILL_BASE, backgroundColor: s.background, borderColor: s.border, color: s.color }}>
-      {label}
-    </span>
-  )
+function getDeliveryPillStyle(lifecycleState: string): CSSProperties {
+  switch (lifecycleState) {
+    case 'Dispatched': return { background: '#FF8C42' }
+    case 'Delivered':  return { background: '#22B573' }
+    default:           return { background: '#8492A6' }
+  }
 }
+
+function getDeliveryLabel(lifecycleState: string): string {
+  switch (lifecycleState) {
+    case 'Dispatched': return 'Dispatched'
+    case 'Delivered':  return 'Delivered'
+    default:           return 'Placed'
+  }
+}
+
+function getPaymentPillStyle(isPaid: boolean, isOverdue: boolean): CSSProperties {
+  if (isPaid)    return { background: '#1A9460' }
+  if (isOverdue) return { background: '#E05555' }
+  return { background: '#B0B8C4' }
+}
+
+function getPaymentPillLabel(isPaid: boolean, isOverdue: boolean): string {
+  if (isPaid)    return 'Paid'
+  if (isOverdue) return 'Overdue'
+  return 'Due soon'
+}
+
+// ─── Divider ─────────────────────────────────────────────────────────────────
 
 const DIVIDER: CSSProperties = {
   borderTop: '1px solid var(--border-light)',
-  margin: '10px 0',
+  margin: '11px 0',
 }
 
-const META_LABEL: CSSProperties = {
-  fontSize: '11px',
-  fontWeight: 500,
-  color: 'var(--text-secondary)',
-}
-
-const META_VALUE: CSSProperties = {
-  fontSize: '12px',
-  fontWeight: 600,
-  color: 'var(--text-primary)',
-}
+// ─── Component ───────────────────────────────────────────────────────────────
 
 export function ConnectionDetailOrderCard({
   itemSummary,
@@ -79,51 +80,50 @@ export function ConnectionDetailOrderCard({
   deliveredAt,
   calculatedDueDate,
   latestActivity,
+  isBuyer,
   isNew,
   isOld,
   onClick,
 }: ConnectionDetailOrderCardProps) {
   const now = Date.now()
   const isPaid = settlementState === 'Paid'
+  const isSettled = isPaid || pendingAmount === 0
   const isOverdue = !isPaid && deliveredAt != null && calculatedDueDate != null && now > calculatedDueDate
-  const daysUntilDue = !isPaid && calculatedDueDate != null && !isOverdue
-    ? Math.ceil((calculatedDueDate - now) / (24 * 60 * 60 * 1000))
-    : null
 
-  // Lifecycle pill
-  let fulfilmentVariant: PillVariant
-  let fulfilmentLabel: string
-  switch (lifecycleState) {
-    case 'Dispatched': fulfilmentVariant = 'dispatched'; fulfilmentLabel = 'Dispatched'; break
-    case 'Delivered':  fulfilmentVariant = 'delivered';  fulfilmentLabel = 'Delivered';  break
-    default:           fulfilmentVariant = 'placed';     fulfilmentLabel = 'Placed';     break
-  }
+  // ── Amount display ──────────────────────────────────────────────────────────
+  const amountValue = isSettled ? orderValue : pendingAmount
+  const amountColor = isSettled ? 'var(--text-secondary)' : isBuyer ? '#E05555' : '#22B573'
+  const amountArrow = isSettled ? null : isBuyer ? '↑' : '↓'
 
-  // Payment pill
-  let paymentVariant: PillVariant | null = null
-  let paymentLabel = ''
-  if (!isPaid) {
-    if (isOverdue) {
-      paymentVariant = 'overdue'; paymentLabel = 'Overdue'
-    } else if (daysUntilDue !== null) {
-      paymentVariant = 'dueSoon'
-      paymentLabel = daysUntilDue === 0 ? 'Due today' : `Due in ${daysUntilDue} day${daysUntilDue === 1 ? '' : 's'}`
-    }
-  }
+  // ── Pills ───────────────────────────────────────────────────────────────────
+  const deliveryStyle = getDeliveryPillStyle(lifecycleState)
+  const deliveryLabel = getDeliveryLabel(lifecycleState)
+  const paymentStyle = getPaymentPillStyle(isPaid, isOverdue)
+  const paymentLabel = getPaymentPillLabel(isPaid, isOverdue)
 
-  // Row 4 due/settled label
-  let dueDateText: string | null = null
-  let dueDateColor = 'var(--text-secondary)'
+  // ── Date row ────────────────────────────────────────────────────────────────
+  const orderedLabel = `Ordered ${format(createdAt, 'd MMM')}`
+  const deliveredLabel = deliveredAt ? ` · Delivered ${format(deliveredAt, 'd MMM')}` : ''
+
+  // ── Bottom row ──────────────────────────────────────────────────────────────
+  let statusLabel: string | null = null
+  let statusColor = 'var(--text-secondary)'
+  let dateLabel: string | null = null
+
   if (isPaid) {
-    dueDateText = 'Settled'
-    dueDateColor = 'var(--status-delivered)'
+    statusLabel = 'Settled'
+    statusColor = '#22B573'
+    dateLabel = `Paid ${format(latestActivity, 'd MMM')}`
   } else if (isOverdue && calculatedDueDate != null) {
-    const overdueDays = Math.ceil((now - calculatedDueDate) / (24 * 60 * 60 * 1000))
-    dueDateText = `Overdue by ${overdueDays} day${overdueDays === 1 ? '' : 's'}`
-    dueDateColor = '#B87761'
-  } else if (daysUntilDue !== null) {
-    dueDateText = daysUntilDue === 0 ? 'Due today' : `Due in ${daysUntilDue} day${daysUntilDue === 1 ? '' : 's'}`
-    dueDateColor = '#AA8454'
+    const days = Math.ceil((now - calculatedDueDate) / 86400000)
+    statusLabel = `⚠ Overdue by ${days} day${days === 1 ? '' : 's'}`
+    statusColor = '#E05555'
+    dateLabel = `Due ${format(calculatedDueDate, 'd MMM')}`
+  } else if (calculatedDueDate != null) {
+    const days = Math.ceil((calculatedDueDate - now) / 86400000)
+    statusLabel = days === 0 ? 'Due today' : `Due in ${days} day${days === 1 ? '' : 's'}`
+    statusColor = 'var(--text-secondary)'
+    dateLabel = `Due ${format(calculatedDueDate, 'd MMM')}`
   }
 
   const lifecycleColor = getLifecycleStatusColor(lifecycleState)
@@ -144,8 +144,8 @@ export function ConnectionDetailOrderCard({
     >
       <CardAccent color={lifecycleColor} />
 
-      {/* Row 1: Item summary + amount */}
-      <div className="flex items-start justify-between gap-3">
+      {/* Row 1: Order title + amount */}
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '12px' }}>
         <p style={{
           fontSize: isOld ? '14px' : '15px',
           fontWeight: 700,
@@ -155,75 +155,60 @@ export function ConnectionDetailOrderCard({
         }}>
           {itemSummary}
         </p>
-        <div style={{ flexShrink: 0, textAlign: 'right' }}>
+        <div style={{ flexShrink: 0, textAlign: 'right', lineHeight: 1.2 }}>
           {orderValue === 0 && lifecycleState === 'Placed' ? (
             <p style={{ fontSize: '13px', fontWeight: 600, color: 'var(--status-dispatched)' }}>Awaiting amount</p>
           ) : orderValue === 0 ? (
             <p style={{ fontSize: '13px', fontWeight: 500, color: 'var(--text-secondary)' }}>Amount not recorded</p>
-          ) : !isPaid && pendingAmount > 0 ? (
-            <>
-              <p style={{ fontSize: '14px', fontWeight: 500, color: '#E66767' }}>↑ {formatInrCurrency(pendingAmount)}</p>
-              <p style={{ fontSize: '11px', fontWeight: 400, color: 'var(--text-secondary)', marginTop: '2px' }}>
-                ₹{orderValue.toLocaleString('en-IN')} total
-              </p>
-            </>
           ) : (
-            <p style={{ fontSize: '14px', fontWeight: 700, color: 'var(--text-primary)' }}>
-              {formatInrCurrency(orderValue)}
-            </p>
+            <>
+              <div style={{ fontSize: '15px', fontWeight: 700, color: amountColor }}>
+                {amountArrow ? `${amountArrow} ` : ''}{formatInrCurrency(amountValue)}
+              </div>
+              {!isSettled && (
+                <div style={{ fontSize: '11px', color: 'var(--text-tertiary)', marginTop: '1px' }}>
+                  {formatInrCurrency(orderValue)} total
+                </div>
+              )}
+            </>
           )}
         </div>
       </div>
 
       <div style={DIVIDER} />
 
-      {/* Row 2: Lifecycle pill + payment pill */}
-      <div className="flex items-center justify-between gap-2">
-        <Pill variant={fulfilmentVariant} label={fulfilmentLabel} />
-        {isPaid
-          ? <Pill variant="paid" label="Paid" />
-          : paymentVariant && <Pill variant={paymentVariant} label={paymentLabel} />
-        }
-      </div>
-
-      <div style={DIVIDER} />
-
-      {/* Row 3: Order value · Order date · Delivered date */}
-      <div className="flex items-center gap-3" style={{ flexWrap: 'wrap' }}>
-        <div>
-          <p style={META_LABEL}>Order Value</p>
-          <p style={META_VALUE}>
-            {orderValue > 0 ? formatInrCurrency(orderValue) : '—'}
-          </p>
-        </div>
-        <div style={{ width: '1px', height: '28px', backgroundColor: 'var(--border-light)', flexShrink: 0 }} />
-        <div>
-          <p style={META_LABEL}>Ordered</p>
-          <p style={META_VALUE}>{format(createdAt, 'd MMM yyyy')}</p>
-        </div>
-        {deliveredAt && (
-          <>
-            <div style={{ width: '1px', height: '28px', backgroundColor: 'var(--border-light)', flexShrink: 0 }} />
-            <div>
-              <p style={META_LABEL}>Delivered</p>
-              <p style={META_VALUE}>{format(deliveredAt, 'd MMM yyyy')}</p>
-            </div>
-          </>
-        )}
-      </div>
-
-      <div style={DIVIDER} />
-
-      {/* Row 4: Due/settled label + time ago */}
-      <div className="flex items-center justify-between gap-2">
-        {dueDateText && (
-          <p style={{ fontSize: '13px', fontWeight: 500, color: dueDateColor }}>
-            {dueDateText}
-          </p>
-        )}
-        <p style={{ fontSize: '11px', color: 'var(--text-tertiary)', marginLeft: 'auto' }}>
-          {formatDistanceToNow(latestActivity, { addSuffix: true })}
+      {/* Row 2: Dates (left) + joined half-pills (right) */}
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '8px' }}>
+        <p style={{ fontSize: '12px', color: 'var(--text-secondary)', fontWeight: 500 }}>
+          {orderedLabel}{deliveredLabel}
         </p>
+        <div style={{ display: 'flex', flexShrink: 0 }}>
+          <span style={{ ...HALF_PILL_BASE, ...deliveryStyle, borderRadius: '11px 0 0 11px' }}>
+            {deliveryLabel}
+          </span>
+          <span style={{ ...HALF_PILL_BASE, ...paymentStyle, borderRadius: '0 11px 11px 0' }}>
+            {paymentLabel}
+          </span>
+        </div>
+      </div>
+
+      <div style={DIVIDER} />
+
+      {/* Row 3: Overdue/settled label (left) + due/settled date (right) */}
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '8px' }}>
+        {statusLabel && (
+          <p style={{ fontSize: '13px', fontWeight: 600, color: statusColor }}>
+            {statusLabel}
+          </p>
+        )}
+        {dateLabel && (
+          <p style={{ fontSize: '13px', color: 'var(--text-secondary)', marginLeft: 'auto' }}>
+            <span style={{ fontWeight: 700, color: 'var(--text-primary)' }}>
+              {dateLabel.split(' ')[0]}
+            </span>
+            {' '}{dateLabel.split(' ').slice(1).join(' ')}
+          </p>
+        )}
       </div>
     </button>
   )
