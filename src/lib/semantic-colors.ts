@@ -1,12 +1,4 @@
-export function getConnectionStateColor(state: string): string {
-  switch (state) {
-    case 'Stable': return '#22B573'       // --status-delivered
-    case 'Active': return '#22B573'       // --status-delivered (green for healthy)
-    case 'Friction Rising': return '#FF8C42' // --status-dispatched (orange)
-    case 'Under Stress': return '#FF6B6B'   // --status-overdue (red)
-    default: return '#8492A6'               // --text-secondary
-  }
-}
+export { getConnectionStateColor } from './connection-state-utils'
 
 export function getLifecycleStatusColor(state: string): string {
   switch (state) {
