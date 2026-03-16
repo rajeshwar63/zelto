@@ -156,7 +156,7 @@ export interface FrozenEntity {
   adminUsername: string
 }
 
-export type ConnectionRequestStatus = 'Pending' | 'Accepted' | 'Declined'
+export type ConnectionRequestStatus = 'Pending' | 'Accepted' | 'Declined' | 'Archived' | 'Blocked'
 
 export interface ConnectionRequest {
   id: string
