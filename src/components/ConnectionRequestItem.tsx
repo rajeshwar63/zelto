@@ -3,6 +3,7 @@ import { dataStore } from '@/lib/data-store'
 import { emitDataChange } from '@/lib/data-events'
 import { consumePendingConnectionLabels } from '@/lib/pending-connection-labels'
 import { calculateCredibility, getBusinessActivityCounts, type CredibilityBreakdown } from '@/lib/credibility'
+import { CredibilityBadge } from '@/components/CredibilityBadge'
 import type { BusinessEntity, ConnectionRequest } from '@/lib/types'
 import { Button } from '@/components/ui/button'
 import { formatDistanceToNow } from 'date-fns'
@@ -126,35 +127,7 @@ export function ConnectionRequestItem({ request, currentBusinessId, onUpdate, on
             </div>
 
             {requesterCredibility && (
-              <>
-                {requesterCredibility.level === 'trusted' && (
-                  <span style={{
-                    fontSize: '11px', fontWeight: 500,
-                    background: '#E1F5EE', border: '0.5px solid #5DCAA5',
-                    color: '#0F6E56', borderRadius: '20px', padding: '4px 10px'
-                  }}>
-                    Zelto Trusted
-                  </span>
-                )}
-                {requesterCredibility.level === 'verified' && (
-                  <span style={{
-                    fontSize: '11px', fontWeight: 500,
-                    background: '#E6F1FB', border: '0.5px solid #85B7EB',
-                    color: '#185FA5', borderRadius: '20px', padding: '4px 10px'
-                  }}>
-                    Verified
-                  </span>
-                )}
-                {requesterCredibility.level === 'none' && (
-                  <span style={{
-                    fontSize: '11px', fontWeight: 500,
-                    background: '#FAEEDA', border: '0.5px solid #EF9F27',
-                    color: '#633806', borderRadius: '20px', padding: '4px 10px'
-                  }}>
-                    New business
-                  </span>
-                )}
-              </>
+              <CredibilityBadge level={requesterCredibility.level} />
             )}
           </div>
 
