@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react'
+import { useState, useCallback, useEffect, useRef } from 'react'
 import { MagnifyingGlass, X } from '@phosphor-icons/react'
 import { startOfDay, isToday, isSameDay } from 'date-fns'
 
@@ -15,7 +15,7 @@ export const CHIP_LABELS: Record<StatusChip, string> = {
   placed: 'Placed',
   dispatched: 'Dispatched',
   delivered: 'Delivered',
-  payment_pending: 'Payment Pending',
+  payment_pending: 'Due',
   paid: 'Paid',
 }
 
@@ -129,18 +129,48 @@ export function OrderSearchPanel({ visible, filters, onFiltersChange, placeholde
 
   const grid = getMonthGrid(calView.year, calView.month)
 
+  const [overlayVisible, setOverlayVisible] = useState(false)
+  const overlayTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  useEffect(() => {
+    if (overlayTimerRef.current) clearTimeout(overlayTimerRef.current)
+    if (visible) {
+      setOverlayVisible(true)
+      overlayTimerRef.current = setTimeout(() => setOverlayVisible(false), 80)
+    } else {
+      setOverlayVisible(true)
+    }
+    return () => {
+      if (overlayTimerRef.current) clearTimeout(overlayTimerRef.current)
+    }
+  }, [visible])
+
   return (
     <div
       style={{
         overflow: 'hidden',
         maxHeight: visible ? (calOpen ? '700px' : '420px') : '0',
         opacity: visible ? 1 : 0,
-        transition: 'max-height 280ms cubic-bezier(0.4, 0, 0.2, 1), opacity 200ms',
+        transition: 'max-height 420ms cubic-bezier(0.4, 0, 0.2, 1), opacity 280ms ease',
         backgroundColor: 'var(--bg-header)',
         borderBottom: visible ? '1px solid var(--border-light)' : 'none',
       }}
     >
-      <div style={{ padding: '10px 16px 12px' }}>
+      <div style={{ position: 'relative', padding: '10px 16px 12px' }}>
+        <div
+          style={{
+            position: 'absolute',
+            bottom: 0,
+            left: 0,
+            right: 0,
+            height: '50%',
+            background: 'linear-gradient(to top, var(--bg-header) 30%, transparent 100%)',
+            opacity: overlayVisible ? 1 : 0,
+            transition: 'opacity 500ms ease',
+            pointerEvents: 'none',
+            zIndex: 1,
+          }}
+        />
         {/* Search bar */}
         <div style={{ position: 'relative', marginBottom: '12px' }}>
           <MagnifyingGlass
