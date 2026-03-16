@@ -79,11 +79,7 @@ export function OrdersScreen({ currentBusinessId, onSelectOrder, initialFilter, 
     const el = listScrollRef.current
     if (!el) return
     const st = el.scrollTop
-    if (st < lastScrollTop.current && st <= 20) {
-      setPanelVisible(true)
-    } else if (st > lastScrollTop.current && st > 40) {
-      setPanelVisible(false)
-    }
+    setPanelVisible(st > 20)
     lastScrollTop.current = st
   }
 
