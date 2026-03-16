@@ -128,7 +128,7 @@ export function OrdersScreen({ currentBusinessId, onSelectOrder, initialFilter, 
         placed: 'PLACED',
         dispatched: 'DISPATCHED',
         delivered: 'DELIVERED',
-        payment_pending: 'PAYMENT PENDING',
+        payment_pending: 'DUE',
         paid: 'PAID',
       }
       parts.push([...activeChips].map(c => chipUpperLabels[c]).join(' · '))
