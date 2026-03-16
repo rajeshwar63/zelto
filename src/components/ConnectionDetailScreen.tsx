@@ -127,12 +127,9 @@ export function ConnectionDetailScreen({ connectionId, currentBusinessId, onBack
     const el = listScrollRef.current
     if (!el) return
     const st = el.scrollTop
-    if (st < lastScrollTop.current && st <= 20) {
-      setPanelVisible(true)
-    } else if (st > lastScrollTop.current && st > 40) {
-      setPanelVisible(false)
-    }
     lastScrollTop.current = st
+    if (st > 30) setPanelVisible(true)
+    else if (st <= 8) setPanelVisible(false)
   }
 
   const handleArchiveOrder = (orderId: string) => {
