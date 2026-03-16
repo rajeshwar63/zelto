@@ -152,6 +152,8 @@ export function ConnectionDetailOrderCard({
           color: isOld ? 'var(--text-secondary)' : 'var(--text-primary)',
           flex: 1,
           lineHeight: 1.4,
+          wordBreak: 'break-word',
+          overflowWrap: 'break-word',
         }}>
           {itemSummary}
         </p>
