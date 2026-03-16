@@ -1,4 +1,5 @@
-import { useCallback, useEffect, useMemo, useRef, useState, type TouchEvent } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { motion, AnimatePresence } from 'framer-motion'
 import { dataStore } from '@/lib/data-store'
 import { behaviourEngine } from '@/lib/behaviour-engine'
 import { createOrder } from '@/lib/interactions'
@@ -97,9 +98,9 @@ export function ConnectionsScreen({ currentBusinessId, onSelectConnection, onAdd
   const [businesses, setBusinesses] = useState<Map<string, BusinessEntity>>(new Map())
   const [supplierSearch, setSupplierSearch] = useState('')
   const [connectionSearch, setConnectionSearch] = useState('')
-  const [showConnectionSearch, setShowConnectionSearch] = useState(false)
+  const [panelVisible, setPanelVisible] = useState(false)
   const listContainerRef = useRef<HTMLDivElement | null>(null)
-  const pullStartYRef = useRef<number | null>(null)
+  const lastScrollTop = useRef(0)
   const [selectedConnection, setSelectedConnection] = useState<Connection | null>(null)
   const [message, setMessage] = useState('')
   const [isSending, setIsSending] = useState(false)
@@ -251,30 +252,18 @@ export function ConnectionsScreen({ currentBusinessId, onSelectConnection, onAdd
   ), [connections, connectionSearch])
 
   useEffect(() => {
-    if (!showConnectionSearch) {
+    if (!panelVisible) {
       setConnectionSearch('')
     }
-  }, [showConnectionSearch])
+  }, [panelVisible])
 
-  const handleListTouchStart = (event: TouchEvent<HTMLDivElement>) => {
-    const container = listContainerRef.current
-    if (!container || container.scrollTop > 0) return
-    pullStartYRef.current = event.touches[0]?.clientY ?? null
-  }
-
-  const handleListTouchMove = (event: TouchEvent<HTMLDivElement>) => {
-    if (showConnectionSearch || pullStartYRef.current === null) return
-    const currentY = event.touches[0]?.clientY
-    if (currentY === undefined) return
-    const pullDistance = currentY - pullStartYRef.current
-    if (pullDistance > 50) {
-      setShowConnectionSearch(true)
-      pullStartYRef.current = null
-    }
-  }
-
-  const handleListTouchEnd = () => {
-    pullStartYRef.current = null
+  const handleListScroll = () => {
+    const el = listContainerRef.current
+    if (!el) return
+    const st = el.scrollTop
+    lastScrollTop.current = st
+    if (st > 30) setPanelVisible(true)
+    else if (st <= 8) setPanelVisible(false)
   }
 
   if (connections.length === 0 && connectionRequests.length === 0) {
@@ -357,14 +346,62 @@ export function ConnectionsScreen({ currentBusinessId, onSelectConnection, onAdd
             </button>
           </div>
         </div>
+        <AnimatePresence>
+          {panelVisible && (
+            <motion.div
+              key="connection-search"
+              initial={{ opacity: 0, y: -10 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -10 }}
+              transition={{ duration: 0.22, ease: [0.4, 0, 0.2, 1] }}
+              style={{ overflow: 'hidden' }}
+            >
+              <div style={{ padding: '10px 16px 12px', backgroundColor: 'var(--bg-header)', borderBottom: '1px solid var(--border-light)' }}>
+                <div style={{ position: 'relative' }}>
+                  <MagnifyingGlass
+                    size={18}
+                    weight="regular"
+                    style={{ position: 'absolute', left: '10px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-secondary)', pointerEvents: 'none' }}
+                  />
+                  <input
+                    type="text"
+                    value={connectionSearch}
+                    onChange={(e) => setConnectionSearch(e.target.value)}
+                    placeholder="Search connections…"
+                    style={{
+                      width: '100%',
+                      paddingLeft: '34px',
+                      paddingRight: connectionSearch ? '34px' : '10px',
+                      paddingTop: '8px',
+                      paddingBottom: '8px',
+                      fontSize: '14px',
+                      color: 'var(--text-primary)',
+                      backgroundColor: 'var(--bg-screen)',
+                      border: '1px solid var(--border-light)',
+                      borderRadius: 'var(--radius-input)',
+                      outline: 'none',
+                      fontFamily: 'inherit',
+                    }}
+                  />
+                  {connectionSearch && (
+                    <button
+                      onClick={() => setConnectionSearch('')}
+                      style={{ position: 'absolute', right: '8px', top: '50%', transform: 'translateY(-50%)', padding: '4px', color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', background: 'none', border: 'none', cursor: 'pointer' }}
+                    >
+                      <X size={14} weight="bold" />
+                    </button>
+                  )}
+                </div>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
       </div>
 
       <div
         ref={listContainerRef}
         className="px-4 pt-3 pb-24 overflow-y-auto"
-        onTouchStart={handleListTouchStart}
-        onTouchMove={handleListTouchMove}
-        onTouchEnd={handleListTouchEnd}
+        onScroll={handleListScroll}
       >
         {connectionRequests.length > 0 && (
           <div className="mb-4">
@@ -384,28 +421,6 @@ export function ConnectionsScreen({ currentBusinessId, onSelectConnection, onAdd
                   onNavigateToConnections={() => undefined}
                 />
               ))}
-            </div>
-          </div>
-        )}
-
-        {showConnectionSearch && (
-          <div className="mb-3">
-            <div className="relative">
-              <MagnifyingGlass size={18} weight="regular" className="absolute left-3 top-1/2 -translate-y-1/2" style={{ color: 'var(--text-secondary)' }} />
-              <Input
-                placeholder="Search connections..."
-                value={connectionSearch}
-                onChange={(e) => setConnectionSearch(e.target.value)}
-                className="pl-9 pr-10"
-                style={{ borderRadius: 'var(--radius-input)' }}
-              />
-              <button
-                onClick={() => setShowConnectionSearch(false)}
-                className="absolute right-2 top-1/2 -translate-y-1/2"
-                style={{ minWidth: '32px', minHeight: '32px', color: 'var(--text-secondary)' }}
-              >
-                <X size={16} weight="regular" />
-              </button>
             </div>
           </div>
         )}
