@@ -148,6 +148,7 @@ export function ConnectionDetailOrderCard({
           flex: 1,
           minWidth: 0,
           lineHeight: 1.4,
+          whiteSpace: 'normal',
           wordBreak: 'break-word',
           overflowWrap: 'break-word',
         }}>
