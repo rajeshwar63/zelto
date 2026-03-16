@@ -150,7 +150,7 @@ export function DashboardScreen({ currentBusinessId, onNavigateToOrders, onNavig
                       <div className="flex-1 min-w-0">
                         <div className="flex items-baseline gap-1.5 flex-wrap">
                           <span className="text-[20px] font-bold text-[var(--status-delivered)]">₹{data.tradePosition.next7Days.comingIn.toLocaleString('en-IN')}</span>
-                          <span className="text-[15px] font-semibold text-foreground">Coming In</span>
+                          <span className="text-[15px] font-semibold text-foreground">To Receive</span>
                         </div>
                         <p className="text-[12px] text-muted-foreground mt-0.5">from {data.tradePosition.next7Days.comingInOrders} orders</p>
                       </div>
@@ -168,7 +168,7 @@ export function DashboardScreen({ currentBusinessId, onNavigateToOrders, onNavig
                       <div className="flex-1 min-w-0">
                         <div className="flex items-baseline gap-1.5 flex-wrap">
                           <span className="text-[20px] font-bold text-destructive">₹{data.tradePosition.next7Days.goingOut.toLocaleString('en-IN')}</span>
-                          <span className="text-[15px] font-semibold text-foreground">Going Out</span>
+                          <span className="text-[15px] font-semibold text-foreground">To Pay</span>
                         </div>
                         <p className="text-[12px] text-muted-foreground mt-0.5">for {data.tradePosition.next7Days.goingOutOrders} orders</p>
                       </div>
@@ -192,7 +192,7 @@ export function DashboardScreen({ currentBusinessId, onNavigateToOrders, onNavig
                       <div className="flex-1 min-w-0">
                         <div className="flex items-baseline gap-1.5 flex-wrap">
                           <span className="text-[20px] font-bold text-[var(--status-delivered)]">₹{data.tradePosition.next30Days.comingIn.toLocaleString('en-IN')}</span>
-                          <span className="text-[15px] font-semibold text-foreground">Coming In</span>
+                          <span className="text-[15px] font-semibold text-foreground">To Receive</span>
                         </div>
                         <p className="text-[12px] text-muted-foreground mt-0.5">from {data.tradePosition.next30Days.comingInOrders} orders</p>
                       </div>
@@ -210,7 +210,7 @@ export function DashboardScreen({ currentBusinessId, onNavigateToOrders, onNavig
                       <div className="flex-1 min-w-0">
                         <div className="flex items-baseline gap-1.5 flex-wrap">
                           <span className="text-[20px] font-bold text-destructive">₹{data.tradePosition.next30Days.goingOut.toLocaleString('en-IN')}</span>
-                          <span className="text-[15px] font-semibold text-foreground">Going Out</span>
+                          <span className="text-[15px] font-semibold text-foreground">To Pay</span>
                         </div>
                         <p className="text-[12px] text-muted-foreground mt-0.5">for {data.tradePosition.next30Days.goingOutOrders} orders</p>
                       </div>
