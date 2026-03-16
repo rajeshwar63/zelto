@@ -133,7 +133,7 @@ export function OrderSearchPanel({ visible, filters, onFiltersChange, placeholde
     <div
       style={{
         overflow: 'hidden',
-        maxHeight: visible ? '420px' : '0',
+        maxHeight: visible ? (calOpen ? '700px' : '420px') : '0',
         opacity: visible ? 1 : 0,
         transition: 'max-height 280ms cubic-bezier(0.4, 0, 0.2, 1), opacity 200ms',
         backgroundColor: 'var(--bg-header)',
@@ -202,7 +202,7 @@ export function OrderSearchPanel({ visible, filters, onFiltersChange, placeholde
           <p style={{ fontSize: '10px', fontWeight: 600, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '6px' }}>
             STATUS
           </p>
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
+          <div style={{ display: 'flex', flexWrap: 'nowrap', gap: '6px', overflowX: 'auto', paddingBottom: '2px' }}>
             {ALL_CHIPS.map(chip => {
               const isActive = activeChips.has(chip)
               return (
