@@ -4,7 +4,7 @@ import { behaviourEngine } from '@/lib/behaviour-engine'
 import { createOrder } from '@/lib/interactions'
 import { useDataListener } from '@/lib/data-events'
 import type { Connection, BusinessEntity, ConnectionState } from '@/lib/types'
-import { getConnectionStateColor } from '@/lib/semantic-colors'
+import { getConnectionStateLabel, getConnectionStateColor } from '@/lib/connection-state-utils'
 import { Plus, Users, PencilSimple, MagnifyingGlass, X, PaperPlaneTilt, DownloadSimple } from '@phosphor-icons/react'
 import { Phone, MapPin, User } from 'lucide-react'
 import { Input } from '@/components/ui/input'
@@ -424,20 +424,13 @@ export function ConnectionsScreen({ currentBusinessId, onSelectConnection, onAdd
             const isSupplier = conn.supplierBusinessId === currentBusinessId
             const isUnread = unreadConnectionIds?.has(conn.id)
 
-            const relationshipLabel = (() => {
-              if (!formattedTerms) return isSupplier ? 'Payment terms needed' : 'Awaiting payment terms'
-              switch (conn.computedState) {
-                case 'Active': return 'Healthy'
-                case 'Stable': return 'Stable'
-                case 'Friction Rising': return 'Friction Rising'
-                case 'Under Stress': return 'High Risk'
-                default: return conn.computedState
-              }
-            })()
+            const relationshipLabel = !formattedTerms
+              ? (isSupplier ? 'Payment terms needed' : 'Awaiting payment terms')
+              : getConnectionStateLabel(conn.connectionState)
 
             const statusColor = !formattedTerms
               ? (isSupplier ? 'var(--status-dispatched)' : 'var(--text-secondary)')
-              : getConnectionStateColor(conn.computedState)
+              : getConnectionStateColor(conn.connectionState)
 
             const amountDirectionColor = isSupplier ? '#16A34A' : '#DC2626'
 
@@ -580,7 +573,7 @@ export function ConnectionsScreen({ currentBusinessId, onSelectConnection, onAdd
                       borderRadius: 'var(--radius-chip)',
                     }}
                   >
-                    {conn.computedState === 'Friction Rising' || conn.computedState === 'Under Stress' ? '⚠ ' : ''}{relationshipLabel}
+                    {relationshipLabel}
                   </span>
                   {lastActivity && (
                     <p style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>

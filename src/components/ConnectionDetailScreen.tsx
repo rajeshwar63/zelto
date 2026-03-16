@@ -5,11 +5,11 @@ import type { Insight } from '@/lib/insight-engine'
 import { createOrder } from '@/lib/interactions'
 import { useDataListener } from '@/lib/data-events'
 import type { Connection, OrderWithPaymentState, BusinessEntity } from '@/lib/types'
-import { CaretLeft, DownloadSimple, Phone, PencilSimple, MapPin, Warning } from '@phosphor-icons/react'
+import { CaretLeft, DownloadSimple, Phone, PencilSimple, MapPin } from '@phosphor-icons/react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { toast } from 'sonner'
-import { getConnectionStateColor } from '@/lib/semantic-colors'
+import { getConnectionStateLabel, getConnectionStateColor } from '@/lib/connection-state-utils'
 import { motion, AnimatePresence, useMotionValue, useTransform, animate, PanInfo } from 'framer-motion'
 import { getArchivedOrderIds, archiveOrder as doArchiveOrder, unarchiveOrder as doUnarchiveOrder } from '@/lib/archive-store'
 import { markOrderSeen } from '@/lib/unread-tracker'
@@ -347,8 +347,7 @@ export function ConnectionDetailScreen({ connectionId, currentBusinessId, onBack
                   <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, padding: '10px 12px', fontSize: 12 }}>
                     {isRisky ? (
                       <div style={{ display: 'inline-flex', alignItems: 'center', gap: 4, backgroundColor: stateColor, color: '#FFFFFF', borderRadius: 999, padding: '4px 10px', fontWeight: 700, fontSize: 10.5 }}>
-                        <Warning size={11} weight="fill" />
-                        {connection.connectionState}
+                        {getConnectionStateLabel(connection.connectionState)}
                       </div>
                     ) : (
                       <div />
