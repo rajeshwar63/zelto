@@ -1,8 +1,6 @@
 import type { CSSProperties } from 'react'
 import { format } from 'date-fns'
 import { formatInrCurrency } from '@/lib/utils'
-import { CardAccent } from '@/components/ui/card'
-import { getLifecycleStatusColor } from '@/lib/semantic-colors'
 
 export interface ConnectionDetailOrderCardProps {
   itemSummary: string
@@ -126,8 +124,6 @@ export function ConnectionDetailOrderCard({
     dateLabel = `Due ${format(calculatedDueDate, 'd MMM')}`
   }
 
-  const lifecycleColor = getLifecycleStatusColor(lifecycleState)
-
   return (
     <button
       onClick={onClick}
@@ -135,14 +131,13 @@ export function ConnectionDetailOrderCard({
       style={{
         backgroundColor: isNew ? 'var(--brand-primary-bg)' : 'var(--bg-card)',
         borderRadius: 'var(--radius-card)',
-        padding: '14px 16px 14px 20px',
+        padding: '14px 16px',
         border: '1px solid var(--border-light)',
         boxShadow: '0 1px 2px rgba(16,24,40,0.04)',
         opacity: lifecycleState === 'Declined' ? 0.4 : 1,
         minHeight: '44px',
       }}
     >
-      <CardAccent color={lifecycleColor} />
 
       {/* Row 1: Order title + amount */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '12px' }}>
