@@ -197,9 +197,6 @@ export function OrderSearchPanel({ filters, onFiltersChange, placeholder = 'Sear
 
         {/* Status chips */}
         <div style={{ marginBottom: '12px' }}>
-          <p style={{ fontSize: '10px', fontWeight: 600, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '6px' }}>
-            STATUS
-          </p>
           <div style={{ display: 'flex', flexWrap: 'nowrap', gap: '6px', overflowX: 'auto', paddingBottom: '2px' }}>
             {ALL_CHIPS.map(chip => {
               const isActive = activeChips.has(chip)
@@ -228,9 +225,6 @@ export function OrderSearchPanel({ filters, onFiltersChange, placeholder = 'Sear
 
         {/* Date range */}
         <div>
-          <p style={{ fontSize: '10px', fontWeight: 600, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '6px' }}>
-            DATE RANGE
-          </p>
           <div style={{ display: 'flex', gap: '8px', marginBottom: calOpen ? '10px' : 0 }}>
             <button
               onClick={handleFromClick}
