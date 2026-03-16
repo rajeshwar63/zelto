@@ -171,15 +171,45 @@ export function AddConnectionScreen({ currentBusinessId, onBack, onSuccess }: Pr
 
         {foundBusiness && (
           <div className="rounded-lg border border-border p-4 space-y-3 mt-4">
-            {/* Business name + verified badge */}
-            <div className="flex items-center gap-1.5">
-              <p className="text-base font-medium text-foreground">{foundBusiness.businessName}</p>
-              {foundCredibility?.level === 'trusted' && <span className="text-green-500">✓</span>}
-              {foundCredibility?.level === 'verified' && <span className="text-blue-500">✓</span>}
-            </div>
+            {/* Header: name + trust badge */}
+            <div className="flex items-start justify-between">
+              <div>
+                <p className="text-[15px] font-medium text-foreground">{foundBusiness.businessName}</p>
+                <p className="text-[11px] font-mono text-muted-foreground mt-0.5">{foundBusiness.zeltoId}</p>
+              </div>
 
-            {/* Zelto ID */}
-            <p className="text-xs text-muted-foreground font-mono">{foundBusiness.zeltoId}</p>
+              {foundCredibility && (
+                <>
+                  {foundCredibility.level === 'trusted' && (
+                    <span style={{
+                      fontSize: '11px', fontWeight: 500,
+                      background: '#E1F5EE', border: '0.5px solid #5DCAA5',
+                      color: '#0F6E56', borderRadius: '20px', padding: '4px 10px'
+                    }}>
+                      Zelto Trusted
+                    </span>
+                  )}
+                  {foundCredibility.level === 'verified' && (
+                    <span style={{
+                      fontSize: '11px', fontWeight: 500,
+                      background: '#E6F1FB', border: '0.5px solid #85B7EB',
+                      color: '#185FA5', borderRadius: '20px', padding: '4px 10px'
+                    }}>
+                      Verified
+                    </span>
+                  )}
+                  {foundCredibility.level === 'none' && (
+                    <span style={{
+                      fontSize: '11px', fontWeight: 500,
+                      background: '#FAEEDA', border: '0.5px solid #EF9F27',
+                      color: '#633806', borderRadius: '20px', padding: '4px 10px'
+                    }}>
+                      New business
+                    </span>
+                  )}
+                </>
+              )}
+            </div>
 
             {/* Details (only show what exists) */}
             <div className="space-y-1">
@@ -200,42 +230,53 @@ export function AddConnectionScreen({ currentBusinessId, onBack, onSuccess }: Pr
               )}
             </div>
 
-            {/* Activity counts */}
-            {foundActivity && (
-              <p className="text-xs text-muted-foreground">
-                {foundActivity.connectionCount} connection{foundActivity.connectionCount !== 1 ? 's' : ''} · {foundActivity.orderCount} order{foundActivity.orderCount !== 1 ? 's' : ''}
-              </p>
-            )}
-
-            {/* Credibility bar */}
-            {foundCredibility && (
-              <div className="flex items-center gap-2">
-                <div className="flex-1 h-1.5 bg-muted rounded-full overflow-hidden">
-                  <div
-                    className="h-full rounded-full"
-                    style={{
-                      width: `${foundCredibility.score}%`,
-                      backgroundColor: foundCredibility.level === 'trusted' ? '#22C55E'
-                        : foundCredibility.level === 'verified' ? '#3B82F6'
-                        : foundCredibility.level === 'basic' ? '#F59E0B'
-                        : '#D1D5DB'
-                    }}
-                  />
+            {/* Activity stat block */}
+            {foundActivity && foundCredibility && (
+              <div style={{
+                display: 'flex', gap: '16px',
+                padding: '10px 12px',
+                background: 'var(--color-background-secondary)',
+                borderRadius: '8px'
+              }}>
+                <div>
+                  <p style={{ fontSize: '18px', fontWeight: 500, margin: 0, lineHeight: 1.2 }}>
+                    {foundActivity.connectionCount}
+                  </p>
+                  <p style={{ fontSize: '11px', color: 'var(--color-text-secondary)', margin: 0 }}>
+                    connections
+                  </p>
                 </div>
-                <span className="text-[11px] text-muted-foreground">
-                  {foundCredibility.level === 'trusted' ? 'Trusted'
-                    : foundCredibility.level === 'verified' ? 'Verified'
-                    : foundCredibility.level === 'basic' ? 'Basic'
-                    : 'New'} ({foundCredibility.score}/100)
-                </span>
+                <div style={{ width: '0.5px', background: 'var(--color-border-tertiary)' }} />
+                <div>
+                  <p style={{ fontSize: '18px', fontWeight: 500, margin: 0, lineHeight: 1.2 }}>
+                    {foundActivity.orderCount}
+                  </p>
+                  <p style={{ fontSize: '11px', color: 'var(--color-text-secondary)', margin: 0 }}>
+                    orders placed
+                  </p>
+                </div>
+                <div style={{ width: '0.5px', background: 'var(--color-border-tertiary)' }} />
+                <div>
+                  <p style={{ fontSize: '18px', fontWeight: 500, margin: 0, lineHeight: 1.2 }}>
+                    {foundCredibility.score}/100
+                  </p>
+                  <p style={{ fontSize: '11px', color: 'var(--color-text-secondary)', margin: 0 }}>
+                    score
+                  </p>
+                </div>
               </div>
             )}
 
-            {/* Warning for low credibility */}
+            {/* Warning note — only for new/unverified businesses */}
             {foundCredibility && foundCredibility.score < 20 && (
-              <div className="p-2 rounded bg-amber-50 border border-amber-200">
-                <p className="text-xs text-amber-700">
-                  This business hasn't added details yet. Verify before connecting.
+              <div style={{
+                background: 'var(--color-background-warning)',
+                borderLeft: '3px solid #EF9F27',
+                borderRadius: '6px',
+                padding: '8px 10px'
+              }}>
+                <p style={{ fontSize: '12px', color: 'var(--color-text-warning)', margin: 0 }}>
+                  This business hasn't built a history on Zelto yet. Verify before connecting.
                 </p>
               </div>
             )}
