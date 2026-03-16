@@ -129,19 +129,19 @@ export function OrderSearchPanel({ visible, filters, onFiltersChange, placeholde
 
   const grid = getMonthGrid(calView.year, calView.month)
 
-  const [overlayVisible, setOverlayVisible] = useState(false)
-  const overlayTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const [loaded, setLoaded] = useState(false)
+  const loadTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   useEffect(() => {
-    if (overlayTimerRef.current) clearTimeout(overlayTimerRef.current)
+    if (loadTimerRef.current) clearTimeout(loadTimerRef.current)
     if (visible) {
-      setOverlayVisible(true)
-      overlayTimerRef.current = setTimeout(() => setOverlayVisible(false), 80)
+      setLoaded(false)
+      loadTimerRef.current = setTimeout(() => setLoaded(true), 1500)
     } else {
-      setOverlayVisible(true)
+      setLoaded(false)
     }
     return () => {
-      if (overlayTimerRef.current) clearTimeout(overlayTimerRef.current)
+      if (loadTimerRef.current) clearTimeout(loadTimerRef.current)
     }
   }, [visible])
 
@@ -156,21 +156,15 @@ export function OrderSearchPanel({ visible, filters, onFiltersChange, placeholde
         borderBottom: visible ? '1px solid var(--border-light)' : 'none',
       }}
     >
-      <div style={{ position: 'relative', padding: '10px 16px 12px' }}>
-        <div
-          style={{
-            position: 'absolute',
-            bottom: 0,
-            left: 0,
-            right: 0,
-            height: '50%',
-            background: 'linear-gradient(to top, var(--bg-header) 30%, transparent 100%)',
-            opacity: overlayVisible ? 1 : 0,
-            transition: 'opacity 500ms ease',
-            pointerEvents: 'none',
-            zIndex: 1,
-          }}
-        />
+      <div
+        style={{
+          position: 'relative',
+          padding: '10px 16px 12px',
+          filter: loaded ? 'blur(0px)' : 'blur(10px)',
+          opacity: loaded ? 1 : 0.1,
+          transition: 'filter 1.5s ease, opacity 1.5s ease',
+        }}
+      >
         {/* Search bar */}
         <div style={{ position: 'relative', marginBottom: '12px' }}>
           <MagnifyingGlass
@@ -229,9 +223,6 @@ export function OrderSearchPanel({ visible, filters, onFiltersChange, placeholde
 
         {/* Status chips */}
         <div style={{ marginBottom: '12px' }}>
-          <p style={{ fontSize: '10px', fontWeight: 600, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '6px' }}>
-            STATUS
-          </p>
           <div style={{ display: 'flex', flexWrap: 'nowrap', gap: '6px', overflowX: 'auto', paddingBottom: '2px' }}>
             {ALL_CHIPS.map(chip => {
               const isActive = activeChips.has(chip)
@@ -260,9 +251,6 @@ export function OrderSearchPanel({ visible, filters, onFiltersChange, placeholde
 
         {/* Date range */}
         <div>
-          <p style={{ fontSize: '10px', fontWeight: 600, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '6px' }}>
-            DATE RANGE
-          </p>
           <div style={{ display: 'flex', gap: '8px', marginBottom: calOpen ? '10px' : 0 }}>
             <button
               onClick={handleFromClick}
