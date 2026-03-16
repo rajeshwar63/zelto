@@ -146,6 +146,7 @@ export function ConnectionDetailOrderCard({
           fontWeight: 700,
           color: isOld ? 'var(--text-secondary)' : 'var(--text-primary)',
           flex: 1,
+          minWidth: 0,
           lineHeight: 1.4,
           wordBreak: 'break-word',
           overflowWrap: 'break-word',
