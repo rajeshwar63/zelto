@@ -338,14 +338,7 @@ export function ConnectionsScreen({ currentBusinessId, onSelectConnection, onAdd
         <div className="h-11 flex items-center justify-between px-4">
           <h1 style={{ fontSize: '22px', fontWeight: 700, color: 'var(--text-primary)', letterSpacing: '-0.02em' }}>Connections</h1>
           <div className="flex items-center gap-1">
-            <button
-              onClick={() => setShowLedgerSheet(true)}
-              className="flex items-center gap-1"
-              style={{ color: 'var(--brand-primary)', minWidth: '44px', minHeight: '44px', paddingLeft: '8px', paddingRight: '4px' }}
-            >
-              <DownloadSimple size={17} weight="bold" />
-              <span style={{ fontSize: '13px', fontWeight: 600 }}>Ledger</span>
-            </button>
+
             <button
               onClick={onNavigateToIncomingRequests}
               className="flex items-center"
