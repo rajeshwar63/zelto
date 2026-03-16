@@ -1,4 +1,5 @@
 import { dataStore } from './data-store'
+import { supabase } from './supabase-client'
 
 export interface CredibilityBreakdown {
   score: number          // 0-100
@@ -134,16 +135,22 @@ export async function calculateCredibility(businessId: string): Promise<Credibil
 
 /**
  * Get activity counts for display on business profile card.
+ * Uses a security-definer RPC so RLS doesn't block reads for third-party businesses.
  */
 export async function getBusinessActivityCounts(businessId: string): Promise<{
   connectionCount: number
   orderCount: number
 }> {
-  const connections = await dataStore.getConnectionsByBusinessId(businessId)
-  let orderCount = 0
-  for (const conn of connections) {
-    const orders = await dataStore.getOrdersByConnectionId(conn.id)
-    orderCount += orders.length
+  const { data, error } = await supabase
+    .rpc('get_business_activity_counts', { p_business_id: businessId })
+
+  if (error) {
+    console.error('getBusinessActivityCounts RPC error:', error)
+    return { connectionCount: 0, orderCount: 0 }
   }
-  return { connectionCount: connections.length, orderCount }
+
+  return {
+    connectionCount: data?.connection_count ?? 0,
+    orderCount: data?.order_count ?? 0,
+  }
 }

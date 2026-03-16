@@ -114,26 +114,53 @@ export function ConnectionRequestItem({ request, currentBusinessId, onUpdate, on
       <div className="px-4 py-2">
         {/* Rich business card */}
         <div className="rounded-lg border border-border p-3 space-y-2 mb-3">
-          {/* Business name + badge */}
-          <div className="flex items-center gap-1.5">
-            <p className="text-sm text-foreground font-medium">
-              {requesterBusiness?.businessName || 'Loading...'}
-            </p>
-            {requesterCredibility?.level === 'trusted' && <span className="text-green-500 text-[13px]">✓</span>}
-            {requesterCredibility?.level === 'verified' && <span className="text-blue-500 text-[13px]">✓</span>}
+          {/* Header: name + trust badge */}
+          <div className="flex items-start justify-between">
+            <div>
+              <p className="text-[15px] font-medium text-foreground">
+                {requesterBusiness?.businessName || 'Loading...'}
+              </p>
+              <p className="text-[11px] font-mono text-muted-foreground mt-0.5">
+                {requesterBusiness?.zeltoId || ''}
+              </p>
+            </div>
+
+            {requesterCredibility && (
+              <>
+                {requesterCredibility.level === 'trusted' && (
+                  <span style={{
+                    fontSize: '11px', fontWeight: 500,
+                    background: '#E1F5EE', border: '0.5px solid #5DCAA5',
+                    color: '#0F6E56', borderRadius: '20px', padding: '4px 10px'
+                  }}>
+                    Zelto Trusted
+                  </span>
+                )}
+                {requesterCredibility.level === 'verified' && (
+                  <span style={{
+                    fontSize: '11px', fontWeight: 500,
+                    background: '#E6F1FB', border: '0.5px solid #85B7EB',
+                    color: '#185FA5', borderRadius: '20px', padding: '4px 10px'
+                  }}>
+                    Verified
+                  </span>
+                )}
+                {requesterCredibility.level === 'none' && (
+                  <span style={{
+                    fontSize: '11px', fontWeight: 500,
+                    background: '#FAEEDA', border: '0.5px solid #EF9F27',
+                    color: '#633806', borderRadius: '20px', padding: '4px 10px'
+                  }}>
+                    New business
+                  </span>
+                )}
+              </>
+            )}
           </div>
 
-          {/* Zelto ID */}
-          <p className="text-xs text-muted-foreground font-mono">
-            {requesterBusiness?.zeltoId || 'Loading...'}
-          </p>
-
-          {/* Details */}
+          {/* Business details */}
           {requesterBusiness && (
             <div className="space-y-0.5">
-              {requesterBusiness.formattedAddress && (
-                <p className="text-xs text-muted-foreground">{requesterBusiness.formattedAddress}</p>
-              )}
               {requesterBusiness.phone && (
                 <p className="text-xs text-muted-foreground">{requesterBusiness.phone}</p>
               )}
@@ -143,48 +170,56 @@ export function ConnectionRequestItem({ request, currentBusinessId, onUpdate, on
               {requesterBusiness.businessType && (
                 <p className="text-xs text-muted-foreground">{requesterBusiness.businessType}</p>
               )}
-              {!requesterBusiness.phone && !requesterBusiness.gstNumber && !requesterBusiness.formattedAddress && (
-                <p className="text-xs text-muted-foreground italic">No details added</p>
-              )}
             </div>
           )}
 
-          {/* Activity counts */}
-          {requesterActivity && (
-            <p className="text-xs text-muted-foreground">
-              {requesterActivity.connectionCount} connection{requesterActivity.connectionCount !== 1 ? 's' : ''} · {requesterActivity.orderCount} order{requesterActivity.orderCount !== 1 ? 's' : ''}
-            </p>
-          )}
-
-          {/* Credibility bar */}
-          {requesterCredibility && (
-            <div className="flex items-center gap-2">
-              <div className="flex-1 h-1.5 bg-muted rounded-full overflow-hidden">
-                <div
-                  className="h-full rounded-full"
-                  style={{
-                    width: `${requesterCredibility.score}%`,
-                    backgroundColor: requesterCredibility.level === 'trusted' ? '#22C55E'
-                      : requesterCredibility.level === 'verified' ? '#3B82F6'
-                      : requesterCredibility.level === 'basic' ? '#F59E0B'
-                      : '#D1D5DB'
-                  }}
-                />
+          {/* Activity stat block */}
+          {requesterActivity && requesterCredibility && (
+            <div style={{
+              display: 'flex', gap: '16px',
+              padding: '10px 12px',
+              background: 'var(--color-background-secondary)',
+              borderRadius: '8px'
+            }}>
+              <div>
+                <p style={{ fontSize: '18px', fontWeight: 500, margin: 0, lineHeight: 1.2 }}>
+                  {requesterActivity.connectionCount}
+                </p>
+                <p style={{ fontSize: '11px', color: 'var(--color-text-secondary)', margin: 0 }}>
+                  connections
+                </p>
               </div>
-              <span className="text-[11px] text-muted-foreground">
-                {requesterCredibility.level === 'trusted' ? 'Trusted'
-                  : requesterCredibility.level === 'verified' ? 'Verified'
-                  : requesterCredibility.level === 'basic' ? 'Basic'
-                  : 'New'} ({requesterCredibility.score}/100)
-              </span>
+              <div style={{ width: '0.5px', background: 'var(--color-border-tertiary)' }} />
+              <div>
+                <p style={{ fontSize: '18px', fontWeight: 500, margin: 0, lineHeight: 1.2 }}>
+                  {requesterActivity.orderCount}
+                </p>
+                <p style={{ fontSize: '11px', color: 'var(--color-text-secondary)', margin: 0 }}>
+                  orders placed
+                </p>
+              </div>
+              <div style={{ width: '0.5px', background: 'var(--color-border-tertiary)' }} />
+              <div>
+                <p style={{ fontSize: '18px', fontWeight: 500, margin: 0, lineHeight: 1.2 }}>
+                  {requesterCredibility.score}/100
+                </p>
+                <p style={{ fontSize: '11px', color: 'var(--color-text-secondary)', margin: 0 }}>
+                  score
+                </p>
+              </div>
             </div>
           )}
 
-          {/* Warning for low credibility */}
+          {/* Warning note — only for new/unverified businesses */}
           {requesterCredibility && requesterCredibility.score < 20 && (
-            <div className="p-2 rounded bg-amber-50 border border-amber-200">
-              <p className="text-xs text-amber-700">
-                This business hasn't added details yet. Verify before connecting.
+            <div style={{
+              background: 'var(--color-background-warning)',
+              borderLeft: '3px solid #EF9F27',
+              borderRadius: '6px',
+              padding: '8px 10px'
+            }}>
+              <p style={{ fontSize: '12px', color: 'var(--color-text-warning)', margin: 0 }}>
+                This business hasn't built a history on Zelto yet. Verify before connecting.
               </p>
             </div>
           )}
