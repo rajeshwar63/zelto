@@ -136,6 +136,7 @@ export function ConnectionDetailOrderCard({
         boxShadow: '0 1px 2px rgba(16,24,40,0.04)',
         opacity: lifecycleState === 'Declined' ? 0.4 : 1,
         minHeight: '44px',
+        overflow: 'hidden',
       }}
     >
 
@@ -148,9 +149,10 @@ export function ConnectionDetailOrderCard({
           flex: 1,
           minWidth: 0,
           lineHeight: 1.4,
-          whiteSpace: 'nowrap',
+          display: '-webkit-box',
+          WebkitLineClamp: 2,
+          WebkitBoxOrient: 'vertical',
           overflow: 'hidden',
-          textOverflow: 'ellipsis',
         }}>
           {itemSummary}
         </p>
