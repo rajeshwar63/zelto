@@ -7,6 +7,7 @@ import { ArrowLeft } from '@phosphor-icons/react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import type { BusinessEntity } from '@/lib/types'
+import { CredibilityBadge } from '@/components/CredibilityBadge'
 
 interface Props {
   currentBusinessId: string
@@ -179,35 +180,7 @@ export function AddConnectionScreen({ currentBusinessId, onBack, onSuccess }: Pr
               </div>
 
               {foundCredibility && (
-                <>
-                  {foundCredibility.level === 'trusted' && (
-                    <span style={{
-                      fontSize: '11px', fontWeight: 500,
-                      background: '#E1F5EE', border: '0.5px solid #5DCAA5',
-                      color: '#0F6E56', borderRadius: '20px', padding: '4px 10px'
-                    }}>
-                      Zelto Trusted
-                    </span>
-                  )}
-                  {foundCredibility.level === 'verified' && (
-                    <span style={{
-                      fontSize: '11px', fontWeight: 500,
-                      background: '#E6F1FB', border: '0.5px solid #85B7EB',
-                      color: '#185FA5', borderRadius: '20px', padding: '4px 10px'
-                    }}>
-                      Verified
-                    </span>
-                  )}
-                  {foundCredibility.level === 'none' && (
-                    <span style={{
-                      fontSize: '11px', fontWeight: 500,
-                      background: '#FAEEDA', border: '0.5px solid #EF9F27',
-                      color: '#633806', borderRadius: '20px', padding: '4px 10px'
-                    }}>
-                      New business
-                    </span>
-                  )}
-                </>
+                <CredibilityBadge level={foundCredibility.level} />
               )}
             </div>
 

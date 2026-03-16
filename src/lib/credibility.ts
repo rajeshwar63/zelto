@@ -134,6 +134,17 @@ export async function calculateCredibility(businessId: string): Promise<Credibil
 }
 
 /**
+ * Pure helper: derive credibility level from a numeric score.
+ * Uses the same thresholds as calculateCredibility() — single source of truth.
+ */
+export function scoreToLevel(score: number): CredibilityBreakdown['level'] {
+  if (score >= 70) return 'trusted'
+  if (score >= 40) return 'verified'
+  if (score >= 15) return 'basic'
+  return 'none'
+}
+
+/**
  * Get activity counts for display on business profile card.
  * Uses a security-definer RPC so RLS doesn't block reads for third-party businesses.
  */
