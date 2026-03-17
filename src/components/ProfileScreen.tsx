@@ -14,6 +14,8 @@ interface Props {
   onNavigateToNotificationSettings: () => void
   onNavigateToAccount: () => void
   onNavigateToSupport: () => void
+  onNavigateToManageDocuments?: () => void
+  onNavigateToViewTrustProfile?: () => void
 }
 
 function getInitials(name: string): string {
@@ -26,7 +28,22 @@ function getInitials(name: string): string {
     .toUpperCase()
 }
 
-export function ProfileScreen({ currentBusinessId, onLogout, onNavigateToBusinessDetails, onNavigateToNotifications, onNavigateToNotificationSettings, onNavigateToAccount, onNavigateToSupport }: Props) {
+// Points available for each missing item (for "To improve" list)
+const MISSING_ITEM_POINTS: Record<string, number> = {
+  'Phone number': 10,
+  'GST number': 10,
+  'Business address': 10,
+  'Map location': 10,
+  'Business type': 5,
+  'Website': 5,
+  'Business description': 5,
+  'Active connections': 10,
+  'Order history': 10,
+  'Upload MSME certificate': 8,
+  'Upload trade licence': 7,
+}
+
+export function ProfileScreen({ currentBusinessId, onLogout, onNavigateToBusinessDetails, onNavigateToNotifications, onNavigateToNotificationSettings, onNavigateToAccount, onNavigateToSupport, onNavigateToManageDocuments, onNavigateToViewTrustProfile }: Props) {
   const { data, isInitialLoading: loading, refresh } = useProfileData(currentBusinessId)
   const business = data?.business ?? null
   const userAccount = data?.userAccount ?? null
@@ -143,6 +160,11 @@ export function ProfileScreen({ currentBusinessId, onLogout, onNavigateToBusines
       handleCancelEditUsername()
     }
   }
+
+  const isTrusted = credibility && credibility.score >= 70
+  const missingItemsWithPoints = (credibility?.missingItems ?? [])
+    .filter(item => MISSING_ITEM_POINTS[item] !== undefined)
+    .map(item => ({ label: item, points: MISSING_ITEM_POINTS[item] }))
 
   return (
     <div style={{ backgroundColor: 'var(--bg-screen)', minHeight: '100%' }}>
@@ -296,10 +318,106 @@ export function ProfileScreen({ currentBusinessId, onLogout, onNavigateToBusines
         </div>
       </div>
 
+      {/* Your Trust Profile Card */}
+      {credibility && (
+        <div className="px-4 mb-3">
+          <div style={{ backgroundColor: 'var(--bg-card)', borderRadius: '14px', padding: '16px', border: '1px solid var(--border-light)' }}>
+            <p style={{ fontSize: '13px', fontWeight: 700, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '12px' }}>
+              YOUR TRUST PROFILE
+            </p>
+
+            {/* Score + bar */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '8px' }}>
+              <div style={{ flex: 1, height: '6px', backgroundColor: 'var(--border-light)', borderRadius: '3px', overflow: 'hidden' }}>
+                <div
+                  style={{
+                    height: '100%',
+                    borderRadius: '3px',
+                    width: `${credibility.score}%`,
+                    background: 'linear-gradient(90deg, #4A6CF7, #22B573)',
+                    transition: 'width 0.5s',
+                  }}
+                />
+              </div>
+              <span style={{ fontSize: '22px', fontWeight: 700, color: 'var(--text-primary)', lineHeight: 1 }}>
+                {credibility.score} / 100
+              </span>
+            </div>
+
+            <div style={{ marginBottom: '12px' }}>
+              <CredibilityBadge level={credibility.level} />
+            </div>
+
+            {isTrusted ? (
+              /* State B — complete */
+              <div>
+                <p style={{ fontSize: '13px', color: 'var(--text-secondary)', marginBottom: '12px' }}>
+                  Your profile is complete. Other businesses can verify you with confidence.
+                </p>
+                {onNavigateToViewTrustProfile && (
+                  <button
+                    onClick={onNavigateToViewTrustProfile}
+                    style={{ width: '100%', padding: '12px', backgroundColor: 'var(--brand-primary)', color: '#fff', border: 'none', borderRadius: '12px', fontSize: '14px', fontWeight: 500, cursor: 'pointer' }}
+                  >
+                    View My Profile →
+                  </button>
+                )}
+              </div>
+            ) : (
+              /* State A — incomplete */
+              <div>
+                {/* Completed items */}
+                {credibility.completedItems.length > 0 && (
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', marginBottom: '12px' }}>
+                    {credibility.completedItems.slice(0, 6).map(item => (
+                      <span
+                        key={item}
+                        style={{
+                          fontSize: '11px',
+                          fontWeight: 500,
+                          color: '#16A34A',
+                          backgroundColor: '#DCFCE7',
+                          padding: '2px 8px',
+                          borderRadius: '100px',
+                        }}
+                      >
+                        ✓ {item}
+                      </span>
+                    ))}
+                  </div>
+                )}
+
+                {/* To improve */}
+                {missingItemsWithPoints.length > 0 && (
+                  <div style={{ marginBottom: '12px' }}>
+                    <p style={{ fontSize: '11px', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: '6px' }}>
+                      To improve:
+                    </p>
+                    {missingItemsWithPoints.slice(0, 4).map(item => (
+                      <div key={item.label} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', paddingTop: '4px', paddingBottom: '4px' }}>
+                        <span style={{ fontSize: '13px', color: 'var(--text-primary)' }}>○ {item.label}</span>
+                        <span style={{ fontSize: '12px', fontWeight: 600, color: 'var(--brand-primary)' }}>+{item.points} pts</span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                <button
+                  onClick={onNavigateToBusinessDetails}
+                  style={{ width: '100%', padding: '12px', backgroundColor: 'var(--brand-primary)', color: '#fff', border: 'none', borderRadius: '12px', fontSize: '14px', fontWeight: 500, cursor: 'pointer' }}
+                >
+                  Complete Your Profile →
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
       {/* Business Details Card */}
       <div className="px-4 mb-3">
         <p style={{ fontSize: '13px', fontWeight: 700, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '10px' }}>
-          BUSINESS DETAILS
+          BUSINESS
         </p>
         <div style={{ backgroundColor: 'var(--bg-card)', borderRadius: 'var(--radius-card)', overflow: 'hidden' }}>
           {!hasBusinessDetails ? (
@@ -308,56 +426,41 @@ export function ProfileScreen({ currentBusinessId, onLogout, onNavigateToBusines
               className="w-full flex items-center justify-between"
               style={{ padding: '13px 16px', minHeight: '44px' }}
             >
-              <div>
-                <span style={{ fontSize: '14px', fontWeight: 600, color: 'var(--status-dispatched)' }}>
-                  Add business details to build credibility
-                </span>
-                {credibility && (
-                  <span style={{ fontSize: '11px', fontWeight: 600, color: 'var(--text-secondary)', marginLeft: '8px' }}>
-                    {credibility.score}/100
-                  </span>
-                )}
-              </div>
+              <span style={{ fontSize: '14px', fontWeight: 600, color: 'var(--status-dispatched)' }}>
+                Edit Business Details →
+              </span>
               <CaretRight size={16} style={{ color: 'var(--text-muted)' }} />
             </button>
           ) : (
-            <div style={{ padding: '13px 16px' }}>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', marginBottom: '8px' }}>
-                {business.gstNumber && (
-                  <p style={{ fontSize: '12px', fontWeight: 500, color: 'var(--text-secondary)' }}>GST: {business.gstNumber}</p>
-                )}
-                {business.businessAddress && (
-                  <p style={{ fontSize: '12px', fontWeight: 500, color: 'var(--text-secondary)' }}>Address: {business.businessAddress}</p>
-                )}
-                {business.businessType && (
-                  <p style={{ fontSize: '12px', fontWeight: 500, color: 'var(--text-secondary)' }}>Type: {business.businessType}</p>
-                )}
-                {business.website && (
-                  <p style={{ fontSize: '12px', fontWeight: 500, color: 'var(--text-secondary)' }}>Website: {business.website}</p>
-                )}
-              </div>
-              {credibility && (
-                <div className="flex items-center gap-2 mt-2">
-                  <div className="flex-1 overflow-hidden" style={{ height: '6px', backgroundColor: 'var(--border-light)', borderRadius: '3px' }}>
-                    <div
-                      style={{
-                        height: '100%',
-                        borderRadius: '3px',
-                        width: `${credibility.score}%`,
-                        backgroundColor: credibility.level === 'trusted' ? 'var(--status-delivered)'
-                          : credibility.level === 'verified' ? 'var(--brand-primary)'
-                          : 'var(--status-dispatched)',
-                      }}
-                    />
-                  </div>
-                  <span style={{ fontSize: '11px', fontWeight: 600, color: 'var(--text-secondary)' }}>{credibility.score}/100</span>
-                </div>
-              )}
+            <div>
               <button
                 onClick={onNavigateToBusinessDetails}
-                style={{ fontSize: '12px', fontWeight: 600, color: 'var(--brand-primary)', marginTop: '8px', minHeight: '44px', display: 'flex', alignItems: 'center' }}
+                className="w-full flex items-center justify-between"
+                style={{ padding: '13px 16px', minHeight: '44px', borderBottom: '1px solid var(--border-section)' }}
               >
-                Edit business details
+                <div style={{ textAlign: 'left' }}>
+                  <p style={{ fontSize: '14px', fontWeight: 600, color: 'var(--text-primary)' }}>{business.businessName}</p>
+                  <p style={{ fontSize: '12px', color: 'var(--text-secondary)', fontFamily: 'monospace', marginTop: '1px' }}>{business.zeltoId}</p>
+                </div>
+                <CaretRight size={16} style={{ color: 'var(--text-muted)' }} />
+              </button>
+
+              <button
+                onClick={onNavigateToBusinessDetails}
+                className="w-full flex items-center justify-between"
+                style={{ padding: '13px 16px', minHeight: '44px', borderBottom: '1px solid var(--border-section)' }}
+              >
+                <span style={{ fontSize: '14px', fontWeight: 500, color: 'var(--text-primary)' }}>Edit Business Details</span>
+                <CaretRight size={16} style={{ color: 'var(--text-muted)' }} />
+              </button>
+
+              <button
+                onClick={onNavigateToManageDocuments}
+                className="w-full flex items-center justify-between"
+                style={{ padding: '13px 16px', minHeight: '44px', borderBottom: '1px solid var(--border-section)' }}
+              >
+                <span style={{ fontSize: '14px', fontWeight: 500, color: 'var(--text-primary)' }}>Manage Documents</span>
+                <CaretRight size={16} style={{ color: 'var(--text-muted)' }} />
               </button>
             </div>
           )}

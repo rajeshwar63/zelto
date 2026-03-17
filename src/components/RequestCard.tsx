@@ -17,9 +17,10 @@ interface Props {
   currentBusinessId: string
   onUpdate: () => void
   onNavigateToConnections: () => void
+  onNavigateToTrustProfile?: (targetBusinessId: string, requestId: string) => void
 }
 
-export function RequestCard({ request, currentBusinessId, onUpdate, onNavigateToConnections }: Props) {
+export function RequestCard({ request, currentBusinessId, onUpdate, onNavigateToConnections, onNavigateToTrustProfile }: Props) {
   const [requesterBusiness, setRequesterBusiness] = useState<BusinessEntity | null>(null)
   const [requesterCredibility, setRequesterCredibility] = useState<CredibilityBreakdown | null>(null)
   const [requesterActivity, setRequesterActivity] = useState<{ connectionCount: number; orderCount: number } | null>(null)
@@ -128,8 +129,16 @@ export function RequestCard({ request, currentBusinessId, onUpdate, onNavigateTo
   return (
     <>
       <div className="px-4 py-3 border-b border-border">
-        {/* Business card */}
-        <div className="rounded-lg border border-border p-3 space-y-2 mb-3">
+        {/* Business card — tap to open Trust Profile */}
+        <div
+          className="rounded-lg border border-border p-3 space-y-2 mb-3"
+          onClick={() => {
+            if (onNavigateToTrustProfile && requesterBusiness) {
+              onNavigateToTrustProfile(requesterBusiness.id, request.id)
+            }
+          }}
+          style={{ cursor: onNavigateToTrustProfile && requesterBusiness ? 'pointer' : 'default' }}
+        >
           {/* Header: name + trust badge */}
           <div className="flex items-start justify-between">
             <div>

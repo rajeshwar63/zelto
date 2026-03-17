@@ -46,6 +46,20 @@ export interface BusinessEntity {
   area?: string
   nameNormalized?: string
   mobileNumber: string | null
+  description?: string
+}
+
+export interface BusinessDocument {
+  id: string
+  businessId: string
+  documentType: string
+  fileName: string
+  fileUrl: string
+  fileSizeBytes?: number
+  mimeType?: string
+  expiryDate?: string
+  verificationStatus: 'pending' | 'verified'
+  uploadedAt: number
 }
 
 export type UserRole = 'owner' | 'admin' | 'member'

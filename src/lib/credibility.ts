@@ -19,12 +19,22 @@ export interface CredibilityBreakdown {
  *   - Google Maps location (with lat/lng): 10 bonus on top of address
  *   - Business type: 5
  *   - Website: 5
+ *   - Business description: 5
  *
  * Activity signals (max 40 points):
  *   - Has at least 1 connection: 10
  *   - Has at least 3 connections: 10 (additional)
  *   - Has at least 1 order: 10
  *   - Has at least 10 orders: 10 (additional)
+ *
+ * Document bonuses (max 20 points):
+ *   - MSME / Udyam certificate: +8
+ *   - Trade licence: +7
+ *   - FSSAI licence: +5
+ *   - PAN card: +5
+ *   - Any other verified document: +3 each, max +6
+ *
+ * Max possible score: 100
  */
 export async function calculateCredibility(businessId: string): Promise<CredibilityBreakdown> {
   const entity = await dataStore.getBusinessEntityById(businessId)
@@ -81,6 +91,13 @@ export async function calculateCredibility(businessId: string): Promise<Credibil
     missingItems.push('Website')
   }
 
+  if (entity.description && entity.description.trim().length > 0) {
+    score += 5
+    completedItems.push('Business description')
+  } else {
+    missingItems.push('Business description')
+  }
+
   // Activity signals
   const connections = await dataStore.getConnectionsByBusinessId(businessId)
   const activeConnections = connections.length
@@ -115,6 +132,54 @@ export async function calculateCredibility(businessId: string): Promise<Credibil
     score += 10
     completedItems.push('10+ orders')
   }
+
+  // Document bonuses (max +20)
+  try {
+    const documents = await dataStore.getDocumentsByBusinessId(businessId)
+    let docPoints = 0
+
+    const hasMsme = documents.some(d => d.documentType === 'msme_udyam')
+    const hasTrade = documents.some(d => d.documentType === 'trade_licence')
+    const hasFssai = documents.some(d => d.documentType === 'fssai_licence')
+    const hasPan = documents.some(d => d.documentType === 'pan_card')
+    const otherDocs = documents.filter(d => !['msme_udyam', 'trade_licence', 'fssai_licence', 'pan_card'].includes(d.documentType))
+
+    if (hasMsme) {
+      docPoints += 8
+      completedItems.push('MSME certificate')
+    } else {
+      missingItems.push('Upload MSME certificate')
+    }
+
+    if (hasTrade) {
+      docPoints += 7
+      completedItems.push('Trade licence')
+    } else {
+      missingItems.push('Upload trade licence')
+    }
+
+    if (hasFssai) {
+      docPoints += 5
+      completedItems.push('FSSAI licence')
+    }
+
+    if (hasPan) {
+      docPoints += 5
+      completedItems.push('PAN card')
+    }
+
+    // Other documents: +3 each, max +6
+    const otherPoints = Math.min(otherDocs.length * 3, 6)
+    docPoints += otherPoints
+
+    // Cap document points at 20
+    score += Math.min(docPoints, 20)
+  } catch {
+    // Documents are non-critical — skip if unavailable
+  }
+
+  // Cap score at 100
+  score = Math.min(score, 100)
 
   // Determine level
   let level: CredibilityBreakdown['level']

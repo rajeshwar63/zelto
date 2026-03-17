@@ -13,6 +13,7 @@ import { TermsScreen } from '@/components/TermsScreen'
 import { ManageConnectionsScreen } from '@/components/ManageConnectionsScreen'
 import { PaymentTermsSetupScreen } from '@/components/PaymentTermsSetupScreen'
 import { BusinessDetailsScreen } from '@/components/BusinessDetailsScreen'
+import { TrustProfileScreen, type TrustProfileMode } from '@/components/TrustProfileScreen'
 import { NotificationHistoryScreen } from '@/components/NotificationHistoryScreen'
 import { NotificationSettingsScreen } from '@/components/NotificationSettingsScreen'
 import { AccountScreen } from '@/components/AccountScreen'
@@ -33,7 +34,7 @@ import { updateTabLastSeen, updateConnectionLastSeen, hasAnyUnreadConnections, h
 
 import { behaviourEngine } from '@/lib/behaviour-engine'
 import { BusinessSetupScreen } from '@/components/BusinessSetupScreen'
-import { useDataListener } from '@/lib/data-events'
+import { useDataListener, emitDataChange } from '@/lib/data-events'
 
 
 type Tab = 'dashboard' | 'orders' | 'attention' | 'connections' | 'profile'
@@ -44,12 +45,14 @@ type Screen =
   | { type: 'manage-connections'; initialTab?: 'add' | 'sent' | 'received' | 'archived' }
   | { type: 'payment-terms-setup'; connectionId: string; businessName: string; returnTo?: 'connection-detail' | 'connections' }
   | { type: 'business-details' }
+  | { type: 'manage-documents' }
   | { type: 'notifications' }
   | { type: 'profile-notifications' }
   | { type: 'profile-account' }
   | { type: 'profile-support' }
   | { type: 'report-issue'; orderId: string; connectionId: string }
   | { type: 'incoming-requests' }
+  | { type: 'trust-profile'; targetBusinessId: string; mode: TrustProfileMode; connectionRequestId?: string; connectionId?: string }
 type AuthScreen = 'welcome' | { type: 'otp'; email: string; signupData?: { name: string; businessName: string } } | { type: 'business_setup'; email: string }
 type TabShellScreen = Extract<Screen, { type: 'tab' }>
 type DetailScreen = Exclude<Screen, { type: 'tab' }>
@@ -345,6 +348,19 @@ function App() {
     navigateBack()
   }
 
+  const navigateToManageDocuments = () => {
+    setNavigationStack(stack => [...stack, { type: 'manage-documents' }])
+  }
+
+  const navigateToTrustProfile = (
+    targetBusinessId: string,
+    mode: TrustProfileMode,
+    connectionRequestId?: string,
+    connectionId?: string
+  ) => {
+    setNavigationStack(stack => [...stack, { type: 'trust-profile', targetBusinessId, mode, connectionRequestId, connectionId }])
+  }
+
   const navigateToBusinessDetails = () => {
     setNavigationStack(stack => [...stack, { type: 'business-details' }])
   }
@@ -406,6 +422,9 @@ function App() {
           currentBusinessId={currentBusinessId}
           onBack={navigateBack}
           onNavigateToConnections={() => navigateToTab('connections')}
+          onNavigateToTrustProfile={(targetBusinessId, requestId) =>
+            navigateToTrustProfile(targetBusinessId, 'accept-request', requestId)
+          }
         />
       )
     }
@@ -436,6 +455,31 @@ function App() {
         />
       )
     }
+    if (detailScreen.type === 'manage-documents') {
+      return (
+        <BusinessDetailsScreen
+          currentBusinessId={currentBusinessId}
+          onBack={navigateBack}
+          onSave={handleBusinessDetailsSaved}
+          scrollToDocuments={true}
+        />
+      )
+    }
+    if (detailScreen.type === 'trust-profile') {
+      return (
+        <TrustProfileScreen
+          targetBusinessId={detailScreen.targetBusinessId}
+          currentBusinessId={currentBusinessId}
+          mode={detailScreen.mode}
+          connectionRequestId={detailScreen.connectionRequestId}
+          connectionId={detailScreen.connectionId}
+          onBack={navigateBack}
+          onRequestSent={() => { navigateBack(); emitDataChange('connections:changed') }}
+          onRequestAccepted={() => { navigateBack(); emitDataChange('connections:changed') }}
+          onRequestDeclined={() => { navigateBack(); emitDataChange('connections:changed') }}
+        />
+      )
+    }
     if (detailScreen.type === 'manage-connections') {
       return (
         <ManageConnectionsScreen
@@ -443,6 +487,9 @@ function App() {
           onBack={navigateBack}
           onSuccess={handleAddConnectionSuccess}
           initialTab={detailScreen.initialTab}
+          onNavigateToTrustProfile={(targetBusinessId) =>
+            navigateToTrustProfile(targetBusinessId, 'send-request')
+          }
         />
       )
     }
@@ -489,6 +536,9 @@ function App() {
         onBack={navigateBack}
         onNavigateToPaymentTermsSetup={navigateToPaymentTermsSetup}
         onOpenOrderDetail={navigateToConnectionOrderDetail}
+        onNavigateToTrustProfile={(targetBusinessId, connectionId) =>
+          navigateToTrustProfile(targetBusinessId, 'view-connection', undefined, connectionId)
+        }
       />
     )
   }
@@ -515,6 +565,8 @@ function App() {
           onNavigateToProfileNotifications={navigateToProfileNotifications}
           onNavigateToProfileAccount={navigateToProfileAccount}
           onNavigateToProfileSupport={navigateToProfileSupport}
+          onNavigateToManageDocuments={navigateToManageDocuments}
+          onNavigateToTrustProfile={navigateToTrustProfile}
         />
       ) : (
         <div className="h-full flex flex-col">{renderDetailScreen(screen)}</div>
@@ -542,6 +594,8 @@ function TabShell({
   onNavigateToProfileNotifications,
   onNavigateToProfileAccount,
   onNavigateToProfileSupport,
+  onNavigateToManageDocuments,
+  onNavigateToTrustProfile,
 }: {
   currentBusinessId: string
   activeTabScreen: TabShellScreen
@@ -561,6 +615,8 @@ function TabShell({
   onNavigateToProfileNotifications: () => void
   onNavigateToProfileAccount: () => void
   onNavigateToProfileSupport: () => void
+  onNavigateToManageDocuments?: () => void
+  onNavigateToTrustProfile?: (targetBusinessId: string, mode: TrustProfileMode, connectionRequestId?: string, connectionId?: string) => void
 }) {
   return (
     <>
@@ -607,6 +663,12 @@ function TabShell({
             onNavigateToNotificationSettings={onNavigateToProfileNotifications}
             onNavigateToAccount={onNavigateToProfileAccount}
             onNavigateToSupport={onNavigateToProfileSupport}
+            onNavigateToManageDocuments={onNavigateToManageDocuments}
+            onNavigateToViewTrustProfile={
+              onNavigateToTrustProfile
+                ? () => onNavigateToTrustProfile(currentBusinessId, 'view-connection')
+                : undefined
+            }
           />
         )}
       </div>

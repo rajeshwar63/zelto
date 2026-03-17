@@ -9,9 +9,10 @@ interface IncomingRequestsScreenProps {
   currentBusinessId: string
   onBack: () => void
   onNavigateToConnections: () => void
+  onNavigateToTrustProfile?: (targetBusinessId: string, requestId: string) => void
 }
 
-export function IncomingRequestsScreen({ currentBusinessId, onBack, onNavigateToConnections }: IncomingRequestsScreenProps) {
+export function IncomingRequestsScreen({ currentBusinessId, onBack, onNavigateToConnections, onNavigateToTrustProfile }: IncomingRequestsScreenProps) {
   const [requests, setRequests] = useState<ConnectionRequest[]>([])
   const [isLoading, setIsLoading] = useState(true)
 
@@ -103,6 +104,7 @@ export function IncomingRequestsScreen({ currentBusinessId, onBack, onNavigateTo
                   currentBusinessId={currentBusinessId}
                   onUpdate={() => { void loadRequests() }}
                   onNavigateToConnections={onNavigateToConnections}
+                  onNavigateToTrustProfile={onNavigateToTrustProfile}
                 />
               ))}
             </div>
@@ -129,6 +131,7 @@ export function IncomingRequestsScreen({ currentBusinessId, onBack, onNavigateTo
                   currentBusinessId={currentBusinessId}
                   onUpdate={() => { void loadRequests() }}
                   onNavigateToConnections={onNavigateToConnections}
+                  onNavigateToTrustProfile={onNavigateToTrustProfile}
                 />
               ))}
             </div>

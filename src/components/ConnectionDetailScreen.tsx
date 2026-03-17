@@ -31,6 +31,7 @@ interface Props {
   onBack: () => void
   onNavigateToPaymentTermsSetup: (connectionId: string, businessName: string) => void
   onOpenOrderDetail: (orderId: string, connectionId: string) => void
+  onNavigateToTrustProfile?: (targetBusinessId: string, connectionId: string) => void
 }
 
 const EMPTY_FILTERS: OrderFilters = {
@@ -40,7 +41,7 @@ const EMPTY_FILTERS: OrderFilters = {
   toDate: null,
 }
 
-export function ConnectionDetailScreen({ connectionId, currentBusinessId, onBack, onNavigateToPaymentTermsSetup, onOpenOrderDetail }: Props) {
+export function ConnectionDetailScreen({ connectionId, currentBusinessId, onBack, onNavigateToPaymentTermsSetup, onOpenOrderDetail, onNavigateToTrustProfile }: Props) {
   const [connection, setConnection] = useState<Connection | null>(null)
   const [otherBusiness, setOtherBusiness] = useState<BusinessEntity | null>(null)
   const [orders, setOrders] = useState<OrderWithPaymentState[]>([])
@@ -309,6 +310,29 @@ export function ConnectionDetailScreen({ connectionId, currentBusinessId, onBack
             <PencilSimple size={16} weight="regular" style={{ color: 'var(--text-secondary)' }} />
           </button>
         </div>
+
+        {/* Trust Profile button */}
+        {onNavigateToTrustProfile && otherBusiness && (
+          <div style={{ paddingLeft: '16px', paddingRight: '16px', paddingBottom: '8px', paddingTop: '4px', borderBottom: '1px solid var(--border-light)' }}>
+            <button
+              onClick={() => onNavigateToTrustProfile(otherBusiness.id, connectionId)}
+              style={{
+                fontSize: '13px',
+                fontWeight: 600,
+                color: 'var(--brand-primary)',
+                background: 'none',
+                border: 'none',
+                cursor: 'pointer',
+                padding: '4px 0',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '4px',
+              }}
+            >
+              Trust Profile →
+            </button>
+          </div>
+        )}
 
         {/* Relationship Summary Card */}
         <div className="px-4 py-3">
