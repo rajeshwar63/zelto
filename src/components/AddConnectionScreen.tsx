@@ -13,9 +13,10 @@ interface Props {
   currentBusinessId: string
   onBack: () => void
   onSuccess: () => void
+  onNavigateToTrustProfile?: (targetBusinessId: string) => void
 }
 
-export function AddConnectionScreen({ currentBusinessId, onBack, onSuccess }: Props) {
+export function AddConnectionScreen({ currentBusinessId, onBack, onSuccess, onNavigateToTrustProfile }: Props) {
   const [zeltoId, setZeltoId] = useState('')
   const [foundBusiness, setFoundBusiness] = useState<BusinessEntity | null>(null)
   const [foundCredibility, setFoundCredibility] = useState<CredibilityBreakdown | null>(null)
@@ -322,6 +323,16 @@ export function AddConnectionScreen({ currentBusinessId, onBack, onSuccess }: Pr
                   </button>
                 </div>
               </div>
+
+              {onNavigateToTrustProfile && (
+                <button
+                  onClick={() => onNavigateToTrustProfile(foundBusiness.id)}
+                  className="w-full py-3 rounded-lg text-[14px] font-medium"
+                  style={{ border: '1px solid var(--border-light)', backgroundColor: 'transparent', color: 'var(--brand-primary)', marginBottom: '8px' }}
+                >
+                  View Trust Profile →
+                </button>
+              )}
 
               <button
                 onClick={handleSendRequest}

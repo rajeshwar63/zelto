@@ -19,6 +19,7 @@ interface Props {
   onBack: () => void
   onSuccess: () => void
   initialTab?: Tab
+  onNavigateToTrustProfile?: (targetBusinessId: string) => void
 }
 
 function formatPaymentTerms(terms: Connection['paymentTerms']): string | null {
@@ -38,7 +39,7 @@ const TABS: { id: Tab; label: string }[] = [
   { id: 'archived', label: 'Archived' },
 ]
 
-export function ManageConnectionsScreen({ currentBusinessId, onBack, onSuccess, initialTab }: Props) {
+export function ManageConnectionsScreen({ currentBusinessId, onBack, onSuccess, initialTab, onNavigateToTrustProfile }: Props) {
   const [activeTab, setActiveTab] = useState<Tab>(initialTab ?? 'add')
   const [requests, setRequests] = useState<ConnectionRequest[]>([])
   const [entities, setEntities] = useState<BusinessEntity[]>([])
@@ -846,6 +847,16 @@ export function ManageConnectionsScreen({ currentBusinessId, onBack, onSuccess, 
                     </Button>
                   </div>
                 </div>
+
+                {onNavigateToTrustProfile && foundBusiness && (
+                  <Button
+                    variant="outline"
+                    onClick={() => onNavigateToTrustProfile(foundBusiness.id)}
+                    className="w-full mb-2"
+                  >
+                    View Trust Profile →
+                  </Button>
+                )}
 
                 <Button
                   onClick={handleSendRequest}

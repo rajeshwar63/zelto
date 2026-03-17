@@ -1,6 +1,7 @@
 import { supabase } from './supabase-client'
 import {
   AttachmentType,
+  BusinessDocument,
   BusinessEntity,
   Connection,
   ConnectionRequest,
@@ -153,6 +154,7 @@ export class ZeltoDataStore {
       address?: string
       businessType?: string
       website?: string
+      description?: string
     }
   ): Promise<BusinessEntity> {
     const updates: any = {}
@@ -160,6 +162,7 @@ export class ZeltoDataStore {
     if (details.address !== undefined) updates.business_address = details.address
     if (details.businessType !== undefined) updates.business_type = details.businessType
     if (details.website !== undefined) updates.website = details.website
+    if (details.description !== undefined) updates.description = details.description
 
     const { data, error } = await supabase
       .from('business_entities')
@@ -277,6 +280,59 @@ export class ZeltoDataStore {
 
     if (error) throw error
     return toCamelCase(data || [])
+  }
+
+  // ============ BUSINESS DOCUMENTS ============
+
+  async getDocumentsByBusinessId(businessId: string): Promise<BusinessDocument[]> {
+    const { data, error } = await supabase
+      .from('business_documents')
+      .select('*')
+      .eq('business_id', businessId)
+      .order('uploaded_at', { ascending: false })
+
+    if (error) throw error
+    return toCamelCase(data || [])
+  }
+
+  async uploadBusinessDocument(
+    businessId: string,
+    doc: {
+      documentType: string
+      fileName: string
+      fileUrl: string
+      fileSizeBytes?: number
+      mimeType?: string
+      expiryDate?: string
+    }
+  ): Promise<BusinessDocument> {
+    const { data, error } = await supabase
+      .from('business_documents')
+      .insert([{
+        business_id: businessId,
+        document_type: doc.documentType,
+        file_name: doc.fileName,
+        file_url: doc.fileUrl,
+        file_size_bytes: doc.fileSizeBytes ?? null,
+        mime_type: doc.mimeType ?? null,
+        expiry_date: doc.expiryDate ?? null,
+        verification_status: 'pending',
+        uploaded_at: Date.now(),
+      }])
+      .select()
+      .single()
+
+    if (error) throw error
+    return toCamelCase(data)
+  }
+
+  async deleteBusinessDocument(documentId: string): Promise<void> {
+    const { error } = await supabase
+      .from('business_documents')
+      .delete()
+      .eq('id', documentId)
+
+    if (error) throw error
   }
 
   // ============ USER ACCOUNTS ============
@@ -1036,9 +1092,23 @@ export class ZeltoDataStore {
       .from('connection_requests')
       .select('*')
       .or(`receiver_business_id.eq.${businessId},requester_business_id.eq.${businessId}`)
-    
+
     if (error) throw error
     return toCamelCase(data || [])
+  }
+
+  async getConnectionRequestById(requestId: string): Promise<ConnectionRequest | undefined> {
+    const { data, error } = await supabase
+      .from('connection_requests')
+      .select('*')
+      .eq('id', requestId)
+      .single()
+
+    if (error) {
+      if (error.code === 'PGRST116') return undefined
+      throw error
+    }
+    return toCamelCase(data)
   }
 
 
