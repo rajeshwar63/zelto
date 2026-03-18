@@ -280,6 +280,34 @@ export function TrustProfileScreen({
     ? Math.max(1, Math.round((Date.now() - business.createdAt) / (30 * 24 * 60 * 60 * 1000)))
     : 0
 
+  const timeOnZeltoLabel = business?.createdAt
+    ? `${formatDistanceToNow(business.createdAt, { addSuffix: false })} on Zelto`
+    : 'Time on Zelto not available'
+
+  const tradingSignals = [
+    {
+      label: 'Active connections',
+      value: activityCounts?.connectionCount ?? '—',
+      detail: activityCounts
+        ? `${activityCounts.connectionCount} active trade ${activityCounts.connectionCount === 1 ? 'relationship' : 'relationships'}`
+        : 'Connections will appear once activity data syncs',
+    },
+    {
+      label: 'Orders completed',
+      value: activityCounts?.orderCount ?? '—',
+      detail: activityCounts
+        ? `${activityCounts.orderCount} recorded ${activityCounts.orderCount === 1 ? 'order' : 'orders'} on Zelto`
+        : 'Orders will appear once activity data syncs',
+    },
+    {
+      label: 'Time on Zelto',
+      value: business?.createdAt ? onZeltoMonths : '—',
+      detail: business?.createdAt
+        ? `${timeOnZeltoLabel} · member since ${memberSince}`
+        : 'Business age will appear once profile setup is complete',
+    },
+  ]
+
   const relationshipAge = connection
     ? formatDistance(connection.createdAt, Date.now(), { addSuffix: false })
     : ''
@@ -448,29 +476,36 @@ export function TrustProfileScreen({
                 ))}
             </div>
 
-            {/* Network presence */}
-            <div style={{ backgroundColor: 'var(--bg-card)', borderRadius: '14px', padding: '12px', border: '1px solid var(--border-light)' }}>
-              <div style={{ display: 'flex', gap: '0' }}>
-                <div style={{ flex: 1, textAlign: 'center', padding: '8px' }}>
-                  <p style={{ fontSize: '20px', fontWeight: 600, color: 'var(--text-primary)', marginBottom: '2px' }}>
-                    {activityCounts?.connectionCount ?? '—'}
-                  </p>
-                  <p style={{ fontSize: '11px', color: 'var(--text-secondary)' }}>Connections</p>
-                </div>
-                <div style={{ width: '1px', backgroundColor: 'var(--border-light)' }} />
-                <div style={{ flex: 1, textAlign: 'center', padding: '8px' }}>
-                  <p style={{ fontSize: '20px', fontWeight: 600, color: 'var(--text-primary)', marginBottom: '2px' }}>
-                    {activityCounts?.orderCount ?? '—'}
-                  </p>
-                  <p style={{ fontSize: '11px', color: 'var(--text-secondary)' }}>Orders</p>
-                </div>
-                <div style={{ width: '1px', backgroundColor: 'var(--border-light)' }} />
-                <div style={{ flex: 1, textAlign: 'center', padding: '8px' }}>
-                  <p style={{ fontSize: '20px', fontWeight: 600, color: 'var(--text-primary)', marginBottom: '2px' }}>
-                    {onZeltoMonths}
-                  </p>
-                  <p style={{ fontSize: '11px', color: 'var(--text-secondary)' }}>Months on Zelto</p>
-                </div>
+            {/* Trading Signals */}
+            <div style={{ backgroundColor: 'var(--bg-card)', borderRadius: '14px', padding: '16px', border: '1px solid var(--border-light)' }}>
+              <div style={{ marginBottom: '12px' }}>
+                <p style={{ fontSize: '15px', fontWeight: 600, color: 'var(--text-primary)', margin: 0 }}>Trading Signals</p>
+                <p style={{ fontSize: '12px', lineHeight: 1.5, color: 'var(--text-secondary)', margin: '6px 0 0' }}>
+                  Connection history, completed orders, and business age help you gauge whether this business is active on Zelto and established enough for repeat trade.
+                </p>
+              </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0, 1fr))', gap: '10px' }}>
+                {tradingSignals.map(signal => (
+                  <div
+                    key={signal.label}
+                    style={{
+                      border: '1px solid var(--border-light)',
+                      borderRadius: '12px',
+                      padding: '12px',
+                      backgroundColor: 'var(--bg-screen)',
+                      minWidth: 0,
+                    }}
+                  >
+                    <p style={{ fontSize: '11px', color: 'var(--text-secondary)', margin: 0 }}>{signal.label}</p>
+                    <p style={{ fontSize: '20px', fontWeight: 600, color: 'var(--text-primary)', margin: '6px 0 4px' }}>
+                      {signal.value}
+                    </p>
+                    <p style={{ fontSize: '11px', lineHeight: 1.45, color: 'var(--text-secondary)', margin: 0 }}>
+                      {signal.detail}
+                    </p>
+                  </div>
+                ))}
               </div>
             </div>
 
