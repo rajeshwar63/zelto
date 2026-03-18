@@ -72,6 +72,79 @@ function getDocumentLabel(type: string): string {
   return labels[type] ?? type
 }
 
+function getDocumentImportanceTag(documentType: BusinessDocument['documentType']): string | null {
+  const importanceTags: Record<string, string> = {
+    pan_card: 'Identity',
+    gst_certificate: 'Regulatory',
+    trade_licence: 'Regulatory',
+    fire_safety: 'Regulatory',
+    fssai_licence: 'Industry-specific',
+    msme_udyam: 'Industry-specific',
+  }
+
+  return importanceTags[documentType] ?? null
+}
+
+type DocumentVisualState = 'verified' | 'pending' | 'expiring-soon' | 'expired'
+
+function getDocumentVisualState(doc: BusinessDocument): DocumentVisualState {
+  if (doc.expiryDate && isExpired(doc.expiryDate)) return 'expired'
+  if (doc.expiryDate && isExpiringWithin90Days(doc.expiryDate)) return 'expiring-soon'
+  if (doc.verificationStatus === 'pending') return 'pending'
+  return 'verified'
+}
+
+function getDocumentStateConfig(state: DocumentVisualState) {
+  const configs: Record<DocumentVisualState, {
+    label: string
+    borderColor: string
+    backgroundColor: string
+    badgeBackground: string
+    badgeColor: string
+  }> = {
+    verified: {
+      label: 'Verified',
+      borderColor: '#86EFAC',
+      backgroundColor: '#F0FDF4',
+      badgeBackground: '#DCFCE7',
+      badgeColor: '#15803D',
+    },
+    pending: {
+      label: 'Pending verification',
+      borderColor: '#FCD34D',
+      backgroundColor: '#FFFBEB',
+      badgeBackground: '#FEF3C7',
+      badgeColor: '#B45309',
+    },
+    'expiring-soon': {
+      label: 'Expiring soon',
+      borderColor: '#FDBA74',
+      backgroundColor: '#FFF7ED',
+      badgeBackground: '#FED7AA',
+      badgeColor: '#C2410C',
+    },
+    expired: {
+      label: 'Expired',
+      borderColor: '#FCA5A5',
+      backgroundColor: '#FEF2F2',
+      badgeBackground: '#FECACA',
+      badgeColor: '#B91C1C',
+    },
+  }
+
+  return configs[state]
+}
+
+function getExpiryHealthLabel(doc: BusinessDocument): string | null {
+  if (!doc.expiryDate) return null
+  if (isExpired(doc.expiryDate)) return 'Expired'
+  if (isExpiringWithin90Days(doc.expiryDate)) {
+    return `Expiring ${formatDistanceToNow(new Date(doc.expiryDate), { addSuffix: true })}`
+  }
+
+  return 'Active'
+}
+
 function ScorePill({ score }: { score: number }) {
   const level = scoreToLevel(score)
   const styles: Record<string, { bg: string; color: string; label: string }> = {
@@ -516,12 +589,16 @@ export function TrustProfileScreen({
                 <p style={{ fontSize: '14px', color: 'var(--text-secondary)' }}>No documents uploaded yet.</p>
               </div>
             ) : (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '2px', borderRadius: '14px', overflow: 'hidden', border: '1px solid var(--border-light)' }}>
-                {documents.map((doc, idx) => {
-                  const expiring = doc.expiryDate ? isExpiringWithin90Days(doc.expiryDate) : false
-                  const expired = doc.expiryDate ? isExpired(doc.expiryDate) : false
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                {documents.map(doc => {
+                  const visualState = getDocumentVisualState(doc)
+                  const stateConfig = getDocumentStateConfig(visualState)
                   const isPdf = doc.mimeType === 'application/pdf'
-                  const isLast = idx === documents.length - 1
+                  const importanceTag = getDocumentImportanceTag(doc.documentType)
+                  const expiryHealth = getExpiryHealthLabel(doc)
+                  const uploadLabel = formatUploadDate(doc.uploadedAt)
+                  const verificationLabel = doc.verificationStatus === 'verified' ? 'Verified by Zelto' : 'Awaiting verification'
+                  const expiryLabel = doc.expiryDate ? formatUploadDate(new Date(doc.expiryDate).getTime()) : 'No expiry provided'
 
                   return (
                     <div
@@ -529,17 +606,18 @@ export function TrustProfileScreen({
                       style={{
                         display: 'flex',
                         alignItems: 'flex-start',
-                        padding: '12px 16px',
-                        backgroundColor: 'var(--bg-card)',
-                        borderBottom: isLast ? 'none' : '1px solid var(--border-light)',
                         gap: '12px',
+                        padding: '16px',
+                        backgroundColor: stateConfig.backgroundColor,
+                        border: `1px solid ${stateConfig.borderColor}`,
+                        borderRadius: '16px',
+                        boxShadow: '0 1px 2px rgba(15, 23, 42, 0.04)',
                       }}
                     >
-                      {/* File type badge */}
                       <div style={{
-                        width: '36px',
-                        height: '36px',
-                        borderRadius: '8px',
+                        width: '40px',
+                        height: '40px',
+                        borderRadius: '10px',
                         backgroundColor: isPdf ? '#FEE2E2' : '#DBEAFE',
                         display: 'flex',
                         alignItems: 'center',
@@ -547,41 +625,114 @@ export function TrustProfileScreen({
                         flexShrink: 0,
                       }}>
                         {isPdf ? (
-                          <FilePdf size={18} color="#DC2626" />
+                          <FilePdf size={20} color="#DC2626" />
                         ) : (
-                          <Image size={18} color="#2563EB" />
+                          <Image size={20} color="#2563EB" />
                         )}
                       </div>
 
-                      {/* Content */}
                       <div style={{ flex: 1, minWidth: 0 }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
-                          <span style={{ fontSize: '14px', fontWeight: 500, color: 'var(--text-primary)' }}>
-                            {getDocumentLabel(doc.documentType)}
+                        <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '12px', flexWrap: 'wrap' }}>
+                          <div style={{ minWidth: 0 }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                              <span style={{ fontSize: '15px', fontWeight: 600, color: 'var(--text-primary)' }}>
+                                {getDocumentLabel(doc.documentType)}
+                              </span>
+                              {importanceTag && (
+                                <span style={{
+                                  fontSize: '11px',
+                                  fontWeight: 600,
+                                  color: '#4338CA',
+                                  backgroundColor: '#EEF2FF',
+                                  padding: '4px 8px',
+                                  borderRadius: '999px',
+                                }}>
+                                  {importanceTag}
+                                </span>
+                              )}
+                            </div>
+                            <p style={{ fontSize: '12px', color: 'var(--text-secondary)', marginTop: '4px' }}>
+                              {doc.fileName}{doc.fileSizeBytes ? ` · ${formatFileSize(doc.fileSizeBytes)}` : ''}
+                            </p>
+                          </div>
+
+                          <span style={{
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: '6px',
+                            fontSize: '11px',
+                            fontWeight: 700,
+                            color: stateConfig.badgeColor,
+                            backgroundColor: stateConfig.badgeBackground,
+                            padding: '6px 10px',
+                            borderRadius: '999px',
+                            whiteSpace: 'nowrap',
+                          }}>
+                            {visualState === 'verified' && <CheckCircle size={14} color={stateConfig.badgeColor} weight="fill" />}
+                            {visualState === 'pending' && <Clock size={14} color={stateConfig.badgeColor} weight="fill" />}
+                            {(visualState === 'expiring-soon' || visualState === 'expired') && <Warning size={14} color={stateConfig.badgeColor} weight="fill" />}
+                            {stateConfig.label}
                           </span>
-                          {doc.verificationStatus === 'verified' && (
-                            <CheckCircle size={14} color="#16A34A" weight="fill" />
-                          )}
                         </div>
-                        <p style={{ fontSize: '12px', color: 'var(--text-secondary)', marginTop: '2px' }}>
-                          {formatFileSize(doc.fileSizeBytes)} · {formatUploadDate(doc.uploadedAt)}
-                        </p>
 
-                        {doc.verificationStatus === 'pending' && (
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '4px', marginTop: '2px' }}>
-                            <Clock size={12} color="var(--status-dispatched)" />
-                            <span style={{ fontSize: '11px', color: 'var(--status-dispatched)' }}>Verification pending</span>
+                        <div style={{
+                          display: 'grid',
+                          gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))',
+                          gap: '12px',
+                          marginTop: '14px',
+                        }}>
+                          <div>
+                            <p style={{ fontSize: '11px', fontWeight: 600, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                              Verification status
+                            </p>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginTop: '6px' }}>
+                              {doc.verificationStatus === 'verified' ? (
+                                <CheckCircle size={14} color="#16A34A" weight="fill" />
+                              ) : (
+                                <Clock size={14} color="#D97706" weight="fill" />
+                              )}
+                              <span style={{ fontSize: '13px', fontWeight: 500, color: 'var(--text-primary)' }}>
+                                {verificationLabel}
+                              </span>
+                            </div>
                           </div>
-                        )}
 
-                        {doc.expiryDate && (
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '4px', marginTop: '2px' }}>
-                            {expired || expiring ? <Warning size={12} color="#D97706" weight="fill" /> : null}
-                            <span style={{ fontSize: '11px', color: expired || expiring ? '#D97706' : '#16A34A' }}>
-                              Exp: {doc.expiryDate}
-                            </span>
+                          <div>
+                            <p style={{ fontSize: '11px', fontWeight: 600, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                              Upload date
+                            </p>
+                            <p style={{ fontSize: '13px', fontWeight: 500, color: 'var(--text-primary)', marginTop: '6px' }}>
+                              {uploadLabel}
+                            </p>
                           </div>
-                        )}
+
+                          <div>
+                            <p style={{ fontSize: '11px', fontWeight: 600, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                              Expiry date
+                            </p>
+                            <p style={{ fontSize: '13px', fontWeight: 500, color: 'var(--text-primary)', marginTop: '6px' }}>
+                              {expiryLabel}
+                            </p>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginTop: '6px' }}>
+                              {doc.expiryDate ? (
+                                (visualState === 'expiring-soon' || visualState === 'expired') ? (
+                                  <Warning size={14} color={stateConfig.badgeColor} weight="fill" />
+                                ) : (
+                                  <CheckCircle size={14} color="#16A34A" weight="fill" />
+                                )
+                              ) : (
+                                <Clock size={14} color="var(--text-secondary)" />
+                              )}
+                              <span style={{
+                                fontSize: '12px',
+                                fontWeight: 500,
+                                color: doc.expiryDate ? (visualState === 'expiring-soon' || visualState === 'expired' ? stateConfig.badgeColor : '#15803D') : 'var(--text-secondary)',
+                              }}>
+                                {expiryHealth ?? 'No expiry tracking'}
+                              </span>
+                            </div>
+                          </div>
+                        </div>
                       </div>
                     </div>
                   )
