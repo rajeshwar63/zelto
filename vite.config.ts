@@ -4,9 +4,11 @@ import { defineConfig, PluginOption } from "vite";
 
 import sparkPlugin from "@github/spark/spark-vite-plugin";
 import createIconImportProxy from "@github/spark/vitePhosphorIconProxyPlugin";
-import { resolve } from 'path'
+import { dirname, resolve } from "node:path";
+import { fileURLToPath } from "node:url";
 
-const projectRoot = process.env.PROJECT_ROOT || import.meta.dirname
+const configDir = dirname(fileURLToPath(import.meta.url));
+const projectRoot = process.env.PROJECT_ROOT || configDir;
 
 // https://vite.dev/config/
 export default defineConfig({
