@@ -366,6 +366,19 @@ export function TrustProfileScreen({
   const relationshipSince = connection
     ? new Date(connection.createdAt).toLocaleDateString('en-IN', { month: 'short', year: 'numeric' })
     : ''
+  const connectionStateLabel = connection ? getConnectionStateLabel(connection.connectionState) : ''
+  const connectionStateColor = connection ? getConnectionStateColor(connection.connectionState) : 'var(--text-secondary)'
+  const paymentTermsLabel = connection ? formatPaymentTerms(connection.paymentTerms) : null
+  const relationshipRole = connection
+    ? connection.buyerBusinessId === currentBusinessId
+      ? `You buy from ${business?.businessName ?? 'this business'}`
+      : connection.supplierBusinessId === currentBusinessId
+        ? `You supply to ${business?.businessName ?? 'this business'}`
+        : null
+    : null
+  const contactContext = connection
+    ? buildConnectionSubtitle(connection.branchLabel, connection.contactName)
+    : null
 
   const trustLevel = credibility ? scoreToLevel(credibility.score) : null
   const trustTone = trustLevel ? getTrustTone(trustLevel) : null
