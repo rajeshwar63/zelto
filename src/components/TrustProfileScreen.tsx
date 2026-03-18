@@ -360,6 +360,34 @@ export function TrustProfileScreen({
     ? Math.max(1, Math.round((Date.now() - business.createdAt) / (30 * 24 * 60 * 60 * 1000)))
     : 0
 
+  const timeOnZeltoLabel = business?.createdAt
+    ? `${formatDistanceToNow(business.createdAt, { addSuffix: false })} on Zelto`
+    : 'Time on Zelto not available'
+
+  const tradingSignals = [
+    {
+      label: 'Active connections',
+      value: activityCounts?.connectionCount ?? '—',
+      detail: activityCounts
+        ? `${activityCounts.connectionCount} active trade ${activityCounts.connectionCount === 1 ? 'relationship' : 'relationships'}`
+        : 'Connections will appear once activity data syncs',
+    },
+    {
+      label: 'Orders completed',
+      value: activityCounts?.orderCount ?? '—',
+      detail: activityCounts
+        ? `${activityCounts.orderCount} recorded ${activityCounts.orderCount === 1 ? 'order' : 'orders'} on Zelto`
+        : 'Orders will appear once activity data syncs',
+    },
+    {
+      label: 'Time on Zelto',
+      value: business?.createdAt ? onZeltoMonths : '—',
+      detail: business?.createdAt
+        ? `${timeOnZeltoLabel} · member since ${memberSince}`
+        : 'Business age will appear once profile setup is complete',
+    },
+  ]
+
   const relationshipAge = connection
     ? formatDistance(connection.createdAt, Date.now(), { addSuffix: false })
     : ''
