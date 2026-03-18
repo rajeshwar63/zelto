@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useEffect, type ReactNode, useState } from 'react'
 import { ArrowLeft, FilePdf, Image, CheckCircle, Clock, Warning } from '@phosphor-icons/react'
 import { dataStore } from '@/lib/data-store'
 import { calculateCredibility, getBusinessActivityCounts, scoreToLevel, type CredibilityBreakdown } from '@/lib/credibility'
@@ -97,16 +97,6 @@ interface Props {
   onRequestDeclined?: () => void
 }
 
-function getInitials(name: string): string {
-  return name
-    .split(' ')
-    .filter(Boolean)
-    .slice(0, 2)
-    .map(w => w[0])
-    .join('')
-    .toUpperCase()
-}
-
 function formatFileSize(bytes?: number): string {
   if (!bytes) return ''
   if (bytes < 1024) return `${bytes} B`
@@ -142,6 +132,19 @@ function getDocumentLabel(type: string): string {
   return labels[type] ?? type
 }
 
+
+
+function Section({ title, children }: { title: string; children: ReactNode }) {
+  return (
+    <section style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px' }}>
+        <h2 style={{ fontSize: '14px', fontWeight: 700, color: 'var(--text-primary)', margin: 0 }}>{title}</h2>
+      </div>
+      {children}
+    </section>
+  )
+}
+
 function ScorePill({ score }: { score: number }) {
   const level = scoreToLevel(score)
   const styles: Record<string, { bg: string; color: string; label: string }> = {
@@ -150,17 +153,25 @@ function ScorePill({ score }: { score: number }) {
     basic: { bg: '#FEF3C7', color: '#D97706', label: 'Basic' },
     none: { bg: '#F3F4F6', color: '#6B7280', label: 'New' },
   }
-  const s = styles[level]
+
+  return `${tone.headline} Review this ${level} profile before sending a connection request.`
+}
+
+function CompactScoreBadge({ score }: { score: number }) {
+  const level = scoreToLevel(score)
+  const tone = getTrustTone(level)
+
   return (
     <span style={{
-      backgroundColor: s.bg,
-      color: s.color,
+      backgroundColor: tone.soft,
+      color: tone.text,
       fontSize: '12px',
       fontWeight: 600,
-      padding: '3px 10px',
-      borderRadius: '100px',
+      padding: '4px 10px',
+      borderRadius: '999px',
+      whiteSpace: 'nowrap',
     }}>
-      {score} · {s.label}
+      {score} · {level.charAt(0).toUpperCase() + level.slice(1)}
     </span>
   )
 }
@@ -176,8 +187,6 @@ export function TrustProfileScreen({
   onRequestAccepted,
   onRequestDeclined,
 }: Props) {
-  const [activeTab, setActiveTab] = useState<'identity' | 'docs'>('identity')
-
   // Data
   const [business, setBusiness] = useState<BusinessEntity | null>(null)
   const [credibility, setCredibility] = useState<CredibilityBreakdown | null>(null)
@@ -358,6 +367,12 @@ export function TrustProfileScreen({
     ? new Date(connection.createdAt).toLocaleDateString('en-IN', { month: 'short', year: 'numeric' })
     : ''
 
+  const trustLevel = credibility ? scoreToLevel(credibility.score) : null
+  const trustTone = trustLevel ? getTrustTone(trustLevel) : null
+  const trustSummary = credibility && trustLevel
+    ? getTrustSummary(mode, credibility.score, trustLevel, activityCounts)
+    : ''
+
   if (loadingBusiness) {
     return (
       <div style={{ position: 'fixed', inset: 0, backgroundColor: 'var(--bg-screen)', zIndex: 50, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
@@ -387,10 +402,10 @@ export function TrustProfileScreen({
       <div style={{
         backgroundColor: 'var(--bg-card)',
         borderBottom: '0.5px solid var(--border-light)',
-        padding: '12px 16px 0',
+        padding: '12px 16px',
         flexShrink: 0,
       }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '8px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
           <button onClick={onBack} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '4px', flexShrink: 0 }}>
             <ArrowLeft size={20} />
           </button>
@@ -403,57 +418,30 @@ export function TrustProfileScreen({
               {business.city ? ` · ${business.city}` : ''}
             </p>
           </div>
-          {credibility && <ScorePill score={credibility.score} />}
-        </div>
-
-        {/* Tabs */}
-        <div style={{ display: 'flex', gap: '0' }}>
-          {(['identity', 'docs'] as const).map(tab => (
-            <button
-              key={tab}
-              onClick={() => setActiveTab(tab)}
-              style={{
-                padding: '8px 16px',
-                fontSize: '13px',
-                fontWeight: activeTab === tab ? 600 : 400,
-                color: activeTab === tab ? 'var(--brand-primary)' : 'var(--text-secondary)',
-                background: 'none',
-                border: 'none',
-                borderBottom: activeTab === tab ? '2px solid var(--brand-primary)' : '2px solid transparent',
-                cursor: 'pointer',
-                textTransform: 'capitalize',
-              }}
-            >
-              {tab === 'identity' ? 'Identity' : 'Docs'}
-            </button>
-          ))}
+          {credibility && <CompactScoreBadge score={credibility.score} />}
         </div>
       </div>
 
-      {/* Scrollable Tab Content */}
       <div style={{ flex: 1, overflowY: 'auto', padding: '16px' }}>
-
-        {/* === IDENTITY TAB === */}
-        {activeTab === 'identity' && (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-
-            {/* Credibility Score Card */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
+          <Section title="Overview">
             <div style={{ backgroundColor: 'var(--bg-card)', borderRadius: '14px', padding: '16px', border: '1px solid var(--border-light)' }}>
               {loadingCred ? (
-                <p style={{ fontSize: '13px', color: 'var(--text-secondary)' }}>Loading score…</p>
+                <p style={{ fontSize: '13px', color: 'var(--text-secondary)' }}>Loading trust evidence…</p>
               ) : credibility ? (
                 <>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '8px' }}>
-                    <span style={{ fontSize: '28px', fontWeight: 700, color: 'var(--text-primary)' }}>{credibility.score} / 100</span>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px', marginBottom: '12px', flexWrap: 'wrap' }}>
+                    <div>
+                      <p style={{ fontSize: '14px', fontWeight: 700, color: 'var(--text-primary)' }}>Trust evidence</p>
+                      <p style={{ fontSize: '12px', color: 'var(--text-secondary)', marginTop: '2px' }}>
+                        Signals contributing to the trust score.
+                      </p>
+                    </div>
                     <CredibilityBadge level={credibility.level} />
                   </div>
-                  <div style={{ height: '5px', backgroundColor: 'var(--border-light)', borderRadius: '3px', overflow: 'hidden', marginBottom: '12px' }}>
-                    <div style={{ height: '100%', borderRadius: '3px', width: `${credibility.score}%`, background: 'linear-gradient(90deg, #4A6CF7, #22B573)' }} />
-                  </div>
 
-                  {/* Completed items */}
                   {credibility.completedItems.length > 0 && (
-                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', marginBottom: mode === 'view-connection' ? '8px' : '0' }}>
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', marginBottom: mode === 'view-connection' && credibility.missingItems.length > 0 ? '8px' : '0' }}>
                       {credibility.completedItems.map(item => (
                         <span key={item} style={{ fontSize: '11px', fontWeight: 500, color: '#16A34A', backgroundColor: '#DCFCE7', padding: '2px 8px', borderRadius: '100px' }}>
                           ✓ {item}
@@ -462,7 +450,6 @@ export function TrustProfileScreen({
                     </div>
                   )}
 
-                  {/* Missing items — only for view-connection mode */}
                   {mode === 'view-connection' && credibility.missingItems.length > 0 && (
                     <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
                       {credibility.missingItems.slice(0, 4).map(item => (
@@ -476,68 +463,6 @@ export function TrustProfileScreen({
               ) : null}
             </div>
 
-            {/* Why this score */}
-            {credibility && (
-              <div style={{ backgroundColor: 'var(--bg-card)', borderRadius: '14px', padding: '16px', border: '1px solid var(--border-light)' }}>
-                <div style={{ marginBottom: '14px' }}>
-                  <p style={{ fontSize: '15px', fontWeight: 700, color: 'var(--text-primary)', marginBottom: '4px' }}>Why this score?</p>
-                  <p style={{ fontSize: '13px', color: 'var(--text-secondary)', lineHeight: 1.5 }}>
-                    This trust score reflects profile completeness, network traction, and uploaded compliance documents.
-                  </p>
-                </div>
-
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                  {scoreExplanationGroups.map(group => (
-                    <div
-                      key={group.key}
-                      style={{
-                        border: '1px solid var(--border-light)',
-                        borderRadius: '12px',
-                        padding: '14px',
-                        backgroundColor: 'var(--bg-screen)',
-                      }}
-                    >
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '12px', marginBottom: '10px' }}>
-                        <p style={{ fontSize: '14px', fontWeight: 600, color: 'var(--text-primary)' }}>{group.title}</p>
-                        <span style={{
-                          fontSize: '11px',
-                          fontWeight: 600,
-                          color: group.statusLabel === 'Complete' ? '#16A34A' : group.statusLabel === 'In progress' ? '#4A6CF7' : '#D97706',
-                          backgroundColor: group.statusLabel === 'Complete' ? '#DCFCE7' : group.statusLabel === 'In progress' ? '#EEF1FE' : '#FEF3C7',
-                          padding: '4px 8px',
-                          borderRadius: '999px',
-                          whiteSpace: 'nowrap',
-                        }}>
-                          {group.statusLabel}
-                        </span>
-                      </div>
-
-                      <div style={{ display: 'grid', gap: '10px' }}>
-                        <div>
-                          <p style={{ fontSize: '12px', fontWeight: 600, color: '#16A34A', marginBottom: '6px' }}>Working in their favor</p>
-                          <ul style={{ margin: 0, paddingLeft: '18px', display: 'grid', gap: '4px' }}>
-                            {(group.positiveItems.length > 0 ? group.positiveItems : ['No positive signals yet']).map(item => (
-                              <li key={item} style={{ fontSize: '13px', color: 'var(--text-primary)' }}>{item}</li>
-                            ))}
-                          </ul>
-                        </div>
-
-                        <div>
-                          <p style={{ fontSize: '12px', fontWeight: 600, color: '#D97706', marginBottom: '6px' }}>Gaps lowering the score</p>
-                          <ul style={{ margin: 0, paddingLeft: '18px', display: 'grid', gap: '4px' }}>
-                            {(group.missingItems.length > 0 ? group.missingItems : ['No gaps in this area']).map(item => (
-                              <li key={item} style={{ fontSize: '13px', color: 'var(--text-primary)' }}>{item}</li>
-                            ))}
-                          </ul>
-                        </div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {/* Business Details */}
             <div style={{ backgroundColor: 'var(--bg-card)', borderRadius: '14px', overflow: 'hidden', border: '1px solid var(--border-light)' }}>
               {[
                 business.businessType && { label: 'Business type', value: business.businessType },
@@ -579,8 +504,46 @@ export function TrustProfileScreen({
                   </div>
                 ))}
             </div>
+          </Section>
 
-            {/* Network presence */}
+          <Section title="Verification">
+            <div style={{ backgroundColor: 'var(--bg-card)', borderRadius: '14px', padding: '12px', border: '1px solid var(--border-light)' }}>
+              <div style={{ display: 'flex', gap: '0' }}>
+                <div style={{ flex: 1, textAlign: 'center', padding: '8px' }}>
+                  <p style={{ fontSize: '20px', fontWeight: 600, color: 'var(--text-primary)', marginBottom: '2px' }}>
+                    {verifiedCount}
+                  </p>
+                  <p style={{ fontSize: '11px', color: 'var(--text-secondary)' }}>Verified docs</p>
+                </div>
+                <div style={{ width: '1px', backgroundColor: 'var(--border-light)' }} />
+                <div style={{ flex: 1, textAlign: 'center', padding: '8px' }}>
+                  <p style={{ fontSize: '20px', fontWeight: 600, color: 'var(--text-primary)', marginBottom: '2px' }}>
+                    {pendingCount}
+                  </p>
+                  <p style={{ fontSize: '11px', color: 'var(--text-secondary)' }}>Pending review</p>
+                </div>
+                <div style={{ width: '1px', backgroundColor: 'var(--border-light)' }} />
+                <div style={{ flex: 1, textAlign: 'center', padding: '8px' }}>
+                  <p style={{ fontSize: '20px', fontWeight: 600, color: 'var(--text-primary)', marginBottom: '2px' }}>
+                    {expiringCount}
+                  </p>
+                  <p style={{ fontSize: '11px', color: 'var(--text-secondary)' }}>Expiring soon</p>
+                </div>
+              </div>
+            </div>
+
+            <div style={{ backgroundColor: 'var(--bg-card)', borderRadius: '14px', padding: '16px', border: '1px solid var(--border-light)' }}>
+              <p style={{ fontSize: '13px', color: 'var(--text-secondary)', margin: 0 }}>
+                {loadingDocs
+                  ? 'Loading verification details…'
+                  : documents.length === 0
+                    ? 'No verification documents uploaded yet.'
+                    : `${documents.length} document${documents.length === 1 ? '' : 's'} uploaded for review.`}
+              </p>
+            </div>
+          </Section>
+
+          <Section title="Trading Signals">
             <div style={{ backgroundColor: 'var(--bg-card)', borderRadius: '14px', padding: '12px', border: '1px solid var(--border-light)' }}>
               <div style={{ display: 'flex', gap: '0' }}>
                 <div style={{ flex: 1, textAlign: 'center', padding: '8px' }}>
@@ -606,23 +569,18 @@ export function TrustProfileScreen({
               </div>
             </div>
 
-            {/* Relationship row — view-connection only */}
             {mode === 'view-connection' && connection && (
               <div style={{ backgroundColor: 'var(--bg-card)', borderRadius: '14px', padding: '12px 16px', border: '1px solid var(--border-light)' }}>
-                <p style={{ fontSize: '13px', color: 'var(--text-secondary)' }}>
+                <p style={{ fontSize: '13px', color: 'var(--text-secondary)', margin: 0 }}>
                   Your relationship · Trading for {relationshipAge} · Since {relationshipSince}
                 </p>
               </div>
             )}
-          </div>
-        )}
+          </Section>
 
-        {/* === DOCS TAB === */}
-        {activeTab === 'docs' && (
-          <div>
-            {/* Summary row */}
+          <Section title="Documents">
             {documents.length > 0 && (
-              <div style={{ display: 'flex', gap: '12px', marginBottom: '16px' }}>
+              <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
                 {verifiedCount > 0 && (
                   <span style={{ fontSize: '12px', fontWeight: 600, color: '#16A34A', backgroundColor: '#DCFCE7', padding: '4px 10px', borderRadius: '100px' }}>
                     {verifiedCount} Verified
@@ -667,7 +625,6 @@ export function TrustProfileScreen({
                         gap: '12px',
                       }}
                     >
-                      {/* File type badge */}
                       <div style={{
                         width: '36px',
                         height: '36px',
@@ -685,7 +642,6 @@ export function TrustProfileScreen({
                         )}
                       </div>
 
-                      {/* Content */}
                       <div style={{ flex: 1, minWidth: 0 }}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
                           <span style={{ fontSize: '14px', fontWeight: 500, color: 'var(--text-primary)' }}>
@@ -720,8 +676,8 @@ export function TrustProfileScreen({
                 })}
               </div>
             )}
-          </div>
-        )}
+          </Section>
+        </div>
       </div>
 
       {/* Fixed Bottom CTA */}
