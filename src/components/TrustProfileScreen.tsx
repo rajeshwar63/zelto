@@ -95,6 +95,87 @@ function ScorePill({ score }: { score: number }) {
   )
 }
 
+type VerificationStatus = 'Verified' | 'Provided' | 'Missing' | 'Not available'
+
+type VerificationRow = {
+  label: string
+  value: string
+  status: VerificationStatus
+  mono?: boolean
+}
+
+const verificationStatusStyles: Record<VerificationStatus, { bg: string; color: string }> = {
+  Verified: { bg: '#DCFCE7', color: '#16A34A' },
+  Provided: { bg: '#EEF1FE', color: '#4A6CF7' },
+  Missing: { bg: '#FEF2F2', color: '#DC2626' },
+  'Not available': { bg: '#F3F4F6', color: '#6B7280' },
+}
+
+function VerificationStatusPill({ status }: { status: VerificationStatus }) {
+  const style = verificationStatusStyles[status]
+  return (
+    <span style={{
+      backgroundColor: style.bg,
+      color: style.color,
+      fontSize: '11px',
+      fontWeight: 600,
+      padding: '3px 8px',
+      borderRadius: '999px',
+      whiteSpace: 'nowrap',
+    }}>
+      {status}
+    </span>
+  )
+}
+
+function VerificationRowItem({ row, isLast }: { row: VerificationRow; isLast: boolean }) {
+  return (
+    <div
+      style={{
+        display: 'flex',
+        justifyContent: 'space-between',
+        alignItems: 'flex-start',
+        padding: '12px 16px',
+        borderBottom: isLast ? 'none' : '1px solid var(--border-light)',
+        gap: '12px',
+      }}
+    >
+      <div style={{ minWidth: 0, flex: 1 }}>
+        <p style={{ fontSize: '13px', color: 'var(--text-secondary)', margin: 0, marginBottom: '4px' }}>{row.label}</p>
+        <p style={{
+          fontSize: '13px',
+          fontWeight: 500,
+          color: 'var(--text-primary)',
+          fontFamily: row.mono ? 'monospace' : undefined,
+          margin: 0,
+          wordBreak: 'break-word',
+          whiteSpace: 'pre-wrap',
+        }}>
+          {row.value}
+        </p>
+      </div>
+      <VerificationStatusPill status={row.status} />
+    </div>
+  )
+}
+
+function VerificationSubsection({ title, rows }: { title: string; rows: VerificationRow[] }) {
+  return (
+    <div style={{ borderTop: '1px solid var(--border-light)' }}>
+      <div style={{ padding: '12px 16px 8px' }}>
+        <p style={{ fontSize: '12px', fontWeight: 700, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.04em', margin: 0 }}>
+          {title}
+        </p>
+      </div>
+      <div>
+        {rows.map((row, idx) => (
+          <VerificationRowItem key={`${title}-${row.label}`} row={row} isLast={idx === rows.length - 1} />
+        ))}
+      </div>
+    </div>
+  )
+}
+
 export function TrustProfileScreen({
   targetBusinessId,
   currentBusinessId,
@@ -287,6 +368,75 @@ export function TrustProfileScreen({
     ? new Date(connection.createdAt).toLocaleDateString('en-IN', { month: 'short', year: 'numeric' })
     : ''
 
+  const hasMapCoordinates = business.latitude != null && business.longitude != null
+  const locationValue = business.formattedAddress || business.businessAddress || 'No business address provided'
+  const gstStatusValue = business.gstNumber ? 'Active' : 'No GST status available'
+  const verificationSections: { title: string; rows: VerificationRow[] }[] = [
+    {
+      title: 'Business Details',
+      rows: [
+        {
+          label: 'Business type',
+          value: business.businessType || 'Business type not provided',
+          status: business.businessType ? 'Verified' : 'Missing',
+        },
+        {
+          label: 'GST number',
+          value: business.gstNumber || 'GST number not provided',
+          status: business.gstNumber ? 'Verified' : 'Missing',
+          mono: !!business.gstNumber,
+        },
+        {
+          label: 'GST status',
+          value: gstStatusValue,
+          status: business.gstNumber ? 'Verified' : 'Not available',
+        },
+        {
+          label: 'Phone',
+          value: business.phone || business.mobileNumber || 'Phone not provided',
+          status: business.phone || business.mobileNumber ? 'Provided' : 'Missing',
+        },
+        {
+          label: 'Website',
+          value: business.website || 'Website not provided',
+          status: business.website ? 'Provided' : 'Missing',
+        },
+        {
+          label: 'Description',
+          value: business.description || 'Description not provided',
+          status: business.description ? 'Provided' : 'Missing',
+        },
+      ],
+    },
+    {
+      title: 'Location Confidence',
+      rows: [
+        {
+          label: 'Business address',
+          value: locationValue,
+          status: business.formattedAddress ? 'Verified' : business.businessAddress ? 'Provided' : 'Missing',
+        },
+        {
+          label: 'Map verification',
+          value: hasMapCoordinates
+            ? `Coordinates verified (${business.latitude?.toFixed(5)}, ${business.longitude?.toFixed(5)})`
+            : 'Map coordinates not available',
+          status: hasMapCoordinates ? 'Verified' : 'Not available',
+        },
+      ],
+    },
+    {
+      title: 'Membership History',
+      rows: [
+        {
+          label: 'Member since',
+          value: memberSince ? `${memberSince} · ${onZeltoMonths} months on Zelto` : 'Membership history not available',
+          status: memberSince ? 'Verified' : 'Not available',
+        },
+      ],
+    },
+  ]
+
   if (loadingBusiness) {
     return (
       <div style={{ position: 'fixed', inset: 0, backgroundColor: 'var(--bg-screen)', zIndex: 50, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
@@ -405,47 +555,17 @@ export function TrustProfileScreen({
               ) : null}
             </div>
 
-            {/* Business Details */}
+            {/* Verification */}
             <div style={{ backgroundColor: 'var(--bg-card)', borderRadius: '14px', overflow: 'hidden', border: '1px solid var(--border-light)' }}>
-              {[
-                business.businessType && { label: 'Business type', value: business.businessType },
-                business.gstNumber && { label: 'GST number', value: business.gstNumber, mono: true },
-                { label: 'GST status', value: business.gstNumber ? 'Active' : '—', green: !!business.gstNumber },
-                (business.businessAddress || business.formattedAddress) && {
-                  label: 'Location',
-                  value: business.formattedAddress || business.businessAddress || '',
-                },
-                business.latitude && business.longitude && { label: 'Map verified', value: 'Yes ✓', green: true },
-                business.description && { label: 'Description', value: `"${business.description}"` },
-                memberSince && { label: 'Member since', value: `${memberSince} · ${onZeltoMonths} months` },
-                business.website && { label: 'Website', value: business.website },
-              ]
-                .filter(Boolean)
-                .map((row: any, idx, arr) => (
-                  <div
-                    key={row.label}
-                    style={{
-                      display: 'flex',
-                      justifyContent: 'space-between',
-                      alignItems: 'flex-start',
-                      padding: '10px 16px',
-                      borderBottom: idx < arr.length - 1 ? '1px solid var(--border-light)' : 'none',
-                      gap: '12px',
-                    }}
-                  >
-                    <span style={{ fontSize: '13px', color: 'var(--text-secondary)', flexShrink: 0 }}>{row.label}</span>
-                    <span style={{
-                      fontSize: '13px',
-                      fontWeight: 500,
-                      color: row.green ? '#16A34A' : 'var(--text-primary)',
-                      fontFamily: row.mono ? 'monospace' : undefined,
-                      textAlign: 'right',
-                      flex: 1,
-                    }}>
-                      {row.value}
-                    </span>
-                  </div>
-                ))}
+              <div style={{ padding: '16px 16px 12px' }}>
+                <p style={{ fontSize: '16px', fontWeight: 700, color: 'var(--text-primary)', margin: 0, marginBottom: '4px' }}>Verification</p>
+                <p style={{ fontSize: '12px', color: 'var(--text-secondary)', margin: 0 }}>
+                  Business identity, location confidence, and membership details surfaced from the current entity record.
+                </p>
+              </div>
+              {verificationSections.map(section => (
+                <VerificationSubsection key={section.title} title={section.title} rows={section.rows} />
+              ))}
             </div>
 
             {/* Network presence */}
