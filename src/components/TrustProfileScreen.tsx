@@ -11,7 +11,9 @@ import { emitDataChange } from '@/lib/data-events'
 import { consumePendingConnectionLabels } from '@/lib/pending-connection-labels'
 import { toast } from 'sonner'
 import type { BusinessEntity, BusinessDocument, Connection } from '@/lib/types'
-import { formatDistanceToNow, formatDistance } from 'date-fns'
+import { formatDistance } from 'date-fns'
+import { getConnectionStateColor, getConnectionStateLabel } from '@/lib/connection-state-utils'
+import { buildConnectionSubtitle } from '@/lib/utils'
 
 export type TrustProfileMode = 'send-request' | 'accept-request' | 'view-connection'
 
@@ -70,6 +72,29 @@ function getDocumentLabel(type: string): string {
     other: 'Other Document',
   }
   return labels[type] ?? type
+}
+
+
+function formatPaymentTerms(terms: Connection['paymentTerms']): string | null {
+  if (!terms) return null
+  switch (terms.type) {
+    case 'Advance Required':
+      return 'Advance Required'
+    case 'Payment on Delivery':
+      return 'Payment on Delivery'
+    case 'Bill to Bill':
+      return 'Bill to Bill'
+    case 'Days After Delivery':
+      return `${terms.days} days after delivery`
+  }
+}
+
+function toTitleCase(value: string): string {
+  return value
+    .split(/[-_ ]+/)
+    .filter(Boolean)
+    .map(part => part[0].toUpperCase() + part.slice(1))
+    .join(' ')
 }
 
 function ScorePill({ score }: { score: number }) {
@@ -286,6 +311,19 @@ export function TrustProfileScreen({
   const relationshipSince = connection
     ? new Date(connection.createdAt).toLocaleDateString('en-IN', { month: 'short', year: 'numeric' })
     : ''
+  const connectionStateLabel = connection ? getConnectionStateLabel(connection.connectionState) : ''
+  const connectionStateColor = connection ? getConnectionStateColor(connection.connectionState) : 'var(--text-secondary)'
+  const paymentTermsLabel = connection ? formatPaymentTerms(connection.paymentTerms) : null
+  const relationshipRole = connection
+    ? connection.buyerBusinessId === currentBusinessId
+      ? `You buy from ${business?.businessName ?? 'this business'}`
+      : connection.supplierBusinessId === currentBusinessId
+        ? `You supply to ${business?.businessName ?? 'this business'}`
+        : null
+    : null
+  const contactContext = connection
+    ? buildConnectionSubtitle(connection.branchLabel, connection.contactName)
+    : null
 
   if (loadingBusiness) {
     return (
@@ -474,12 +512,61 @@ export function TrustProfileScreen({
               </div>
             </div>
 
-            {/* Relationship row — view-connection only */}
+            {/* Relationship with you — view-connection only */}
             {mode === 'view-connection' && connection && (
-              <div style={{ backgroundColor: 'var(--bg-card)', borderRadius: '14px', padding: '12px 16px', border: '1px solid var(--border-light)' }}>
-                <p style={{ fontSize: '13px', color: 'var(--text-secondary)' }}>
-                  Your relationship · Trading for {relationshipAge} · Since {relationshipSince}
-                </p>
+              <div style={{ backgroundColor: 'var(--bg-card)', borderRadius: '14px', padding: '16px', border: '1px solid var(--border-light)' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '12px', marginBottom: '14px' }}>
+                  <div>
+                    <p style={{ fontSize: '15px', fontWeight: 600, color: 'var(--text-primary)', marginBottom: '4px' }}>Relationship with you</p>
+                    <p style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>A quick view of how this connection is set up on Zelto.</p>
+                  </div>
+                  <span style={{ fontSize: '11px', fontWeight: 600, color: connectionStateColor, backgroundColor: `${connectionStateColor}14`, padding: '4px 10px', borderRadius: '999px', whiteSpace: 'nowrap' }}>
+                    {connectionStateLabel}
+                  </span>
+                </div>
+
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: '10px', marginBottom: '14px' }}>
+                  {[
+                    { label: 'Connected since', value: relationshipSince },
+                    { label: 'Relationship age', value: relationshipAge ? `Trading for ${relationshipAge}` : '—' },
+                    { label: 'Role relationship', value: relationshipRole ?? 'Role not derivable' },
+                    { label: 'Payment terms', value: paymentTermsLabel ?? 'Not set yet' },
+                  ].map(item => (
+                    <div key={item.label} style={{ padding: '12px', borderRadius: '12px', backgroundColor: 'var(--bg-screen)', border: '1px solid var(--border-light)' }}>
+                      <p style={{ fontSize: '11px', fontWeight: 600, letterSpacing: '0.02em', textTransform: 'uppercase', color: 'var(--text-secondary)', marginBottom: '6px' }}>
+                        {item.label}
+                      </p>
+                      <p style={{ fontSize: '13px', fontWeight: 500, color: 'var(--text-primary)', lineHeight: 1.4 }}>
+                        {item.value}
+                      </p>
+                    </div>
+                  ))}
+                </div>
+
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', gap: '12px' }}>
+                    <span style={{ fontSize: '13px', color: 'var(--text-secondary)' }}>Connection state</span>
+                    <span style={{ fontSize: '13px', fontWeight: 500, color: connectionStateColor, textAlign: 'right' }}>
+                      {toTitleCase(connection.connectionState)} · {connectionStateLabel}
+                    </span>
+                  </div>
+                  {contactContext && (
+                    <div style={{ display: 'flex', justifyContent: 'space-between', gap: '12px' }}>
+                      <span style={{ fontSize: '13px', color: 'var(--text-secondary)' }}>Contact context</span>
+                      <span style={{ fontSize: '13px', fontWeight: 500, color: 'var(--text-primary)', textAlign: 'right' }}>
+                        {contactContext}
+                      </span>
+                    </div>
+                  )}
+                  {connection.contactPhone && (
+                    <div style={{ display: 'flex', justifyContent: 'space-between', gap: '12px' }}>
+                      <span style={{ fontSize: '13px', color: 'var(--text-secondary)' }}>Phone on record</span>
+                      <span style={{ fontSize: '13px', fontWeight: 500, color: 'var(--text-primary)', textAlign: 'right' }}>
+                        {connection.contactPhone}
+                      </span>
+                    </div>
+                  )}
+                </div>
               </div>
             )}
           </div>
