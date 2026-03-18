@@ -83,17 +83,25 @@ function ScorePill({ score }: { score: number }) {
     basic: { bg: '#FEF3C7', color: '#D97706', label: 'Basic' },
     none: { bg: '#F3F4F6', color: '#6B7280', label: 'New' },
   }
-  const s = styles[level]
+
+  return `${tone.headline} Review this ${level} profile before sending a connection request.`
+}
+
+function CompactScoreBadge({ score }: { score: number }) {
+  const level = scoreToLevel(score)
+  const tone = getTrustTone(level)
+
   return (
     <span style={{
-      backgroundColor: s.bg,
-      color: s.color,
+      backgroundColor: tone.soft,
+      color: tone.text,
       fontSize: '12px',
       fontWeight: 600,
-      padding: '3px 10px',
-      borderRadius: '100px',
+      padding: '4px 10px',
+      borderRadius: '999px',
+      whiteSpace: 'nowrap',
     }}>
-      {score} · {s.label}
+      {score} · {level.charAt(0).toUpperCase() + level.slice(1)}
     </span>
   )
 }
@@ -288,6 +296,12 @@ export function TrustProfileScreen({
     ? new Date(connection.createdAt).toLocaleDateString('en-IN', { month: 'short', year: 'numeric' })
     : ''
 
+  const trustLevel = credibility ? scoreToLevel(credibility.score) : null
+  const trustTone = trustLevel ? getTrustTone(trustLevel) : null
+  const trustSummary = credibility && trustLevel
+    ? getTrustSummary(mode, credibility.score, trustLevel, activityCounts)
+    : ''
+
   if (loadingBusiness) {
     return (
       <div style={{ position: 'fixed', inset: 0, backgroundColor: 'var(--bg-screen)', zIndex: 50, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
@@ -333,7 +347,7 @@ export function TrustProfileScreen({
               {business.city ? ` · ${business.city}` : ''}
             </p>
           </div>
-          {credibility && <ScorePill score={credibility.score} />}
+          {credibility && <CompactScoreBadge score={credibility.score} />}
         </div>
       </div>
 
@@ -342,19 +356,21 @@ export function TrustProfileScreen({
           <Section title="Overview">
             <div style={{ backgroundColor: 'var(--bg-card)', borderRadius: '14px', padding: '16px', border: '1px solid var(--border-light)' }}>
               {loadingCred ? (
-                <p style={{ fontSize: '13px', color: 'var(--text-secondary)' }}>Loading score…</p>
+                <p style={{ fontSize: '13px', color: 'var(--text-secondary)' }}>Loading trust evidence…</p>
               ) : credibility ? (
                 <>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '8px' }}>
-                    <span style={{ fontSize: '28px', fontWeight: 700, color: 'var(--text-primary)' }}>{credibility.score} / 100</span>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px', marginBottom: '12px', flexWrap: 'wrap' }}>
+                    <div>
+                      <p style={{ fontSize: '14px', fontWeight: 700, color: 'var(--text-primary)' }}>Trust evidence</p>
+                      <p style={{ fontSize: '12px', color: 'var(--text-secondary)', marginTop: '2px' }}>
+                        Signals contributing to the trust score.
+                      </p>
+                    </div>
                     <CredibilityBadge level={credibility.level} />
-                  </div>
-                  <div style={{ height: '5px', backgroundColor: 'var(--border-light)', borderRadius: '3px', overflow: 'hidden', marginBottom: '12px' }}>
-                    <div style={{ height: '100%', borderRadius: '3px', width: `${credibility.score}%`, background: 'linear-gradient(90deg, #4A6CF7, #22B573)' }} />
                   </div>
 
                   {credibility.completedItems.length > 0 && (
-                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', marginBottom: mode === 'view-connection' ? '8px' : '0' }}>
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', marginBottom: mode === 'view-connection' && credibility.missingItems.length > 0 ? '8px' : '0' }}>
                       {credibility.completedItems.map(item => (
                         <span key={item} style={{ fontSize: '11px', fontWeight: 500, color: '#16A34A', backgroundColor: '#DCFCE7', padding: '2px 8px', borderRadius: '100px' }}>
                           ✓ {item}
