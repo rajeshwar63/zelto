@@ -11,7 +11,7 @@ import { emitDataChange } from '@/lib/data-events'
 import { consumePendingConnectionLabels } from '@/lib/pending-connection-labels'
 import { toast } from 'sonner'
 import type { BusinessEntity, BusinessDocument, Connection } from '@/lib/types'
-import { formatDistanceToNow, formatDistance } from 'date-fns'
+import { formatDistance } from 'date-fns'
 
 export type TrustProfileMode = 'send-request' | 'accept-request' | 'view-connection'
 
@@ -27,15 +27,6 @@ interface Props {
   onRequestDeclined?: () => void
 }
 
-function getInitials(name: string): string {
-  return name
-    .split(' ')
-    .filter(Boolean)
-    .slice(0, 2)
-    .map(w => w[0])
-    .join('')
-    .toUpperCase()
-}
 
 function formatFileSize(bytes?: number): string {
   if (!bytes) return ''
@@ -72,25 +63,77 @@ function getDocumentLabel(type: string): string {
   return labels[type] ?? type
 }
 
-function ScorePill({ score }: { score: number }) {
-  const level = scoreToLevel(score)
-  const styles: Record<string, { bg: string; color: string; label: string }> = {
-    trusted: { bg: '#DCFCE7', color: '#16A34A', label: 'Trusted' },
-    verified: { bg: '#EEF1FE', color: '#4A6CF7', label: 'Verified' },
-    basic: { bg: '#FEF3C7', color: '#D97706', label: 'Basic' },
-    none: { bg: '#F3F4F6', color: '#6B7280', label: 'New' },
+function getTrustTone(level: ReturnType<typeof scoreToLevel>) {
+  const styles: Record<ReturnType<typeof scoreToLevel>, {
+    accent: string
+    soft: string
+    text: string
+    confidence: string
+    headline: string
+  }> = {
+    trusted: {
+      accent: '#16A34A',
+      soft: '#DCFCE7',
+      text: '#166534',
+      confidence: 'High confidence',
+      headline: 'Strong trust signals across identity, documents, and network activity.',
+    },
+    verified: {
+      accent: '#4A6CF7',
+      soft: '#EEF1FE',
+      text: '#2846C7',
+      confidence: 'Good confidence',
+      headline: 'Verified business details and healthy account activity support this profile.',
+    },
+    basic: {
+      accent: '#D97706',
+      soft: '#FEF3C7',
+      text: '#B45309',
+      confidence: 'Moderate confidence',
+      headline: 'Some trust signals are present, but more proof points would strengthen confidence.',
+    },
+    none: {
+      accent: '#6B7280',
+      soft: '#F3F4F6',
+      text: '#4B5563',
+      confidence: 'Early confidence',
+      headline: 'This profile is still building trust signals, so review details with extra care.',
+    },
   }
-  const s = styles[level]
+  return styles[level]
+}
+
+function getTrustSummary(mode: TrustProfileMode, score: number, level: ReturnType<typeof scoreToLevel>, activityCounts: { connectionCount: number; orderCount: number } | null) {
+  const tone = getTrustTone(level)
+  const connections = activityCounts?.connectionCount ?? 0
+  const orders = activityCounts?.orderCount ?? 0
+
+  if (mode === 'accept-request') {
+    return `${tone.headline} They currently show ${connections} connections and ${orders} orders on Zelto.`
+  }
+
+  if (mode === 'view-connection') {
+    return `You are already connected, and this ${level} profile holds a trust score of ${score}/100 backed by ${connections} connections and ${orders} orders.`
+  }
+
+  return `${tone.headline} Review this ${level} profile before sending a connection request.`
+}
+
+function CompactScoreBadge({ score }: { score: number }) {
+  const level = scoreToLevel(score)
+  const tone = getTrustTone(level)
+
   return (
     <span style={{
-      backgroundColor: s.bg,
-      color: s.color,
+      backgroundColor: tone.soft,
+      color: tone.text,
       fontSize: '12px',
       fontWeight: 600,
-      padding: '3px 10px',
-      borderRadius: '100px',
+      padding: '4px 10px',
+      borderRadius: '999px',
+      whiteSpace: 'nowrap',
     }}>
-      {score} · {s.label}
+      {score} · {level.charAt(0).toUpperCase() + level.slice(1)}
     </span>
   )
 }
@@ -287,6 +330,12 @@ export function TrustProfileScreen({
     ? new Date(connection.createdAt).toLocaleDateString('en-IN', { month: 'short', year: 'numeric' })
     : ''
 
+  const trustLevel = credibility ? scoreToLevel(credibility.score) : null
+  const trustTone = trustLevel ? getTrustTone(trustLevel) : null
+  const trustSummary = credibility && trustLevel
+    ? getTrustSummary(mode, credibility.score, trustLevel, activityCounts)
+    : ''
+
   if (loadingBusiness) {
     return (
       <div style={{ position: 'fixed', inset: 0, backgroundColor: 'var(--bg-screen)', zIndex: 50, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
@@ -332,7 +381,7 @@ export function TrustProfileScreen({
               {business.city ? ` · ${business.city}` : ''}
             </p>
           </div>
-          {credibility && <ScorePill score={credibility.score} />}
+          {credibility && <CompactScoreBadge score={credibility.score} />}
         </div>
 
         {/* Tabs */}
@@ -361,28 +410,87 @@ export function TrustProfileScreen({
 
       {/* Scrollable Tab Content */}
       <div style={{ flex: 1, overflowY: 'auto', padding: '16px' }}>
+        {loadingCred ? (
+          <div style={{ backgroundColor: 'var(--bg-card)', borderRadius: '20px', padding: '18px', border: '1px solid var(--border-light)', marginBottom: '16px' }}>
+            <p style={{ fontSize: '13px', color: 'var(--text-secondary)' }}>Loading trust overview…</p>
+          </div>
+        ) : credibility && trustLevel && trustTone ? (
+          <div style={{
+            background: `linear-gradient(135deg, ${trustTone.soft} 0%, var(--bg-card) 100%)`,
+            borderRadius: '20px',
+            padding: '18px',
+            border: `1px solid ${trustTone.soft}`,
+            marginBottom: '16px',
+            boxShadow: '0 8px 24px rgba(15, 23, 42, 0.06)',
+          }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', gap: '16px', alignItems: 'flex-start', marginBottom: '14px', flexWrap: 'wrap' }}>
+              <div>
+                <p style={{ fontSize: '12px', fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: trustTone.text, marginBottom: '8px' }}>
+                  Trust overview
+                </p>
+                <div style={{ display: 'flex', alignItems: 'flex-end', gap: '10px', flexWrap: 'wrap', marginBottom: '8px' }}>
+                  <span style={{ fontSize: '40px', lineHeight: 1, fontWeight: 800, color: 'var(--text-primary)' }}>
+                    {credibility.score}
+                  </span>
+                  <span style={{ fontSize: '15px', fontWeight: 600, color: 'var(--text-secondary)', paddingBottom: '5px' }}>/ 100</span>
+                  <CredibilityBadge level={credibility.level} />
+                </div>
+                <p style={{ fontSize: '13px', fontWeight: 600, color: trustTone.text, marginBottom: '6px' }}>
+                  {trustTone.confidence}
+                </p>
+                <p style={{ fontSize: '14px', color: 'var(--text-primary)', lineHeight: 1.45, maxWidth: '42rem' }}>
+                  {trustSummary}
+                </p>
+              </div>
+
+              <div style={{ minWidth: '140px', flex: '1 1 140px', maxWidth: '180px' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '11px', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: '6px' }}>
+                  <span>Trust score</span>
+                  <span>{credibility.score}%</span>
+                </div>
+                <div style={{ height: '10px', backgroundColor: 'rgba(255,255,255,0.7)', borderRadius: '999px', overflow: 'hidden', border: '1px solid rgba(255,255,255,0.8)' }}>
+                  <div style={{ height: '100%', width: `${credibility.score}%`, background: `linear-gradient(90deg, ${trustTone.accent} 0%, #22B573 100%)`, borderRadius: '999px' }} />
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '8px', gap: '8px' }}>
+                  {[
+                    { label: 'Connections', value: activityCounts?.connectionCount ?? '—' },
+                    { label: 'Orders', value: activityCounts?.orderCount ?? '—' },
+                    { label: 'Months', value: onZeltoMonths },
+                  ].map(metric => (
+                    <div key={metric.label} style={{ flex: 1, minWidth: 0 }}>
+                      <p style={{ fontSize: '16px', fontWeight: 700, color: 'var(--text-primary)' }}>{metric.value}</p>
+                      <p style={{ fontSize: '10px', color: 'var(--text-secondary)' }}>{metric.label}</p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          </div>
+        ) : null}
 
         {/* === IDENTITY TAB === */}
         {activeTab === 'identity' && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
 
-            {/* Credibility Score Card */}
+            {/* Trust evidence */}
             <div style={{ backgroundColor: 'var(--bg-card)', borderRadius: '14px', padding: '16px', border: '1px solid var(--border-light)' }}>
               {loadingCred ? (
-                <p style={{ fontSize: '13px', color: 'var(--text-secondary)' }}>Loading score…</p>
+                <p style={{ fontSize: '13px', color: 'var(--text-secondary)' }}>Loading trust evidence…</p>
               ) : credibility ? (
                 <>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '8px' }}>
-                    <span style={{ fontSize: '28px', fontWeight: 700, color: 'var(--text-primary)' }}>{credibility.score} / 100</span>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px', marginBottom: '12px', flexWrap: 'wrap' }}>
+                    <div>
+                      <p style={{ fontSize: '14px', fontWeight: 700, color: 'var(--text-primary)' }}>Trust evidence</p>
+                      <p style={{ fontSize: '12px', color: 'var(--text-secondary)', marginTop: '2px' }}>
+                        Signals contributing to the trust score.
+                      </p>
+                    </div>
                     <CredibilityBadge level={credibility.level} />
-                  </div>
-                  <div style={{ height: '5px', backgroundColor: 'var(--border-light)', borderRadius: '3px', overflow: 'hidden', marginBottom: '12px' }}>
-                    <div style={{ height: '100%', borderRadius: '3px', width: `${credibility.score}%`, background: 'linear-gradient(90deg, #4A6CF7, #22B573)' }} />
                   </div>
 
                   {/* Completed items */}
                   {credibility.completedItems.length > 0 && (
-                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', marginBottom: mode === 'view-connection' ? '8px' : '0' }}>
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', marginBottom: mode === 'view-connection' && credibility.missingItems.length > 0 ? '8px' : '0' }}>
                       {credibility.completedItems.map(item => (
                         <span key={item} style={{ fontSize: '11px', fontWeight: 500, color: '#16A34A', backgroundColor: '#DCFCE7', padding: '2px 8px', borderRadius: '100px' }}>
                           ✓ {item}
