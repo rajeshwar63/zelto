@@ -15,8 +15,9 @@ interface Props {
   onNavigateToAccount: () => void
   onNavigateToSupport: () => void
   onNavigateToManageDocuments?: () => void
-  onNavigateToViewTrustProfile?: () => void
+  onNavigateToSelfTrustProfile?: () => void
 }
+
 
 function getInitials(name: string): string {
   return name
@@ -43,7 +44,7 @@ const MISSING_ITEM_POINTS: Record<string, number> = {
   'Upload trade licence': 7,
 }
 
-export function ProfileScreen({ currentBusinessId, onLogout, onNavigateToBusinessDetails, onNavigateToNotifications, onNavigateToNotificationSettings, onNavigateToAccount, onNavigateToSupport, onNavigateToManageDocuments, onNavigateToViewTrustProfile }: Props) {
+export function ProfileScreen({ currentBusinessId, onLogout, onNavigateToBusinessDetails, onNavigateToNotifications, onNavigateToNotificationSettings, onNavigateToAccount, onNavigateToSupport, onNavigateToManageDocuments, onNavigateToSelfTrustProfile }: Props) {
   const { data, isInitialLoading: loading, refresh } = useProfileData(currentBusinessId)
   const business = data?.business ?? null
   const userAccount = data?.userAccount ?? null
@@ -354,12 +355,12 @@ export function ProfileScreen({ currentBusinessId, onLogout, onNavigateToBusines
                 <p style={{ fontSize: '13px', color: 'var(--text-secondary)', marginBottom: '12px' }}>
                   Your profile is complete. Other businesses can verify you with confidence.
                 </p>
-                {onNavigateToViewTrustProfile && (
+                {onNavigateToSelfTrustProfile && (
                   <button
-                    onClick={onNavigateToViewTrustProfile}
+                    onClick={onNavigateToSelfTrustProfile}
                     style={{ width: '100%', padding: '12px', backgroundColor: 'var(--brand-primary)', color: '#fff', border: 'none', borderRadius: '12px', fontSize: '14px', fontWeight: 500, cursor: 'pointer' }}
                   >
-                    View My Profile →
+                    Preview My Trust Profile →
                   </button>
                 )}
               </div>

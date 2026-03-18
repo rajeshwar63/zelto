@@ -13,7 +13,13 @@ import { toast } from 'sonner'
 import type { BusinessEntity, BusinessDocument, Connection } from '@/lib/types'
 import { formatDistance } from 'date-fns'
 
-export type TrustProfileMode = 'send-request' | 'accept-request' | 'view-connection'
+export type TrustProfileActionMode = 'send-request' | 'accept-request' | 'view-connection'
+export type TrustProfileAudience = 'connection-review' | 'self-profile-ready'
+
+export interface TrustProfileScreenMode {
+  action: TrustProfileActionMode
+  audience: TrustProfileAudience
+}
 
 type ScoreExplanationGroupKey = 'businessIdentity' | 'networkActivity' | 'complianceDocuments'
 
@@ -313,7 +319,7 @@ function VerificationSubsection({ title, rows }: { title: string; rows: Verifica
 export function TrustProfileScreen({
   targetBusinessId,
   currentBusinessId,
-  mode,
+  screenMode,
   connectionRequestId,
   connectionId,
   onBack,
@@ -1365,7 +1371,7 @@ export function TrustProfileScreen({
               color: "var(--text-primary)",
             }}
           >
-            Close
+            {isSelfProfileReady ? 'Back to Profile' : 'Close'}
           </button>
         )}
       </div>
