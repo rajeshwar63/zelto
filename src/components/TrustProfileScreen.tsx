@@ -13,7 +13,7 @@ import { toast } from 'sonner'
 import type { BusinessEntity, BusinessDocument, Connection } from '@/lib/types'
 import { formatDistanceToNow, formatDistance } from 'date-fns'
 
-export type TrustProfileMode = 'send-request' | 'accept-request' | 'view-connection'
+export type TrustProfileMode = 'send-request' | 'accept-request' | 'view-connection' | 'self-profile'
 
 interface Props {
   targetBusinessId: string
@@ -150,7 +150,7 @@ export function TrustProfileScreen({
       setLoadingDocs(false)
     }).catch(() => setLoadingDocs(false))
 
-    // Load connection for view-connection mode
+    // Load connection details only when viewing an existing connection
     if (mode === 'view-connection' && connectionId) {
       dataStore.getConnectionById(connectionId, currentBusinessId).then(conn => {
         setConnection(conn ?? null)
@@ -391,7 +391,7 @@ export function TrustProfileScreen({
                     </div>
                   )}
 
-                  {/* Missing items — only for view-connection mode */}
+                  {/* Missing items — only for existing connections */}
                   {mode === 'view-connection' && credibility.missingItems.length > 0 && (
                     <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
                       {credibility.missingItems.slice(0, 4).map(item => (
@@ -474,7 +474,7 @@ export function TrustProfileScreen({
               </div>
             </div>
 
-            {/* Relationship row — view-connection only */}
+            {/* Relationship row — existing connection only */}
             {mode === 'view-connection' && connection && (
               <div style={{ backgroundColor: 'var(--bg-card)', borderRadius: '14px', padding: '12px 16px', border: '1px solid var(--border-light)' }}>
                 <p style={{ fontSize: '13px', color: 'var(--text-secondary)' }}>
@@ -629,7 +629,7 @@ export function TrustProfileScreen({
           </div>
         )}
 
-        {mode === 'view-connection' && (
+        {(mode === 'view-connection' || mode === 'self-profile') && (
           <button
             onClick={onBack}
             style={{ width: '100%', padding: '14px', backgroundColor: 'transparent', border: '1px solid var(--border-light)', borderRadius: '12px', fontSize: '15px', fontWeight: 500, cursor: 'pointer', color: 'var(--text-primary)' }}

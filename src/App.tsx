@@ -666,7 +666,7 @@ function TabShell({
             onNavigateToManageDocuments={onNavigateToManageDocuments}
             onNavigateToViewTrustProfile={
               onNavigateToTrustProfile
-                ? () => onNavigateToTrustProfile(currentBusinessId, 'view-connection')
+                ? () => onNavigateToTrustProfile(currentBusinessId, 'self-profile')
                 : undefined
             }
           />
