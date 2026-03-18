@@ -287,6 +287,14 @@ export function TrustProfileScreen({
     ? new Date(connection.createdAt).toLocaleDateString('en-IN', { month: 'short', year: 'numeric' })
     : ''
 
+  const roleLabel = (role: 'buyer' | 'supplier') => role === 'buyer' ? 'Buyer' : 'Supplier'
+  const trustReviewSignals = [
+    !business.gstNumber && 'identity not fully verified',
+    (activityCounts?.connectionCount ?? 0) === 0 && (activityCounts?.orderCount ?? 0) === 0 && 'limited trading activity',
+    verifiedCount === 0 && 'no verified documents yet',
+  ].filter(Boolean) as string[]
+  const hasWeakTrustSignals = trustReviewSignals.length > 0
+
   if (loadingBusiness) {
     return (
       <div style={{ position: 'fixed', inset: 0, backgroundColor: 'var(--bg-screen)', zIndex: 50, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
@@ -591,6 +599,63 @@ export function TrustProfileScreen({
           </div>
         )}
       </div>
+
+      {(mode === 'send-request' || mode === 'accept-request') && (
+        <div style={{ padding: '0 16px 12px', flexShrink: 0 }}>
+          {mode === 'send-request' && (
+            <div style={{
+              backgroundColor: 'var(--bg-card)',
+              border: '1px solid var(--border-light)',
+              borderRadius: '14px',
+              padding: '12px 14px',
+              display: 'flex',
+              flexDirection: 'column',
+              gap: '6px',
+            }}>
+              <p style={{ fontSize: '13px', fontWeight: 600, color: 'var(--text-primary)' }}>
+                Review trust signals before you send this request.
+              </p>
+              <p style={{ fontSize: '12px', color: 'var(--text-secondary)', lineHeight: 1.4 }}>
+                Start with Overview, Verification, and Trading Signals, then use the docs tab for file-level detail only if you need more context.
+              </p>
+            </div>
+          )}
+
+          {mode === 'accept-request' && requestData && (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+              <div style={{
+                backgroundColor: 'var(--bg-card)',
+                border: '1px solid var(--border-light)',
+                borderRadius: '14px',
+                padding: '12px 14px',
+              }}>
+                <p style={{ fontSize: '11px', fontWeight: 600, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.04em', marginBottom: '6px' }}>
+                  Request context
+                </p>
+                <p style={{ fontSize: '13px', color: 'var(--text-primary)', lineHeight: 1.45 }}>
+                  {business.businessName} is requesting to connect as the <strong>{roleLabel(requestData.requesterRole)}</strong>. You would join this relationship as the <strong>{roleLabel(requestData.receiverRole)}</strong>.
+                </p>
+              </div>
+
+              {hasWeakTrustSignals && (
+                <div style={{
+                  backgroundColor: '#FFFBEB',
+                  border: '1px solid #FDE68A',
+                  borderRadius: '14px',
+                  padding: '12px 14px',
+                }}>
+                  <p style={{ fontSize: '12px', fontWeight: 600, color: '#92400E', marginBottom: '4px' }}>
+                    Review before accepting
+                  </p>
+                  <p style={{ fontSize: '12px', color: '#A16207', lineHeight: 1.45 }}>
+                    Check {trustReviewSignals.join(', ')} before you confirm the connection.
+                  </p>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Fixed Bottom CTA */}
       <div style={{
