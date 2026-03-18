@@ -15,6 +15,76 @@ import { formatDistance } from 'date-fns'
 
 export type TrustProfileMode = 'send-request' | 'accept-request' | 'view-connection'
 
+type ScoreExplanationGroupKey = 'businessIdentity' | 'networkActivity' | 'complianceDocuments'
+
+interface ScoreExplanationGroup {
+  key: ScoreExplanationGroupKey
+  title: string
+  statusLabel: string
+  positiveItems: string[]
+  missingItems: string[]
+}
+
+const SCORE_EXPLANATION_GROUPS: Array<{ key: ScoreExplanationGroupKey; title: string; items: string[] }> = [
+  {
+    key: 'businessIdentity',
+    title: 'Business Identity',
+    items: [
+      'Phone number',
+      'GST number',
+      'Business address',
+      'Map location verified',
+      'Map location',
+      'Business type',
+      'Website',
+      'Business description',
+    ],
+  },
+  {
+    key: 'networkActivity',
+    title: 'Network Activity',
+    items: [
+      'Active connections',
+      '3+ connections',
+      'Order history',
+      '10+ orders',
+    ],
+  },
+  {
+    key: 'complianceDocuments',
+    title: 'Compliance Documents',
+    items: [
+      'MSME certificate',
+      'Trade licence',
+      'FSSAI licence',
+      'PAN card',
+      'Upload MSME certificate',
+      'Upload trade licence',
+    ],
+  },
+]
+
+function getGroupStatusLabel(completedCount: number, missingCount: number): string {
+  if (completedCount > 0 && missingCount === 0) return 'Complete'
+  if (completedCount > 0) return 'In progress'
+  return 'Needs attention'
+}
+
+function getScoreExplanationGroups(breakdown: CredibilityBreakdown): ScoreExplanationGroup[] {
+  return SCORE_EXPLANATION_GROUPS.map(group => {
+    const positiveItems = group.items.filter(item => breakdown.completedItems.includes(item)).slice(0, 3)
+    const missingItems = group.items.filter(item => breakdown.missingItems.includes(item)).slice(0, 3)
+
+    return {
+      key: group.key,
+      title: group.title,
+      statusLabel: getGroupStatusLabel(positiveItems.length, missingItems.length),
+      positiveItems,
+      missingItems,
+    }
+  })
+}
+
 interface Props {
   targetBusinessId: string
   currentBusinessId: string
@@ -280,6 +350,7 @@ export function TrustProfileScreen({
   const verifiedCount = documents.filter(d => d.verificationStatus === 'verified').length
   const pendingCount = documents.filter(d => d.verificationStatus === 'pending').length
   const expiringCount = documents.filter(d => d.expiryDate && isExpiringWithin90Days(d.expiryDate)).length
+  const scoreExplanationGroups = credibility ? getScoreExplanationGroups(credibility) : []
 
   const memberSince = business
     ? new Date(business.createdAt).toLocaleDateString('en-IN', { month: 'short', year: 'numeric' })
