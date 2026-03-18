@@ -13,7 +13,7 @@ import { TermsScreen } from '@/components/TermsScreen'
 import { ManageConnectionsScreen } from '@/components/ManageConnectionsScreen'
 import { PaymentTermsSetupScreen } from '@/components/PaymentTermsSetupScreen'
 import { BusinessDetailsScreen } from '@/components/BusinessDetailsScreen'
-import { TrustProfileScreen, type TrustProfileMode } from '@/components/TrustProfileScreen'
+import { TrustProfileScreen, type TrustProfileScreenMode } from '@/components/TrustProfileScreen'
 import { NotificationHistoryScreen } from '@/components/NotificationHistoryScreen'
 import { NotificationSettingsScreen } from '@/components/NotificationSettingsScreen'
 import { AccountScreen } from '@/components/AccountScreen'
@@ -52,7 +52,7 @@ type Screen =
   | { type: 'profile-support' }
   | { type: 'report-issue'; orderId: string; connectionId: string }
   | { type: 'incoming-requests' }
-  | { type: 'trust-profile'; targetBusinessId: string; mode: TrustProfileMode; connectionRequestId?: string; connectionId?: string }
+  | { type: 'trust-profile'; targetBusinessId: string; screenMode: TrustProfileScreenMode; connectionRequestId?: string; connectionId?: string }
 type AuthScreen = 'welcome' | { type: 'otp'; email: string; signupData?: { name: string; businessName: string } } | { type: 'business_setup'; email: string }
 type TabShellScreen = Extract<Screen, { type: 'tab' }>
 type DetailScreen = Exclude<Screen, { type: 'tab' }>
@@ -354,11 +354,11 @@ function App() {
 
   const navigateToTrustProfile = (
     targetBusinessId: string,
-    mode: TrustProfileMode,
+    screenMode: TrustProfileScreenMode,
     connectionRequestId?: string,
     connectionId?: string
   ) => {
-    setNavigationStack(stack => [...stack, { type: 'trust-profile', targetBusinessId, mode, connectionRequestId, connectionId }])
+    setNavigationStack(stack => [...stack, { type: 'trust-profile', targetBusinessId, screenMode, connectionRequestId, connectionId }])
   }
 
   const navigateToBusinessDetails = () => {
@@ -423,7 +423,7 @@ function App() {
           onBack={navigateBack}
           onNavigateToConnections={() => navigateToTab('connections')}
           onNavigateToTrustProfile={(targetBusinessId, requestId) =>
-            navigateToTrustProfile(targetBusinessId, 'accept-request', requestId)
+            navigateToTrustProfile(targetBusinessId, { action: 'accept-request', audience: 'connection-review' }, requestId)
           }
         />
       )
@@ -470,7 +470,7 @@ function App() {
         <TrustProfileScreen
           targetBusinessId={detailScreen.targetBusinessId}
           currentBusinessId={currentBusinessId}
-          mode={detailScreen.mode}
+          screenMode={detailScreen.screenMode}
           connectionRequestId={detailScreen.connectionRequestId}
           connectionId={detailScreen.connectionId}
           onBack={navigateBack}
@@ -488,7 +488,7 @@ function App() {
           onSuccess={handleAddConnectionSuccess}
           initialTab={detailScreen.initialTab}
           onNavigateToTrustProfile={(targetBusinessId) =>
-            navigateToTrustProfile(targetBusinessId, 'send-request')
+            navigateToTrustProfile(targetBusinessId, { action: 'send-request', audience: 'connection-review' })
           }
         />
       )
@@ -537,7 +537,7 @@ function App() {
         onNavigateToPaymentTermsSetup={navigateToPaymentTermsSetup}
         onOpenOrderDetail={navigateToConnectionOrderDetail}
         onNavigateToTrustProfile={(targetBusinessId, connectionId) =>
-          navigateToTrustProfile(targetBusinessId, 'view-connection', undefined, connectionId)
+          navigateToTrustProfile(targetBusinessId, { action: 'view-connection', audience: 'connection-review' }, undefined, connectionId)
         }
       />
     )
@@ -616,7 +616,7 @@ function TabShell({
   onNavigateToProfileAccount: () => void
   onNavigateToProfileSupport: () => void
   onNavigateToManageDocuments?: () => void
-  onNavigateToTrustProfile?: (targetBusinessId: string, mode: TrustProfileMode, connectionRequestId?: string, connectionId?: string) => void
+  onNavigateToTrustProfile?: (targetBusinessId: string, screenMode: TrustProfileScreenMode, connectionRequestId?: string, connectionId?: string) => void
 }) {
   return (
     <>
@@ -664,9 +664,9 @@ function TabShell({
             onNavigateToAccount={onNavigateToProfileAccount}
             onNavigateToSupport={onNavigateToProfileSupport}
             onNavigateToManageDocuments={onNavigateToManageDocuments}
-            onNavigateToViewTrustProfile={
+            onNavigateToSelfTrustProfile={
               onNavigateToTrustProfile
-                ? () => onNavigateToTrustProfile(currentBusinessId, 'self-profile')
+                ? () => onNavigateToTrustProfile(currentBusinessId, { action: 'view-connection', audience: 'self-profile-ready' })
                 : undefined
             }
           />
