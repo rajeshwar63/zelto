@@ -13,12 +13,18 @@ import { toast } from 'sonner'
 import type { BusinessEntity, BusinessDocument, Connection } from '@/lib/types'
 import { formatDistanceToNow, formatDistance } from 'date-fns'
 
-export type TrustProfileMode = 'send-request' | 'accept-request' | 'view-connection'
+export type TrustProfileActionMode = 'send-request' | 'accept-request' | 'view-connection'
+export type TrustProfileAudience = 'connection-review' | 'self-profile-ready'
+
+export interface TrustProfileScreenMode {
+  action: TrustProfileActionMode
+  audience: TrustProfileAudience
+}
 
 interface Props {
   targetBusinessId: string
   currentBusinessId: string
-  mode: TrustProfileMode
+  screenMode: TrustProfileScreenMode
   connectionRequestId?: string
   connectionId?: string
   onBack: () => void
@@ -98,7 +104,7 @@ function ScorePill({ score }: { score: number }) {
 export function TrustProfileScreen({
   targetBusinessId,
   currentBusinessId,
-  mode,
+  screenMode,
   connectionRequestId,
   connectionId,
   onBack,
@@ -106,6 +112,9 @@ export function TrustProfileScreen({
   onRequestAccepted,
   onRequestDeclined,
 }: Props) {
+  const { action, audience } = screenMode
+  const isConnectionReview = audience === 'connection-review'
+  const isSelfProfileReady = audience === 'self-profile-ready'
   const [activeTab, setActiveTab] = useState<'identity' | 'docs'>('identity')
 
   // Data
@@ -150,18 +159,18 @@ export function TrustProfileScreen({
       setLoadingDocs(false)
     }).catch(() => setLoadingDocs(false))
 
-    // Load connection for view-connection mode
-    if (mode === 'view-connection' && connectionId) {
+    // Load relationship context for connection review mode
+    if (action === 'view-connection' && isConnectionReview && connectionId) {
       dataStore.getConnectionById(connectionId, currentBusinessId).then(conn => {
         setConnection(conn ?? null)
       }).catch(() => {})
     }
-  }, [targetBusinessId, mode, connectionId, currentBusinessId])
+  }, [targetBusinessId, action, connectionId, currentBusinessId, isConnectionReview])
 
   // Load the connection request to get requester's role (for accept mode)
   const [requestData, setRequestData] = useState<{ requesterRole: 'buyer' | 'supplier'; receiverRole: 'buyer' | 'supplier' } | null>(null)
   useEffect(() => {
-    if (mode === 'accept-request' && connectionRequestId) {
+    if (action === 'accept-request' && connectionRequestId) {
       dataStore.getConnectionRequestById(connectionRequestId).then(req => {
         if (req) {
           setRequestData({ requesterRole: req.requesterRole, receiverRole: req.receiverRole })
@@ -169,7 +178,7 @@ export function TrustProfileScreen({
         }
       }).catch(() => {})
     }
-  }, [mode, connectionRequestId])
+  }, [action, connectionRequestId])
 
   const handleSendRequest = async () => {
     setSending(true)
@@ -382,7 +391,7 @@ export function TrustProfileScreen({
 
                   {/* Completed items */}
                   {credibility.completedItems.length > 0 && (
-                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', marginBottom: mode === 'view-connection' ? '8px' : '0' }}>
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', marginBottom: isConnectionReview || isSelfProfileReady ? '8px' : '0' }}>
                       {credibility.completedItems.map(item => (
                         <span key={item} style={{ fontSize: '11px', fontWeight: 500, color: '#16A34A', backgroundColor: '#DCFCE7', padding: '2px 8px', borderRadius: '100px' }}>
                           ✓ {item}
@@ -391,8 +400,8 @@ export function TrustProfileScreen({
                     </div>
                   )}
 
-                  {/* Missing items — only for view-connection mode */}
-                  {mode === 'view-connection' && credibility.missingItems.length > 0 && (
+                  {/* Missing items — visible for connection review and self-profile-ready modes */}
+                  {(isConnectionReview || isSelfProfileReady) && credibility.missingItems.length > 0 && (
                     <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
                       {credibility.missingItems.slice(0, 4).map(item => (
                         <span key={item} style={{ fontSize: '11px', fontWeight: 500, color: '#D97706', backgroundColor: '#FEF3C7', padding: '2px 8px', borderRadius: '100px' }}>
@@ -474,8 +483,8 @@ export function TrustProfileScreen({
               </div>
             </div>
 
-            {/* Relationship row — view-connection only */}
-            {mode === 'view-connection' && connection && (
+            {/* Relationship row — connection review only */}
+            {isConnectionReview && connection && (
               <div style={{ backgroundColor: 'var(--bg-card)', borderRadius: '14px', padding: '12px 16px', border: '1px solid var(--border-light)' }}>
                 <p style={{ fontSize: '13px', color: 'var(--text-secondary)' }}>
                   Your relationship · Trading for {relationshipAge} · Since {relationshipSince}
@@ -600,7 +609,7 @@ export function TrustProfileScreen({
         borderTop: '1px solid var(--border-light)',
         flexShrink: 0,
       }}>
-        {mode === 'send-request' && (
+        {action === 'send-request' && (
           <button
             onClick={handleSendRequest}
             disabled={sending}
@@ -610,7 +619,7 @@ export function TrustProfileScreen({
           </button>
         )}
 
-        {mode === 'accept-request' && (
+        {action === 'accept-request' && (
           <div style={{ display: 'flex', gap: '12px' }}>
             <button
               onClick={handleDecline}
@@ -629,18 +638,18 @@ export function TrustProfileScreen({
           </div>
         )}
 
-        {mode === 'view-connection' && (
+        {action === 'view-connection' && (
           <button
             onClick={onBack}
             style={{ width: '100%', padding: '14px', backgroundColor: 'transparent', border: '1px solid var(--border-light)', borderRadius: '12px', fontSize: '15px', fontWeight: 500, cursor: 'pointer', color: 'var(--text-primary)' }}
           >
-            Close
+            {isSelfProfileReady ? 'Back to Profile' : 'Close'}
           </button>
         )}
       </div>
 
       {/* Role confirm dialog — send-request mode */}
-      {mode === 'send-request' && (
+      {action === 'send-request' && (
         <Dialog open={showRoleConfirm} onOpenChange={setShowRoleConfirm}>
           <DialogContent>
             <DialogHeader>
@@ -674,7 +683,7 @@ export function TrustProfileScreen({
       )}
 
       {/* Role confirm dialog — accept-request mode */}
-      {mode === 'accept-request' && requestData && (
+      {action === 'accept-request' && requestData && (
         <Dialog open={showRoleConfirm} onOpenChange={setShowRoleConfirm}>
           <DialogContent>
             <DialogHeader>
