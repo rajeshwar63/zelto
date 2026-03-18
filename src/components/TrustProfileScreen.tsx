@@ -555,9 +555,36 @@ export function TrustProfileScreen({
       .filter((item) => !item.isPriority)
       .sort(sortDocumentItems);
 
-  const verifiedCount = documents.filter(d => d.verificationStatus === 'verified').length
-  const pendingCount = documents.filter(d => d.verificationStatus === 'pending').length
-  const expiringCount = documents.filter(d => d.expiryDate && isExpiringWithin90Days(d.expiryDate)).length
+    const presentKeyTypes = new Set(
+      keyDocuments.map((item) => item.doc.documentType),
+    );
+    const missingKeyDocs = PRIORITY_DOCUMENT_TYPES.filter(
+      (type) => !presentKeyTypes.has(type),
+    );
+
+    return {
+      keyDocuments,
+      otherDocuments,
+      verifiedCount: items.filter(
+        (item) => item.doc.verificationStatus === "verified",
+      ).length,
+      pendingCount: items.filter(
+        (item) => item.doc.verificationStatus === "pending",
+      ).length,
+      expiringCount: items.filter((item) => item.expiring).length,
+      missingKeyDocs,
+    };
+  }, [documents]);
+
+  const {
+    keyDocuments,
+    otherDocuments,
+    verifiedCount,
+    pendingCount,
+    expiringCount,
+    missingKeyDocs,
+  } = documentSummary;
+
   const scoreExplanationGroups = credibility ? getScoreExplanationGroups(credibility) : []
 
   const memberSince = business
@@ -948,40 +975,158 @@ export function TrustProfileScreen({
                         color: "var(--text-primary)",
                       }}
                     >
-                      <div style={{
-                        width: '36px',
-                        height: '36px',
-                        borderRadius: '8px',
-                        backgroundColor: isPdf ? '#FEE2E2' : '#DBEAFE',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        flexShrink: 0,
-                      }}>
-                        {isPdf ? (
-                          <FilePdf size={18} color="#DC2626" />
-                        ) : (
-                          <Image size={18} color="#2563EB" />
-                        )}
-                      </div>
+                      Key Documents
+                    </p>
+                    <p
+                      style={{
+                        fontSize: "12px",
+                        color: "var(--text-secondary)",
+                        marginTop: "2px",
+                      }}
+                    >
+                      Priority compliance and identity documents.
+                    </p>
+                  </div>
+                  {keyDocuments.length === 0 && missingKeyDocs.length === 0 ? (
+                    <div style={{ padding: "20px 16px" }}>
+                      <p
+                        style={{
+                          fontSize: "13px",
+                          color: "var(--text-secondary)",
+                        }}
+                      >
+                        No key documents available.
+                      </p>
+                    </div>
+                  ) : (
+                    <div>
+                      {keyDocuments.map((item, idx) => {
+                        const { doc, expiring, expired } = item;
+                        const isPdf = doc.mimeType === "application/pdf";
+                        const isLast =
+                          idx === keyDocuments.length - 1 &&
+                          missingKeyDocs.length === 0;
 
-                      <div style={{ flex: 1, minWidth: 0 }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
-                          <span style={{ fontSize: '14px', fontWeight: 500, color: 'var(--text-primary)' }}>
-                            {getDocumentLabel(doc.documentType)}
-                          </span>
-                          {doc.verificationStatus === 'verified' && (
-                            <CheckCircle size={14} color="#16A34A" weight="fill" />
-                          )}
-                        </div>
-                        <p style={{ fontSize: '12px', color: 'var(--text-secondary)', marginTop: '2px' }}>
-                          {formatFileSize(doc.fileSizeBytes)} · {formatUploadDate(doc.uploadedAt)}
-                        </p>
-
-                        {doc.verificationStatus === 'pending' && (
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '4px', marginTop: '2px' }}>
-                            <Clock size={12} color="var(--status-dispatched)" />
-                            <span style={{ fontSize: '11px', color: 'var(--status-dispatched)' }}>Verification pending</span>
+                        return (
+                          <div
+                            key={doc.id}
+                            style={{
+                              display: "flex",
+                              alignItems: "flex-start",
+                              padding: "12px 16px",
+                              backgroundColor: "var(--bg-card)",
+                              borderBottom: isLast
+                                ? "none"
+                                : "1px solid var(--border-light)",
+                              gap: "12px",
+                            }}
+                          >
+                            <div
+                              style={{
+                                width: "36px",
+                                height: "36px",
+                                borderRadius: "8px",
+                                backgroundColor: isPdf ? "#FEE2E2" : "#DBEAFE",
+                                display: "flex",
+                                alignItems: "center",
+                                justifyContent: "center",
+                                flexShrink: 0,
+                              }}
+                            >
+                              {isPdf ? (
+                                <FilePdf size={18} color="#DC2626" />
+                              ) : (
+                                <Image size={18} color="#2563EB" />
+                              )}
+                            </div>
+                            <div style={{ flex: 1, minWidth: 0 }}>
+                              <div
+                                style={{
+                                  display: "flex",
+                                  alignItems: "center",
+                                  gap: "6px",
+                                  flexWrap: "wrap",
+                                }}
+                              >
+                                <span
+                                  style={{
+                                    fontSize: "14px",
+                                    fontWeight: 500,
+                                    color: "var(--text-primary)",
+                                  }}
+                                >
+                                  {getDocumentLabel(doc.documentType)}
+                                </span>
+                                {doc.verificationStatus === "verified" && (
+                                  <CheckCircle
+                                    size={14}
+                                    color="#16A34A"
+                                    weight="fill"
+                                  />
+                                )}
+                              </div>
+                              <p
+                                style={{
+                                  fontSize: "12px",
+                                  color: "var(--text-secondary)",
+                                  marginTop: "2px",
+                                }}
+                              >
+                                {formatFileSize(doc.fileSizeBytes)} · {formatUploadDate(doc.uploadedAt)}
+                              </p>
+                              {doc.verificationStatus === "pending" && (
+                                <div
+                                  style={{
+                                    display: "flex",
+                                    alignItems: "center",
+                                    gap: "4px",
+                                    marginTop: "2px",
+                                  }}
+                                >
+                                  <Clock
+                                    size={12}
+                                    color="var(--status-dispatched)"
+                                  />
+                                  <span
+                                    style={{
+                                      fontSize: "11px",
+                                      color: "var(--status-dispatched)",
+                                    }}
+                                  >
+                                    Verification pending
+                                  </span>
+                                </div>
+                              )}
+                              {doc.expiryDate && (
+                                <div
+                                  style={{
+                                    display: "flex",
+                                    alignItems: "center",
+                                    gap: "4px",
+                                    marginTop: "2px",
+                                  }}
+                                >
+                                  {expired || expiring ? (
+                                    <Warning
+                                      size={12}
+                                      color="#D97706"
+                                      weight="fill"
+                                    />
+                                  ) : null}
+                                  <span
+                                    style={{
+                                      fontSize: "11px",
+                                      color:
+                                        expired || expiring
+                                          ? "#D97706"
+                                          : "#16A34A",
+                                    }}
+                                  >
+                                    {expired ? "Expired" : "Exp"}: {doc.expiryDate}
+                                  </span>
+                                </div>
+                              )}
+                            </div>
                           </div>
                         );
                       })}
@@ -1162,8 +1307,7 @@ export function TrustProfileScreen({
                                 marginTop: "2px",
                               }}
                             >
-                              {formatFileSize(doc.fileSizeBytes)} ·{" "}
-                              {formatUploadDate(doc.uploadedAt)}
+                              {formatFileSize(doc.fileSizeBytes)} · {formatUploadDate(doc.uploadedAt)}
                             </p>
                             {doc.verificationStatus === "pending" && (
                               <div
@@ -1213,8 +1357,7 @@ export function TrustProfileScreen({
                                         : "#16A34A",
                                   }}
                                 >
-                                  {expired ? "Expired" : "Exp"}:{" "}
-                                  {doc.expiryDate}
+                                  {expired ? "Expired" : "Exp"}: {doc.expiryDate}
                                 </span>
                               </div>
                             )}
