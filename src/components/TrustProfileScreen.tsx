@@ -1,40 +1,89 @@
-import { useState, useEffect, useMemo } from "react";
-import {
-  ArrowLeft,
-  FilePdf,
-  Image,
-  CheckCircle,
-  Clock,
-  Warning,
-} from "@phosphor-icons/react";
-import { dataStore } from "@/lib/data-store";
-import {
-  calculateCredibility,
-  getBusinessActivityCounts,
-  scoreToLevel,
-  type CredibilityBreakdown,
-} from "@/lib/credibility";
-import { CredibilityBadge } from "./CredibilityBadge";
-import { Button } from "@/components/ui/button";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
-import { Label } from "@/components/ui/label";
-import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-import { emitDataChange } from "@/lib/data-events";
-import { consumePendingConnectionLabels } from "@/lib/pending-connection-labels";
-import { toast } from "sonner";
-import type { BusinessEntity, BusinessDocument, Connection } from "@/lib/types";
-import { formatDistanceToNow, formatDistance } from "date-fns";
+import { useEffect, type ReactNode, useState } from 'react'
+import { ArrowLeft, FilePdf, Image, CheckCircle, Clock, Warning } from '@phosphor-icons/react'
+import { dataStore } from '@/lib/data-store'
+import { calculateCredibility, getBusinessActivityCounts, scoreToLevel, type CredibilityBreakdown } from '@/lib/credibility'
+import { CredibilityBadge } from './CredibilityBadge'
+import { Button } from '@/components/ui/button'
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog'
+import { Label } from '@/components/ui/label'
+import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group'
+import { emitDataChange } from '@/lib/data-events'
+import { consumePendingConnectionLabels } from '@/lib/pending-connection-labels'
+import { toast } from 'sonner'
+import type { BusinessEntity, BusinessDocument, Connection } from '@/lib/types'
+import { formatDistance } from 'date-fns'
 
-export type TrustProfileMode =
-  | "send-request"
-  | "accept-request"
-  | "view-connection";
+export type TrustProfileMode = 'send-request' | 'accept-request' | 'view-connection'
+
+type ScoreExplanationGroupKey = 'businessIdentity' | 'networkActivity' | 'complianceDocuments'
+
+interface ScoreExplanationGroup {
+  key: ScoreExplanationGroupKey
+  title: string
+  statusLabel: string
+  positiveItems: string[]
+  missingItems: string[]
+}
+
+const SCORE_EXPLANATION_GROUPS: Array<{ key: ScoreExplanationGroupKey; title: string; items: string[] }> = [
+  {
+    key: 'businessIdentity',
+    title: 'Business Identity',
+    items: [
+      'Phone number',
+      'GST number',
+      'Business address',
+      'Map location verified',
+      'Map location',
+      'Business type',
+      'Website',
+      'Business description',
+    ],
+  },
+  {
+    key: 'networkActivity',
+    title: 'Network Activity',
+    items: [
+      'Active connections',
+      '3+ connections',
+      'Order history',
+      '10+ orders',
+    ],
+  },
+  {
+    key: 'complianceDocuments',
+    title: 'Compliance Documents',
+    items: [
+      'MSME certificate',
+      'Trade licence',
+      'FSSAI licence',
+      'PAN card',
+      'Upload MSME certificate',
+      'Upload trade licence',
+    ],
+  },
+]
+
+function getGroupStatusLabel(completedCount: number, missingCount: number): string {
+  if (completedCount > 0 && missingCount === 0) return 'Complete'
+  if (completedCount > 0) return 'In progress'
+  return 'Needs attention'
+}
+
+function getScoreExplanationGroups(breakdown: CredibilityBreakdown): ScoreExplanationGroup[] {
+  return SCORE_EXPLANATION_GROUPS.map(group => {
+    const positiveItems = group.items.filter(item => breakdown.completedItems.includes(item)).slice(0, 3)
+    const missingItems = group.items.filter(item => breakdown.missingItems.includes(item)).slice(0, 3)
+
+    return {
+      key: group.key,
+      title: group.title,
+      statusLabel: getGroupStatusLabel(positiveItems.length, missingItems.length),
+      positiveItems,
+      missingItems,
+    }
+  })
+}
 
 interface Props {
   targetBusinessId: string;
@@ -46,16 +95,6 @@ interface Props {
   onRequestSent?: () => void;
   onRequestAccepted?: () => void;
   onRequestDeclined?: () => void;
-}
-
-function getInitials(name: string): string {
-  return name
-    .split(" ")
-    .filter(Boolean)
-    .slice(0, 2)
-    .map((w) => w[0])
-    .join("")
-    .toUpperCase();
 }
 
 function formatFileSize(bytes?: number): string {
@@ -146,29 +185,129 @@ function sortDocumentItems(a: DocumentGroupItem, b: DocumentGroupItem): number {
   return b.doc.uploadedAt - a.doc.uploadedAt;
 }
 
+
+
+function Section({ title, children }: { title: string; children: ReactNode }) {
+  return (
+    <section style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px' }}>
+        <h2 style={{ fontSize: '14px', fontWeight: 700, color: 'var(--text-primary)', margin: 0 }}>{title}</h2>
+      </div>
+      {children}
+    </section>
+  )
+}
+
 function ScorePill({ score }: { score: number }) {
   const level = scoreToLevel(score);
   const styles: Record<string, { bg: string; color: string; label: string }> = {
-    trusted: { bg: "#DCFCE7", color: "#16A34A", label: "Trusted" },
-    verified: { bg: "#EEF1FE", color: "#4A6CF7", label: "Verified" },
-    basic: { bg: "#FEF3C7", color: "#D97706", label: "Basic" },
-    none: { bg: "#F3F4F6", color: "#6B7280", label: "New" },
-  };
-  const s = styles[level];
+    trusted: { bg: '#DCFCE7', color: '#16A34A', label: 'Trusted' },
+    verified: { bg: '#EEF1FE', color: '#4A6CF7', label: 'Verified' },
+    basic: { bg: '#FEF3C7', color: '#D97706', label: 'Basic' },
+    none: { bg: '#F3F4F6', color: '#6B7280', label: 'New' },
+  }
+
+  return `${tone.headline} Review this ${level} profile before sending a connection request.`
+}
+
+function CompactScoreBadge({ score }: { score: number }) {
+  const level = scoreToLevel(score)
+  const tone = getTrustTone(level)
+
   return (
-    <span
-      style={{
-        backgroundColor: s.bg,
-        color: s.color,
-        fontSize: "12px",
-        fontWeight: 600,
-        padding: "3px 10px",
-        borderRadius: "100px",
-      }}
-    >
-      {score} · {s.label}
+    <span style={{
+      backgroundColor: tone.soft,
+      color: tone.text,
+      fontSize: '12px',
+      fontWeight: 600,
+      padding: '4px 10px',
+      borderRadius: '999px',
+      whiteSpace: 'nowrap',
+    }}>
+      {score} · {level.charAt(0).toUpperCase() + level.slice(1)}
+    </span>
+  )
+}
+
+type VerificationStatus = 'Verified' | 'Provided' | 'Missing' | 'Not available'
+
+type VerificationRow = {
+  label: string
+  value: string
+  status: VerificationStatus
+  mono?: boolean
+}
+
+const verificationStatusStyles: Record<VerificationStatus, { bg: string; color: string }> = {
+  Verified: { bg: '#DCFCE7', color: '#16A34A' },
+  Provided: { bg: '#EEF1FE', color: '#4A6CF7' },
+  Missing: { bg: '#FEF2F2', color: '#DC2626' },
+  'Not available': { bg: '#F3F4F6', color: '#6B7280' },
+}
+
+function VerificationStatusPill({ status }: { status: VerificationStatus }) {
+  const style = verificationStatusStyles[status]
+  return (
+    <span style={{
+      backgroundColor: style.bg,
+      color: style.color,
+      fontSize: '11px',
+      fontWeight: 600,
+      padding: '3px 8px',
+      borderRadius: '999px',
+      whiteSpace: 'nowrap',
+    }}>
+      {status}
     </span>
   );
+}
+
+function VerificationRowItem({ row, isLast }: { row: VerificationRow; isLast: boolean }) {
+  return (
+    <div
+      style={{
+        display: 'flex',
+        justifyContent: 'space-between',
+        alignItems: 'flex-start',
+        padding: '12px 16px',
+        borderBottom: isLast ? 'none' : '1px solid var(--border-light)',
+        gap: '12px',
+      }}
+    >
+      <div style={{ minWidth: 0, flex: 1 }}>
+        <p style={{ fontSize: '13px', color: 'var(--text-secondary)', margin: 0, marginBottom: '4px' }}>{row.label}</p>
+        <p style={{
+          fontSize: '13px',
+          fontWeight: 500,
+          color: 'var(--text-primary)',
+          fontFamily: row.mono ? 'monospace' : undefined,
+          margin: 0,
+          wordBreak: 'break-word',
+          whiteSpace: 'pre-wrap',
+        }}>
+          {row.value}
+        </p>
+      </div>
+      <VerificationStatusPill status={row.status} />
+    </div>
+  )
+}
+
+function VerificationSubsection({ title, rows }: { title: string; rows: VerificationRow[] }) {
+  return (
+    <div style={{ borderTop: '1px solid var(--border-light)' }}>
+      <div style={{ padding: '12px 16px 8px' }}>
+        <p style={{ fontSize: '12px', fontWeight: 700, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.04em', margin: 0 }}>
+          {title}
+        </p>
+      </div>
+      <div>
+        {rows.map((row, idx) => (
+          <VerificationRowItem key={`${title}-${row.label}`} row={row} isLast={idx === rows.length - 1} />
+        ))}
+      </div>
+    </div>
+  )
 }
 
 export function TrustProfileScreen({
@@ -182,8 +321,6 @@ export function TrustProfileScreen({
   onRequestAccepted,
   onRequestDeclined,
 }: Props) {
-  const [activeTab, setActiveTab] = useState<"identity" | "docs">("identity");
-
   // Data
   const [business, setBusiness] = useState<BusinessEntity | null>(null);
   const [credibility, setCredibility] = useState<CredibilityBreakdown | null>(
@@ -412,35 +549,10 @@ export function TrustProfileScreen({
       .filter((item) => !item.isPriority)
       .sort(sortDocumentItems);
 
-    const presentKeyTypes = new Set(
-      keyDocuments.map((item) => item.doc.documentType),
-    );
-    const missingKeyDocs = PRIORITY_DOCUMENT_TYPES.filter(
-      (type) => !presentKeyTypes.has(type),
-    );
-
-    return {
-      keyDocuments,
-      otherDocuments,
-      verifiedCount: items.filter(
-        (item) => item.doc.verificationStatus === "verified",
-      ).length,
-      pendingCount: items.filter(
-        (item) => item.doc.verificationStatus === "pending",
-      ).length,
-      expiringCount: items.filter((item) => item.expiring).length,
-      missingKeyDocs,
-    };
-  }, [documents]);
-
-  const {
-    keyDocuments,
-    otherDocuments,
-    verifiedCount,
-    pendingCount,
-    expiringCount,
-    missingKeyDocs,
-  } = documentSummary;
+  const verifiedCount = documents.filter(d => d.verificationStatus === 'verified').length
+  const pendingCount = documents.filter(d => d.verificationStatus === 'pending').length
+  const expiringCount = documents.filter(d => d.expiryDate && isExpiringWithin90Days(d.expiryDate)).length
+  const scoreExplanationGroups = credibility ? getScoreExplanationGroups(credibility) : []
 
   const memberSince = business
     ? new Date(business.createdAt).toLocaleDateString("en-IN", {
@@ -458,15 +570,59 @@ export function TrustProfileScreen({
       )
     : 0;
 
+  const timeOnZeltoLabel = business?.createdAt
+    ? `${formatDistanceToNow(business.createdAt, { addSuffix: false })} on Zelto`
+    : 'Time on Zelto not available'
+
+  const tradingSignals = [
+    {
+      label: 'Active connections',
+      value: activityCounts?.connectionCount ?? '—',
+      detail: activityCounts
+        ? `${activityCounts.connectionCount} active trade ${activityCounts.connectionCount === 1 ? 'relationship' : 'relationships'}`
+        : 'Connections will appear once activity data syncs',
+    },
+    {
+      label: 'Orders completed',
+      value: activityCounts?.orderCount ?? '—',
+      detail: activityCounts
+        ? `${activityCounts.orderCount} recorded ${activityCounts.orderCount === 1 ? 'order' : 'orders'} on Zelto`
+        : 'Orders will appear once activity data syncs',
+    },
+    {
+      label: 'Time on Zelto',
+      value: business?.createdAt ? onZeltoMonths : '—',
+      detail: business?.createdAt
+        ? `${timeOnZeltoLabel} · member since ${memberSince}`
+        : 'Business age will appear once profile setup is complete',
+    },
+  ]
+
   const relationshipAge = connection
     ? formatDistance(connection.createdAt, Date.now(), { addSuffix: false })
     : "";
   const relationshipSince = connection
-    ? new Date(connection.createdAt).toLocaleDateString("en-IN", {
-        month: "short",
-        year: "numeric",
-      })
-    : "";
+    ? new Date(connection.createdAt).toLocaleDateString('en-IN', { month: 'short', year: 'numeric' })
+    : ''
+  const connectionStateLabel = connection ? getConnectionStateLabel(connection.connectionState) : ''
+  const connectionStateColor = connection ? getConnectionStateColor(connection.connectionState) : 'var(--text-secondary)'
+  const paymentTermsLabel = connection ? formatPaymentTerms(connection.paymentTerms) : null
+  const relationshipRole = connection
+    ? connection.buyerBusinessId === currentBusinessId
+      ? `You buy from ${business?.businessName ?? 'this business'}`
+      : connection.supplierBusinessId === currentBusinessId
+        ? `You supply to ${business?.businessName ?? 'this business'}`
+        : null
+    : null
+  const contactContext = connection
+    ? buildConnectionSubtitle(connection.branchLabel, connection.contactName)
+    : null
+
+  const trustLevel = credibility ? scoreToLevel(credibility.score) : null
+  const trustTone = trustLevel ? getTrustTone(trustLevel) : null
+  const trustSummary = credibility && trustLevel
+    ? getTrustSummary(mode, credibility.score, trustLevel, activityCounts)
+    : ''
 
   if (loadingBusiness) {
     return (
@@ -541,32 +697,14 @@ export function TrustProfileScreen({
       }}
     >
       {/* Sticky Header */}
-      <div
-        style={{
-          backgroundColor: "var(--bg-card)",
-          borderBottom: "0.5px solid var(--border-light)",
-          padding: "12px 16px 0",
-          flexShrink: 0,
-        }}
-      >
-        <div
-          style={{
-            display: "flex",
-            alignItems: "center",
-            gap: "12px",
-            marginBottom: "8px",
-          }}
-        >
-          <button
-            onClick={onBack}
-            style={{
-              background: "none",
-              border: "none",
-              cursor: "pointer",
-              padding: "4px",
-              flexShrink: 0,
-            }}
-          >
+      <div style={{
+        backgroundColor: 'var(--bg-card)',
+        borderBottom: '0.5px solid var(--border-light)',
+        padding: '12px 16px',
+        flexShrink: 0,
+      }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+          <button onClick={onBack} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '4px', flexShrink: 0 }}>
             <ArrowLeft size={20} />
           </button>
           <div style={{ flex: 1, minWidth: 0 }}>
@@ -587,272 +725,107 @@ export function TrustProfileScreen({
               {business.city ? ` · ${business.city}` : ""}
             </p>
           </div>
-          {credibility && <ScorePill score={credibility.score} />}
-        </div>
-
-        {/* Tabs */}
-        <div style={{ display: "flex", gap: "0" }}>
-          {(["identity", "docs"] as const).map((tab) => (
-            <button
-              key={tab}
-              onClick={() => setActiveTab(tab)}
-              style={{
-                padding: "8px 16px",
-                fontSize: "13px",
-                fontWeight: activeTab === tab ? 600 : 400,
-                color:
-                  activeTab === tab
-                    ? "var(--brand-primary)"
-                    : "var(--text-secondary)",
-                background: "none",
-                border: "none",
-                borderBottom:
-                  activeTab === tab
-                    ? "2px solid var(--brand-primary)"
-                    : "2px solid transparent",
-                cursor: "pointer",
-                textTransform: "capitalize",
-              }}
-            >
-              {tab === "identity" ? "Identity" : "Docs"}
-            </button>
-          ))}
+          {credibility && <CompactScoreBadge score={credibility.score} />}
         </div>
       </div>
 
-      {/* Scrollable Tab Content */}
-      <div style={{ flex: 1, overflowY: "auto", padding: "16px" }}>
-        {/* === IDENTITY TAB === */}
-        {activeTab === "identity" && (
-          <div
-            style={{ display: "flex", flexDirection: "column", gap: "16px" }}
-          >
-            {/* Credibility Score Card */}
-            <div
-              style={{
-                backgroundColor: "var(--bg-card)",
-                borderRadius: "14px",
-                padding: "16px",
-                border: "1px solid var(--border-light)",
-              }}
-            >
+      <div style={{ flex: 1, overflowY: 'auto', padding: '16px' }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
+          <Section title="Overview">
+            <div style={{ backgroundColor: 'var(--bg-card)', borderRadius: '14px', padding: '16px', border: '1px solid var(--border-light)' }}>
               {loadingCred ? (
-                <p style={{ fontSize: "13px", color: "var(--text-secondary)" }}>
-                  Loading score…
-                </p>
+                <p style={{ fontSize: '13px', color: 'var(--text-secondary)' }}>Loading trust evidence…</p>
               ) : credibility ? (
                 <>
-                  <div
-                    style={{
-                      display: "flex",
-                      alignItems: "center",
-                      gap: "12px",
-                      marginBottom: "8px",
-                    }}
-                  >
-                    <span
-                      style={{
-                        fontSize: "28px",
-                        fontWeight: 700,
-                        color: "var(--text-primary)",
-                      }}
-                    >
-                      {credibility.score} / 100
-                    </span>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px', marginBottom: '12px', flexWrap: 'wrap' }}>
+                    <div>
+                      <p style={{ fontSize: '14px', fontWeight: 700, color: 'var(--text-primary)' }}>Trust evidence</p>
+                      <p style={{ fontSize: '12px', color: 'var(--text-secondary)', marginTop: '2px' }}>
+                        Signals contributing to the trust score.
+                      </p>
+                    </div>
                     <CredibilityBadge level={credibility.level} />
                   </div>
-                  <div
-                    style={{
-                      height: "5px",
-                      backgroundColor: "var(--border-light)",
-                      borderRadius: "3px",
-                      overflow: "hidden",
-                      marginBottom: "12px",
-                    }}
-                  >
-                    <div
-                      style={{
-                        height: "100%",
-                        borderRadius: "3px",
-                        width: `${credibility.score}%`,
-                        background: "linear-gradient(90deg, #4A6CF7, #22B573)",
-                      }}
-                    />
-                  </div>
 
-                  {/* Completed items */}
                   {credibility.completedItems.length > 0 && (
-                    <div
-                      style={{
-                        display: "flex",
-                        flexWrap: "wrap",
-                        gap: "6px",
-                        marginBottom: mode === "view-connection" ? "8px" : "0",
-                      }}
-                    >
-                      {credibility.completedItems.map((item) => (
-                        <span
-                          key={item}
-                          style={{
-                            fontSize: "11px",
-                            fontWeight: 500,
-                            color: "#16A34A",
-                            backgroundColor: "#DCFCE7",
-                            padding: "2px 8px",
-                            borderRadius: "100px",
-                          }}
-                        >
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', marginBottom: mode === 'view-connection' && credibility.missingItems.length > 0 ? '8px' : '0' }}>
+                      {credibility.completedItems.map(item => (
+                        <span key={item} style={{ fontSize: '11px', fontWeight: 500, color: '#16A34A', backgroundColor: '#DCFCE7', padding: '2px 8px', borderRadius: '100px' }}>
                           ✓ {item}
                         </span>
                       ))}
                     </div>
                   )}
 
-                  {/* Missing items — only for view-connection mode */}
-                  {mode === "view-connection" &&
-                    credibility.missingItems.length > 0 && (
-                      <div
-                        style={{
-                          display: "flex",
-                          flexWrap: "wrap",
-                          gap: "6px",
-                        }}
-                      >
-                        {credibility.missingItems.slice(0, 4).map((item) => (
-                          <span
-                            key={item}
-                            style={{
-                              fontSize: "11px",
-                              fontWeight: 500,
-                              color: "#D97706",
-                              backgroundColor: "#FEF3C7",
-                              padding: "2px 8px",
-                              borderRadius: "100px",
-                            }}
-                          >
-                            + {item}
-                          </span>
-                        ))}
-                      </div>
-                    )}
+                  {mode === 'view-connection' && credibility.missingItems.length > 0 && (
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
+                      {credibility.missingItems.slice(0, 4).map(item => (
+                        <span key={item} style={{ fontSize: '11px', fontWeight: 500, color: '#D97706', backgroundColor: '#FEF3C7', padding: '2px 8px', borderRadius: '100px' }}>
+                          + {item}
+                        </span>
+                      ))}
+                    </div>
+                  )}
                 </>
               ) : null}
             </div>
 
-            {/* Business Details */}
-            <div
-              style={{
-                backgroundColor: "var(--bg-card)",
-                borderRadius: "14px",
-                overflow: "hidden",
-                border: "1px solid var(--border-light)",
-              }}
-            >
-              {[
-                business.businessType && {
-                  label: "Business type",
-                  value: business.businessType,
-                },
-                business.gstNumber && {
-                  label: "GST number",
-                  value: business.gstNumber,
-                  mono: true,
-                },
-                {
-                  label: "GST status",
-                  value: business.gstNumber ? "Active" : "—",
-                  green: !!business.gstNumber,
-                },
-                (business.businessAddress || business.formattedAddress) && {
-                  label: "Location",
-                  value:
-                    business.formattedAddress || business.businessAddress || "",
-                },
-                business.latitude &&
-                  business.longitude && {
-                    label: "Map verified",
-                    value: "Yes ✓",
-                    green: true,
-                  },
-                business.description && {
-                  label: "Description",
-                  value: `"${business.description}"`,
-                },
-                memberSince && {
-                  label: "Member since",
-                  value: `${memberSince} · ${onZeltoMonths} months`,
-                },
-                business.website && {
-                  label: "Website",
-                  value: business.website,
-                },
-              ]
-                .filter(Boolean)
-                .map((row: any, idx, arr) => (
-                  <div
-                    key={row.label}
-                    style={{
-                      display: "flex",
-                      justifyContent: "space-between",
-                      alignItems: "flex-start",
-                      padding: "10px 16px",
-                      borderBottom:
-                        idx < arr.length - 1
-                          ? "1px solid var(--border-light)"
-                          : "none",
-                      gap: "12px",
-                    }}
-                  >
-                    <span
-                      style={{
-                        fontSize: "13px",
-                        color: "var(--text-secondary)",
-                        flexShrink: 0,
-                      }}
-                    >
-                      {row.label}
-                    </span>
-                    <span
-                      style={{
-                        fontSize: "13px",
-                        fontWeight: 500,
-                        color: row.green ? "#16A34A" : "var(--text-primary)",
-                        fontFamily: row.mono ? "monospace" : undefined,
-                        textAlign: "right",
-                        flex: 1,
-                      }}
-                    >
-                      {row.value}
-                    </span>
-                  </div>
-                ))}
+            <div style={{ backgroundColor: 'var(--bg-card)', borderRadius: '14px', overflow: 'hidden', border: '1px solid var(--border-light)' }}>
+              <div style={{ padding: '16px 16px 12px' }}>
+                <p style={{ fontSize: '16px', fontWeight: 700, color: 'var(--text-primary)', margin: 0, marginBottom: '4px' }}>Verification</p>
+                <p style={{ fontSize: '12px', color: 'var(--text-secondary)', margin: 0 }}>
+                  Business identity, location confidence, and membership details surfaced from the current entity record.
+                </p>
+              </div>
+              {verificationSections.map(section => (
+                <VerificationSubsection key={section.title} title={section.title} rows={section.rows} />
+              ))}
+            </div>
+          </Section>
+
+          <Section title="Verification">
+            <div style={{ backgroundColor: 'var(--bg-card)', borderRadius: '14px', padding: '12px', border: '1px solid var(--border-light)' }}>
+              <div style={{ display: 'flex', gap: '0' }}>
+                <div style={{ flex: 1, textAlign: 'center', padding: '8px' }}>
+                  <p style={{ fontSize: '20px', fontWeight: 600, color: 'var(--text-primary)', marginBottom: '2px' }}>
+                    {verifiedCount}
+                  </p>
+                  <p style={{ fontSize: '11px', color: 'var(--text-secondary)' }}>Verified docs</p>
+                </div>
+                <div style={{ width: '1px', backgroundColor: 'var(--border-light)' }} />
+                <div style={{ flex: 1, textAlign: 'center', padding: '8px' }}>
+                  <p style={{ fontSize: '20px', fontWeight: 600, color: 'var(--text-primary)', marginBottom: '2px' }}>
+                    {pendingCount}
+                  </p>
+                  <p style={{ fontSize: '11px', color: 'var(--text-secondary)' }}>Pending review</p>
+                </div>
+                <div style={{ width: '1px', backgroundColor: 'var(--border-light)' }} />
+                <div style={{ flex: 1, textAlign: 'center', padding: '8px' }}>
+                  <p style={{ fontSize: '20px', fontWeight: 600, color: 'var(--text-primary)', marginBottom: '2px' }}>
+                    {expiringCount}
+                  </p>
+                  <p style={{ fontSize: '11px', color: 'var(--text-secondary)' }}>Expiring soon</p>
+                </div>
+              </div>
             </div>
 
-            {/* Network presence */}
-            <div
-              style={{
-                backgroundColor: "var(--bg-card)",
-                borderRadius: "14px",
-                padding: "12px",
-                border: "1px solid var(--border-light)",
-              }}
-            >
-              <div style={{ display: "flex", gap: "0" }}>
-                <div style={{ flex: 1, textAlign: "center", padding: "8px" }}>
-                  <p
-                    style={{
-                      fontSize: "20px",
-                      fontWeight: 600,
-                      color: "var(--text-primary)",
-                      marginBottom: "2px",
-                    }}
-                  >
-                    {activityCounts?.connectionCount ?? "—"}
-                  </p>
-                  <p
-                    style={{ fontSize: "11px", color: "var(--text-secondary)" }}
-                  >
-                    Connections
+            <div style={{ backgroundColor: 'var(--bg-card)', borderRadius: '14px', padding: '16px', border: '1px solid var(--border-light)' }}>
+              <p style={{ fontSize: '13px', color: 'var(--text-secondary)', margin: 0 }}>
+                {loadingDocs
+                  ? 'Loading verification details…'
+                  : documents.length === 0
+                    ? 'No verification documents uploaded yet.'
+                    : `${documents.length} document${documents.length === 1 ? '' : 's'} uploaded for review.`}
+              </p>
+            </div>
+          </Section>
+
+          <Section title="Trading Signals">
+            <div style={{ backgroundColor: 'var(--bg-card)', borderRadius: '14px', padding: '12px', border: '1px solid var(--border-light)' }}>
+              <div style={{ display: 'flex', gap: '0' }}>
+                <div style={{ flex: 1, textAlign: 'center', padding: '8px' }}>
+                  <p style={{ fontSize: '20px', fontWeight: 600, color: 'var(--text-primary)', marginBottom: '2px' }}>
+                    {activityCounts?.connectionCount ?? '—'}
                   </p>
                 </div>
                 <div
@@ -904,97 +877,35 @@ export function TrustProfileScreen({
               </div>
             </div>
 
-            {/* Relationship row — view-connection only */}
-            {mode === "view-connection" && connection && (
-              <div
-                style={{
-                  backgroundColor: "var(--bg-card)",
-                  borderRadius: "14px",
-                  padding: "12px 16px",
-                  border: "1px solid var(--border-light)",
-                }}
-              >
-                <p style={{ fontSize: "13px", color: "var(--text-secondary)" }}>
-                  Your relationship · Trading for {relationshipAge} · Since{" "}
-                  {relationshipSince}
+            {mode === 'view-connection' && connection && (
+              <div style={{ backgroundColor: 'var(--bg-card)', borderRadius: '14px', padding: '12px 16px', border: '1px solid var(--border-light)' }}>
+                <p style={{ fontSize: '13px', color: 'var(--text-secondary)', margin: 0 }}>
+                  Your relationship · Trading for {relationshipAge} · Since {relationshipSince}
                 </p>
               </div>
             )}
-          </div>
-        )}
+          </Section>
 
-        {/* === DOCS TAB === */}
-        {activeTab === "docs" && (
-          <div
-            style={{ display: "flex", flexDirection: "column", gap: "16px" }}
-          >
-            {/* Summary row */}
-            <div
-              style={{
-                display: "grid",
-                gridTemplateColumns: "repeat(2, minmax(0, 1fr))",
-                gap: "10px",
-              }}
-            >
-              {[
-                {
-                  label: "Verified",
-                  count: verifiedCount,
-                  color: "#16A34A",
-                  bg: "#DCFCE7",
-                },
-                {
-                  label: "Pending",
-                  count: pendingCount,
-                  color: "#D97706",
-                  bg: "#FEF3C7",
-                },
-                {
-                  label: "Expiring",
-                  count: expiringCount,
-                  color: "#D97706",
-                  bg: "#FEF3C7",
-                },
-                {
-                  label: "Missing key docs",
-                  count: missingKeyDocs.length,
-                  color: "#6B7280",
-                  bg: "#F3F4F6",
-                },
-              ].map((item) => (
-                <div
-                  key={item.label}
-                  style={{
-                    backgroundColor: "var(--bg-card)",
-                    border: "1px solid var(--border-light)",
-                    borderRadius: "14px",
-                    padding: "12px 14px",
-                  }}
-                >
-                  <p
-                    style={{
-                      fontSize: "11px",
-                      fontWeight: 600,
-                      color: item.color,
-                      marginBottom: "4px",
-                      textTransform: "uppercase",
-                      letterSpacing: "0.03em",
-                    }}
-                  >
-                    {item.label}
-                  </p>
-                  <p
-                    style={{
-                      fontSize: "22px",
-                      fontWeight: 700,
-                      color: "var(--text-primary)",
-                    }}
-                  >
-                    {item.count}
-                  </p>
-                </div>
-              ))}
-            </div>
+          <Section title="Documents">
+            {documents.length > 0 && (
+              <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
+                {verifiedCount > 0 && (
+                  <span style={{ fontSize: '12px', fontWeight: 600, color: '#16A34A', backgroundColor: '#DCFCE7', padding: '4px 10px', borderRadius: '100px' }}>
+                    {verifiedCount} Verified
+                  </span>
+                )}
+                {pendingCount > 0 && (
+                  <span style={{ fontSize: '12px', fontWeight: 600, color: '#D97706', backgroundColor: '#FEF3C7', padding: '4px 10px', borderRadius: '100px' }}>
+                    {pendingCount} Pending
+                  </span>
+                )}
+                {expiringCount > 0 && (
+                  <span style={{ fontSize: '12px', fontWeight: 600, color: '#D97706', backgroundColor: '#FEF3C7', padding: '4px 10px', borderRadius: '100px' }}>
+                    {expiringCount} Expiring
+                  </span>
+                )}
+              </div>
+            )}
 
             {loadingDocs ? (
               <p style={{ fontSize: "13px", color: "var(--text-secondary)" }}>
@@ -1023,160 +934,40 @@ export function TrustProfileScreen({
                         color: "var(--text-primary)",
                       }}
                     >
-                      Key Documents
-                    </p>
-                    <p
-                      style={{
-                        fontSize: "12px",
-                        color: "var(--text-secondary)",
-                        marginTop: "2px",
-                      }}
-                    >
-                      Priority compliance and identity documents.
-                    </p>
-                  </div>
-                  {keyDocuments.length === 0 && missingKeyDocs.length === 0 ? (
-                    <div style={{ padding: "20px 16px" }}>
-                      <p
-                        style={{
-                          fontSize: "13px",
-                          color: "var(--text-secondary)",
-                        }}
-                      >
-                        No key documents available.
-                      </p>
-                    </div>
-                  ) : (
-                    <div>
-                      {keyDocuments.map((item, idx) => {
-                        const { doc, expiring, expired } = item;
-                        const isPdf = doc.mimeType === "application/pdf";
-                        const isLast =
-                          idx === keyDocuments.length - 1 &&
-                          missingKeyDocs.length === 0;
+                      <div style={{
+                        width: '36px',
+                        height: '36px',
+                        borderRadius: '8px',
+                        backgroundColor: isPdf ? '#FEE2E2' : '#DBEAFE',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        flexShrink: 0,
+                      }}>
+                        {isPdf ? (
+                          <FilePdf size={18} color="#DC2626" />
+                        ) : (
+                          <Image size={18} color="#2563EB" />
+                        )}
+                      </div>
 
-                        return (
-                          <div
-                            key={doc.id}
-                            style={{
-                              display: "flex",
-                              alignItems: "flex-start",
-                              padding: "12px 16px",
-                              backgroundColor: "var(--bg-card)",
-                              borderBottom: isLast
-                                ? "none"
-                                : "1px solid var(--border-light)",
-                              gap: "12px",
-                            }}
-                          >
-                            <div
-                              style={{
-                                width: "36px",
-                                height: "36px",
-                                borderRadius: "8px",
-                                backgroundColor: isPdf ? "#FEE2E2" : "#DBEAFE",
-                                display: "flex",
-                                alignItems: "center",
-                                justifyContent: "center",
-                                flexShrink: 0,
-                              }}
-                            >
-                              {isPdf ? (
-                                <FilePdf size={18} color="#DC2626" />
-                              ) : (
-                                <Image size={18} color="#2563EB" />
-                              )}
-                            </div>
-                            <div style={{ flex: 1, minWidth: 0 }}>
-                              <div
-                                style={{
-                                  display: "flex",
-                                  alignItems: "center",
-                                  gap: "6px",
-                                  flexWrap: "wrap",
-                                }}
-                              >
-                                <span
-                                  style={{
-                                    fontSize: "14px",
-                                    fontWeight: 500,
-                                    color: "var(--text-primary)",
-                                  }}
-                                >
-                                  {getDocumentLabel(doc.documentType)}
-                                </span>
-                                {doc.verificationStatus === "verified" && (
-                                  <CheckCircle
-                                    size={14}
-                                    color="#16A34A"
-                                    weight="fill"
-                                  />
-                                )}
-                              </div>
-                              <p
-                                style={{
-                                  fontSize: "12px",
-                                  color: "var(--text-secondary)",
-                                  marginTop: "2px",
-                                }}
-                              >
-                                {formatFileSize(doc.fileSizeBytes)} ·{" "}
-                                {formatUploadDate(doc.uploadedAt)}
-                              </p>
-                              {doc.verificationStatus === "pending" && (
-                                <div
-                                  style={{
-                                    display: "flex",
-                                    alignItems: "center",
-                                    gap: "4px",
-                                    marginTop: "2px",
-                                  }}
-                                >
-                                  <Clock
-                                    size={12}
-                                    color="var(--status-dispatched)"
-                                  />
-                                  <span
-                                    style={{
-                                      fontSize: "11px",
-                                      color: "var(--status-dispatched)",
-                                    }}
-                                  >
-                                    Verification pending
-                                  </span>
-                                </div>
-                              )}
-                              {doc.expiryDate && (
-                                <div
-                                  style={{
-                                    display: "flex",
-                                    alignItems: "center",
-                                    gap: "4px",
-                                    marginTop: "2px",
-                                  }}
-                                >
-                                  {expired || expiring ? (
-                                    <Warning
-                                      size={12}
-                                      color="#D97706"
-                                      weight="fill"
-                                    />
-                                  ) : null}
-                                  <span
-                                    style={{
-                                      fontSize: "11px",
-                                      color:
-                                        expired || expiring
-                                          ? "#D97706"
-                                          : "#16A34A",
-                                    }}
-                                  >
-                                    {expired ? "Expired" : "Exp"}:{" "}
-                                    {doc.expiryDate}
-                                  </span>
-                                </div>
-                              )}
-                            </div>
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
+                          <span style={{ fontSize: '14px', fontWeight: 500, color: 'var(--text-primary)' }}>
+                            {getDocumentLabel(doc.documentType)}
+                          </span>
+                          {doc.verificationStatus === 'verified' && (
+                            <CheckCircle size={14} color="#16A34A" weight="fill" />
+                          )}
+                        </div>
+                        <p style={{ fontSize: '12px', color: 'var(--text-secondary)', marginTop: '2px' }}>
+                          {formatFileSize(doc.fileSizeBytes)} · {formatUploadDate(doc.uploadedAt)}
+                        </p>
+
+                        {doc.verificationStatus === 'pending' && (
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '4px', marginTop: '2px' }}>
+                            <Clock size={12} color="var(--status-dispatched)" />
+                            <span style={{ fontSize: '11px', color: 'var(--status-dispatched)' }}>Verification pending</span>
                           </div>
                         );
                       })}
@@ -1421,8 +1212,8 @@ export function TrustProfileScreen({
                 </div>
               </>
             )}
-          </div>
-        )}
+          </Section>
+        </div>
       </div>
 
       {/* Fixed Bottom CTA */}
