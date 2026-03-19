@@ -1,11 +1,10 @@
-import { useState, useEffect, useRef } from 'react'
-import { ArrowLeft, UploadSimple, FilePdf, Image, Trash, CheckCircle, Clock } from '@phosphor-icons/react'
+import { useState, useEffect } from 'react'
+import { ArrowLeft, FileText, CaretRight } from '@phosphor-icons/react'
 import { CapacitorHttp } from '@capacitor/core'
 import { dataStore } from '@/lib/data-store'
 import { supabase } from '@/lib/supabase-client'
 import { calculateCredibility, type CredibilityBreakdown } from '@/lib/credibility'
 import { toast } from 'sonner'
-import type { BusinessDocument } from '@/lib/types'
 
 const MOBILE_REGEX = /^(\+91|91|0)?[6-9]\d{9}$/
 
@@ -28,18 +27,10 @@ interface Props {
   currentBusinessId: string
   onBack: () => void
   onSave?: () => void
-  scrollToDocuments?: boolean
+  onNavigateToDocuments?: () => void
 }
 
 const BUSINESS_TYPES = ['Restaurant', 'Supplier', 'Manufacturer', 'Retailer', 'Distributor', 'Other']
-
-const DOCUMENT_TYPES: { type: string; label: string; points: number; hasExpiry: boolean }[] = [
-  { type: 'msme_udyam', label: 'MSME / Udyam Certificate', points: 8, hasExpiry: false },
-  { type: 'trade_licence', label: 'Trade Licence', points: 7, hasExpiry: true },
-  { type: 'fssai_licence', label: 'FSSAI Licence', points: 5, hasExpiry: true },
-  { type: 'pan_card', label: 'PAN Card', points: 5, hasExpiry: false },
-  { type: 'other', label: 'Other Document', points: 3, hasExpiry: false },
-]
 
 function isShortMapsLink(url: string): boolean {
   return /maps\.app\.goo\.gl/i.test(url)
@@ -82,18 +73,7 @@ function parseGoogleMapsUrl(url: string): { lat: number; lng: number } | null {
   return null
 }
 
-function formatFileSize(bytes?: number): string {
-  if (!bytes) return ''
-  if (bytes < 1024) return `${bytes} B`
-  if (bytes < 1024 * 1024) return `${Math.round(bytes / 1024)} KB`
-  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`
-}
-
-function formatUploadDate(ts: number): string {
-  return new Date(ts).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })
-}
-
-export function BusinessDetailsScreen({ currentBusinessId, onBack, onSave, scrollToDocuments }: Props) {
+export function BusinessDetailsScreen({ currentBusinessId, onBack, onSave, onNavigateToDocuments }: Props) {
   const [gst, setGst] = useState('')
   const [address, setAddress] = useState('')
   const [businessType, setBusinessType] = useState('')
@@ -113,13 +93,6 @@ export function BusinessDetailsScreen({ currentBusinessId, onBack, onSave, scrol
   const [expandingLink, setExpandingLink] = useState(false)
   const [credibility, setCredibility] = useState<CredibilityBreakdown | null>(null)
 
-  // Documents state
-  const [documents, setDocuments] = useState<BusinessDocument[]>([])
-  const [uploadingType, setUploadingType] = useState<string | null>(null)
-  const [pendingExpiry, setPendingExpiry] = useState<{ type: string; file: File } | null>(null)
-  const [expiryDate, setExpiryDate] = useState('')
-  const fileInputRef = useRef<HTMLInputElement>(null)
-  const docsRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
     async function loadExisting() {
@@ -158,26 +131,6 @@ export function BusinessDetailsScreen({ currentBusinessId, onBack, onSave, scrol
     }
     loadCredibility()
   }, [currentBusinessId])
-
-  useEffect(() => {
-    async function loadDocuments() {
-      try {
-        const docs = await dataStore.getDocumentsByBusinessId(currentBusinessId)
-        setDocuments(docs)
-      } catch {
-        // non-critical
-      }
-    }
-    loadDocuments()
-  }, [currentBusinessId])
-
-  useEffect(() => {
-    if (scrollToDocuments && docsRef.current) {
-      setTimeout(() => {
-        docsRef.current?.scrollIntoView({ behavior: 'smooth' })
-      }, 300)
-    }
-  }, [scrollToDocuments])
 
   const handleSetLocation = async () => {
     setLocationError('')
@@ -287,124 +240,10 @@ export function BusinessDetailsScreen({ currentBusinessId, onBack, onSave, scrol
     }
   }
 
-  const handleDocumentRowTap = (docType: string, hasExpiry: boolean) => {
-    // Check if already uploaded
-    const existing = documents.find(d => d.documentType === docType)
-    if (existing) return // already uploaded, do nothing (delete via trash icon)
-
-    if (fileInputRef.current) {
-      fileInputRef.current.setAttribute('data-doc-type', docType)
-      fileInputRef.current.setAttribute('data-has-expiry', String(hasExpiry))
-      fileInputRef.current.click()
-    }
-  }
-
-  const handleFileSelected = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0]
-    if (!file) return
-    e.target.value = '' // reset
-
-    const docType = fileInputRef.current?.getAttribute('data-doc-type') || 'other'
-    const hasExpiry = fileInputRef.current?.getAttribute('data-has-expiry') === 'true'
-
-    // Validate
-    if (file.size > 5 * 1024 * 1024) {
-      toast.error('File must be under 5MB')
-      return
-    }
-    const allowed = ['application/pdf', 'image/jpeg', 'image/png']
-    if (!allowed.includes(file.type)) {
-      toast.error('Only PDF, JPG, or PNG files allowed')
-      return
-    }
-
-    if (hasExpiry) {
-      setPendingExpiry({ type: docType, file })
-      setExpiryDate('')
-      return
-    }
-
-    await doUpload(docType, file, undefined)
-  }
-
-  const doUpload = async (docType: string, file: File, expiry: string | undefined) => {
-    setUploadingType(docType)
-    try {
-      const ext = file.name.split('.').pop() || 'pdf'
-      const fileName = `${docType}_${Date.now()}.${ext}`
-      const path = `${currentBusinessId}/${docType}/${fileName}`
-
-      const { error: uploadError } = await supabase.storage
-        .from('business-documents')
-        .upload(path, file, { upsert: true })
-
-      if (uploadError) throw uploadError
-
-      const { data: { publicUrl } } = supabase.storage
-        .from('business-documents')
-        .getPublicUrl(path)
-
-      const doc = await dataStore.uploadBusinessDocument(currentBusinessId, {
-        documentType: docType,
-        fileName: file.name,
-        fileUrl: publicUrl,
-        fileSizeBytes: file.size,
-        mimeType: file.type,
-        expiryDate: expiry || undefined,
-      })
-
-      setDocuments(prev => [doc, ...prev])
-
-      // Recalculate credibility
-      const newCred = await calculateCredibility(currentBusinessId)
-      setCredibility(newCred)
-
-      toast.success('Document uploaded')
-    } catch (err) {
-      console.error('Upload error:', err)
-      toast.error('Upload failed. Please try again.')
-    } finally {
-      setUploadingType(null)
-    }
-  }
-
-  const handleExpiryConfirm = async () => {
-    if (!pendingExpiry) return
-    const { type, file } = pendingExpiry
-    const expiry = expiryDate || undefined
-    setPendingExpiry(null)
-    await doUpload(type, file, expiry)
-  }
-
-  const handleDeleteDocument = async (doc: BusinessDocument) => {
-    try {
-      await dataStore.deleteBusinessDocument(doc.id)
-      setDocuments(prev => prev.filter(d => d.id !== doc.id))
-
-      // Optionally remove from storage
-      const path = `${currentBusinessId}/${doc.documentType}/${doc.fileName}`
-      await supabase.storage.from('business-documents').remove([path]).catch(() => {})
-
-      const newCred = await calculateCredibility(currentBusinessId)
-      setCredibility(newCred)
-      toast.success('Document removed')
-    } catch {
-      toast.error('Failed to remove document')
-    }
-  }
-
   const locationDisplay = parsedLocation || existingLocation
 
   return (
     <div style={{ position: 'fixed', inset: 0, backgroundColor: 'var(--bg-screen)', zIndex: 50, display: 'flex', flexDirection: 'column' }}>
-      {/* Hidden file input */}
-      <input
-        ref={fileInputRef}
-        type="file"
-        accept="application/pdf,image/jpeg,image/png"
-        style={{ display: 'none' }}
-        onChange={handleFileSelected}
-      />
 
       <div style={{ display: 'flex', alignItems: 'center', padding: '16px', borderBottom: '1px solid var(--border-light)', backgroundColor: 'var(--bg-card)' }}>
         <button onClick={onBack} style={{ background: 'none', border: 'none', cursor: 'pointer', marginRight: '12px' }}>
@@ -576,151 +415,49 @@ export function BusinessDetailsScreen({ currentBusinessId, onBack, onSave, scrol
           </button>
         </div>
 
-        {/* Documents Section */}
-        <div ref={docsRef} style={{ borderTop: '1px solid var(--border-light)', paddingTop: '24px', marginBottom: '32px' }}>
-          <p style={{ fontSize: '11px', fontWeight: '700', color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '8px' }}>
-            DOCUMENTS
-          </p>
-          <p style={{ fontSize: '13px', color: 'var(--text-secondary)', marginBottom: '16px' }}>
-            Add documents to build credibility and let connections verify your business.
-          </p>
-
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '2px', borderRadius: '14px', overflow: 'hidden', border: '1px solid var(--border-light)' }}>
-            {DOCUMENT_TYPES.map((docDef, idx) => {
-              const uploaded = documents.find(d => d.documentType === docDef.type)
-              const isUploading = uploadingType === docDef.type
-              const isLast = idx === DOCUMENT_TYPES.length - 1
-
-              return (
-                <div
-                  key={docDef.type}
-                  style={{
-                    display: 'flex',
-                    alignItems: 'flex-start',
-                    padding: '12px 16px',
-                    backgroundColor: 'var(--bg-card)',
-                    borderBottom: isLast ? 'none' : '1px solid var(--border-light)',
-                    cursor: uploaded || isUploading ? 'default' : 'pointer',
-                  }}
-                  onClick={() => !uploaded && !isUploading && handleDocumentRowTap(docDef.type, docDef.hasExpiry)}
-                >
-                  {/* Icon */}
-                  <div style={{
-                    width: '36px',
-                    height: '36px',
-                    borderRadius: '8px',
-                    backgroundColor: uploaded ? '#DCFCE7' : '#F3F4F6',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    marginRight: '12px',
-                    flexShrink: 0,
-                  }}>
-                    {uploaded ? (
-                      uploaded.mimeType?.startsWith('image/') ? (
-                        <Image size={18} color="#16A34A" />
-                      ) : (
-                        <FilePdf size={18} color="#16A34A" />
-                      )
-                    ) : (
-                      <UploadSimple size={18} color="var(--text-secondary)" />
-                    )}
-                  </div>
-
-                  {/* Content */}
-                  <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                      <span style={{ fontSize: '14px', fontWeight: 500, color: 'var(--text-primary)' }}>
-                        {docDef.label}
-                      </span>
-                      {!uploaded && (
-                        <span style={{ fontSize: '11px', color: 'var(--brand-primary)', fontWeight: 600 }}>
-                          +{docDef.points} pts
-                        </span>
-                      )}
-                    </div>
-
-                    {uploaded && (
-                      <div style={{ marginTop: '2px' }}>
-                        <p style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>
-                          {formatFileSize(uploaded.fileSizeBytes)} · {formatUploadDate(uploaded.uploadedAt)}
-                        </p>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '4px', marginTop: '2px' }}>
-                          {uploaded.verificationStatus === 'verified' ? (
-                            <>
-                              <CheckCircle size={12} color="#16A34A" weight="fill" />
-                              <span style={{ fontSize: '11px', color: '#16A34A' }}>Verified</span>
-                            </>
-                          ) : (
-                            <>
-                              <Clock size={12} color="var(--status-dispatched)" />
-                              <span style={{ fontSize: '11px', color: 'var(--status-dispatched)' }}>Verification pending</span>
-                            </>
-                          )}
-                        </div>
-                        {uploaded.expiryDate && (
-                          <p style={{ fontSize: '11px', color: 'var(--text-secondary)', marginTop: '2px' }}>
-                            Exp: {uploaded.expiryDate}
-                          </p>
-                        )}
-                      </div>
-                    )}
-
-                    {isUploading && (
-                      <p style={{ fontSize: '12px', color: 'var(--brand-primary)', marginTop: '2px' }}>Uploading…</p>
-                    )}
-                  </div>
-
-                  {/* Delete button */}
-                  {uploaded && (
-                    <button
-                      onClick={e => { e.stopPropagation(); handleDeleteDocument(uploaded) }}
-                      style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '4px', color: 'var(--status-overdue)' }}
-                    >
-                      <Trash size={16} />
-                    </button>
-                  )}
-                </div>
-              )
-            })}
+        {/* Compliance Documents Link */}
+        {onNavigateToDocuments && (
+          <div style={{ borderTop: '1px solid var(--border-light)', paddingTop: '24px', marginBottom: '32px' }}>
+            <button
+              onClick={onNavigateToDocuments}
+              style={{
+                width: '100%',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '12px',
+                padding: '14px 16px',
+                backgroundColor: 'var(--bg-card)',
+                border: '1px solid var(--border-light)',
+                borderRadius: '12px',
+                cursor: 'pointer',
+                textAlign: 'left',
+              }}
+            >
+              <div style={{
+                width: 36,
+                height: 36,
+                borderRadius: '10px',
+                backgroundColor: '#EEF0FF',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                flexShrink: 0,
+              }}>
+                <FileText size={18} color="#4A6CF7" />
+              </div>
+              <div style={{ flex: 1 }}>
+                <p style={{ fontSize: '14px', fontWeight: 600, color: 'var(--text-primary)', margin: 0 }}>
+                  Compliance Documents
+                </p>
+                <p style={{ fontSize: '12px', color: 'var(--text-secondary)', marginTop: '2px', marginBottom: 0 }}>
+                  Upload GST, FSSAI, PAN and other certificates
+                </p>
+              </div>
+              <CaretRight size={16} color="var(--text-secondary)" />
+            </button>
           </div>
-        </div>
+        )}
       </div>
-
-      {/* Expiry date modal */}
-      {pendingExpiry && (
-        <div style={{
-          position: 'fixed', inset: 0, backgroundColor: 'rgba(0,0,0,0.5)', zIndex: 100,
-          display: 'flex', alignItems: 'flex-end', justifyContent: 'center',
-        }}>
-          <div style={{ backgroundColor: 'var(--bg-card)', borderRadius: '16px 16px 0 0', padding: '24px 16px', width: '100%', maxWidth: '480px' }}>
-            <h3 style={{ fontSize: '16px', fontWeight: 600, marginBottom: '8px' }}>Expiry Date</h3>
-            <p style={{ fontSize: '13px', color: 'var(--text-secondary)', marginBottom: '16px' }}>
-              Enter the expiry date for this document (optional).
-            </p>
-            <input
-              type="date"
-              value={expiryDate}
-              onChange={e => setExpiryDate(e.target.value)}
-              style={{ width: '100%', padding: '10px 12px', fontSize: '14px', border: '1px solid var(--border-light)', borderRadius: '8px', boxSizing: 'border-box', marginBottom: '16px', backgroundColor: 'var(--bg-card)', color: 'var(--text-primary)' }}
-            />
-            <div style={{ display: 'flex', gap: '12px' }}>
-              <button
-                onClick={() => setPendingExpiry(null)}
-                style={{ flex: 1, padding: '12px', border: '1px solid var(--border-light)', borderRadius: '8px', fontSize: '14px', backgroundColor: 'var(--bg-card)', cursor: 'pointer' }}
-              >
-                Cancel
-              </button>
-              <button
-                onClick={handleExpiryConfirm}
-                style={{ flex: 2, padding: '12px', backgroundColor: 'var(--brand-primary)', color: '#fff', border: 'none', borderRadius: '8px', fontSize: '14px', fontWeight: 500, cursor: 'pointer' }}
-              >
-                Upload
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   )
 }

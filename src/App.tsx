@@ -24,6 +24,7 @@ import { AttentionScreen } from '@/components/AttentionScreen'
 import { IncomingRequestsScreen } from '@/components/IncomingRequestsScreen'
 import { getAuthState, getLocalAuthSessionSync, logout, clearAuthSession } from '@/lib/auth'
 import { ManageMembersScreen } from '@/components/ManageMembersScreen'
+import { ManageDocumentsScreen } from '@/components/ManageDocumentsScreen'
 import { toast } from 'sonner'
 import { registerPushNotifications, removeDeviceTokens } from '@/lib/push-notifications'
 import { supabase } from '@/lib/supabase-client'
@@ -494,16 +495,15 @@ function App() {
           currentBusinessId={currentBusinessId}
           onBack={navigateBack}
           onSave={handleBusinessDetailsSaved}
+          onNavigateToDocuments={navigateToManageDocuments}
         />
       )
     }
     if (detailScreen.type === 'manage-documents') {
       return (
-        <BusinessDetailsScreen
+        <ManageDocumentsScreen
           currentBusinessId={currentBusinessId}
           onBack={navigateBack}
-          onSave={handleBusinessDetailsSaved}
-          scrollToDocuments={true}
         />
       )
     }
