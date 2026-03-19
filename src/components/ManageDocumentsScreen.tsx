@@ -99,8 +99,11 @@ export function ManageDocumentsScreen({ currentBusinessId, onBack }: Props) {
         .from('business-documents')
         .getPublicUrl(path)
 
+      const displayName = DOCUMENT_TYPES.find(d => d.type === docType)?.label || 'Other Document'
+
       const doc = await dataStore.uploadBusinessDocument(currentBusinessId, {
         documentType: docType,
+        displayName,
         fileName: file.name,
         fileUrl: publicUrl,
         fileSizeBytes: file.size,
