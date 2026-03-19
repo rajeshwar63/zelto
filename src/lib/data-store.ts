@@ -301,6 +301,7 @@ export class ZeltoDataStore {
     businessId: string,
     doc: {
       documentType: string
+      displayName: string
       fileName: string
       fileUrl: string
       fileSizeBytes?: number
@@ -313,6 +314,7 @@ export class ZeltoDataStore {
       .insert([{
         business_entity_id: businessId,
         document_type: doc.documentType,
+        display_name: doc.displayName,
         file_name: doc.fileName,
         file_url: doc.fileUrl,
         file_size_bytes: doc.fileSizeBytes ?? null,
