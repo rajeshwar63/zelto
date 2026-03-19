@@ -405,6 +405,20 @@ export class ZeltoDataStore {
     if (error) throw error
     return data ? toCamelCase(data) : undefined
   }
+
+  async removeBusinessMember(
+    ownerUserAccountId: string,
+    memberUserAccountId: string,
+    businessId: string
+  ): Promise<void> {
+    const { error } = await supabase.rpc('remove_business_member', {
+      p_owner_user_account_id: ownerUserAccountId,
+      p_member_user_account_id: memberUserAccountId,
+      p_business_id: businessId,
+    })
+    if (error) throw error
+  }
+
   // ============ CONNECTIONS ============
 
   async getAllConnections(): Promise<Connection[]> {

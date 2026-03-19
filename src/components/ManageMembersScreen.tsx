@@ -3,7 +3,7 @@ import { dataStore } from '@/lib/data-store'
 import { getAuthSession } from '@/lib/auth'
 import type { UserAccount } from '@/lib/types'
 import { toast } from 'sonner'
-import { Link, Trash } from '@phosphor-icons/react'
+import { ArrowLeft, Link, UserMinus } from '@phosphor-icons/react'
 
 interface Props {
   currentBusinessId: string
@@ -18,6 +18,8 @@ export function ManageMembersScreen({ currentBusinessId, onBack }: Props) {
   const [currentUserRole, setCurrentUserRole] = useState<string | null>(null)
   const [inviteToken, setInviteToken] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
+  const [removingMemberId, setRemovingMemberId] = useState<string | null>(null)
+  const [confirmRemoveMember, setConfirmRemoveMember] = useState<UserAccount | null>(null)
 
   useEffect(() => {
     async function load() {
@@ -35,7 +37,6 @@ export function ManageMembersScreen({ currentBusinessId, onBack }: Props) {
         setCurrentUserId(currentUser.id)
         setCurrentUserRole(currentUser.role)
 
-        // Generate invite link only for owners
         if (currentUser.role === 'owner') {
           try {
             const token = await dataStore.getOrCreateMemberInvite(
@@ -44,7 +45,7 @@ export function ManageMembersScreen({ currentBusinessId, onBack }: Props) {
             )
             setInviteToken(token)
           } catch {
-            // Non-fatal — invite section just won't render
+            // Non-fatal
           }
         }
       }
@@ -55,6 +56,7 @@ export function ManageMembersScreen({ currentBusinessId, onBack }: Props) {
   }, [currentBusinessId])
 
   const inviteLink = inviteToken ? `${INVITE_BASE_URL}/${inviteToken}` : null
+  const isOwner = currentUserRole === 'owner'
 
   const handleShareInvite = async () => {
     if (!inviteLink) return
@@ -89,98 +91,279 @@ export function ManageMembersScreen({ currentBusinessId, onBack }: Props) {
     }
   }
 
-  const isOwner = currentUserRole === 'owner'
+  const handleConfirmRemove = async () => {
+    if (!confirmRemoveMember || !currentUserId) return
+    setRemovingMemberId(confirmRemoveMember.id)
+    setConfirmRemoveMember(null)
+    try {
+      await dataStore.removeBusinessMember(currentUserId, confirmRemoveMember.id, currentBusinessId)
+      setMembers(prev => prev.filter(m => m.id !== confirmRemoveMember.id))
+      toast.success(`${confirmRemoveMember.username} removed from team`)
+    } catch (err) {
+      console.error('Remove member error:', err)
+      toast.error('Failed to remove member')
+    } finally {
+      setRemovingMemberId(null)
+    }
+  }
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-background">
-        <p className="text-sm text-muted-foreground">Loading...</p>
+      <div style={{ position: 'fixed', inset: 0, backgroundColor: '#F2F4F8', zIndex: 50, display: 'flex', flexDirection: 'column' }}>
+        <div style={{ backgroundColor: '#0F1320', padding: '16px', paddingTop: 'max(16px, env(safe-area-inset-top))', display: 'flex', alignItems: 'center', gap: '12px' }}>
+          <button onClick={onBack} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '4px', display: 'flex', alignItems: 'center' }}>
+            <ArrowLeft size={20} color="#fff" />
+          </button>
+          <h1 style={{ fontSize: '16px', fontWeight: 600, color: '#fff', margin: 0 }}>Members</h1>
+        </div>
+        <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <p style={{ fontSize: '14px', color: '#8492A6' }}>Loading…</p>
+        </div>
       </div>
     )
   }
 
   return (
-    <div className="min-h-screen bg-background" style={{ paddingTop: 'env(safe-area-inset-top)' }}>
+    <div style={{ position: 'fixed', inset: 0, backgroundColor: '#F2F4F8', zIndex: 50, display: 'flex', flexDirection: 'column' }}>
+
       {/* Header */}
-      <div className="flex items-center gap-3 px-4 py-4 border-b border-border">
-        <button onClick={onBack} className="text-sm text-muted-foreground hover:text-foreground transition-colors">
-          ← Back
+      <div style={{
+        backgroundColor: '#0F1320',
+        padding: '16px',
+        paddingTop: 'max(16px, env(safe-area-inset-top))',
+        display: 'flex',
+        alignItems: 'center',
+        gap: '12px',
+        flexShrink: 0,
+      }}>
+        <button onClick={onBack} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '4px', display: 'flex', alignItems: 'center' }}>
+          <ArrowLeft size={20} color="#fff" />
         </button>
-        <h1 className="text-base font-semibold text-foreground">Members</h1>
+        <h1 style={{ fontSize: '16px', fontWeight: 600, color: '#fff', margin: 0 }}>Team Members</h1>
       </div>
 
-      {/* Invite section — owners only */}
-      {isOwner && inviteLink && (
-        <div className="px-4 py-4 border-b border-border">
-          <p className="text-xs font-medium text-muted-foreground mb-2">
-            Invite team members
-          </p>
-          <p className="text-[11px] text-muted-foreground mb-3">
-            Share this link to add someone to your business. The link is valid for 7 days.
-          </p>
-          <div className="flex items-center gap-2 bg-muted/40 rounded-lg px-3 py-2.5 mb-3">
-            <Link size={13} className="text-muted-foreground flex-shrink-0" />
-            <span className="text-[12px] font-mono text-foreground flex-1 truncate">
-              {inviteLink}
-            </span>
+      {/* Scrollable content */}
+      <div style={{ flex: 1, overflowY: 'auto', padding: '20px 16px', display: 'flex', flexDirection: 'column', gap: '20px' }}>
+
+        {/* Invite section — owners only */}
+        {isOwner && inviteLink && (
+          <div>
+            <p style={{ fontSize: '11px', fontWeight: 700, color: '#8492A6', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '10px' }}>
+              ADD TEAM MEMBER
+            </p>
+            <div style={{
+              backgroundColor: '#fff',
+              borderRadius: '14px',
+              padding: '16px',
+              border: '1px solid #E8ECF2',
+            }}>
+              <p style={{ fontSize: '13px', fontWeight: 600, color: '#1A1F2E', marginBottom: '4px' }}>
+                Invite via link
+              </p>
+              <p style={{ fontSize: '12px', color: '#8492A6', marginBottom: '14px' }}>
+                Share this link to add someone to your team. The link is valid for 7 days.
+              </p>
+
+              {/* Link display */}
+              <div style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '8px',
+                backgroundColor: '#F2F4F8',
+                borderRadius: '8px',
+                padding: '10px 12px',
+                marginBottom: '12px',
+              }}>
+                <Link size={13} color="#8492A6" style={{ flexShrink: 0 }} />
+                <span style={{
+                  fontSize: '12px',
+                  fontFamily: 'monospace',
+                  color: '#1A1F2E',
+                  flex: 1,
+                  overflow: 'hidden',
+                  textOverflow: 'ellipsis',
+                  whiteSpace: 'nowrap',
+                }}>
+                  {inviteLink}
+                </span>
+              </div>
+
+              <div style={{ display: 'flex', gap: '10px' }}>
+                <button
+                  onClick={handleCopyInvite}
+                  style={{
+                    flex: 1,
+                    padding: '11px',
+                    border: '1px solid #E8ECF2',
+                    borderRadius: '10px',
+                    fontSize: '13px',
+                    fontWeight: 600,
+                    color: '#1A1F2E',
+                    backgroundColor: '#fff',
+                    cursor: 'pointer',
+                  }}
+                >
+                  Copy link
+                </button>
+                <button
+                  onClick={handleShareInvite}
+                  style={{
+                    flex: 1,
+                    padding: '11px',
+                    border: 'none',
+                    borderRadius: '10px',
+                    fontSize: '13px',
+                    fontWeight: 600,
+                    color: '#fff',
+                    backgroundColor: '#4A6CF7',
+                    cursor: 'pointer',
+                  }}
+                >
+                  Share
+                </button>
+              </div>
+            </div>
           </div>
-          <div className="flex gap-2">
-            <button
-              onClick={handleCopyInvite}
-              className="flex-1 text-[13px] font-medium text-foreground bg-muted rounded-lg py-2 text-center transition-colors hover:bg-muted/80"
-            >
-              Copy link
-            </button>
-            <button
-              onClick={handleShareInvite}
-              className="flex-1 text-[13px] font-semibold text-white rounded-lg py-2 text-center transition-colors"
-              style={{ backgroundColor: 'var(--brand-primary)' }}
-            >
-              Share
-            </button>
+        )}
+
+        {/* Members list */}
+        <div>
+          <p style={{ fontSize: '11px', fontWeight: 700, color: '#8492A6', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '10px' }}>
+            ACTIVE MEMBERS ({members.length})
+          </p>
+          <div style={{ backgroundColor: '#fff', borderRadius: '14px', overflow: 'hidden', border: '1px solid #E8ECF2' }}>
+            {members.map((member, idx) => (
+              <div
+                key={member.id}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  padding: '14px 16px',
+                  borderBottom: idx < members.length - 1 ? '1px solid #F2F4F8' : 'none',
+                }}
+              >
+                {/* Avatar */}
+                <div style={{
+                  width: 38,
+                  height: 38,
+                  borderRadius: '10px',
+                  backgroundColor: member.role === 'owner' ? '#EEF0FF' : '#F2F4F8',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  flexShrink: 0,
+                  marginRight: '12px',
+                }}>
+                  <span style={{ fontSize: '13px', fontWeight: 700, color: member.role === 'owner' ? '#4A6CF7' : '#8492A6' }}>
+                    {member.username.slice(0, 2).toUpperCase()}
+                  </span>
+                </div>
+
+                {/* Info */}
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <p style={{ fontSize: '13px', fontWeight: 600, color: '#1A1F2E' }}>
+                    {member.username}
+                    {member.id === currentUserId && (
+                      <span style={{ fontSize: '11px', color: '#8492A6', marginLeft: '6px', fontWeight: 400 }}>(You)</span>
+                    )}
+                  </p>
+                  <p style={{ fontSize: '11px', color: '#8492A6', marginTop: '1px' }}>{member.email}</p>
+                </div>
+
+                {/* Role + remove */}
+                <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexShrink: 0 }}>
+                  <span style={{
+                    fontSize: '11px',
+                    fontWeight: 600,
+                    color: member.role === 'owner' ? '#4A6CF7' : '#8492A6',
+                    backgroundColor: member.role === 'owner' ? '#EEF0FF' : '#F2F4F8',
+                    padding: '3px 8px',
+                    borderRadius: '100px',
+                  }}>
+                    {member.role === 'owner' ? 'Owner' : 'Member'}
+                  </span>
+
+                  {isOwner && member.id !== currentUserId && member.role !== 'owner' && (
+                    <button
+                      onClick={() => setConfirmRemoveMember(member)}
+                      disabled={removingMemberId === member.id}
+                      style={{
+                        background: 'none',
+                        border: 'none',
+                        cursor: removingMemberId === member.id ? 'not-allowed' : 'pointer',
+                        padding: '4px',
+                        color: removingMemberId === member.id ? '#ccc' : '#E53535',
+                        display: 'flex',
+                        alignItems: 'center',
+                      }}
+                      aria-label={`Remove ${member.username}`}
+                    >
+                      <UserMinus size={16} />
+                    </button>
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      {/* Confirm remove dialog */}
+      {confirmRemoveMember && (
+        <div style={{
+          position: 'fixed', inset: 0, backgroundColor: 'rgba(0,0,0,0.5)', zIndex: 100,
+          display: 'flex', alignItems: 'flex-end', justifyContent: 'center',
+        }}>
+          <div style={{
+            backgroundColor: '#fff',
+            borderRadius: '20px 20px 0 0',
+            padding: '24px 20px 32px',
+            width: '100%',
+            maxWidth: '480px',
+          }}>
+            <h3 style={{ fontSize: '16px', fontWeight: 700, color: '#1A1F2E', marginBottom: '8px' }}>
+              Remove {confirmRemoveMember.username}?
+            </h3>
+            <p style={{ fontSize: '13px', color: '#8492A6', marginBottom: '24px', lineHeight: '1.5' }}>
+              They will lose access to this business immediately and will need to be re-invited to rejoin.
+            </p>
+            <div style={{ display: 'flex', gap: '12px' }}>
+              <button
+                onClick={() => setConfirmRemoveMember(null)}
+                style={{
+                  flex: 1,
+                  padding: '13px',
+                  border: '1px solid #E8ECF2',
+                  borderRadius: '12px',
+                  fontSize: '14px',
+                  fontWeight: 600,
+                  color: '#1A1F2E',
+                  backgroundColor: '#fff',
+                  cursor: 'pointer',
+                }}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleConfirmRemove}
+                style={{
+                  flex: 1,
+                  padding: '13px',
+                  border: 'none',
+                  borderRadius: '12px',
+                  fontSize: '14px',
+                  fontWeight: 600,
+                  color: '#fff',
+                  backgroundColor: '#E53535',
+                  cursor: 'pointer',
+                }}
+              >
+                Remove
+              </button>
+            </div>
           </div>
         </div>
       )}
-
-      {/* Members list */}
-      <div className="px-4 py-4">
-        <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-3">
-          Active Members ({members.length})
-        </p>
-        <div className="space-y-1">
-          {members.map(member => (
-            <div
-              key={member.id}
-              className="flex items-center justify-between py-2.5"
-            >
-              <div className="flex-1 min-w-0">
-                <p className="text-[14px] font-medium text-foreground">
-                  {member.username}
-                  {member.id === currentUserId && (
-                    <span className="text-[12px] text-muted-foreground ml-1.5">(You)</span>
-                  )}
-                </p>
-                <p className="text-[12px] text-muted-foreground">{member.email}</p>
-              </div>
-              <div className="flex items-center gap-3">
-                <span className="text-[12px] text-muted-foreground capitalize">
-                  {member.role === 'owner' ? 'Owner' : 'Member'}
-                </span>
-                {/* Remove button — owners only, not for self */}
-                {isOwner && member.id !== currentUserId && member.role !== 'owner' && (
-                  <button
-                    className="text-destructive/60 hover:text-destructive transition-colors"
-                    aria-label={`Remove ${member.username}`}
-                    onClick={() => toast.error('Member removal coming soon')}
-                  >
-                    <Trash size={15} />
-                  </button>
-                )}
-              </div>
-            </div>
-          ))}
-        </div>
-      </div>
     </div>
   )
 }

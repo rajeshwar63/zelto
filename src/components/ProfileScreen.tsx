@@ -23,6 +23,7 @@ import { Bell, PencilSimple, Check, X, CaretRight, ShareNetwork, ShieldCheck, Bu
 import { TrustBadge } from './TrustBadge'
 import { toast } from 'sonner'
 import { useProfileData } from '@/hooks/data/use-business-data'
+import type { UserAccount } from '@/lib/types'
 
 interface Props {
   currentBusinessId: string
@@ -127,20 +128,28 @@ export function ProfileScreen({
   const unreadCount = data?.unreadCount ?? 0
   const credibility = data?.credibility ?? null
 
+  const [members, setMembers] = useState<UserAccount[]>([])
   const [isEditingUsername, setIsEditingUsername] = useState(false)
   const [editedUsername, setEditedUsername] = useState('')
   const [isSavingUsername, setIsSavingUsername] = useState(false)
   const usernameInputRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
+    dataStore.getUserAccountsByBusinessId(currentBusinessId)
+      .then(setMembers)
+      .catch(() => {})
+  }, [currentBusinessId])
+
+  useEffect(() => {
     const handleVisibilityChange = () => {
       if (!document.hidden) {
         void refresh(true)
+        dataStore.getUserAccountsByBusinessId(currentBusinessId).then(setMembers).catch(() => {})
       }
     }
     document.addEventListener('visibilitychange', handleVisibilityChange)
     return () => document.removeEventListener('visibilitychange', handleVisibilityChange)
-  }, [refresh])
+  }, [refresh, currentBusinessId])
 
   useEffect(() => {
     if (isEditingUsername && usernameInputRef.current) {
@@ -504,7 +513,13 @@ export function ProfileScreen({
             icon={<Users size={18} color="#22B573" weight="bold" />}
             iconBg="#E8F8F0"
             title="Members"
-            subtitle="1 active member · Owner"
+            subtitle={
+              members.length === 0
+                ? 'No members yet'
+                : members.length === 1
+                  ? '1 member · ' + (members[0]?.role === 'owner' ? 'Owner' : 'Member')
+                  : `${members.length} members`
+            }
             onPress={onNavigateToMembers}
             showDivider={false}
           />
