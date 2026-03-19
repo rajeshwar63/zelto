@@ -6,7 +6,7 @@ import { scoreToLevel, getBusinessActivityCounts } from '@/lib/credibility'
 import { consumePendingConnectionLabels } from '@/lib/pending-connection-labels'
 import { getArchivedConnectionIds, unarchiveConnection } from '@/lib/connection-archive-store'
 import { getBlockedBusinessIds, blockBusiness, unblockBusiness } from '@/lib/blocked-connections'
-import { ArrowLeft, MagnifyingGlass, MagnifyingGlassPlus, X, Phone, Receipt, Briefcase, MapPin, UsersThree, Package, Medal } from '@phosphor-icons/react'
+import { ArrowLeft, MagnifyingGlass, X, Phone, Receipt, Briefcase, MapPin, UsersThree, Package, Medal, UserPlus } from '@phosphor-icons/react'
 import { Button } from '@/components/ui/button'
 import type { BusinessEntity, ConnectionRequest, Connection } from '@/lib/types'
 import { CredibilityBadge } from '@/components/CredibilityBadge'
@@ -564,20 +564,23 @@ export function ManageConnectionsScreen({ currentBusinessId, onBack, onSuccess, 
           <button
             onClick={() => setShowSearch(prev => !prev)}
             style={{
-              minWidth: '36px',
-              minHeight: '36px',
+              minWidth: '44px',
+              minHeight: '44px',
+              paddingLeft: '4px',
+              paddingRight: '8px',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
-              borderRadius: '50%',
-              border: '1px solid var(--border-light)',
               background: 'none',
+              border: 'none',
               cursor: 'pointer',
             }}
-            aria-label="Find business"
+            aria-label={showSearch ? 'Close search' : 'Add connection'}
           >
-            <span style={{ fontSize: '14px', fontWeight: 500, color: 'var(--text-primary)', marginRight: '4px' }}>Add</span>
-            <MagnifyingGlassPlus size={20} color="var(--text-primary)" />
+            {showSearch
+              ? <X size={20} weight="bold" color="var(--brand-primary)" />
+              : <UserPlus size={20} weight="bold" color="var(--brand-primary)" />
+            }
           </button>
         </div>
 
