@@ -7,9 +7,15 @@ import { useBusinessOverviewData } from '@/hooks/data/use-business-data'
 import { Carousel, CarouselApi, CarouselContent, CarouselItem } from '@/components/ui/carousel'
 import { OrderCard } from '@/components/order/OrderCard'
 
+interface OrdersTabParams {
+  role?: 'all' | 'buying' | 'selling'
+  chip?: 'new' | 'accepted' | 'placed' | 'dispatched' | 'delivered' | 'paid' | 'overdue'
+  dateToday?: boolean
+}
+
 interface Props {
   currentBusinessId: string
-  onNavigateToOrders: (filter?: string) => void
+  onNavigateToOrders: (filter?: string, ordersParams?: OrdersTabParams) => void
   onNavigateToConnection: (connectionId: string, orderId?: string) => void
   onNavigateToProfile: () => void
   onNavigateToConnections: (filter?: string) => void
@@ -319,7 +325,7 @@ export function DashboardScreen({ currentBusinessId, onNavigateToOrders, onNavig
             {/* Actionable rows — coloured badge, user must act */}
             {attentionCounts.accept > 0 && (
               <button
-                onClick={() => onNavigateToOrders('accept')}
+                onClick={() => onNavigateToOrders(undefined, { role: 'selling', chip: 'new' })}
                 className="w-full flex items-center justify-between rounded-xl px-4 py-3 text-left"
                 style={{ backgroundColor: 'var(--bg-card)', borderLeft: '3px solid #D97706' }}
               >
@@ -338,7 +344,7 @@ export function DashboardScreen({ currentBusinessId, onNavigateToOrders, onNavig
 
             {attentionCounts.dispatch > 0 && (
               <button
-                onClick={() => onNavigateToOrders('dispatch')}
+                onClick={() => onNavigateToOrders(undefined, { role: 'selling', chip: 'accepted' })}
                 className="w-full flex items-center justify-between rounded-xl px-4 py-3 text-left"
                 style={{ backgroundColor: 'var(--bg-card)', borderLeft: '3px solid #4A6CF7' }}
               >
@@ -357,7 +363,7 @@ export function DashboardScreen({ currentBusinessId, onNavigateToOrders, onNavig
 
             {attentionCounts.confirmReceipt > 0 && (
               <button
-                onClick={() => onNavigateToOrders('in_transit')}
+                onClick={() => onNavigateToOrders(undefined, { role: 'buying', chip: 'dispatched' })}
                 className="w-full flex items-center justify-between rounded-xl px-4 py-3 text-left"
                 style={{ backgroundColor: 'var(--bg-card)', borderLeft: '3px solid #4A6CF7' }}
               >
@@ -376,7 +382,7 @@ export function DashboardScreen({ currentBusinessId, onNavigateToOrders, onNavig
 
             {attentionCounts.payNow > 0 && (
               <button
-                onClick={() => onNavigateToOrders('pay')}
+                onClick={() => onNavigateToOrders(undefined, { role: 'buying', chip: 'overdue' })}
                 className="w-full flex items-center justify-between rounded-xl px-4 py-3 text-left"
                 style={{ backgroundColor: 'var(--bg-card)', borderLeft: '3px solid #E24B4A' }}
               >
@@ -434,7 +440,7 @@ export function DashboardScreen({ currentBusinessId, onNavigateToOrders, onNavig
             {/* Waiting rows — muted grey, ball is in the other party's court */}
             {attentionCounts.awaitingDispatch > 0 && (
               <button
-                onClick={() => onNavigateToOrders('in_transit')}
+                onClick={() => onNavigateToOrders(undefined, { role: 'buying', chip: 'placed' })}
                 className="w-full flex items-center justify-between rounded-xl px-4 py-3 text-left"
                 style={{ backgroundColor: 'var(--bg-card)' }}
               >
@@ -453,7 +459,7 @@ export function DashboardScreen({ currentBusinessId, onNavigateToOrders, onNavig
 
             {attentionCounts.awaitingPayment > 0 && (
               <button
-                onClick={() => onNavigateToOrders('pay')}
+                onClick={() => onNavigateToOrders(undefined, { role: 'selling', chip: 'delivered' })}
                 className="w-full flex items-center justify-between rounded-xl px-4 py-3 text-left"
                 style={{ backgroundColor: 'var(--bg-card)' }}
               >

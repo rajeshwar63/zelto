@@ -18,7 +18,7 @@ import { OrderAttachmentsSection } from '@/components/order/OrderAttachmentsSect
 import { buildOrderTimeline, formatPaymentTerms, getLifecycleState } from '@/components/order/order-detail-utils'
 import { ConnectionDetailOrderCard } from '@/components/order/ConnectionDetailOrderCard'
 import { LedgerDownloadSheet } from '@/components/LedgerDownloadSheet'
-import { OrderSearchPanel, type OrderFilters, type StatusChip } from '@/components/order/OrderSearchPanel'
+import { OrderSearchPanel, type OrderFilters, type StatusChip, type RoleFilter } from '@/components/order/OrderSearchPanel'
 import { startOfDay } from 'date-fns'
 
 
@@ -188,13 +188,22 @@ export function ConnectionDetailScreen({ connectionId, currentBusinessId, onBack
 
     if (activeChips.size > 0) {
       const lifecycle = getLifecycleState(order)
+      const now = Date.now()
       const matchChip = [...activeChips].some(chip => {
-        if (chip === 'accept')     return lifecycle === 'Placed'
-        if (chip === 'dispatch')   return lifecycle === 'Accepted'
-        if (chip === 'in_transit') return lifecycle === 'Dispatched'
-        if (chip === 'pay')        return lifecycle === 'Delivered' && order.settlementState !== 'Paid'
-        if (chip === 'disputed')   return openIssueOrderIds.has(order.id)
+        if (chip === 'new')        return lifecycle === 'Placed'
+        if (chip === 'accepted')   return lifecycle === 'Accepted'
+        if (chip === 'placed') {
+          if (connectionRole === 'buying') return lifecycle === 'Placed' || lifecycle === 'Accepted'
+          return lifecycle === 'Placed'
+        }
+        if (chip === 'dispatched') return lifecycle === 'Dispatched'
+        if (chip === 'delivered')  return lifecycle === 'Delivered' && order.settlementState !== 'Paid'
         if (chip === 'paid')       return order.settlementState === 'Paid'
+        if (chip === 'overdue') {
+          return order.calculatedDueDate !== null
+            && order.calculatedDueDate < now
+            && order.settlementState !== 'Paid'
+        }
         return false
       })
       if (!matchChip) return false
@@ -225,6 +234,7 @@ export function ConnectionDetailScreen({ connectionId, currentBusinessId, onBack
 
   const isSupplier = connection.supplierBusinessId === currentBusinessId
   const isBuyer = connection.buyerBusinessId === currentBusinessId
+  const connectionRole: RoleFilter = isBuyer ? 'buying' : 'selling'
 
   return (
     <div className="h-full flex flex-col" style={{ backgroundColor: 'var(--bg-screen)' }}>
@@ -258,6 +268,7 @@ export function ConnectionDetailScreen({ connectionId, currentBusinessId, onBack
               <OrderSearchPanel
                 filters={orderFilters}
                 onFiltersChange={setOrderFilters}
+                roleFilter={connectionRole}
                 placeholder="Search orders in this connection…"
               />
             </motion.div>
