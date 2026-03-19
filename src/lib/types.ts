@@ -236,7 +236,7 @@ export interface Notification {
   readAt: number | null
 }
 
-export type AttachmentType = 'bill' | 'payment_proof' | 'note'
+export type AttachmentType = 'bill' | 'payment_proof' | 'note' | 'dispatch_note' | 'delivery_proof'
 
 export interface OrderAttachment {
   id: string
@@ -249,4 +249,7 @@ export interface OrderAttachment {
   type: AttachmentType
   uploadedBy: string
   timestamp: number
+  paymentEventId?: string | null
+  fileSizeBytes?: number | null
+  storagePath?: string | null
 }
