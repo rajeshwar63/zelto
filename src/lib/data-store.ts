@@ -3,6 +3,7 @@ import {
   AttachmentType,
   BusinessDocument,
   BusinessEntity,
+  ComplianceAlert,
   Connection,
   ConnectionRequest,
   ConnectionRequestStatus,
@@ -1520,6 +1521,51 @@ export class ZeltoDataStore {
       .eq('id', attachmentId)
 
     if (error) throw error
+  }
+
+  // ============ COMPLIANCE ALERTS ============
+
+  async getComplianceAlerts(businessId: string): Promise<ComplianceAlert[]> {
+    const { data, error } = await supabase.rpc('get_compliance_alerts', {
+      p_business_id: businessId,
+    })
+    if (error) throw error
+    return toCamelCase(data || [])
+  }
+
+  // ============ MEMBER INVITES ============
+
+  async getOrCreateMemberInvite(businessId: string, userId: string): Promise<string> {
+    const { data, error } = await supabase.rpc('get_or_create_member_invite', {
+      p_business_id: businessId,
+      p_user_account_id: userId,
+    })
+    if (error) throw error
+    return data as string
+  }
+
+  async acceptMemberInvite(
+    token: string,
+    userAccountId: string
+  ): Promise<{ businessId: string; businessName: string }> {
+    const { data, error } = await supabase.rpc('accept_member_invite', {
+      p_token: token,
+      p_user_account_id: userAccountId,
+    })
+    if (error) throw error
+    const result = Array.isArray(data) ? data[0] : data
+    if (!result?.success) {
+      const messages: Record<string, string> = {
+        invalid_token: 'This invite link is invalid.',
+        invite_used: 'This invite link has already been used.',
+        invite_expired: 'This invite link has expired.',
+        already_has_business: 'You already have an active business and cannot join as a member.',
+        user_not_found: 'Your account was not found.',
+        business_not_found: 'The business could not be found.',
+      }
+      throw new Error(messages[result?.error_code] ?? 'Could not accept invite.')
+    }
+    return { businessId: result.business_id, businessName: result.business_name }
   }
 
   // ============ UTILITY ============

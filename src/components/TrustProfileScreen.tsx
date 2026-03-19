@@ -27,6 +27,7 @@ interface Props {
   screenMode: TrustProfileScreenMode
   connectionRequestId?: string
   connectionId?: string
+  initialTab?: 'identity' | 'docs'
   onBack: () => void
   onRequestSent?: () => void
   onRequestAccepted?: () => void
@@ -85,6 +86,7 @@ export function TrustProfileScreen({
   screenMode,
   connectionRequestId,
   connectionId,
+  initialTab,
   onBack,
   onRequestSent,
   onRequestAccepted,
@@ -93,7 +95,7 @@ export function TrustProfileScreen({
   const { action, audience } = screenMode
   const isConnectionReview = audience === 'connection-review'
   const isSelfProfileReady = audience === 'self-profile-ready'
-  const [activeTab, setActiveTab] = useState<'identity' | 'docs'>('identity')
+  const [activeTab, setActiveTab] = useState<'identity' | 'docs'>(initialTab ?? 'identity')
 
   // Data
   const [business, setBusiness] = useState<BusinessEntity | null>(null)
@@ -541,7 +543,7 @@ export function TrustProfileScreen({
                       <div style={{ flex: 1, minWidth: 0 }}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
                           <span style={{ fontSize: '14px', fontWeight: 500, color: 'var(--text-primary)' }}>
-                            {getDocumentLabel(doc.documentType)}
+                            {doc.displayName ?? getDocumentLabel(doc.documentType)}
                           </span>
                           {doc.verificationStatus === 'verified' && (
                             <CheckCircle size={14} color="#16A34A" weight="fill" />

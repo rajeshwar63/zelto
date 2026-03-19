@@ -53,6 +53,7 @@ export interface BusinessDocument {
   id: string
   businessId: string
   documentType: string
+  displayName?: string
   fileName: string
   fileUrl: string
   fileSizeBytes?: number
@@ -60,6 +61,17 @@ export interface BusinessDocument {
   expiryDate?: string
   verificationStatus: 'pending' | 'verified'
   uploadedAt: number
+}
+
+export interface ComplianceAlert {
+  connectionId: string
+  otherBusinessId: string
+  otherBusinessName: string
+  otherBusinessZeltoId: string
+  issueType: 'expired' | 'expiring' | 'missing'
+  documentDisplayName: string
+  expiresAt: string | null
+  daysRemaining: number | null
 }
 
 export type UserRole = 'owner' | 'admin' | 'member'
@@ -211,6 +223,7 @@ export type NotificationType =
   | 'IssueAcknowledged'
   | 'IssueResolved'
   | 'ConnectionAccepted'
+  | 'MemberJoined'
 
 export interface Notification {
   id: string

@@ -1,6 +1,7 @@
 import { ArrowDown, ArrowUp, CaretRight, CurrencyInr, Hourglass, NotePencil, Package, ShieldWarning, Truck, UsersThree } from '@phosphor-icons/react'
 import { CredibilityBadge } from '@/components/CredibilityBadge'
 import { BadgeInfoSheet } from '@/components/BadgeInfoSheet'
+import { ComplianceCard } from '@/components/ComplianceCard'
 import { useEffect, useState } from 'react'
 import { useBusinessOverviewData } from '@/hooks/data/use-business-data'
 import { Carousel, CarouselApi, CarouselContent, CarouselItem } from '@/components/ui/carousel'
@@ -14,10 +15,11 @@ interface Props {
   onNavigateToConnections: (filter?: string) => void
   onNavigateToAttention: (filter?: string) => void
   onNavigateToManageConnections?: () => void
+  onNavigateToSupplierDocs?: (targetBusinessId: string, connectionId: string) => void
   isActive?: boolean
 }
 
-export function DashboardScreen({ currentBusinessId, onNavigateToOrders, onNavigateToConnection, onNavigateToProfile, onNavigateToConnections, onNavigateToAttention, onNavigateToManageConnections, isActive = true }: Props) {
+export function DashboardScreen({ currentBusinessId, onNavigateToOrders, onNavigateToConnection, onNavigateToProfile, onNavigateToConnections, onNavigateToAttention, onNavigateToManageConnections, onNavigateToSupplierDocs, isActive = true }: Props) {
   const [tradePositionCarouselApi, setTradePositionCarouselApi] = useState<CarouselApi>()
   const [activeTradePositionSlide, setActiveTradePositionSlide] = useState(0)
   const [showBadgeInfo, setShowBadgeInfo] = useState(false)
@@ -298,6 +300,13 @@ export function DashboardScreen({ currentBusinessId, onNavigateToOrders, onNavig
           </div>
 
         </div>
+
+        {onNavigateToSupplierDocs && (
+          <ComplianceCard
+            currentBusinessId={currentBusinessId}
+            onNavigateToSupplierDocs={onNavigateToSupplierDocs}
+          />
+        )}
 
         <div>
           <h2 className="text-[10px] uppercase tracking-wide text-muted-foreground/60 mb-3">

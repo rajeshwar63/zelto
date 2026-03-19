@@ -23,6 +23,8 @@ import { House, Users, Package, User, Bell } from '@phosphor-icons/react'
 import { AttentionScreen } from '@/components/AttentionScreen'
 import { IncomingRequestsScreen } from '@/components/IncomingRequestsScreen'
 import { getAuthState, getLocalAuthSessionSync, logout, clearAuthSession } from '@/lib/auth'
+import { ManageMembersScreen } from '@/components/ManageMembersScreen'
+import { toast } from 'sonner'
 import { registerPushNotifications, removeDeviceTokens } from '@/lib/push-notifications'
 import { supabase } from '@/lib/supabase-client'
 import { setupBackButtonHandler } from '@/lib/capacitor'
@@ -52,7 +54,8 @@ type Screen =
   | { type: 'profile-support' }
   | { type: 'report-issue'; orderId: string; connectionId: string }
   | { type: 'incoming-requests' }
-  | { type: 'trust-profile'; targetBusinessId: string; screenMode: TrustProfileScreenMode; connectionRequestId?: string; connectionId?: string }
+  | { type: 'trust-profile'; targetBusinessId: string; screenMode: TrustProfileScreenMode; connectionRequestId?: string; connectionId?: string; initialTab?: 'identity' | 'docs' }
+  | { type: 'manage-members' }
 type AuthScreen = 'welcome' | { type: 'otp'; email: string; signupData?: { name: string; businessName: string } } | { type: 'business_setup'; email: string }
 type TabShellScreen = Extract<Screen, { type: 'tab' }>
 type DetailScreen = Exclude<Screen, { type: 'tab' }>
@@ -70,6 +73,10 @@ function App() {
 
   const [hasUnreadConnections, setHasUnreadConnections] = useState(false)
   const [unreadConnectionIds, setUnreadConnectionIds] = useState<Set<string>>(new Set())
+  const [pendingInviteToken] = useState<string | null>(() => {
+    const params = new URLSearchParams(window.location.search)
+    return params.get('invite')
+  })
   
   const screen = navigationStack[navigationStack.length - 1]
   const activeTabScreen = [...navigationStack].reverse().find((stackScreen): stackScreen is TabShellScreen => stackScreen.type === 'tab')
@@ -226,6 +233,27 @@ function App() {
   }
 
   const handleOTPSuccess = async (businessId: string) => {
+    // If there's a pending invite token, attempt to accept it first
+    if (pendingInviteToken) {
+      const session = getLocalAuthSessionSync()
+      if (session) {
+        try {
+          const result = await dataStore.acceptMemberInvite(pendingInviteToken, session.userId)
+          // Update the local session to reflect the new business context
+          const updatedSession = { ...session, businessId: result.businessId }
+          localStorage.setItem('zelto:local-auth-session', JSON.stringify(updatedSession))
+          setCurrentBusinessId(result.businessId)
+          setAuthScreen(null)
+          registerPushNotifications(result.businessId).catch(console.error)
+          toast.success(`You've joined ${result.businessName}`)
+          return
+        } catch (err) {
+          const msg = err instanceof Error ? err.message : 'Could not join the business'
+          toast.error(msg)
+          // Fall through to normal login with own business
+        }
+      }
+    }
     setCurrentBusinessId(businessId)
     setAuthScreen(null)
     registerPushNotifications(businessId).catch(console.error)
@@ -352,6 +380,20 @@ function App() {
     setNavigationStack(stack => [...stack, { type: 'manage-documents' }])
   }
 
+  const navigateToManageMembers = () => {
+    setNavigationStack(stack => [...stack, { type: 'manage-members' }])
+  }
+
+  const navigateToSupplierDocs = (targetBusinessId: string, connectionId: string) => {
+    setNavigationStack(stack => [...stack, {
+      type: 'trust-profile',
+      targetBusinessId,
+      screenMode: { action: 'view-connection', audience: 'connection-review' },
+      connectionId,
+      initialTab: 'docs',
+    }])
+  }
+
   const navigateToTrustProfile = (
     targetBusinessId: string,
     screenMode: TrustProfileScreenMode,
@@ -465,6 +507,14 @@ function App() {
         />
       )
     }
+    if (detailScreen.type === 'manage-members') {
+      return (
+        <ManageMembersScreen
+          currentBusinessId={currentBusinessId}
+          onBack={navigateBack}
+        />
+      )
+    }
     if (detailScreen.type === 'trust-profile') {
       return (
         <TrustProfileScreen
@@ -473,6 +523,7 @@ function App() {
           screenMode={detailScreen.screenMode}
           connectionRequestId={detailScreen.connectionRequestId}
           connectionId={detailScreen.connectionId}
+          initialTab={detailScreen.initialTab}
           onBack={navigateBack}
           onRequestSent={() => { navigateBack(); emitDataChange('connections:changed') }}
           onRequestAccepted={() => { navigateBack(); emitDataChange('connections:changed') }}
@@ -566,7 +617,9 @@ function App() {
           onNavigateToProfileAccount={navigateToProfileAccount}
           onNavigateToProfileSupport={navigateToProfileSupport}
           onNavigateToManageDocuments={navigateToManageDocuments}
+          onNavigateToManageMembers={navigateToManageMembers}
           onNavigateToTrustProfile={navigateToTrustProfile}
+          onNavigateToSupplierDocs={navigateToSupplierDocs}
         />
       ) : (
         <div className="h-full flex flex-col">{renderDetailScreen(screen)}</div>
@@ -595,7 +648,9 @@ function TabShell({
   onNavigateToProfileAccount,
   onNavigateToProfileSupport,
   onNavigateToManageDocuments,
+  onNavigateToManageMembers,
   onNavigateToTrustProfile,
+  onNavigateToSupplierDocs,
 }: {
   currentBusinessId: string
   activeTabScreen: TabShellScreen
@@ -616,7 +671,9 @@ function TabShell({
   onNavigateToProfileAccount: () => void
   onNavigateToProfileSupport: () => void
   onNavigateToManageDocuments?: () => void
+  onNavigateToManageMembers?: () => void
   onNavigateToTrustProfile?: (targetBusinessId: string, screenMode: TrustProfileScreenMode, connectionRequestId?: string, connectionId?: string) => void
+  onNavigateToSupplierDocs?: (targetBusinessId: string, connectionId: string) => void
 }) {
   return (
     <>
@@ -631,6 +688,7 @@ function TabShell({
             onNavigateToConnections={(filter) => onNavigateToTabWithFilter('connections', filter)}
             onNavigateToAttention={(filter) => onNavigateToTabWithFilter('attention', filter)}
             onNavigateToManageConnections={onNavigateToManageConnectionsReceived}
+            onNavigateToSupplierDocs={onNavigateToSupplierDocs}
           />
         ) : activeTabScreen.tab === 'attention' ? (
           <AttentionScreen
@@ -664,6 +722,7 @@ function TabShell({
             onNavigateToAccount={onNavigateToProfileAccount}
             onNavigateToSupport={onNavigateToProfileSupport}
             onNavigateToManageDocuments={onNavigateToManageDocuments}
+            onNavigateToMembers={onNavigateToManageMembers}
             onNavigateToSelfTrustProfile={
               onNavigateToTrustProfile
                 ? () => onNavigateToTrustProfile(currentBusinessId, { action: 'view-connection', audience: 'self-profile-ready' })
