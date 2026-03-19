@@ -16,10 +16,11 @@ export interface EnrichedOrder extends OrderWithPaymentState {
 }
 
 interface AttentionCounts {
-  approvalNeeded: number
+  accept: number
+  dispatch: number
+  confirmReceipt: number
+  payNow: number
   awaitingDispatch: number
-  awaitingDeliveryConfirmation: number
-  paymentDue: number
   awaitingPayment: number
   disputes: number
   pendingReceivedRequests: number
@@ -159,11 +160,6 @@ export function useBusinessOverviewData(currentBusinessId: string, isActive = tr
       let overdueYesterday = 0
       let overdueOrdersCount = 0
       let totalOverdueDelayDays = 0
-      let awaitingDispatch = 0
-      let awaitingDeliveryConfirmation = 0
-      let paymentDue = 0
-      let awaitingPayment = 0
-
       let next7DaysComingIn = 0
       let next7DaysGoingOut = 0
       let next30DaysComingIn = 0
@@ -268,27 +264,34 @@ export function useBusinessOverviewData(currentBusinessId: string, isActive = tr
           }
         }
 
-        if (order.dispatchedAt && !order.deliveredAt) {
-          if (isSupplier) {
-            awaitingDeliveryConfirmation += 1
-          } else {
-            awaitingDispatch += 1
-          }
-        } else if (!order.dispatchedAt && !order.deliveredAt) {
-          if (!isSupplier) {
-            awaitingDispatch += 1
-          }
-        }
-        if (order.deliveredAt && order.pendingAmount > 0 && order.settlementState !== 'Paid') {
-          if (isSupplier) {
-            awaitingPayment += 1
-          } else {
-            paymentDue += 1
-          }
-        }
       }
 
-      const approvalNeeded = attentionItems.filter(item => item.category === 'Approval Needed').length
+      let countAccept = 0
+      let countDispatch = 0
+      let countConfirmReceipt = 0
+      let countPayNow = 0
+      let countAwaitingDispatch = 0
+      let countAwaitingPayment = 0
+
+      for (const order of orders) {
+        if (order.declinedAt) continue
+
+        const connection = connMap.get(order.connectionId)
+        if (!connection) continue
+
+        const isBuyer = connection.buyerBusinessId === currentBusinessId
+        const isSupplier = connection.supplierBusinessId === currentBusinessId
+
+        const lifecycle = getLifecycleState(order)
+
+        if (isSupplier && lifecycle === 'Placed') countAccept += 1
+        if (isSupplier && lifecycle === 'Accepted') countDispatch += 1
+        if (isBuyer && lifecycle === 'Dispatched') countConfirmReceipt += 1
+        if (isBuyer && lifecycle === 'Delivered' && order.settlementState !== 'Paid') countPayNow += 1
+        if (isBuyer && (lifecycle === 'Placed' || lifecycle === 'Accepted')) countAwaitingDispatch += 1
+        if (isSupplier && lifecycle === 'Delivered' && order.settlementState !== 'Paid') countAwaitingPayment += 1
+      }
+
       const disputes = attentionItems.filter(item => item.category === 'Disputes').length
 
       const recentOrders = orders
@@ -355,11 +358,12 @@ export function useBusinessOverviewData(currentBusinessId: string, isActive = tr
         overdueChangeFromYesterday: overdue - overdueYesterday,
         recentOrders,
         attentionCounts: {
-          approvalNeeded,
-          awaitingDispatch,
-          awaitingDeliveryConfirmation,
-          paymentDue,
-          awaitingPayment,
+          accept: countAccept,
+          dispatch: countDispatch,
+          confirmReceipt: countConfirmReceipt,
+          payNow: countPayNow,
+          awaitingDispatch: countAwaitingDispatch,
+          awaitingPayment: countAwaitingPayment,
           disputes,
           pendingReceivedRequests,
         },
