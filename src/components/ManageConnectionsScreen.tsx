@@ -6,13 +6,13 @@ import { scoreToLevel, getBusinessActivityCounts } from '@/lib/credibility'
 import { consumePendingConnectionLabels } from '@/lib/pending-connection-labels'
 import { getArchivedConnectionIds, unarchiveConnection } from '@/lib/connection-archive-store'
 import { getBlockedBusinessIds, blockBusiness, unblockBusiness } from '@/lib/blocked-connections'
-import { ArrowLeft, MagnifyingGlass, X, Phone, Receipt, Briefcase, MapPin, UsersThree, Package, Medal } from '@phosphor-icons/react'
+import { ArrowLeft, MagnifyingGlass, MagnifyingGlassPlus, X, Phone, Receipt, Briefcase, MapPin, UsersThree, Package, Medal } from '@phosphor-icons/react'
 import { Button } from '@/components/ui/button'
 import type { BusinessEntity, ConnectionRequest, Connection } from '@/lib/types'
 import { CredibilityBadge } from '@/components/CredibilityBadge'
 import { formatDistanceToNow } from 'date-fns'
 
-type Tab = 'add' | 'sent' | 'received' | 'archived'
+type Tab = 'sent' | 'received' | 'archived'
 
 interface Props {
   currentBusinessId: string
@@ -33,14 +33,13 @@ function formatPaymentTerms(terms: Connection['paymentTerms']): string | null {
 }
 
 const TABS: { id: Tab; label: string }[] = [
-  { id: 'add', label: 'Add New' },
   { id: 'sent', label: 'Sent' },
   { id: 'received', label: 'Received' },
   { id: 'archived', label: 'Archived' },
 ]
 
 export function ManageConnectionsScreen({ currentBusinessId, onBack, onSuccess, initialTab, onNavigateToTrustProfile }: Props) {
-  const [activeTab, setActiveTab] = useState<Tab>(initialTab ?? 'add')
+  const [activeTab, setActiveTab] = useState<Tab>(initialTab ?? 'sent')
   const [requests, setRequests] = useState<ConnectionRequest[]>([])
   const [entities, setEntities] = useState<BusinessEntity[]>([])
   const [connections, setConnections] = useState<Connection[]>([])
@@ -48,7 +47,8 @@ export function ManageConnectionsScreen({ currentBusinessId, onBack, onSuccess, 
   const [blockedIds, setBlockedIds] = useState<Set<string>>(new Set())
   const [loading, setLoading] = useState(true)
 
-  // Add New tab state
+  // Search panel state
+  const [showSearch, setShowSearch] = useState(false)
   const [zeltoId, setZeltoId] = useState('')
   const [addError, setAddError] = useState<string | null>(null)
   const [searching, setSearching] = useState(false)
@@ -553,15 +553,69 @@ export function ManageConnectionsScreen({ currentBusinessId, onBack, onSuccess, 
     <div style={{ backgroundColor: 'var(--bg-screen)', minHeight: '100%', display: 'flex', flexDirection: 'column' }}>
       {/* Sticky header */}
       <div style={{ position: 'sticky', top: 0, backgroundColor: 'var(--bg-header)', zIndex: 10, paddingTop: 'env(safe-area-inset-top)' }}>
-        <div style={{ height: '44px', display: 'flex', alignItems: 'center', paddingLeft: '4px', paddingRight: '16px' }}>
+        <div style={{ height: '44px', display: 'flex', alignItems: 'center', paddingLeft: '4px', paddingRight: '16px', justifyContent: 'space-between' }}>
           <button
             onClick={onBack}
             style={{ minWidth: '44px', minHeight: '44px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
           >
             <ArrowLeft size={20} color="var(--text-primary)" />
           </button>
-          <h1 style={{ fontSize: '17px', fontWeight: 600, color: 'var(--text-primary)' }}>Manage Connections</h1>
+          <h1 style={{ fontSize: '17px', fontWeight: 600, color: 'var(--text-primary)', flex: 1, marginLeft: '4px' }}>Manage Connections</h1>
+          <button
+            onClick={() => setShowSearch(prev => !prev)}
+            style={{
+              minWidth: '36px',
+              minHeight: '36px',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              borderRadius: '50%',
+              border: '1px solid var(--border-light)',
+              background: 'none',
+              cursor: 'pointer',
+            }}
+            aria-label="Find business"
+          >
+            <MagnifyingGlassPlus size={20} color="var(--text-primary)" />
+          </button>
         </div>
+
+        {/* Inline search panel */}
+        {showSearch && (
+          <div style={{ padding: '12px 16px', borderBottom: '1px solid var(--border-light)', background: 'var(--bg-header)' }}>
+            <input
+              type="text"
+              placeholder="Enter Zelto ID (e.g. ZELTO-XXXXXXXX)"
+              value={zeltoId}
+              onChange={e => setZeltoId(e.target.value.toUpperCase())}
+              onKeyDown={e => { if (e.key === 'Enter') void handleFindBusiness() }}
+              autoFocus
+              style={{
+                width: '100%',
+                padding: '10px 12px',
+                fontSize: '14px',
+                color: 'var(--text-primary)',
+                backgroundColor: 'var(--bg-screen)',
+                border: '1px solid var(--border-light)',
+                borderRadius: 'var(--radius-input)',
+                outline: 'none',
+                fontFamily: 'inherit',
+                marginBottom: '10px',
+                boxSizing: 'border-box',
+              }}
+            />
+            <Button
+              onClick={handleFindBusiness}
+              disabled={searching || !zeltoId.trim()}
+              className="w-full"
+            >
+              {searching ? 'Searching…' : 'Find Business'}
+            </Button>
+            {addError && (
+              <p style={{ fontSize: '13px', color: 'var(--status-overdue)', marginTop: '8px', marginBottom: 0 }}>{addError}</p>
+            )}
+          </div>
+        )}
 
         {/* Segmented tab bar */}
         <div style={{ display: 'flex', borderBottom: '1px solid var(--border-light)' }}>
@@ -599,44 +653,6 @@ export function ManageConnectionsScreen({ currentBusinessId, onBack, onSuccess, 
 
       {/* Tab content */}
       <div style={{ flex: 1, overflowY: 'auto' }}>
-        {/* ── Add New ── */}
-        {activeTab === 'add' && (
-          <div style={{ padding: '16px' }}>
-            <input
-              type="text"
-              placeholder="Enter Zelto ID (e.g. ZELTO-XXXXXXXX)"
-              value={zeltoId}
-              onChange={e => setZeltoId(e.target.value.toUpperCase())}
-              onKeyDown={e => { if (e.key === 'Enter') void handleFindBusiness() }}
-              style={{
-                width: '100%',
-                padding: '10px 12px',
-                fontSize: '14px',
-                color: 'var(--text-primary)',
-                backgroundColor: 'var(--bg-screen)',
-                border: '1px solid var(--border-light)',
-                borderRadius: 'var(--radius-input)',
-                outline: 'none',
-                fontFamily: 'inherit',
-                marginBottom: '12px',
-                boxSizing: 'border-box',
-              }}
-            />
-
-            <Button
-              onClick={handleFindBusiness}
-              disabled={searching || !zeltoId.trim()}
-              className="w-full mb-4"
-            >
-              {searching ? 'Searching…' : 'Find Business'}
-            </Button>
-
-            {addError && (
-              <p style={{ fontSize: '13px', color: 'var(--status-overdue)', marginBottom: '12px' }}>{addError}</p>
-            )}
-          </div>
-        )}
-
         {/* ── Sent ── */}
         {activeTab === 'sent' && (
           <div>
