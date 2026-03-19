@@ -313,6 +313,94 @@ export function DashboardScreen({ currentBusinessId, onNavigateToOrders, onNavig
             Needs Attention
           </h2>
           <div className="space-y-3">
+            {attentionCounts.approvalNeeded > 0 && (
+              <button
+                onClick={() => onNavigateToOrders('placed')}
+                className="w-full flex items-center justify-between rounded-xl px-4 py-3 text-left"
+                style={{
+                  backgroundColor: 'var(--bg-card)',
+                  borderLeft: '3px solid #D97706',
+                }}
+              >
+                <div className="flex items-center gap-3">
+                  <div className="w-7 h-7 rounded-lg flex items-center justify-center" style={{ backgroundColor: '#FFF3E0' }}>
+                    <NotePencil size={15} weight="regular" color="#D97706" />
+                  </div>
+                  <p className="text-[14px] text-foreground font-semibold">Accept incoming orders</p>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="inline-flex items-center justify-center min-w-6 h-6 px-2 rounded-full text-[12px] font-bold text-white" style={{ backgroundColor: '#D97706' }}>{attentionCounts.approvalNeeded}</span>
+                  <CaretRight size={16} style={{ color: 'var(--text-muted)' }} />
+                </div>
+              </button>
+            )}
+
+            {attentionCounts.paymentPending > 0 && (
+              <button
+                onClick={() => onNavigateToOrders('payment_pending')}
+                className="w-full flex items-center justify-between rounded-xl px-4 py-3 text-left"
+                style={{
+                  backgroundColor: 'var(--bg-card)',
+                  borderLeft: '3px solid #E24B4A',
+                }}
+              >
+                <div className="flex items-center gap-3">
+                  <div className="w-7 h-7 rounded-lg flex items-center justify-center" style={{ backgroundColor: '#FFF0F0' }}>
+                    <Hourglass size={15} weight="regular" color="#E24B4A" />
+                  </div>
+                  <p className="text-[14px] text-foreground font-semibold">Pay overdue invoices</p>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="inline-flex items-center justify-center min-w-6 h-6 px-2 rounded-full text-[12px] font-bold text-white" style={{ backgroundColor: '#E24B4A' }}>{attentionCounts.paymentPending}</span>
+                  <CaretRight size={16} className="text-muted-foreground" />
+                </div>
+              </button>
+            )}
+
+            {attentionCounts.delivered > 0 && (
+              <button
+                onClick={() => onNavigateToOrders('delivered')}
+                className="w-full flex items-center justify-between rounded-xl px-4 py-3 text-left"
+                style={{
+                  backgroundColor: 'var(--bg-card)',
+                  borderLeft: '3px solid #4A6CF7',
+                }}
+              >
+                <div className="flex items-center gap-3">
+                  <div className="w-7 h-7 rounded-lg flex items-center justify-center" style={{ backgroundColor: '#EEF2FF' }}>
+                    <Package size={15} weight="regular" color="#4A6CF7" />
+                  </div>
+                  <p className="text-[14px] text-foreground font-semibold">Mark goods as received</p>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="inline-flex items-center justify-center min-w-6 h-6 px-2 rounded-full text-[12px] font-bold text-white" style={{ backgroundColor: '#4A6CF7' }}>{attentionCounts.delivered}</span>
+                  <CaretRight size={16} className="text-muted-foreground" />
+                </div>
+              </button>
+            )}
+
+            {attentionCounts.disputes > 0 && (
+              <button
+                onClick={() => onNavigateToAttention('disputes')}
+                className="w-full flex items-center justify-between rounded-xl px-4 py-3 text-left"
+                style={{
+                  backgroundColor: 'var(--bg-card)',
+                  borderLeft: '3px solid #8B5CF6',
+                }}
+              >
+                <div className="flex items-center gap-3">
+                  <div className="w-7 h-7 rounded-lg flex items-center justify-center" style={{ backgroundColor: '#F5F0FF' }}>
+                    <ShieldWarning size={15} weight="fill" color="#8B5CF6" />
+                  </div>
+                  <p className="text-[14px] text-foreground font-semibold">Respond to disputes</p>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="inline-flex items-center justify-center min-w-6 h-6 px-2 rounded-full text-[12px] font-bold text-white" style={{ backgroundColor: '#8B5CF6' }}>{attentionCounts.disputes}</span>
+                  <CaretRight size={16} className="text-muted-foreground" />
+                </div>
+              </button>
+            )}
+
             {attentionCounts.pendingReceivedRequests > 0 && onNavigateToManageConnections && (
               <button
                 onClick={onNavigateToManageConnections}
@@ -326,33 +414,11 @@ export function DashboardScreen({ currentBusinessId, onNavigateToOrders, onNavig
                   <div className="w-7 h-7 rounded-lg flex items-center justify-center" style={{ backgroundColor: '#EEF2FF' }}>
                     <UsersThree size={15} weight="regular" color="#4A6CF7" />
                   </div>
-                  <p className="text-[14px] text-foreground font-semibold">Connection Requests</p>
+                  <p className="text-[14px] text-foreground font-semibold">Review connection requests</p>
                 </div>
                 <div className="flex items-center gap-2">
                   <span className="inline-flex items-center justify-center min-w-6 h-6 px-2 rounded-full text-[12px] font-bold text-white" style={{ backgroundColor: '#4A6CF7' }}>{attentionCounts.pendingReceivedRequests}</span>
                   <CaretRight size={16} className="text-muted-foreground" />
-                </div>
-              </button>
-            )}
-
-            {attentionCounts.approvalNeeded > 0 && (
-              <button
-                onClick={() => onNavigateToOrders('placed')}
-                className="w-full flex items-center justify-between rounded-xl px-4 py-3 text-left"
-                style={{
-                  backgroundColor: 'var(--bg-card)',
-                  borderLeft: '3px solid #D97706',
-                }}
-              >
-                <div className="flex items-center gap-3">
-                  <div className="w-7 h-7 rounded-lg flex items-center justify-center" style={{ backgroundColor: '#FFFBEB' }}>
-                    <NotePencil size={15} weight="regular" color="#D97706" />
-                  </div>
-                  <p className="text-[14px] text-foreground font-semibold">Approval Needed</p>
-                </div>
-                <div className="flex items-center gap-2">
-                  <span className="inline-flex items-center justify-center min-w-6 h-6 px-2 rounded-full text-[12px] font-bold text-white" style={{ backgroundColor: '#D97706' }}>{attentionCounts.approvalNeeded}</span>
-                  <CaretRight size={16} style={{ color: 'var(--text-muted)' }} />
                 </div>
               </button>
             )}
@@ -363,83 +429,16 @@ export function DashboardScreen({ currentBusinessId, onNavigateToOrders, onNavig
                 className="w-full flex items-center justify-between rounded-xl px-4 py-3 text-left"
                 style={{
                   backgroundColor: 'var(--bg-card)',
-                  borderLeft: '3px solid #2563EB',
                 }}
               >
                 <div className="flex items-center gap-3">
-                  <div className="w-7 h-7 rounded-lg flex items-center justify-center" style={{ backgroundColor: '#EFF6FF' }}>
-                    <Truck size={15} weight="regular" color="#2563EB" />
+                  <div className="w-7 h-7 rounded-lg flex items-center justify-center" style={{ backgroundColor: '#F8F9FC' }}>
+                    <Truck size={15} weight="regular" color="#B0BAD0" />
                   </div>
-                  <p className="text-[14px] text-foreground font-semibold">Dispatched</p>
+                  <p className="text-[14px] font-semibold text-muted-foreground">Supplier yet to dispatch</p>
                 </div>
                 <div className="flex items-center gap-2">
-                  <span className="inline-flex items-center justify-center min-w-6 h-6 px-2 rounded-full text-[12px] font-bold text-white" style={{ backgroundColor: '#2563EB' }}>{attentionCounts.dispatched}</span>
-                  <CaretRight size={16} className="text-muted-foreground" />
-                </div>
-              </button>
-            )}
-
-            {attentionCounts.delivered > 0 && (
-              <button
-                onClick={() => onNavigateToOrders('delivered')}
-                className="w-full flex items-center justify-between rounded-xl px-4 py-3 text-left"
-                style={{
-                  backgroundColor: 'var(--bg-card)',
-                  borderLeft: '3px solid #059669',
-                }}
-              >
-                <div className="flex items-center gap-3">
-                  <div className="w-7 h-7 rounded-lg flex items-center justify-center" style={{ backgroundColor: '#ECFDF5' }}>
-                    <Package size={15} weight="regular" color="#059669" />
-                  </div>
-                  <p className="text-[14px] text-foreground font-semibold">Delivered</p>
-                </div>
-                <div className="flex items-center gap-2">
-                  <span className="inline-flex items-center justify-center min-w-6 h-6 px-2 rounded-full text-[12px] font-bold text-white" style={{ backgroundColor: '#059669' }}>{attentionCounts.delivered}</span>
-                  <CaretRight size={16} className="text-muted-foreground" />
-                </div>
-              </button>
-            )}
-
-            {attentionCounts.paymentPending > 0 && (
-              <button
-                onClick={() => onNavigateToOrders('payment_pending')}
-                className="w-full flex items-center justify-between rounded-xl px-4 py-3 text-left"
-                style={{
-                  backgroundColor: 'var(--bg-card)',
-                  borderLeft: '3px solid #D97706',
-                }}
-              >
-                <div className="flex items-center gap-3">
-                  <div className="w-7 h-7 rounded-lg flex items-center justify-center" style={{ backgroundColor: '#FEF3C7' }}>
-                    <span style={{ display: 'flex', alignItems: 'center', gap: '1px', fontWeight: 600, fontSize: '11px', lineHeight: 1, color: '#D97706' }}>₹<Hourglass size={13} weight="regular" color="#D97706" /></span>
-                  </div>
-                  <p className="text-[14px] text-foreground font-semibold">Payment Pending</p>
-                </div>
-                <div className="flex items-center gap-2">
-                  <span className="inline-flex items-center justify-center min-w-6 h-6 px-2 rounded-full text-[12px] font-bold text-white" style={{ backgroundColor: '#D97706' }}>{attentionCounts.paymentPending}</span>
-                  <CaretRight size={16} className="text-muted-foreground" />
-                </div>
-              </button>
-            )}
-
-            {attentionCounts.disputes > 0 && (
-              <button
-                onClick={() => onNavigateToAttention('disputes')}
-                className="w-full flex items-center justify-between rounded-xl px-4 py-3 text-left"
-                style={{
-                  backgroundColor: 'var(--bg-card)',
-                  borderLeft: '3px solid var(--status-issue)',
-                }}
-              >
-                <div className="flex items-center gap-3">
-                  <div className="w-7 h-7 rounded-lg flex items-center justify-center" style={{ backgroundColor: '#FFFBF0' }}>
-                    <ShieldWarning size={15} weight="fill" color="var(--status-issue)" />
-                  </div>
-                  <p className="text-[14px] text-foreground font-semibold">Issues / Disputes</p>
-                </div>
-                <div className="flex items-center gap-2">
-                  <span className="inline-flex items-center justify-center min-w-6 h-6 px-2 rounded-full text-[12px] font-bold text-white" style={{ backgroundColor: 'var(--status-issue)' }}>{attentionCounts.disputes}</span>
+                  <span className="inline-flex items-center justify-center min-w-6 h-6 px-2 rounded-full text-[12px] font-bold" style={{ backgroundColor: '#EEF0F4', color: '#8492A6' }}>{attentionCounts.dispatched}</span>
                   <CaretRight size={16} className="text-muted-foreground" />
                 </div>
               </button>
