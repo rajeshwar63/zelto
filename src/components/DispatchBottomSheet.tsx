@@ -53,8 +53,6 @@ export function DispatchBottomSheet({ open, orderId, currentBusinessId, onClose 
         fileUrl: urlData.publicUrl,
         fileName: file.name,
         fileType: file.type,
-        fileSizeBytes: file.size,
-        storagePath,
       })
 
       emitDataChange('attachments:changed')

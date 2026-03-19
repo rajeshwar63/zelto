@@ -55,8 +55,6 @@ export function DeliveryProofBottomSheet({ open, orderId, currentBusinessId, onC
         fileUrl: urlData.publicUrl,
         fileName: file.name,
         fileType: file.type,
-        fileSizeBytes: file.size,
-        storagePath,
       })
 
       emitDataChange('attachments:changed')

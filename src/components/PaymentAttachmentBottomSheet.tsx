@@ -12,7 +12,6 @@ interface Props {
   open: boolean
   orderId: string
   currentBusinessId: string
-  paymentEventId: string
   amountPaid: number
   paymentTimestamp: number
   onClose: () => void
@@ -22,7 +21,6 @@ export function PaymentAttachmentBottomSheet({
   open,
   orderId,
   currentBusinessId,
-  paymentEventId,
   amountPaid,
   paymentTimestamp,
   onClose,
@@ -66,9 +64,6 @@ export function PaymentAttachmentBottomSheet({
         fileUrl: urlData.publicUrl,
         fileName: file.name,
         fileType: file.type,
-        fileSizeBytes: file.size,
-        storagePath,
-        paymentEventId,
       })
 
       emitDataChange('attachments:changed')
