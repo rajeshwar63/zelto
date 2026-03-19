@@ -1,5 +1,4 @@
 import type { CSSProperties } from 'react'
-import type { PaymentTermType } from '@/lib/types'
 import { formatInrCurrency } from '@/lib/utils'
 
 export interface OrderCardProps {
@@ -14,23 +13,10 @@ export interface OrderCardProps {
   calculatedDueDate: number | null
   deliveredAt: number | null
   latestActivity: number
-  paymentTermSnapshot: PaymentTermType | null
   isBuyer: boolean
   // true = money going OUT (red ↑), false = money coming IN (green ↓)
   showRoleIndicator?: boolean
   onClick: () => void
-}
-
-// ─── Helpers ────────────────────────────────────────────────────────────────
-
-function formatPaymentTerm(term: PaymentTermType | null): string {
-  if (!term) return '—'
-  switch (term.type) {
-    case 'Advance Required':    return 'Advance Required'
-    case 'Payment on Delivery': return 'Payment on Delivery'
-    case 'Bill to Bill':        return 'Bill to Bill'
-    case 'Days After Delivery': return `Net ${term.days} days`
-  }
 }
 
 // ─── Delivery pill colors (green ramp) ──────────────────────────────────────
@@ -167,7 +153,6 @@ export function OrderCard({
   calculatedDueDate,
   deliveredAt,
   latestActivity,
-  paymentTermSnapshot,
   isBuyer,
   showRoleIndicator = false,
   onClick,
@@ -242,11 +227,6 @@ export function OrderCard({
           {isBuyer ? 'Buying' : 'Selling'}
         </span>
       )}
-
-      {/* Row 2: Payment term */}
-      <div style={{ fontSize: '13px', color: 'var(--text-secondary)', marginTop: '3px' }}>
-        {formatPaymentTerm(paymentTermSnapshot)}
-      </div>
 
       <div style={DIVIDER} />
 
