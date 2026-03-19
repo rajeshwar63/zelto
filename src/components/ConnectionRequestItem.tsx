@@ -156,7 +156,7 @@ export function ConnectionRequestItem({ request, currentBusinessId, onUpdate, on
           )}
 
           {/* Activity stat block */}
-          {requesterActivity && requesterCredibility && (
+          {requesterActivity && (
             <div style={{
               display: 'flex', gap: '16px',
               padding: '10px 12px',
@@ -178,15 +178,6 @@ export function ConnectionRequestItem({ request, currentBusinessId, onUpdate, on
                 </p>
                 <p style={{ fontSize: '11px', color: 'var(--color-text-secondary)', margin: 0 }}>
                   orders placed
-                </p>
-              </div>
-              <div style={{ width: '0.5px', background: 'var(--color-border-tertiary)' }} />
-              <div>
-                <p style={{ fontSize: '18px', fontWeight: 500, margin: 0, lineHeight: 1.2 }}>
-                  {requesterCredibility.score}/100
-                </p>
-                <p style={{ fontSize: '11px', color: 'var(--color-text-secondary)', margin: 0 }}>
-                  score
                 </p>
               </div>
             </div>

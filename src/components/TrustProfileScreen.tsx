@@ -1,8 +1,8 @@
 import { useState, useEffect } from 'react'
 import { ArrowLeft, FilePdf, Image, CheckCircle, Clock, Warning } from '@phosphor-icons/react'
 import { dataStore } from '@/lib/data-store'
-import { calculateCredibility, getBusinessActivityCounts, scoreToLevel, type CredibilityBreakdown } from '@/lib/credibility'
-import { CredibilityBadge } from './CredibilityBadge'
+import { calculateCredibility, getBusinessActivityCounts, type CredibilityBreakdown } from '@/lib/credibility'
+import { TrustBadge } from './TrustBadge'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Label } from '@/components/ui/label'
@@ -78,28 +78,6 @@ function getDocumentLabel(type: string): string {
   return labels[type] ?? type
 }
 
-function ScorePill({ score }: { score: number }) {
-  const level = scoreToLevel(score)
-  const styles: Record<string, { bg: string; color: string; label: string }> = {
-    trusted: { bg: '#DCFCE7', color: '#16A34A', label: 'Trusted' },
-    verified: { bg: '#EEF1FE', color: '#4A6CF7', label: 'Verified' },
-    basic: { bg: '#FEF3C7', color: '#D97706', label: 'Basic' },
-    none: { bg: '#F3F4F6', color: '#6B7280', label: 'New' },
-  }
-  const s = styles[level]
-  return (
-    <span style={{
-      backgroundColor: s.bg,
-      color: s.color,
-      fontSize: '12px',
-      fontWeight: 600,
-      padding: '3px 10px',
-      borderRadius: '100px',
-    }}>
-      {score} · {s.label}
-    </span>
-  )
-}
 
 export function TrustProfileScreen({
   targetBusinessId,
@@ -341,7 +319,7 @@ export function TrustProfileScreen({
               {business.city ? ` · ${business.city}` : ''}
             </p>
           </div>
-          {credibility && <ScorePill score={credibility.score} />}
+          {credibility && <TrustBadge level={credibility.level} variant="dark" size="md" />}
         </div>
 
         {/* Tabs */}
@@ -375,23 +353,20 @@ export function TrustProfileScreen({
         {activeTab === 'identity' && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
 
-            {/* Credibility Score Card */}
+            {/* Trust Level Card */}
             <div style={{ backgroundColor: 'var(--bg-card)', borderRadius: '14px', padding: '16px', border: '1px solid var(--border-light)' }}>
               {loadingCred ? (
-                <p style={{ fontSize: '13px', color: 'var(--text-secondary)' }}>Loading score…</p>
+                <p style={{ fontSize: '13px', color: 'var(--text-secondary)' }}>Loading…</p>
               ) : credibility ? (
                 <>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '8px' }}>
-                    <span style={{ fontSize: '28px', fontWeight: 700, color: 'var(--text-primary)' }}>{credibility.score} / 100</span>
-                    <CredibilityBadge level={credibility.level} />
-                  </div>
-                  <div style={{ height: '5px', backgroundColor: 'var(--border-light)', borderRadius: '3px', overflow: 'hidden', marginBottom: '12px' }}>
-                    <div style={{ height: '100%', borderRadius: '3px', width: `${credibility.score}%`, background: 'linear-gradient(90deg, #4A6CF7, #22B573)' }} />
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '12px' }}>
+                    <TrustBadge level={credibility.level} variant="dark" size="md" />
+                    <span style={{ fontSize: '13px', color: 'var(--text-secondary)' }}>Trust Level</span>
                   </div>
 
                   {/* Completed items */}
                   {credibility.completedItems.length > 0 && (
-                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', marginBottom: isConnectionReview || isSelfProfileReady ? '8px' : '0' }}>
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', marginBottom: (isConnectionReview || isSelfProfileReady) && credibility.missingItems.length > 0 ? '8px' : '0' }}>
                       {credibility.completedItems.map(item => (
                         <span key={item} style={{ fontSize: '11px', fontWeight: 500, color: '#16A34A', backgroundColor: '#DCFCE7', padding: '2px 8px', borderRadius: '100px' }}>
                           ✓ {item}

@@ -4,7 +4,6 @@ import { CapacitorHttp } from '@capacitor/core'
 import { dataStore } from '@/lib/data-store'
 import { supabase } from '@/lib/supabase-client'
 import { calculateCredibility, type CredibilityBreakdown } from '@/lib/credibility'
-import { CredibilityBadge } from './CredibilityBadge'
 import { toast } from 'sonner'
 import type { BusinessDocument } from '@/lib/types'
 
@@ -418,43 +417,6 @@ export function BusinessDetailsScreen({ currentBusinessId, onBack, onSave, scrol
         <p style={{ fontSize: '13px', color: 'var(--text-secondary)', marginBottom: '20px' }}>
           Adding details builds credibility and helps connections verify your business.
         </p>
-
-        {/* Credibility Progress */}
-        {credibility && (
-          <div style={{ marginBottom: '16px', padding: '12px 16px', borderRadius: '8px', border: '1px solid var(--border-light)', backgroundColor: 'var(--bg-card)' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                <span style={{ fontSize: '11px', fontWeight: '500', color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-                  Credibility
-                </span>
-                {credibility.level !== 'none' && <CredibilityBadge level={credibility.level} />}
-              </div>
-              <span style={{ fontSize: '12px', fontWeight: '600', color: 'var(--text-primary)' }}>
-                {credibility.score}/100
-              </span>
-            </div>
-
-            {/* Progress bar */}
-            <div style={{ height: '4px', backgroundColor: 'var(--border-light)', borderRadius: '4px', overflow: 'hidden', marginBottom: '8px' }}>
-              <div
-                style={{
-                  height: '100%',
-                  borderRadius: '4px',
-                  transition: 'width 0.5s',
-                  width: `${credibility.score}%`,
-                  background: 'linear-gradient(90deg, #4A6CF7, #22B573)',
-                }}
-              />
-            </div>
-
-            {/* Missing items as hints */}
-            {credibility.missingItems.length > 0 && (
-              <p style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>
-                Add {credibility.missingItems.slice(0, 2).join(' and ')} to improve your credibility
-              </p>
-            )}
-          </div>
-        )}
 
         {/* Phone number */}
         <div style={{ marginBottom: '20px' }}>
