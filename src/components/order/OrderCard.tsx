@@ -15,7 +15,6 @@ export interface OrderCardProps {
   latestActivity: number
   isBuyer: boolean
   // true = money going OUT (red ↑), false = money coming IN (green ↓)
-  showRoleIndicator?: boolean
   onClick: () => void
 }
 
@@ -136,7 +135,7 @@ function getDueDateText(
 
 const DIVIDER: CSSProperties = {
   borderTop: '1px solid var(--border-light)',
-  margin: '11px 0',
+  margin: '8px 0',
 }
 
 // ─── Component ───────────────────────────────────────────────────────────────
@@ -154,7 +153,6 @@ export function OrderCard({
   deliveredAt,
   latestActivity,
   isBuyer,
-  showRoleIndicator = false,
   onClick,
 }: OrderCardProps) {
   // ── Amount display ──────────────────────────────────────────────────────────
@@ -184,24 +182,24 @@ export function OrderCard({
         backgroundColor: 'var(--bg-card)',
         border: '1px solid var(--border-light)',
         borderRadius: 'var(--radius-card)',
-        padding: '14px 16px',
+        padding: '10px 14px',
         display: 'block',
       }}
     >
       {/* Row 1: Business name + amount */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
         <div style={{ flex: 1, marginRight: '12px', minWidth: 0 }}>
-          <span style={{ fontSize: '15px', fontWeight: 700, color: 'var(--text-primary)' }}>
+          <span style={{ fontSize: '14px', fontWeight: 700, color: 'var(--text-primary)' }}>
             {connectionName}
           </span>
           {(branchLabel || contactName) && (
-            <span style={{ fontSize: '13px', color: 'var(--text-secondary)' }}>
+            <span style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>
               {branchLabel ? ` · ${branchLabel}` : ''}{contactName ? ` · ${contactName}` : ''}
             </span>
           )}
         </div>
         <div style={{ textAlign: 'right', flexShrink: 0, lineHeight: 1.2 }}>
-          <div style={{ fontSize: '15px', fontWeight: 700, color: amountColor }}>
+          <div style={{ fontSize: '14px', fontWeight: 700, color: amountColor }}>
             {amountArrow ? `${amountArrow} ` : ''}{formatInrCurrency(amountValue)}
           </div>
           <div style={{ fontSize: '11px', color: 'var(--text-tertiary)', marginTop: '1px' }}>
@@ -209,24 +207,6 @@ export function OrderCard({
           </div>
         </div>
       </div>
-
-      {/* Role indicator for "All" view */}
-      {showRoleIndicator && (
-        <span style={{
-          display: 'inline-block',
-          fontSize: '10px',
-          fontWeight: 600,
-          letterSpacing: '0.04em',
-          textTransform: 'uppercase',
-          padding: '2px 8px',
-          borderRadius: 999,
-          marginTop: '4px',
-          background: isBuyer ? 'rgba(224, 85, 85, 0.08)' : 'rgba(34, 181, 115, 0.08)',
-          color: isBuyer ? '#E05555' : '#22B573',
-        }}>
-          {isBuyer ? 'Buying' : 'Selling'}
-        </span>
-      )}
 
       <div style={DIVIDER} />
 
