@@ -292,7 +292,7 @@ export class ZeltoDataStore {
       .eq('business_id', businessId)
       .order('uploaded_at', { ascending: false })
 
-    if (error) throw error
+    if (error) return []
     return toCamelCase(data || [])
   }
 
