@@ -23,6 +23,7 @@ import { House, Users, Package, User, Bell } from '@phosphor-icons/react'
 import { AttentionScreen } from '@/components/AttentionScreen'
 import { IncomingRequestsScreen } from '@/components/IncomingRequestsScreen'
 import { getAuthState, getLocalAuthSessionSync, logout, clearAuthSession } from '@/lib/auth'
+import { PlaceOrderScreen } from '@/components/PlaceOrderScreen'
 import { ManageMembersScreen } from '@/components/ManageMembersScreen'
 import { ManageDocumentsScreen } from '@/components/ManageDocumentsScreen'
 import { toast } from 'sonner'
@@ -57,6 +58,7 @@ type Screen =
   | { type: 'incoming-requests' }
   | { type: 'trust-profile'; targetBusinessId: string; screenMode: TrustProfileScreenMode; connectionRequestId?: string; connectionId?: string; initialTab?: 'identity' | 'docs' }
   | { type: 'manage-members' }
+  | { type: 'place-order'; prefilledConnectionId?: string | null }
 type AuthScreen = 'welcome' | { type: 'otp'; email: string; signupData?: { name: string; businessName: string } } | { type: 'business_setup'; email: string }
 type TabShellScreen = Extract<Screen, { type: 'tab' }>
 type DetailScreen = Exclude<Screen, { type: 'tab' }>
@@ -377,6 +379,10 @@ function App() {
     navigateBack()
   }
 
+  const navigateToPlaceOrder = (prefilledConnectionId?: string | null) => {
+    setNavigationStack(stack => [...stack, { type: 'place-order', prefilledConnectionId }])
+  }
+
   const navigateToManageDocuments = () => {
     setNavigationStack(stack => [...stack, { type: 'manage-documents' }])
   }
@@ -591,6 +597,22 @@ function App() {
         />
       )
     }
+    if (detailScreen.type === 'place-order') {
+      return (
+        <PlaceOrderScreen
+          prefilledConnectionId={detailScreen.prefilledConnectionId}
+          currentBusinessId={currentBusinessId}
+          onBack={navigateBack}
+          onOrderCreated={(orderId, connectionId) => {
+            // Replace PlaceOrderScreen with OrderDetailScreen (no back entry to place-order)
+            setNavigationStack(stack => [
+              ...stack.slice(0, -1),
+              { type: 'order-detail', orderId, connectionId, mode: 'connection' },
+            ])
+          }}
+        />
+      )
+    }
     return (
       <ConnectionDetailScreen
         connectionId={detailScreen.connectionId}
@@ -598,6 +620,7 @@ function App() {
         onBack={navigateBack}
         onNavigateToPaymentTermsSetup={navigateToPaymentTermsSetup}
         onOpenOrderDetail={navigateToConnectionOrderDetail}
+        onNavigateToPlaceOrder={navigateToPlaceOrder}
         onNavigateToTrustProfile={(targetBusinessId, connectionId) =>
           navigateToTrustProfile(targetBusinessId, { action: 'view-connection', audience: 'connection-review' }, undefined, connectionId)
         }
@@ -630,6 +653,7 @@ function App() {
           onNavigateToManageMembers={navigateToManageMembers}
           onNavigateToTrustProfile={navigateToTrustProfile}
           onNavigateToSupplierDocs={navigateToSupplierDocs}
+          onNavigateToPlaceOrder={navigateToPlaceOrder}
         />
       ) : (
         <div className="h-full flex flex-col">{renderDetailScreen(screen)}</div>
@@ -660,6 +684,7 @@ function TabShell({
   onNavigateToManageMembers,
   onNavigateToTrustProfile,
   onNavigateToSupplierDocs,
+  onNavigateToPlaceOrder,
 }: {
   currentBusinessId: string
   activeTabScreen: TabShellScreen
@@ -682,6 +707,7 @@ function TabShell({
   onNavigateToManageMembers?: () => void
   onNavigateToTrustProfile?: (targetBusinessId: string, screenMode: TrustProfileScreenMode, connectionRequestId?: string, connectionId?: string) => void
   onNavigateToSupplierDocs?: (targetBusinessId: string, connectionId: string) => void
+  onNavigateToPlaceOrder: (prefilledConnectionId?: string | null) => void
 }) {
   return (
     <>
@@ -712,6 +738,7 @@ function TabShell({
             onAddConnection={onNavigateToAddConnection}
             onNavigateToIncomingRequests={onNavigateToIncomingRequests}
             unreadConnectionIds={unreadConnectionIds}
+            onNavigateToPlaceOrder={onNavigateToPlaceOrder}
           />
         ) : activeTabScreen.tab === 'orders' ? (
           <OrdersScreen
@@ -719,6 +746,7 @@ function TabShell({
             isActive
             onSelectOrder={onNavigateToOrderDetail}
             initialFilter={activeTabScreen.filter}
+            onNavigateToPlaceOrder={onNavigateToPlaceOrder}
           />
         ) : (
           <ProfileScreen
