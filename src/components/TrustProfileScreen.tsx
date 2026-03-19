@@ -425,7 +425,8 @@ export function TrustProfileScreen({
             key={tab}
             onClick={() => setActiveTab(tab)}
             style={{
-              padding: '12px 20px',
+              flex: 1,
+              padding: '12px 0',
               fontSize: '14px',
               fontWeight: activeTab === tab ? 600 : 400,
               color: activeTab === tab ? '#4A6CF7' : '#8492A6',
