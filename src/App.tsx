@@ -46,7 +46,7 @@ type Screen =
   | { type: 'tab'; tab: Tab; filter?: string }
   | { type: 'connection-detail'; connectionId: string }
   | { type: 'order-detail'; orderId: string; connectionId: string; initialIssueId?: string; mode?: 'connection' | 'issue' }
-  | { type: 'manage-connections'; initialTab?: 'add' | 'sent' | 'received' | 'archived' }
+  | { type: 'manage-connections'; initialTab?: 'sent' | 'received' | 'archived' }
   | { type: 'payment-terms-setup'; connectionId: string; businessName: string; returnTo?: 'connection-detail' | 'connections' }
   | { type: 'business-details' }
   | { type: 'manage-documents' }
