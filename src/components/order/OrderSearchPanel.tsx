@@ -2,13 +2,16 @@ import { useState, useCallback } from 'react'
 import { MagnifyingGlass, X } from '@phosphor-icons/react'
 import { startOfDay, isToday, isSameDay } from 'date-fns'
 
+export type RoleFilter = 'all' | 'buying' | 'selling'
+
 export type StatusChip =
-  | 'accept'
-  | 'dispatch'
-  | 'in_transit'
-  | 'pay'
-  | 'disputed'
+  | 'new'
+  | 'accepted'
+  | 'placed'
+  | 'dispatched'
+  | 'delivered'
   | 'paid'
+  | 'overdue'
 
 export interface OrderFilters {
   searchText: string
@@ -17,25 +20,31 @@ export interface OrderFilters {
   toDate: Date | null
 }
 
+export const CHIPS_BY_ROLE: Record<RoleFilter, StatusChip[]> = {
+  all:     ['placed', 'dispatched', 'delivered', 'paid', 'overdue'],
+  buying:  ['placed', 'dispatched', 'delivered', 'paid', 'overdue'],
+  selling: ['new', 'accepted', 'dispatched', 'delivered', 'paid', 'overdue'],
+}
+
 export const CHIP_LABELS: Record<StatusChip, string> = {
-  accept:     'Accept',
-  dispatch:   'Dispatch',
-  in_transit: 'In transit',
-  pay:        'Pay',
-  disputed:   'Disputed',
+  new:        'New',
+  accepted:   'Accepted',
+  placed:     'Placed',
+  dispatched: 'Dispatched',
+  delivered:  'Delivered',
   paid:       'Paid',
+  overdue:    'Overdue',
 }
 
-const CHIP_COLORS: Record<StatusChip, string> = {
-  accept:     '#D97706',                  // amber — action needed (supplier)
-  dispatch:   '#2563EB',                  // blue — action needed (supplier)
-  in_transit: 'var(--status-dispatched)', // orange — in motion
-  pay:        'var(--status-overdue)',    // red — payment due
-  disputed:   'var(--status-issue)',      // yellow — has issue
-  paid:       'var(--status-success)',    // green — settled
+export const CHIP_COLORS: Record<StatusChip, string> = {
+  new:        'var(--status-new, #4A6CF7)',
+  accepted:   'var(--brand-primary)',
+  placed:     'var(--status-new, #4A6CF7)',
+  dispatched: 'var(--status-dispatched, #FF8C42)',
+  delivered:  'var(--status-delivered, #22B573)',
+  paid:       'var(--status-success, #22B573)',
+  overdue:    'var(--status-overdue, #FF6B6B)',
 }
-
-const ALL_CHIPS: StatusChip[] = ['accept', 'dispatch', 'in_transit', 'pay', 'disputed', 'paid']
 
 const MONTH_NAMES = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December']
 const DAY_NAMES = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
@@ -66,10 +75,11 @@ export function formatDateShort(date: Date): string {
 interface OrderSearchPanelProps {
   filters: OrderFilters
   onFiltersChange: (filters: OrderFilters) => void
+  roleFilter: RoleFilter
   placeholder?: string
 }
 
-export function OrderSearchPanel({ filters, onFiltersChange, placeholder = 'Search orders…' }: OrderSearchPanelProps) {
+export function OrderSearchPanel({ filters, onFiltersChange, roleFilter, placeholder = 'Search orders…' }: OrderSearchPanelProps) {
   const [calOpen, setCalOpen] = useState(false)
   const [calMode, setCalMode] = useState<'from' | 'to' | null>(null)
   const [calView, setCalView] = useState<{ year: number; month: number }>({
@@ -141,6 +151,7 @@ export function OrderSearchPanel({ filters, onFiltersChange, placeholder = 'Sear
   }
 
   const grid = getMonthGrid(calView.year, calView.month)
+  const visibleChips = CHIPS_BY_ROLE[roleFilter]
 
   return (
     <div
@@ -231,8 +242,9 @@ export function OrderSearchPanel({ filters, onFiltersChange, placeholder = 'Sear
               All
             </button>
 
-            {ALL_CHIPS.map(chip => {
+            {visibleChips.map(chip => {
               const isActive = activeChips.has(chip)
+              const isOverdue = chip === 'overdue'
               return (
                 <button
                   key={chip}
@@ -242,9 +254,9 @@ export function OrderSearchPanel({ filters, onFiltersChange, placeholder = 'Sear
                     fontWeight: 500,
                     padding: '4px 10px',
                     borderRadius: '20px',
-                    border: `1.5px solid ${isActive ? CHIP_COLORS[chip] : 'var(--border-light)'}`,
+                    border: `1.5px solid ${isActive ? CHIP_COLORS[chip] : isOverdue ? CHIP_COLORS[chip] : 'var(--border-light)'}`,
                     backgroundColor: isActive ? CHIP_COLORS[chip] : 'transparent',
-                    color: isActive ? '#FFFFFF' : 'var(--text-secondary)',
+                    color: isActive ? '#FFFFFF' : isOverdue ? CHIP_COLORS[chip] : 'var(--text-secondary)',
                     cursor: 'pointer',
                     transition: 'all 150ms',
                     flexShrink: 0,

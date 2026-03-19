@@ -42,8 +42,14 @@ import { useDataListener, emitDataChange } from '@/lib/data-events'
 
 
 type Tab = 'dashboard' | 'orders' | 'attention' | 'connections' | 'profile'
+type OrdersTabParams = {
+  role?: 'all' | 'buying' | 'selling'
+  chip?: 'new' | 'accepted' | 'placed' | 'dispatched' | 'delivered' | 'paid' | 'overdue'
+  dateToday?: boolean
+}
+
 type Screen =
-  | { type: 'tab'; tab: Tab; filter?: string }
+  | { type: 'tab'; tab: Tab; filter?: string; ordersParams?: OrdersTabParams }
   | { type: 'connection-detail'; connectionId: string }
   | { type: 'order-detail'; orderId: string; connectionId: string; initialIssueId?: string; mode?: 'connection' | 'issue' }
   | { type: 'manage-connections'; initialTab?: 'sent' | 'received' | 'archived' }
@@ -454,14 +460,14 @@ function App() {
     setNavigationStack(stack => [...stack, { type: 'incoming-requests' }])
   }
 
-  const navigateToTabWithFilter = (tab: Tab, filter?: string) => {
+  const navigateToTabWithFilter = (tab: Tab, filter?: string, ordersParams?: OrdersTabParams) => {
     if (currentBusinessId) {
       if (tab === 'connections') {
         updateTabLastSeen(currentBusinessId, 'connections')
         setHasUnreadConnections(false)
       }
     }
-    setNavigationStack([{ type: 'tab', tab, filter }])
+    setNavigationStack([{ type: 'tab', tab, filter, ordersParams }])
   }
 
   const handleBusinessDetailsSaved = () => {
@@ -695,7 +701,7 @@ function TabShell({
   hasUnreadConnections: boolean
   unreadConnectionIds: Set<string>
   onNavigateToTab: (tab: Tab) => void
-  onNavigateToTabWithFilter: (tab: Tab, filter?: string) => void
+  onNavigateToTabWithFilter: (tab: Tab, filter?: string, ordersParams?: OrdersTabParams) => void
   onNavigateToConnection: (connectionId: string, orderId?: string) => void
   onNavigateToOrderDetail: (orderId: string, connectionId: string) => void
   onNavigateToIssueDetail: (connectionId: string, orderId: string, issueId: string) => void
@@ -720,7 +726,7 @@ function TabShell({
           <DashboardScreen
             currentBusinessId={currentBusinessId}
             isActive
-            onNavigateToOrders={(filter) => onNavigateToTabWithFilter('orders', filter)}
+            onNavigateToOrders={(filter, ordersParams) => onNavigateToTabWithFilter('orders', filter, ordersParams)}
             onNavigateToConnection={onNavigateToConnection}
             onNavigateToProfile={() => onNavigateToTab('profile')}
             onNavigateToConnections={(filter) => onNavigateToTabWithFilter('connections', filter)}
@@ -750,6 +756,7 @@ function TabShell({
             isActive
             onSelectOrder={onNavigateToOrderDetail}
             initialFilter={activeTabScreen.filter}
+            initialParams={activeTabScreen.ordersParams}
             onNavigateToPlaceOrder={onNavigateToPlaceOrder}
           />
         ) : (
