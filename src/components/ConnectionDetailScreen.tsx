@@ -538,19 +538,17 @@ export function ConnectionDetailScreen({ connectionId, currentBusinessId, onBack
         </div>
       )}
 
-      {isBuyer && (
-        <button
-          onClick={() => onNavigateToPlaceOrder(connectionId)}
-          className="fixed bottom-24 right-4 w-14 h-14 flex items-center justify-center z-20"
-          style={{
-            backgroundColor: 'var(--brand-primary)',
-            borderRadius: 'var(--radius-card)',
-            boxShadow: '0 4px 16px rgba(74,108,247,0.4)',
-          }}
-        >
-          <PencilSimple size={24} weight="regular" color="#FFFFFF" />
-        </button>
-      )}
+      <button
+        onClick={() => onNavigateToPlaceOrder(isBuyer ? connectionId : null)}
+        className="fixed bottom-24 right-4 w-14 h-14 flex items-center justify-center z-20"
+        style={{
+          backgroundColor: 'var(--brand-primary)',
+          borderRadius: 'var(--radius-card)',
+          boxShadow: '0 4px 16px rgba(74,108,247,0.4)',
+        }}
+      >
+        <PencilSimple size={24} weight="regular" color="#FFFFFF" />
+      </button>
     </div>
   )
 }
