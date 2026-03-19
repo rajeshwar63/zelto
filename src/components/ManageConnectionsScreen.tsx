@@ -2,8 +2,8 @@ import { useState, useEffect } from 'react'
 import { dataStore } from '@/lib/data-store'
 import { emitDataChange } from '@/lib/data-events'
 import { useDataListener } from '@/lib/data-events'
-import { scoreToLevel, getBusinessActivityCounts, type CredibilityBreakdown } from '@/lib/credibility'
-import { setPendingConnectionLabels, consumePendingConnectionLabels } from '@/lib/pending-connection-labels'
+import { scoreToLevel, getBusinessActivityCounts } from '@/lib/credibility'
+import { consumePendingConnectionLabels } from '@/lib/pending-connection-labels'
 import { getArchivedConnectionIds, unarchiveConnection } from '@/lib/connection-archive-store'
 import { getBlockedBusinessIds, blockBusiness, unblockBusiness } from '@/lib/blocked-connections'
 import { ArrowLeft, MagnifyingGlass, X, Phone, Receipt, Briefcase, MapPin, UsersThree, Package, Medal } from '@phosphor-icons/react'
@@ -50,15 +50,8 @@ export function ManageConnectionsScreen({ currentBusinessId, onBack, onSuccess, 
 
   // Add New tab state
   const [zeltoId, setZeltoId] = useState('')
-  const [foundBusiness, setFoundBusiness] = useState<BusinessEntity | null>(null)
-  const [foundCredibility, setFoundCredibility] = useState<CredibilityBreakdown | null>(null)
-  const [foundActivity, setFoundActivity] = useState<{ connectionCount: number; orderCount: number } | null>(null)
-  const [selectedRole, setSelectedRole] = useState<'buyer' | 'supplier' | null>(null)
-  const [branchLabel, setBranchLabel] = useState('')
-  const [contactName, setContactName] = useState('')
   const [addError, setAddError] = useState<string | null>(null)
   const [searching, setSearching] = useState(false)
-  const [sending, setSending] = useState(false)
 
   // Search state for history tabs
   const [sentSearch, setSentSearch] = useState('')
@@ -117,12 +110,6 @@ export function ManageConnectionsScreen({ currentBusinessId, onBack, onSuccess, 
 
   const handleFindBusiness = async () => {
     setAddError(null)
-    setFoundBusiness(null)
-    setFoundCredibility(null)
-    setFoundActivity(null)
-    setSelectedRole(null)
-    setBranchLabel('')
-    setContactName('')
     setSearching(true)
 
     const trimmedId = zeltoId.trim()
@@ -140,85 +127,14 @@ export function ManageConnectionsScreen({ currentBusinessId, onBack, onSuccess, 
       return
     }
 
-    setFoundBusiness(business)
-    const activity = await getBusinessActivityCounts(business.id)
-    const cachedScore = business.credibilityScore ?? 0
-    setFoundCredibility({
-      score: cachedScore,
-      level: scoreToLevel(cachedScore),
-      completedItems: [],
-      missingItems: [],
-    })
-    setFoundActivity(activity)
+    if (business.id === currentBusinessId) {
+      setAddError('This is your own business.')
+      setSearching(false)
+      return
+    }
+
     setSearching(false)
-  }
-
-  const handleSendRequest = async () => {
-    if (!foundBusiness || !selectedRole) return
-
-    setAddError(null)
-    setSending(true)
-
-    if (foundBusiness.id === currentBusinessId) {
-      setAddError('You cannot connect to yourself.')
-      setSending(false)
-      return
-    }
-
-    if (blockedIds.has(foundBusiness.id)) {
-      setAddError('You cannot send a request to a blocked business.')
-      setSending(false)
-      return
-    }
-
-    const existingConnections = await dataStore.getAllConnections()
-    const connectionExists = existingConnections.some(
-      conn =>
-        (conn.buyerBusinessId === currentBusinessId && conn.supplierBusinessId === foundBusiness.id) ||
-        (conn.buyerBusinessId === foundBusiness.id && conn.supplierBusinessId === currentBusinessId)
-    )
-    if (connectionExists) {
-      setAddError('You are already connected with this business.')
-      setSending(false)
-      return
-    }
-
-    const allRequests = await dataStore.getAllConnectionRequests()
-    const requestExists = allRequests.some(
-      req =>
-        req.status === 'Pending' &&
-        ((req.requesterBusinessId === currentBusinessId && req.receiverBusinessId === foundBusiness.id) ||
-          (req.requesterBusinessId === foundBusiness.id && req.receiverBusinessId === currentBusinessId))
-    )
-    if (requestExists) {
-      setAddError('A pending request already exists with this business.')
-      setSending(false)
-      return
-    }
-
-    const requesterRole = selectedRole
-    const receiverRoleForRequest = selectedRole === 'buyer' ? 'supplier' : 'buyer'
-
-    try {
-      const newRequest = await dataStore.createConnectionRequest(
-        currentBusinessId,
-        foundBusiness.id,
-        requesterRole,
-        receiverRoleForRequest
-      )
-      setPendingConnectionLabels(
-        newRequest.id,
-        branchLabel.trim() || null,
-        contactName.trim() || null
-      )
-      emitDataChange('connection-requests:changed', 'notifications:changed')
-      setSending(false)
-      onSuccess()
-    } catch (err) {
-      console.error('Failed to create connection request:', err)
-      setAddError('Failed to send connection request. Please try again.')
-      setSending(false)
-    }
+    onNavigateToTrustProfile?.(business.id)
   }
 
   // ─── Sent tab ─────────────────────────────────────────────────────────────
@@ -717,155 +633,6 @@ export function ManageConnectionsScreen({ currentBusinessId, onBack, onSuccess, 
 
             {addError && (
               <p style={{ fontSize: '13px', color: 'var(--status-overdue)', marginBottom: '12px' }}>{addError}</p>
-            )}
-
-            {foundBusiness && (
-              <div style={{ borderRadius: 'var(--radius-card)', border: '1px solid var(--border-light)', backgroundColor: 'var(--bg-card)', boxShadow: '0 2px 12px rgba(0,0,0,0.06)', padding: '18px 16px 16px', display: 'flex', flexDirection: 'column', gap: '14px', marginTop: '12px' }}>
-                {/* Header */}
-                <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '8px' }}>
-                  <div style={{ minWidth: 0 }}>
-                    <p style={{ fontSize: '17px', fontWeight: 700, color: 'var(--text-primary)', margin: 0, lineHeight: 1.25, letterSpacing: '-0.01em' }}>{foundBusiness.businessName}</p>
-                    <p style={{ fontSize: '11px', fontFamily: 'monospace', color: 'var(--text-tertiary)', marginTop: '3px', marginBottom: 0, letterSpacing: '0.04em' }}>{foundBusiness.zeltoId}</p>
-                  </div>
-                  {foundCredibility && <CredibilityBadge level={foundCredibility.level} />}
-                </div>
-
-                {/* Details */}
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                  {foundBusiness.formattedAddress && (
-                    <div style={{ display: 'flex', alignItems: 'flex-start', gap: '7px' }}>
-                      <MapPin size={13} weight="regular" style={{ color: 'var(--text-tertiary)', flexShrink: 0, marginTop: '1px' }} />
-                      <p style={{ fontSize: '12.5px', color: 'var(--text-secondary)', margin: 0, lineHeight: 1.4 }}>{foundBusiness.formattedAddress}</p>
-                    </div>
-                  )}
-                  {foundBusiness.phone && (
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '7px' }}>
-                      <Phone size={13} weight="regular" style={{ color: 'var(--text-tertiary)', flexShrink: 0 }} />
-                      <p style={{ fontSize: '12.5px', color: 'var(--text-secondary)', margin: 0 }}>{foundBusiness.phone}</p>
-                    </div>
-                  )}
-                  {foundBusiness.gstNumber && (
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '7px' }}>
-                      <Receipt size={13} weight="regular" style={{ color: 'var(--text-tertiary)', flexShrink: 0 }} />
-                      <p style={{ fontSize: '12.5px', color: 'var(--text-secondary)', margin: 0 }}>GST: {foundBusiness.gstNumber}</p>
-                    </div>
-                  )}
-                  {foundBusiness.businessType && (
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '7px' }}>
-                      <Briefcase size={13} weight="regular" style={{ color: 'var(--text-tertiary)', flexShrink: 0 }} />
-                      <p style={{ fontSize: '12.5px', color: 'var(--text-secondary)', margin: 0 }}>{foundBusiness.businessType}</p>
-                    </div>
-                  )}
-                  {!foundBusiness.phone && !foundBusiness.gstNumber && !foundBusiness.formattedAddress && (
-                    <p style={{ fontSize: '12px', color: 'var(--text-tertiary)', fontStyle: 'italic', margin: 0 }}>No details added</p>
-                  )}
-                </div>
-
-                {/* Activity stat block */}
-                {foundActivity && foundCredibility && (
-                  <div style={{
-                    display: 'flex',
-                    background: 'var(--color-background-secondary)',
-                    borderRadius: '10px',
-                    border: '1px solid var(--border-light)',
-                    overflow: 'hidden',
-                  }}>
-                    <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '10px 8px', gap: '3px' }}>
-                      <UsersThree size={16} weight="duotone" style={{ color: '#4A6CF7' }} />
-                      <p style={{ fontSize: '17px', fontWeight: 600, margin: 0, lineHeight: 1.1, color: 'var(--text-primary)' }}>{foundActivity.connectionCount}</p>
-                      <p style={{ fontSize: '10px', color: 'var(--text-secondary)', margin: 0, textAlign: 'center', lineHeight: 1.3 }}>connections</p>
-                    </div>
-                    <div style={{ width: '1px', background: 'var(--border-light)', alignSelf: 'stretch' }} />
-                    <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '10px 8px', gap: '3px' }}>
-                      <Package size={16} weight="duotone" style={{ color: '#FF8C42' }} />
-                      <p style={{ fontSize: '17px', fontWeight: 600, margin: 0, lineHeight: 1.1, color: 'var(--text-primary)' }}>{foundActivity.orderCount}</p>
-                      <p style={{ fontSize: '10px', color: 'var(--text-secondary)', margin: 0, textAlign: 'center', lineHeight: 1.3 }}>orders placed</p>
-                    </div>
-                    <div style={{ width: '1px', background: 'var(--border-light)', alignSelf: 'stretch' }} />
-                    <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '10px 8px', gap: '3px' }}>
-                      <Medal size={16} weight="duotone" style={{ color: '#0D9488' }} />
-                      <p style={{ fontSize: '17px', fontWeight: 600, margin: 0, lineHeight: 1.1, color: 'var(--text-primary)' }}>{foundCredibility.score}<span style={{ fontSize: '11px', fontWeight: 400, color: 'var(--text-secondary)' }}>/100</span></p>
-                      <p style={{ fontSize: '10px', color: 'var(--text-secondary)', margin: 0, textAlign: 'center', lineHeight: 1.3 }}>trust score</p>
-                    </div>
-                  </div>
-                )}
-
-                {/* Warning */}
-                {foundCredibility && foundCredibility.score < 20 && (
-                  <div style={{ background: 'var(--color-background-warning)', borderLeft: '3px solid #EF9F27', borderRadius: '6px', padding: '8px 10px' }}>
-                    <p style={{ fontSize: '12px', color: 'var(--color-text-warning)', margin: 0 }}>
-                      This business hasn't built a history on Zelto yet. Verify before connecting.
-                    </p>
-                  </div>
-                )}
-
-                {/* Optional fields */}
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', paddingTop: '8px' }}>
-                  <div>
-                    <label style={{ fontSize: '11px', color: 'var(--text-secondary)', display: 'block', marginBottom: '4px' }}>
-                      Branch / Location (optional)
-                    </label>
-                    <input
-                      type="text"
-                      value={branchLabel}
-                      onChange={e => setBranchLabel(e.target.value)}
-                      placeholder="e.g. Banjara Hills"
-                      style={{ width: '100%', fontSize: '13px', backgroundColor: 'var(--bg-screen)', border: '1px solid var(--border-light)', borderRadius: '12px', padding: '8px 12px', color: 'var(--text-primary)', outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box' }}
-                    />
-                  </div>
-                  <div>
-                    <label style={{ fontSize: '11px', color: 'var(--text-secondary)', display: 'block', marginBottom: '4px' }}>
-                      Contact Person (optional)
-                    </label>
-                    <input
-                      type="text"
-                      value={contactName}
-                      onChange={e => setContactName(e.target.value)}
-                      placeholder="e.g. Ravi"
-                      style={{ width: '100%', fontSize: '13px', backgroundColor: 'var(--bg-screen)', border: '1px solid var(--border-light)', borderRadius: '12px', padding: '8px 12px', color: 'var(--text-primary)', outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box' }}
-                    />
-                  </div>
-                </div>
-
-                {/* Role selector */}
-                <div style={{ paddingTop: '8px' }}>
-                  <p style={{ fontSize: '14px', color: 'var(--text-secondary)', marginBottom: '8px' }}>Select your role:</p>
-                  <div style={{ display: 'flex', gap: '8px', marginBottom: '8px' }}>
-                    <Button
-                      variant={selectedRole === 'buyer' ? 'default' : 'outline'}
-                      onClick={() => setSelectedRole('buyer')}
-                      style={{ flex: 1 }}
-                    >
-                      I am the Buyer
-                    </Button>
-                    <Button
-                      variant={selectedRole === 'supplier' ? 'default' : 'outline'}
-                      onClick={() => setSelectedRole('supplier')}
-                      style={{ flex: 1 }}
-                    >
-                      I am the Supplier
-                    </Button>
-                  </div>
-                </div>
-
-                {onNavigateToTrustProfile && foundBusiness && (
-                  <Button
-                    variant="outline"
-                    onClick={() => onNavigateToTrustProfile(foundBusiness.id)}
-                    className="w-full mb-2"
-                  >
-                    View Trust Profile →
-                  </Button>
-                )}
-
-                <Button
-                  onClick={handleSendRequest}
-                  disabled={!selectedRole || sending}
-                  className="w-full"
-                >
-                  {sending ? 'Sending…' : 'Send Request'}
-                </Button>
-              </div>
             )}
           </div>
         )}
