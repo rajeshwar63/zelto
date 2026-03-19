@@ -49,7 +49,7 @@ export async function syncOrdersDefaultTabFromSupabase(
       .from('user_preferences')
       .select('preferences')
       .eq('auth_user_id', user.id)
-      .single()
+      .maybeSingle()
 
     if (error || !data) return
 
