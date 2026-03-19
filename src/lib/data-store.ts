@@ -317,7 +317,7 @@ export class ZeltoDataStore {
         file_url: doc.fileUrl,
         file_size_bytes: doc.fileSizeBytes ?? null,
         file_type: doc.mimeType ?? null,
-        expires_at: doc.expiryDate ?? null,
+        expires_at: doc.expiryDate ? new Date(doc.expiryDate).getTime() : null,
         verification_status: 'pending',
         uploaded_at: Date.now(),
       }])
