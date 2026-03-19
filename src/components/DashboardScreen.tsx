@@ -357,7 +357,7 @@ export function DashboardScreen({ currentBusinessId, onNavigateToOrders, onNavig
 
             {attentionCounts.confirmReceipt > 0 && (
               <button
-                onClick={() => onNavigateToOrders('confirm_receipt')}
+                onClick={() => onNavigateToOrders('in_transit')}
                 className="w-full flex items-center justify-between rounded-xl px-4 py-3 text-left"
                 style={{ backgroundColor: 'var(--bg-card)', borderLeft: '3px solid #4A6CF7' }}
               >
@@ -376,7 +376,7 @@ export function DashboardScreen({ currentBusinessId, onNavigateToOrders, onNavig
 
             {attentionCounts.payNow > 0 && (
               <button
-                onClick={() => onNavigateToOrders('pay_now')}
+                onClick={() => onNavigateToOrders('pay')}
                 className="w-full flex items-center justify-between rounded-xl px-4 py-3 text-left"
                 style={{ backgroundColor: 'var(--bg-card)', borderLeft: '3px solid #E24B4A' }}
               >
@@ -434,7 +434,7 @@ export function DashboardScreen({ currentBusinessId, onNavigateToOrders, onNavig
             {/* Waiting rows — muted grey, ball is in the other party's court */}
             {attentionCounts.awaitingDispatch > 0 && (
               <button
-                onClick={() => onNavigateToOrders()}
+                onClick={() => onNavigateToOrders('in_transit')}
                 className="w-full flex items-center justify-between rounded-xl px-4 py-3 text-left"
                 style={{ backgroundColor: 'var(--bg-card)' }}
               >
@@ -453,7 +453,7 @@ export function DashboardScreen({ currentBusinessId, onNavigateToOrders, onNavig
 
             {attentionCounts.awaitingPayment > 0 && (
               <button
-                onClick={() => onNavigateToOrders()}
+                onClick={() => onNavigateToOrders('pay')}
                 className="w-full flex items-center justify-between rounded-xl px-4 py-3 text-left"
                 style={{ backgroundColor: 'var(--bg-card)' }}
               >
