@@ -568,7 +568,8 @@ export function ManageConnectionsScreen({ currentBusinessId, onBack, onSuccess, 
             <span style={{ fontSize: '14px', fontWeight: 600 }}>Add</span>
             <UserPlus size={20} weight="regular" />
           </button>
-        </div>          <button
+        </div>          
+        <button
             onClick={() => setShowSearch(prev => !prev)}
             style={{
               minWidth: '44px',
