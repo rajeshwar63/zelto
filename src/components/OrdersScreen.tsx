@@ -38,14 +38,11 @@ export function OrdersScreen({ currentBusinessId, onSelectOrder, initialFilter, 
   useEffect(() => {
     if (!initialFilter) return
     const chipMap: Record<string, StatusChip> = {
-      placed: 'placed',
-      dispatched: 'dispatched',
-      delivered: 'delivered',
-      payment_pending: 'payment_pending',
-      paid: 'paid',
-      dispatched_buyer: 'dispatched_buyer',
-      dispatched_supplier: 'dispatched_supplier',
-      payment_pending_supplier: 'payment_pending_supplier',
+      accept:          'accept',
+      dispatch:        'dispatch',
+      confirm_receipt: 'confirm_receipt',
+      pay_now:         'pay_now',
+      paid:            'paid',
     }
     const chip = chipMap[initialFilter]
     if (chip) {
@@ -78,14 +75,11 @@ export function OrdersScreen({ currentBusinessId, onSelectOrder, initialFilter, 
 
       if (activeChips.size > 0) {
         const matchChip = [...activeChips].some(chip => {
-          if (chip === 'placed')                    return order.lifecycleState === 'Placed'
-          if (chip === 'dispatched')                return order.lifecycleState === 'Dispatched'
-          if (chip === 'delivered')                 return order.lifecycleState === 'Delivered'
-          if (chip === 'payment_pending')           return order.settlementState !== 'Paid' && order.lifecycleState === 'Delivered'
-          if (chip === 'paid')                      return order.settlementState === 'Paid'
-          if (chip === 'dispatched_buyer')          return order.isBuyer && !order.deliveredAt
-          if (chip === 'dispatched_supplier')       return !order.isBuyer && order.lifecycleState === 'Dispatched'
-          if (chip === 'payment_pending_supplier')  return !order.isBuyer && order.settlementState !== 'Paid' && order.lifecycleState === 'Delivered'
+          if (chip === 'accept')          return !order.isBuyer && order.lifecycleState === 'Placed'
+          if (chip === 'dispatch')        return !order.isBuyer && order.lifecycleState === 'Accepted'
+          if (chip === 'confirm_receipt') return order.isBuyer && order.lifecycleState === 'Dispatched'
+          if (chip === 'pay_now')         return order.isBuyer && order.lifecycleState === 'Delivered' && order.settlementState !== 'Paid'
+          if (chip === 'paid')            return order.settlementState === 'Paid'
           return false
         })
         if (!matchChip) return false
@@ -102,21 +96,27 @@ export function OrdersScreen({ currentBusinessId, onSelectOrder, initialFilter, 
     })
   }, [orders, orderFilters])
 
+  const chipUpperLabels: Record<StatusChip, string> = {
+    accept:          'ACCEPT INCOMING',
+    dispatch:        'DISPATCH NOW',
+    confirm_receipt: 'CONFIRM RECEIPT',
+    pay_now:         'PAY NOW',
+    paid:            'PAID',
+  }
+
+  const CHIP_SECTION_LABELS: Record<StatusChip, string> = {
+    accept:          'Accept or decline',
+    dispatch:        'Ready to dispatch',
+    confirm_receipt: 'Mark as received',
+    pay_now:         'Payment due',
+    paid:            'Settled',
+  }
+
   const sectionLabel = useMemo(() => {
     const { searchText, activeChips, fromDate, toDate } = orderFilters
     const parts: string[] = []
 
     if (activeChips.size > 0) {
-      const chipUpperLabels: Record<StatusChip, string> = {
-        placed: 'PLACED',
-        dispatched: 'DISPATCHED',
-        delivered: 'DELIVERED',
-        payment_pending: 'DUE',
-        paid: 'PAID',
-        dispatched_buyer: 'AWAITING DISPATCH',
-        dispatched_supplier: 'AWAITING DELIVERY CONFIRMATION',
-        payment_pending_supplier: 'AWAITING PAYMENT',
-      }
       parts.push([...activeChips].map(c => chipUpperLabels[c]).join(' · '))
     }
 
@@ -249,11 +249,21 @@ export function OrdersScreen({ currentBusinessId, onSelectOrder, initialFilter, 
         className="flex-1 overflow-y-auto px-4 pt-3 pb-24"
       >
         <div className="flex items-center justify-between mb-[10px]">
-          <p style={{ fontSize: '13px', fontWeight: 700, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.08em' }}>
-            {sectionLabel}
-          </p>
+          <div>
+            <p style={{ fontSize: '13px', fontWeight: 700, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.08em' }}>
+              {sectionLabel}
+            </p>
+            {orderFilters.activeChips.size === 1 && (() => {
+              const activeChip = [...orderFilters.activeChips][0]
+              return (
+                <p style={{ fontSize: '12px', color: 'var(--text-secondary)', marginTop: '2px' }}>
+                  {filteredOrders.length} orders — {CHIP_SECTION_LABELS[activeChip]}
+                </p>
+              )
+            })()}
+          </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-            {orders.length > 0 && filteredOrders.length !== orders.length && (
+            {orders.length > 0 && filteredOrders.length !== orders.length && orderFilters.activeChips.size !== 1 && (
               <p style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>
                 {filteredOrders.length} of {orders.length} orders
               </p>

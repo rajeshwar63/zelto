@@ -318,7 +318,7 @@ export function DashboardScreen({ currentBusinessId, onNavigateToOrders, onNavig
             {/* Actionable rows — coloured badge, user must act */}
             {attentionCounts.approvalNeeded > 0 && (
               <button
-                onClick={() => onNavigateToOrders('placed')}
+                onClick={() => onNavigateToOrders('accept')}
                 className="w-full flex items-center justify-between rounded-xl px-4 py-3 text-left"
                 style={{ backgroundColor: 'var(--bg-card)', borderLeft: '3px solid #D97706' }}
               >
@@ -335,9 +335,47 @@ export function DashboardScreen({ currentBusinessId, onNavigateToOrders, onNavig
               </button>
             )}
 
+            {attentionCounts.awaitingDispatch > 0 && (
+              <button
+                onClick={() => onNavigateToOrders('dispatch')}
+                className="w-full flex items-center justify-between rounded-xl px-4 py-3 text-left"
+                style={{ backgroundColor: 'var(--bg-card)', borderLeft: '3px solid #4A6CF7' }}
+              >
+                <div className="flex items-center gap-3">
+                  <div className="w-7 h-7 rounded-lg flex items-center justify-center" style={{ backgroundColor: '#EEF2FF' }}>
+                    <Truck size={15} weight="regular" color="#4A6CF7" />
+                  </div>
+                  <p className="text-[14px] text-foreground font-semibold">Dispatch now</p>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="inline-flex items-center justify-center min-w-6 h-6 px-2 rounded-full text-[12px] font-bold text-white" style={{ backgroundColor: '#4A6CF7' }}>{attentionCounts.awaitingDispatch}</span>
+                  <CaretRight size={16} style={{ color: 'var(--text-muted)' }} />
+                </div>
+              </button>
+            )}
+
+            {attentionCounts.awaitingDeliveryConfirmation > 0 && (
+              <button
+                onClick={() => onNavigateToOrders('confirm_receipt')}
+                className="w-full flex items-center justify-between rounded-xl px-4 py-3 text-left"
+                style={{ backgroundColor: 'var(--bg-card)', borderLeft: '3px solid #4A6CF7' }}
+              >
+                <div className="flex items-center gap-3">
+                  <div className="w-7 h-7 rounded-lg flex items-center justify-center" style={{ backgroundColor: '#EEF2FF' }}>
+                    <Package size={15} weight="regular" color="#4A6CF7" />
+                  </div>
+                  <p className="text-[14px] text-foreground font-semibold">Confirm receipt</p>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="inline-flex items-center justify-center min-w-6 h-6 px-2 rounded-full text-[12px] font-bold text-white" style={{ backgroundColor: '#4A6CF7' }}>{attentionCounts.awaitingDeliveryConfirmation}</span>
+                  <CaretRight size={16} style={{ color: 'var(--text-muted)' }} />
+                </div>
+              </button>
+            )}
+
             {attentionCounts.paymentDue > 0 && (
               <button
-                onClick={() => onNavigateToOrders('payment_pending')}
+                onClick={() => onNavigateToOrders('pay_now')}
                 className="w-full flex items-center justify-between rounded-xl px-4 py-3 text-left"
                 style={{ backgroundColor: 'var(--bg-card)', borderLeft: '3px solid #E24B4A' }}
               >
@@ -393,47 +431,9 @@ export function DashboardScreen({ currentBusinessId, onNavigateToOrders, onNavig
             )}
 
             {/* Waiting rows — muted grey, ball is in the other party's court */}
-            {attentionCounts.awaitingDispatch > 0 && (
-              <button
-                onClick={() => onNavigateToOrders('dispatched_buyer')}
-                className="w-full flex items-center justify-between rounded-xl px-4 py-3 text-left"
-                style={{ backgroundColor: 'var(--bg-card)' }}
-              >
-                <div className="flex items-center gap-3">
-                  <div className="w-7 h-7 rounded-lg flex items-center justify-center" style={{ backgroundColor: '#F8F9FC' }}>
-                    <Truck size={15} weight="regular" color="#B0BAD0" />
-                  </div>
-                  <p className="text-[14px] font-semibold text-muted-foreground">Supplier yet to dispatch</p>
-                </div>
-                <div className="flex items-center gap-2">
-                  <span className="inline-flex items-center justify-center min-w-6 h-6 px-2 rounded-full text-[12px] font-bold" style={{ backgroundColor: '#EEF0F4', color: '#8492A6' }}>{attentionCounts.awaitingDispatch}</span>
-                  <CaretRight size={16} className="text-muted-foreground" />
-                </div>
-              </button>
-            )}
-
-            {attentionCounts.awaitingDeliveryConfirmation > 0 && (
-              <button
-                onClick={() => onNavigateToOrders('dispatched_supplier')}
-                className="w-full flex items-center justify-between rounded-xl px-4 py-3 text-left"
-                style={{ backgroundColor: 'var(--bg-card)' }}
-              >
-                <div className="flex items-center gap-3">
-                  <div className="w-7 h-7 rounded-lg flex items-center justify-center" style={{ backgroundColor: '#F8F9FC' }}>
-                    <Package size={15} weight="regular" color="#B0BAD0" />
-                  </div>
-                  <p className="text-[14px] font-semibold text-muted-foreground">Waiting for delivery confirmation</p>
-                </div>
-                <div className="flex items-center gap-2">
-                  <span className="inline-flex items-center justify-center min-w-6 h-6 px-2 rounded-full text-[12px] font-bold" style={{ backgroundColor: '#EEF0F4', color: '#8492A6' }}>{attentionCounts.awaitingDeliveryConfirmation}</span>
-                  <CaretRight size={16} className="text-muted-foreground" />
-                </div>
-              </button>
-            )}
-
             {attentionCounts.awaitingPayment > 0 && (
               <button
-                onClick={() => onNavigateToOrders('payment_pending_supplier')}
+                onClick={() => onNavigateToOrders()}
                 className="w-full flex items-center justify-between rounded-xl px-4 py-3 text-left"
                 style={{ backgroundColor: 'var(--bg-card)' }}
               >
