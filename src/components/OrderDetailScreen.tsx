@@ -171,20 +171,9 @@ export function OrderDetailScreen({ orderId, connectionId, currentBusinessId, mo
     }
   }
 
-  // Supplier taps "Mark dispatched": transition happens immediately, then sheet opens for optional attachment
-  const handleDispatch = async () => {
-    if (processingAction) return
-    setProcessingAction(true)
-    try {
-      await transitionOrderState(orderId, 'Dispatched', currentBusinessId)
-      toast.success('Order dispatched')
-      await loadData()
-      setShowDispatchSheet(true)
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : 'Failed to dispatch order')
-    } finally {
-      setProcessingAction(false)
-    }
+  // Supplier taps "Mark dispatched": open sheet to collect invoice amount before recording dispatch
+  const handleDispatch = () => {
+    setShowDispatchSheet(true)
   }
 
   // Buyer taps "Mark delivered": immediate, no proof required

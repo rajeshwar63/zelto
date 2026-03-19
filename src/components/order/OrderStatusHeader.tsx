@@ -33,11 +33,15 @@ export function OrderStatusHeader({ lifecycleState, itemSummary, orderValue, cou
       <div className="px-4 mb-3">
         <div style={{ backgroundColor: 'var(--bg-card)', borderRadius: 'var(--radius-card)', padding: '14px 16px' }}>
           <p style={{ fontSize: '15px', fontWeight: 600, color: 'var(--text-primary)' }}>{itemSummary}</p>
-          {orderValue > 0 && (
+          {orderValue > 0 ? (
             <p style={{ fontSize: '20px', fontWeight: 800, color: 'var(--text-primary)', marginTop: '4px', letterSpacing: '-0.02em' }}>
               {formatInrCurrency(orderValue)}
             </p>
-          )}
+          ) : lifecycleState !== 'Declined' ? (
+            <p style={{ fontSize: '13px', color: 'var(--text-secondary)', marginTop: '4px' }}>
+              Amount confirmed at dispatch
+            </p>
+          ) : null}
           <p style={{ fontSize: '12px', fontWeight: 500, color: 'var(--text-secondary)', marginTop: '4px' }}>{counterpartName}</p>
           {counterpartSubtitle && (
             <p className="text-[11px] text-muted-foreground mt-0.5">
