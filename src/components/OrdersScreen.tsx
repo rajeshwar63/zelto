@@ -523,7 +523,6 @@ export function OrdersScreen({ currentBusinessId, onSelectOrder, initialFilter, 
                 calculatedDueDate={order.calculatedDueDate}
                 deliveredAt={order.deliveredAt}
                 latestActivity={order.latestActivity}
-                paymentTermSnapshot={order.paymentTermSnapshot}
                 isBuyer={order.isBuyer}
                 showRoleIndicator={roleFilter === 'all'}
                 onClick={() => onSelectOrder(order.id, order.connectionId)}

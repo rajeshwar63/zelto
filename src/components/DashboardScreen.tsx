@@ -509,7 +509,6 @@ export function DashboardScreen({ currentBusinessId, onNavigateToOrders, onNavig
                   calculatedDueDate={order.calculatedDueDate}
                   deliveredAt={order.deliveredAt}
                   latestActivity={order.latestActivity}
-                  paymentTermSnapshot={order.paymentTermSnapshot}
                   isBuyer={order.isBuyer}
                   onClick={() => onNavigateToConnection(order.connectionId, order.id)}
                 />
