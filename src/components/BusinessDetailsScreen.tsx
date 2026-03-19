@@ -297,7 +297,8 @@ export function BusinessDetailsScreen({ currentBusinessId, onBack, onSave }: Pro
 
       {/* Header */}
       <div style={{
-        background: 'linear-gradient(135deg, #4A6CF7 0%, #6B8EFF 100%)',
+        backgroundColor: '#FFFFFF',
+        borderBottom: '1px solid rgba(0,0,0,0.06)',
         padding: '16px 16px 20px',
         display: 'flex',
         alignItems: 'center',
@@ -306,13 +307,13 @@ export function BusinessDetailsScreen({ currentBusinessId, onBack, onSave }: Pro
       }}>
         <button
           onClick={onBack}
-          style={{ background: 'rgba(255,255,255,0.2)', border: 'none', cursor: 'pointer', borderRadius: '10px', width: 36, height: 36, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}
+          style={{ background: 'rgba(0,0,0,0.05)', border: 'none', cursor: 'pointer', borderRadius: '10px', width: 36, height: 36, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}
         >
-          <ArrowLeft size={20} color="#fff" weight="bold" />
+          <ArrowLeft size={20} color="#0F1320" weight="bold" />
         </button>
         <div>
-          <h2 style={{ fontSize: '17px', fontWeight: 700, margin: 0, color: '#fff' }}>Business Details</h2>
-          <p style={{ fontSize: '12px', color: 'rgba(255,255,255,0.75)', margin: 0 }}>Complete your profile to build trust</p>
+          <h2 style={{ fontSize: '17px', fontWeight: 700, margin: 0, color: '#0F1320' }}>Business Details</h2>
+          <p style={{ fontSize: '12px', color: '#8492A6', margin: 0 }}>Complete your profile to build trust</p>
         </div>
       </div>
 
@@ -321,7 +322,8 @@ export function BusinessDetailsScreen({ currentBusinessId, onBack, onSave }: Pro
         {/* Credibility Banner */}
         {credScore !== null && (
           <div style={{
-            background: 'linear-gradient(135deg, #4A6CF7 0%, #6B8EFF 100%)',
+            backgroundColor: '#FFFFFF',
+            border: '1px solid rgba(0,0,0,0.07)',
             borderRadius: '14px',
             padding: '14px 16px',
             marginBottom: '20px',
@@ -333,22 +335,22 @@ export function BusinessDetailsScreen({ currentBusinessId, onBack, onSave }: Pro
               width: 52,
               height: 52,
               borderRadius: '50%',
-              backgroundColor: 'rgba(255,255,255,0.2)',
+              backgroundColor: 'rgba(74,108,247,0.1)',
               display: 'flex',
               flexDirection: 'column',
               alignItems: 'center',
               justifyContent: 'center',
               flexShrink: 0,
             }}>
-              <span style={{ fontSize: '18px', fontWeight: 800, color: '#fff', lineHeight: 1 }}>{credScore}</span>
-              <span style={{ fontSize: '9px', color: 'rgba(255,255,255,0.8)', lineHeight: 1, marginTop: '1px' }}>/ {credMax}</span>
+              <span style={{ fontSize: '18px', fontWeight: 800, color: '#4A6CF7', lineHeight: 1 }}>{credScore}</span>
+              <span style={{ fontSize: '9px', color: '#8492A6', lineHeight: 1, marginTop: '1px' }}>/ {credMax}</span>
             </div>
             <div style={{ flex: 1 }}>
-              <p style={{ fontSize: '13px', fontWeight: 600, color: '#fff', margin: '0 0 6px' }}>Credibility Score</p>
-              <div style={{ height: 6, backgroundColor: 'rgba(255,255,255,0.25)', borderRadius: 99, overflow: 'hidden' }}>
-                <div style={{ height: '100%', width: `${Math.min(100, (credScore / credMax) * 100)}%`, backgroundColor: '#fff', borderRadius: 99, transition: 'width 0.4s ease' }} />
+              <p style={{ fontSize: '13px', fontWeight: 600, color: '#0F1320', margin: '0 0 6px' }}>Credibility Score</p>
+              <div style={{ height: 6, backgroundColor: '#E8ECF2', borderRadius: 99, overflow: 'hidden' }}>
+                <div style={{ height: '100%', width: `${Math.min(100, (credScore / credMax) * 100)}%`, backgroundColor: '#4A6CF7', borderRadius: 99, transition: 'width 0.4s ease' }} />
               </div>
-              <p style={{ fontSize: '11px', color: 'rgba(255,255,255,0.75)', margin: '4px 0 0' }}>
+              <p style={{ fontSize: '11px', color: '#8492A6', margin: '4px 0 0' }}>
                 {credScore < 50 ? 'Fill in more details to increase your score' : credScore < 80 ? 'Good progress — keep adding details' : 'Excellent profile!'}
               </p>
             </div>
