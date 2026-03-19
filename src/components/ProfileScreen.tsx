@@ -19,7 +19,7 @@
 
 import { useEffect, useState, useRef } from 'react'
 import { dataStore } from '@/lib/data-store'
-import { Bell, PencilSimple, Check, X, CaretRight, ShareNetwork, ShieldCheck, Buildings, Users, Warning } from '@phosphor-icons/react'
+import { Bell, PencilSimple, Check, X, CaretRight, ShareNetwork, ShieldCheck, Users, Warning } from '@phosphor-icons/react'
 import { TrustBadge } from './TrustBadge'
 import { toast } from 'sonner'
 import { useProfileData } from '@/hooks/data/use-business-data'
@@ -28,7 +28,6 @@ import type { UserAccount } from '@/lib/types'
 interface Props {
   currentBusinessId: string
   onLogout: () => void
-  onNavigateToBusinessDetails: () => void
   onNavigateToNotifications: () => void
   onNavigateToNotificationSettings: () => void
   onNavigateToAccount: () => void
@@ -114,7 +113,6 @@ function MenuRow({ icon, iconBg, title, subtitle, onPress, showDivider = true, b
 export function ProfileScreen({
   currentBusinessId,
   onLogout,
-  onNavigateToBusinessDetails,
   onNavigateToNotifications,
   onNavigateToNotificationSettings,
   onNavigateToAccount,
@@ -502,13 +500,6 @@ export function ProfileScreen({
         {/* BUSINESS section */}
         <SectionLabel>BUSINESS</SectionLabel>
         <div style={{ backgroundColor: '#FFFFFF', borderRadius: '14px', overflow: 'hidden', marginBottom: '20px' }}>
-          <MenuRow
-            icon={<Buildings size={18} color="#4A6CF7" weight="bold" />}
-            iconBg="#EEF0FF"
-            title="Business details"
-            subtitle={[business.gstNumber ? 'GST' : null, business.businessType, business.city].filter(Boolean).join(' · ') || 'Add your business details'}
-            onPress={onNavigateToBusinessDetails}
-          />
           <MenuRow
             icon={<Users size={18} color="#22B573" weight="bold" />}
             iconBg="#E8F8F0"
