@@ -43,6 +43,7 @@ export function ConnectionDetailScreen({ connectionId, currentBusinessId, onBack
   const [connection, setConnection] = useState<Connection | null>(null)
   const [otherBusiness, setOtherBusiness] = useState<BusinessEntity | null>(null)
   const [orders, setOrders] = useState<OrderWithPaymentState[]>([])
+  const [openIssueOrderIds, setOpenIssueOrderIds] = useState<Set<string>>(new Set())
   const [insights, setInsights] = useState<Insight[]>([])
   const [orderFilters, setOrderFilters] = useState<OrderFilters>(EMPTY_FILTERS)
   const [panelVisible, setPanelVisible] = useState(false)
@@ -96,8 +97,16 @@ export function ConnectionDetailScreen({ connectionId, currentBusinessId, onBack
 
       const orderIds = allOrders.map(o => o.id)
       if (orderIds.length > 0) {
-        const counts = await dataStore.getAttachmentCountsByOrderIds(orderIds)
+        const [counts, issues] = await Promise.all([
+          dataStore.getAttachmentCountsByOrderIds(orderIds),
+          dataStore.getIssueReportsByOrderIds(orderIds),
+        ])
         setAttachmentCounts(counts)
+        setOpenIssueOrderIds(new Set(
+          issues
+            .filter(issue => issue.status === 'Open' || issue.status === 'Acknowledged')
+            .map(issue => issue.orderId)
+        ))
       }
     } catch (err) {
       console.error('Failed to load orders:', err)
@@ -180,11 +189,12 @@ export function ConnectionDetailScreen({ connectionId, currentBusinessId, onBack
     if (activeChips.size > 0) {
       const lifecycle = getLifecycleState(order)
       const matchChip = [...activeChips].some(chip => {
-        if (chip === 'placed')          return lifecycle === 'Placed'
-        if (chip === 'dispatched')      return lifecycle === 'Dispatched'
-        if (chip === 'delivered')       return lifecycle === 'Delivered'
-        if (chip === 'payment_pending') return order.settlementState !== 'Paid' && lifecycle === 'Delivered'
-        if (chip === 'paid')            return order.settlementState === 'Paid'
+        if (chip === 'accept')     return lifecycle === 'Placed'
+        if (chip === 'dispatch')   return lifecycle === 'Accepted'
+        if (chip === 'in_transit') return lifecycle === 'Dispatched'
+        if (chip === 'pay')        return lifecycle === 'Delivered' && order.settlementState !== 'Paid'
+        if (chip === 'disputed')   return openIssueOrderIds.has(order.id)
+        if (chip === 'paid')       return order.settlementState === 'Paid'
         return false
       })
       if (!matchChip) return false

@@ -38,11 +38,12 @@ export function OrdersScreen({ currentBusinessId, onSelectOrder, initialFilter, 
   useEffect(() => {
     if (!initialFilter) return
     const chipMap: Record<string, StatusChip> = {
-      accept:          'accept',
-      dispatch:        'dispatch',
-      confirm_receipt: 'confirm_receipt',
-      pay_now:         'pay_now',
-      paid:            'paid',
+      accept:     'accept',
+      dispatch:   'dispatch',
+      in_transit: 'in_transit',
+      pay:        'pay',
+      disputed:   'disputed',
+      paid:       'paid',
     }
     const chip = chipMap[initialFilter]
     if (chip) {
@@ -75,11 +76,12 @@ export function OrdersScreen({ currentBusinessId, onSelectOrder, initialFilter, 
 
       if (activeChips.size > 0) {
         const matchChip = [...activeChips].some(chip => {
-          if (chip === 'accept')          return !order.isBuyer && order.lifecycleState === 'Placed'
-          if (chip === 'dispatch')        return !order.isBuyer && order.lifecycleState === 'Accepted'
-          if (chip === 'confirm_receipt') return order.isBuyer && order.lifecycleState === 'Dispatched'
-          if (chip === 'pay_now')         return order.isBuyer && order.lifecycleState === 'Delivered' && order.settlementState !== 'Paid'
-          if (chip === 'paid')            return order.settlementState === 'Paid'
+          if (chip === 'accept')     return order.lifecycleState === 'Placed'
+          if (chip === 'dispatch')   return order.lifecycleState === 'Accepted'
+          if (chip === 'in_transit') return order.lifecycleState === 'Dispatched'
+          if (chip === 'pay')        return order.lifecycleState === 'Delivered' && order.settlementState !== 'Paid'
+          if (chip === 'disputed')   return order.hasOpenIssue === true
+          if (chip === 'paid')       return order.settlementState === 'Paid'
           return false
         })
         if (!matchChip) return false
@@ -97,19 +99,21 @@ export function OrdersScreen({ currentBusinessId, onSelectOrder, initialFilter, 
   }, [orders, orderFilters])
 
   const chipUpperLabels: Record<StatusChip, string> = {
-    accept:          'ACCEPT INCOMING',
-    dispatch:        'DISPATCH NOW',
-    confirm_receipt: 'CONFIRM RECEIPT',
-    pay_now:         'PAY NOW',
-    paid:            'PAID',
+    accept:     'ACCEPT',
+    dispatch:   'DISPATCH',
+    in_transit: 'IN TRANSIT',
+    pay:        'PAY',
+    disputed:   'DISPUTED',
+    paid:       'PAID',
   }
 
   const CHIP_SECTION_LABELS: Record<StatusChip, string> = {
-    accept:          'Accept or decline',
-    dispatch:        'Ready to dispatch',
-    confirm_receipt: 'Mark as received',
-    pay_now:         'Payment due',
-    paid:            'Settled',
+    accept:     'Accept or decline',
+    dispatch:   'Ready to dispatch',
+    in_transit: 'In transit',
+    pay:        'Payment due',
+    disputed:   'Has open issue',
+    paid:       'Settled',
   }
 
   const sectionLabel = useMemo(() => {

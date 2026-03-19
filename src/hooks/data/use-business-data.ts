@@ -13,6 +13,7 @@ export interface EnrichedOrder extends OrderWithPaymentState {
   branchLabel?: string | null
   contactName?: string | null
   isBuyer: boolean
+  hasOpenIssue: boolean
 }
 
 interface AttentionCounts {
@@ -98,6 +99,16 @@ export function useOrdersData(currentBusinessId: string, isActive = true) {
       const entityMap = new Map(entities.map(entity => [entity.id, entity]))
       const connMap = new Map(connections.map(connection => [connection.id, connection]))
 
+      const orderIds = allOrders.map(order => order.id)
+      const allIssues = orderIds.length > 0
+        ? await dataStore.getIssueReportsByOrderIds(orderIds)
+        : []
+      const openIssueOrderIds = new Set(
+        allIssues
+          .filter(issue => issue.status === 'Open' || issue.status === 'Acknowledged')
+          .map(issue => issue.orderId)
+      )
+
       return allOrders
         .map(order => {
           const conn = connMap.get(order.connectionId)
@@ -114,6 +125,7 @@ export function useOrdersData(currentBusinessId: string, isActive = true) {
             branchLabel: conn?.branchLabel,
             contactName: conn?.contactName,
             isBuyer: conn?.buyerBusinessId === currentBusinessId,
+            hasOpenIssue: openIssueOrderIds.has(order.id),
           }
         })
         .sort((a, b) => b.latestActivity - a.latestActivity)

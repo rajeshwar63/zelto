@@ -5,8 +5,9 @@ import { startOfDay, isToday, isSameDay } from 'date-fns'
 export type StatusChip =
   | 'accept'
   | 'dispatch'
-  | 'confirm_receipt'
-  | 'pay_now'
+  | 'in_transit'
+  | 'pay'
+  | 'disputed'
   | 'paid'
 
 export interface OrderFilters {
@@ -17,22 +18,24 @@ export interface OrderFilters {
 }
 
 export const CHIP_LABELS: Record<StatusChip, string> = {
-  accept:          'Accept',
-  dispatch:        'Dispatch',
-  confirm_receipt: 'Confirm receipt',
-  pay_now:         'Pay now',
-  paid:            'Paid',
+  accept:     'Accept',
+  dispatch:   'Dispatch',
+  in_transit: 'In transit',
+  pay:        'Pay',
+  disputed:   'Disputed',
+  paid:       'Paid',
 }
 
 const CHIP_COLORS: Record<StatusChip, string> = {
-  accept:          '#D97706',
-  dispatch:        '#4A6CF7',
-  confirm_receipt: '#4A6CF7',
-  pay_now:         '#E24B4A',
-  paid:            '#22B573',
+  accept:     '#D97706',                  // amber — action needed (supplier)
+  dispatch:   '#2563EB',                  // blue — action needed (supplier)
+  in_transit: 'var(--status-dispatched)', // orange — in motion
+  pay:        'var(--status-overdue)',    // red — payment due
+  disputed:   'var(--status-issue)',      // yellow — has issue
+  paid:       'var(--status-success)',    // green — settled
 }
 
-const ALL_CHIPS: StatusChip[] = ['accept', 'dispatch', 'confirm_receipt', 'pay_now', 'paid']
+const ALL_CHIPS: StatusChip[] = ['accept', 'dispatch', 'in_transit', 'pay', 'disputed', 'paid']
 
 const MONTH_NAMES = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December']
 const DAY_NAMES = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
