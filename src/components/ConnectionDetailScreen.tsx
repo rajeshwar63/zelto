@@ -2,12 +2,9 @@ import { useEffect, useState, useRef } from 'react'
 import { dataStore } from '@/lib/data-store'
 import { insightEngine } from '@/lib/insight-engine'
 import type { Insight } from '@/lib/insight-engine'
-import { createOrder } from '@/lib/interactions'
 import { useDataListener } from '@/lib/data-events'
 import type { Connection, OrderWithPaymentState, BusinessEntity } from '@/lib/types'
 import { CaretLeft, DownloadSimple, Phone, PencilSimple, MapPin } from '@phosphor-icons/react'
-import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
 import { toast } from 'sonner'
 import { getConnectionStateLabel, getConnectionStateColor } from '@/lib/connection-state-utils'
 import { motion, AnimatePresence, useMotionValue, useTransform, animate, PanInfo } from 'framer-motion'
@@ -31,6 +28,7 @@ interface Props {
   onBack: () => void
   onNavigateToPaymentTermsSetup: (connectionId: string, businessName: string) => void
   onOpenOrderDetail: (orderId: string, connectionId: string) => void
+  onNavigateToPlaceOrder: (prefilledConnectionId?: string | null) => void
   onNavigateToTrustProfile?: (targetBusinessId: string, connectionId: string) => void
 }
 
@@ -41,7 +39,7 @@ const EMPTY_FILTERS: OrderFilters = {
   toDate: null,
 }
 
-export function ConnectionDetailScreen({ connectionId, currentBusinessId, onBack, onNavigateToPaymentTermsSetup, onOpenOrderDetail, onNavigateToTrustProfile }: Props) {
+export function ConnectionDetailScreen({ connectionId, currentBusinessId, onBack, onNavigateToPaymentTermsSetup, onOpenOrderDetail, onNavigateToPlaceOrder, onNavigateToTrustProfile }: Props) {
   const [connection, setConnection] = useState<Connection | null>(null)
   const [otherBusiness, setOtherBusiness] = useState<BusinessEntity | null>(null)
   const [orders, setOrders] = useState<OrderWithPaymentState[]>([])
@@ -51,8 +49,6 @@ export function ConnectionDetailScreen({ connectionId, currentBusinessId, onBack
   const listScrollRef = useRef<HTMLDivElement>(null)
   const lastScrollTop = useRef(0)
   const [loading, setLoading] = useState(true)
-  const [newOrderMessage, setNewOrderMessage] = useState('')
-  const [creatingOrder, setCreatingOrder] = useState(false)
   const [showArchived, setShowArchived] = useState(false)
   const [archivedIds, setArchivedIds] = useState<Set<string>>(new Set())
   const [attachmentCounts, setAttachmentCounts] = useState<Record<string, number>>({})
@@ -145,26 +141,6 @@ export function ConnectionDetailScreen({ connectionId, currentBusinessId, onBack
     toast.success('Order restored')
   }
 
-  const handleSendOrder = async () => {
-    if (!newOrderMessage.trim()) return
-    if (creatingOrder) return
-
-    const orderText = newOrderMessage.trim()
-    setNewOrderMessage('')
-    setCreatingOrder(true)
-
-    try {
-      await createOrder(connectionId, orderText, 0, currentBusinessId)
-      toast.success('Order placed')
-      await loadOrders()
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : 'Failed to create order')
-      setNewOrderMessage(orderText)
-    } finally {
-      setCreatingOrder(false)
-    }
-  }
-
   const handleSaveContact = async () => {
     setSavingContact(true)
     try {
@@ -239,7 +215,6 @@ export function ConnectionDetailScreen({ connectionId, currentBusinessId, onBack
 
   const isSupplier = connection.supplierBusinessId === currentBusinessId
   const isBuyer = connection.buyerBusinessId === currentBusinessId
-  const canPlaceOrder = isBuyer && connection.paymentTerms !== null
 
   return (
     <div className="h-full flex flex-col" style={{ backgroundColor: 'var(--bg-screen)' }}>
@@ -563,65 +538,18 @@ export function ConnectionDetailScreen({ connectionId, currentBusinessId, onBack
         </div>
       )}
 
-      {canPlaceOrder && (
-        <div style={{ borderTop: '1px solid var(--border-light)', backgroundColor: 'var(--bg-card)', padding: '8px 12px' }}>
-          <div style={{ display: 'flex', alignItems: 'flex-end', gap: '8px' }}>
-            <textarea
-              value={newOrderMessage}
-              onChange={e => {
-                setNewOrderMessage(e.target.value)
-                e.target.style.height = 'auto'
-                e.target.style.height = Math.min(e.target.scrollHeight, 72) + 'px'
-              }}
-              onKeyDown={e => {
-                if (e.key === 'Enter' && !e.shiftKey && newOrderMessage.trim() && !creatingOrder) {
-                  e.preventDefault()
-                  handleSendOrder()
-                }
-              }}
-              placeholder="Type your order..."
-              disabled={creatingOrder}
-              rows={1}
-              style={{
-                flex: 1,
-                padding: '10px 14px',
-                fontSize: '15px',
-                fontWeight: 500,
-                lineHeight: '20px',
-                minHeight: '40px',
-                maxHeight: '72px',
-                backgroundColor: 'var(--bg-screen)',
-                color: 'var(--text-primary)',
-                border: 'none',
-                borderRadius: 'var(--radius-input)',
-                outline: 'none',
-                resize: 'none',
-                fontFamily: 'inherit',
-                overflowY: 'auto'
-              }}
-            />
-            <button
-              onClick={handleSendOrder}
-              disabled={creatingOrder || !newOrderMessage.trim()}
-              style={{
-                padding: '10px 18px',
-                backgroundColor: 'var(--brand-primary)',
-                color: '#FFFFFF',
-                border: 'none',
-                borderRadius: 'var(--radius-button)',
-                fontSize: '15px',
-                fontWeight: 600,
-                cursor: creatingOrder ? 'not-allowed' : 'pointer',
-                opacity: !newOrderMessage.trim() ? 0.5 : 1,
-                flexShrink: 0,
-                marginBottom: '2px',
-                minHeight: '44px',
-              }}
-            >
-              {creatingOrder ? 'Sending...' : 'Order'}
-            </button>
-          </div>
-        </div>
+      {isBuyer && (
+        <button
+          onClick={() => onNavigateToPlaceOrder(connectionId)}
+          className="fixed bottom-24 right-4 w-14 h-14 flex items-center justify-center z-20"
+          style={{
+            backgroundColor: 'var(--brand-primary)',
+            borderRadius: 'var(--radius-card)',
+            boxShadow: '0 4px 16px rgba(74,108,247,0.4)',
+          }}
+        >
+          <PencilSimple size={24} weight="regular" color="#FFFFFF" />
+        </button>
       )}
     </div>
   )

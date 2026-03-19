@@ -2,15 +2,11 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { dataStore } from '@/lib/data-store'
 import { behaviourEngine } from '@/lib/behaviour-engine'
-import { createOrder } from '@/lib/interactions'
 import { useDataListener } from '@/lib/data-events'
-import type { Connection, BusinessEntity, ConnectionState } from '@/lib/types'
+import type { Connection, ConnectionState } from '@/lib/types'
 import { getConnectionStateLabel, getConnectionStateColor } from '@/lib/connection-state-utils'
-import { Plus, Users, PencilSimple, MagnifyingGlass, X, PaperPlaneTilt, DownloadSimple } from '@phosphor-icons/react'
+import { Plus, Users, PencilSimple, MagnifyingGlass, DownloadSimple } from '@phosphor-icons/react'
 import { Phone, MapPin, User, Inbox } from 'lucide-react'
-import { Input } from '@/components/ui/input'
-import { Button } from '@/components/ui/button'
-import { toast } from 'sonner'
 import { LedgerDownloadSheet } from '@/components/LedgerDownloadSheet'
 
 interface ConnectionWithState extends Connection {
@@ -30,6 +26,7 @@ interface Props {
   onNavigateToIncomingRequests: () => void
   unreadConnectionIds?: Set<string>
   isActive?: boolean
+  onNavigateToPlaceOrder: (prefilledConnectionId?: string | null) => void
 }
 
 function formatLastActivity(timestamp: number | null): string | null {
@@ -86,24 +83,16 @@ function isSameConnections(a: ConnectionWithState[], b: ConnectionWithState[]) {
   })
 }
 
-export function ConnectionsScreen({ currentBusinessId, onSelectConnection, onAddConnection, onNavigateToIncomingRequests, unreadConnectionIds, isActive = true }: Props) {
+export function ConnectionsScreen({ currentBusinessId, onSelectConnection, onAddConnection, onNavigateToIncomingRequests, unreadConnectionIds, isActive = true, onNavigateToPlaceOrder }: Props) {
   const [connections, setConnections] = useState<ConnectionWithState[]>(
     () => cachedConnectionsByBusiness.get(currentBusinessId) || []
   )
   const [isLoading, setIsLoading] = useState(() => !cachedConnectionsByBusiness.has(currentBusinessId))
-  const [showOrderModal, setShowOrderModal] = useState(false)
   const [showLedgerSheet, setShowLedgerSheet] = useState(false)
-  const [eligibleConnections, setEligibleConnections] = useState<Connection[]>([])
-  const [businesses, setBusinesses] = useState<Map<string, BusinessEntity>>(new Map())
-  const [supplierSearch, setSupplierSearch] = useState('')
   const [connectionSearch, setConnectionSearch] = useState('')
   const [panelVisible, setPanelVisible] = useState(false)
   const listContainerRef = useRef<HTMLDivElement | null>(null)
   const lastScrollTop = useRef(0)
-  const [selectedConnection, setSelectedConnection] = useState<Connection | null>(null)
-  const [message, setMessage] = useState('')
-  const [isSending, setIsSending] = useState(false)
-  const [sendError, setSendError] = useState<string | null>(null)
 
   useEffect(() => {
     console.debug('[ConnectionsScreen] mount', Date.now(), { currentBusinessId })
@@ -194,53 +183,6 @@ export function ConnectionsScreen({ currentBusinessId, onSelectConnection, onAdd
     () => { void loadConnections() },
     isActive
   )
-
-  const handleOpenOrderModal = async () => {
-    const allConnections = await dataStore.getConnectionsByBusinessId(currentBusinessId)
-    const eligible = allConnections.filter(
-      c => c.buyerBusinessId === currentBusinessId && c.paymentTerms !== null
-    )
-    setEligibleConnections(eligible)
-
-    const entities = await dataStore.getAllBusinessEntities()
-    const businessMap = new Map(entities.map(e => [e.id, e]))
-    setBusinesses(businessMap)
-
-    setShowOrderModal(true)
-  }
-
-  const handleSendOrder = async () => {
-    if (!selectedConnection || !message.trim()) return
-
-    const connectionId = selectedConnection.id
-
-    setIsSending(true)
-    setSendError(null)
-    try {
-      await createOrder(connectionId, message.trim(), 0, currentBusinessId)
-      toast.success('Order placed')
-      setShowOrderModal(false)
-      setSelectedConnection(null)
-      setMessage('')
-      setSupplierSearch('')
-      onSelectConnection(connectionId)
-    } catch (error) {
-      console.error('Failed to create order:', error)
-      setSendError(error instanceof Error ? error.message : 'Failed to create order')
-    } finally {
-      setIsSending(false)
-    }
-  }
-
-  const filteredConnections = useMemo(() => (
-    supplierSearch.trim()
-      ? eligibleConnections.filter(conn => {
-        const supplier = businesses.get(conn.supplierBusinessId)
-        return supplier?.businessName.toLowerCase().includes(supplierSearch.toLowerCase())
-      })
-      : eligibleConnections
-  ), [businesses, eligibleConnections, supplierSearch])
-
 
   const visibleConnections = useMemo(() => (
     connectionSearch.trim()
@@ -587,7 +529,7 @@ export function ConnectionsScreen({ currentBusinessId, onSelectConnection, onAdd
       </div>
 
       <button
-        onClick={handleOpenOrderModal}
+        onClick={() => onNavigateToPlaceOrder(null)}
         className="fixed bottom-24 right-4 w-14 h-14 flex items-center justify-center z-20"
         style={{
           backgroundColor: 'var(--brand-primary)',
@@ -604,109 +546,6 @@ export function ConnectionsScreen({ currentBusinessId, onSelectConnection, onAdd
         scope="all"
         currentBusinessId={currentBusinessId}
       />
-
-      {showOrderModal && (
-        <div className="fixed inset-0 bg-black/50 z-50 flex items-end">
-          <div className="w-full max-h-[90vh] flex flex-col" style={{ backgroundColor: 'var(--bg-card)', borderTopLeftRadius: 'var(--radius-modal)', borderTopRightRadius: 'var(--radius-modal)' }}>
-            <div className="sticky top-0 px-4 py-4 flex items-center justify-between" style={{ backgroundColor: 'var(--bg-card)', borderBottom: '1px solid var(--border-light)', borderTopLeftRadius: 'var(--radius-modal)', borderTopRightRadius: 'var(--radius-modal)' }}>
-              <h2 style={{ fontSize: '17px', fontWeight: 700, color: 'var(--text-primary)' }}>New Order</h2>
-              <button onClick={() => {
-                setShowOrderModal(false)
-                setSelectedConnection(null)
-                setMessage('')
-                setSupplierSearch('')
-              }} style={{ minWidth: '44px', minHeight: '44px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                <X size={24} weight="regular" color="var(--text-primary)" />
-              </button>
-            </div>
-
-            {!selectedConnection ? (
-              <>
-                <div className="px-4 py-3" style={{ borderBottom: '1px solid var(--border-light)' }}>
-                  <div className="relative">
-                    <MagnifyingGlass size={20} weight="regular" className="absolute left-3 top-1/2 -translate-y-1/2" style={{ color: 'var(--text-secondary)' }} />
-                    <Input
-                      placeholder="Search suppliers..."
-                      value={supplierSearch}
-                      onChange={(e) => setSupplierSearch(e.target.value)}
-                      className="pl-10"
-                      style={{ borderRadius: 'var(--radius-input)' }}
-                    />
-                  </div>
-                </div>
-
-                <div className="flex-1 overflow-y-auto">
-                  {filteredConnections.length === 0 ? (
-                    <div className="px-4 py-8 text-center">
-                      <p style={{ fontSize: '14px', fontWeight: 500, color: 'var(--text-secondary)' }}>
-                        {eligibleConnections.length === 0
-                          ? 'No suppliers with payment terms set'
-                          : 'No suppliers found'}
-                      </p>
-                    </div>
-                  ) : (
-                    <div>
-                      {filteredConnections.map((conn) => {
-                        const supplier = businesses.get(conn.supplierBusinessId)
-                        return (
-                          <button
-                            key={conn.id}
-                            onClick={() => setSelectedConnection(conn)}
-                            className="w-full text-left px-4 py-3"
-                            style={{ borderBottom: '1px solid var(--border-section)', minHeight: '44px' }}
-                          >
-                            <p style={{ fontSize: '15px', fontWeight: 600, color: 'var(--text-primary)' }}>{supplier?.businessName || 'Unknown'}</p>
-                            <p style={{ fontSize: '12px', fontWeight: 500, color: 'var(--text-secondary)', marginTop: '2px' }}>
-                              {formatPaymentTerms(conn.paymentTerms)}
-                            </p>
-                          </button>
-                        )
-                      })}
-                    </div>
-                  )}
-                </div>
-              </>
-            ) : (
-              <>
-                <div className="px-4 py-3" style={{ borderBottom: '1px solid var(--border-light)' }}>
-                  <button onClick={() => setSelectedConnection(null)} className="flex items-center gap-2" style={{ fontSize: '14px', fontWeight: 500, color: 'var(--text-secondary)', minHeight: '44px' }}>
-                    <span>←</span>
-                    <span>Back to suppliers</span>
-                  </button>
-                  <p style={{ fontSize: '17px', fontWeight: 700, color: 'var(--text-primary)', marginTop: '8px' }}>
-                    {businesses.get(selectedConnection.supplierBusinessId)?.businessName || 'Unknown'}
-                  </p>
-                </div>
-
-                <div className="flex-1 overflow-y-auto px-4 py-4">
-                  <Input
-                    placeholder="Enter order details..."
-                    value={message}
-                    onChange={(e) => setMessage(e.target.value)}
-                    className="w-full"
-                    style={{ borderRadius: 'var(--radius-input)' }}
-                  />
-                </div>
-
-                <div className="px-4 py-4" style={{ borderTop: '1px solid var(--border-light)' }}>
-                  {sendError && (
-                    <p style={{ fontSize: '13px', fontWeight: 500, color: 'var(--status-overdue)', marginBottom: '12px' }}>{sendError}</p>
-                  )}
-                  <Button
-                    onClick={handleSendOrder}
-                    disabled={!message.trim() || isSending}
-                    className="w-full"
-                    style={{ backgroundColor: 'var(--brand-primary)', borderRadius: 'var(--radius-button)', minHeight: '44px', color: '#FFFFFF', fontWeight: 600 }}
-                  >
-                    <PaperPlaneTilt size={20} weight="regular" className="mr-2" />
-                    {isSending ? 'Sending...' : 'Send Order'}
-                  </Button>
-                </div>
-              </>
-            )}
-          </div>
-        </div>
-      )}
     </div>
   )
 }
