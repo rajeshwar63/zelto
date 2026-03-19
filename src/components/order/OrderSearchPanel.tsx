@@ -2,7 +2,12 @@ import { useState, useCallback } from 'react'
 import { MagnifyingGlass, X } from '@phosphor-icons/react'
 import { startOfDay, isToday, isSameDay } from 'date-fns'
 
-export type StatusChip = 'placed' | 'dispatched' | 'delivered' | 'payment_pending' | 'paid' | 'dispatched_buyer' | 'dispatched_supplier' | 'payment_pending_supplier'
+export type StatusChip =
+  | 'accept'
+  | 'dispatch'
+  | 'confirm_receipt'
+  | 'pay_now'
+  | 'paid'
 
 export interface OrderFilters {
   searchText: string
@@ -12,28 +17,22 @@ export interface OrderFilters {
 }
 
 export const CHIP_LABELS: Record<StatusChip, string> = {
-  placed: 'Placed',
-  dispatched: 'Dispatched',
-  delivered: 'Delivered',
-  payment_pending: 'Due',
-  paid: 'Paid',
-  dispatched_buyer: 'Awaiting Dispatch',
-  dispatched_supplier: 'Awaiting Delivery Confirmation',
-  payment_pending_supplier: 'Awaiting Payment',
+  accept:          'Accept',
+  dispatch:        'Dispatch',
+  confirm_receipt: 'Confirm receipt',
+  pay_now:         'Pay now',
+  paid:            'Paid',
 }
 
 const CHIP_COLORS: Record<StatusChip, string> = {
-  placed: 'var(--brand-primary)',
-  dispatched: 'var(--status-dispatched)',
-  delivered: 'var(--status-delivered)',
-  payment_pending: 'var(--status-overdue)',
-  paid: 'var(--status-success)',
-  dispatched_buyer: '#B0BAD0',
-  dispatched_supplier: '#B0BAD0',
-  payment_pending_supplier: '#B0BAD0',
+  accept:          '#D97706',
+  dispatch:        '#4A6CF7',
+  confirm_receipt: '#4A6CF7',
+  pay_now:         '#E24B4A',
+  paid:            '#22B573',
 }
 
-const ALL_CHIPS: StatusChip[] = ['placed', 'dispatched', 'delivered', 'payment_pending', 'paid']
+const ALL_CHIPS: StatusChip[] = ['accept', 'dispatch', 'confirm_receipt', 'pay_now', 'paid']
 
 const MONTH_NAMES = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December']
 const DAY_NAMES = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
@@ -210,6 +209,25 @@ export function OrderSearchPanel({ filters, onFiltersChange, placeholder = 'Sear
         {/* Status chips + Date pill */}
         <div style={{ marginBottom: calOpen ? '10px' : 0 }}>
           <div style={{ display: 'flex', flexWrap: 'nowrap', gap: '6px', overflowX: 'auto', paddingBottom: '2px', alignItems: 'center' }}>
+            {/* All chip */}
+            <button
+              onClick={() => update({ activeChips: new Set() })}
+              style={{
+                fontSize: '12px',
+                fontWeight: 500,
+                padding: '4px 10px',
+                borderRadius: '20px',
+                border: `1.5px solid ${activeChips.size === 0 ? 'var(--brand-primary)' : 'var(--border-light)'}`,
+                backgroundColor: activeChips.size === 0 ? 'var(--brand-primary)' : 'transparent',
+                color: activeChips.size === 0 ? '#FFFFFF' : 'var(--text-secondary)',
+                cursor: 'pointer',
+                transition: 'all 150ms',
+                flexShrink: 0,
+              }}
+            >
+              All
+            </button>
+
             {ALL_CHIPS.map(chip => {
               const isActive = activeChips.has(chip)
               return (
@@ -222,8 +240,8 @@ export function OrderSearchPanel({ filters, onFiltersChange, placeholder = 'Sear
                     padding: '4px 10px',
                     borderRadius: '20px',
                     border: `1.5px solid ${isActive ? CHIP_COLORS[chip] : 'var(--border-light)'}`,
-                    backgroundColor: isActive ? CHIP_COLORS[chip] + '22' : 'transparent',
-                    color: isActive ? CHIP_COLORS[chip] : 'var(--text-secondary)',
+                    backgroundColor: isActive ? CHIP_COLORS[chip] : 'transparent',
+                    color: isActive ? '#FFFFFF' : 'var(--text-secondary)',
                     cursor: 'pointer',
                     transition: 'all 150ms',
                     flexShrink: 0,
