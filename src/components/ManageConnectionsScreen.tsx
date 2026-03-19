@@ -562,34 +562,19 @@ export function ManageConnectionsScreen({ currentBusinessId, onBack, onSuccess, 
           </button>
           <h1 style={{ fontSize: '17px', fontWeight: 600, color: 'var(--text-primary)', flex: 1 }}>Manage Connections</h1>
           <button
-            onClick={() => setShowSearch(true)}
-            style={{ display: 'flex', alignItems: 'center', gap: '4px', color: 'var(--brand-primary)', minWidth: '44px', minHeight: '44px', paddingRight: '0', background: 'none', border: 'none', cursor: 'pointer' }}
-          >
-            <span style={{ fontSize: '14px', fontWeight: 600 }}>Add</span>
-            <UserPlus size={20} weight="regular" />
-          </button>
-        </div>          
-        <button
             onClick={() => setShowSearch(prev => !prev)}
-            style={{
-              minWidth: '44px',
-              minHeight: '44px',
-              paddingLeft: '4px',
-              paddingRight: '8px',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              background: 'none',
-              border: 'none',
-              cursor: 'pointer',
-            }}
+            style={{ display: 'flex', alignItems: 'center', gap: '4px', color: 'var(--brand-primary)', minWidth: '44px', minHeight: '44px', paddingRight: '0', background: 'none', border: 'none', cursor: 'pointer' }}
             aria-label={showSearch ? 'Close search' : 'Add connection'}
           >
             {showSearch
               ? <X size={20} weight="bold" color="var(--brand-primary)" />
-              : <UserPlus size={20} weight="bold" color="var(--brand-primary)" />
+              : <>
+                  <span style={{ fontSize: '14px', fontWeight: 600 }}>Add</span>
+                  <UserPlus size={20} weight="regular" />
+                </>
             }
           </button>
+        </div>
 
         {/* Inline search panel */}
         {showSearch && (
