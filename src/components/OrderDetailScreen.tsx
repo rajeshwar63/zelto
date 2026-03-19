@@ -810,7 +810,6 @@ export function OrderDetailScreen({ orderId, connectionId, currentBusinessId, mo
           open={!!pendingPaymentForAttachment}
           orderId={orderId}
           currentBusinessId={currentBusinessId}
-          paymentEventId={pendingPaymentForAttachment.id}
           amountPaid={pendingPaymentForAttachment.amount}
           paymentTimestamp={pendingPaymentForAttachment.timestamp}
           onClose={() => setPendingPaymentForAttachment(null)}

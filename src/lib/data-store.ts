@@ -1458,9 +1458,6 @@ export class ZeltoDataStore {
       fileType?: string
       thumbnailUrl?: string
       noteText?: string
-      paymentEventId?: string
-      fileSizeBytes?: number
-      storagePath?: string
     }
   ): Promise<OrderAttachment> {
     const order = await this.getOrderById(orderId)
@@ -1468,21 +1465,20 @@ export class ZeltoDataStore {
       throw new Error('Order does not exist')
     }
 
+    const now = Date.now()
     const { data, error } = await supabase
       .from('order_attachments')
       .insert([{
         order_id: orderId,
+        type,
+        uploaded_by: uploadedBy,
         file_url: options.fileUrl || null,
         file_name: options.fileName || null,
         file_type: options.fileType || null,
         thumbnail_url: options.thumbnailUrl || null,
         note_text: options.noteText || null,
-        type,
-        uploaded_by: uploadedBy,
-        timestamp: Date.now(),
-        payment_event_id: options.paymentEventId || null,
-        file_size_bytes: options.fileSizeBytes || null,
-        storage_path: options.storagePath || null,
+        created_at: now,
+        timestamp: now,
       }])
       .select()
       .single()
