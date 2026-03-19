@@ -237,7 +237,7 @@ export function PlaceOrderScreen({
       </div>
 
       {/* Scrollable body */}
-      <div className="flex-1 overflow-y-auto" style={{ paddingBottom: '160px' }}>
+      <div className="flex-1 overflow-y-auto" style={{ paddingBottom: '32px' }}>
         <div style={{ padding: '20px 16px 0', display: 'flex', flexDirection: 'column', gap: '20px' }}>
 
           {/* Section 1: Ordering From */}
@@ -497,63 +497,63 @@ export function PlaceOrderScreen({
               </span>
             </div>
           </div>
-        </div>
-      </div>
 
-      {/* CTA below order summary */}
-      <div style={{ padding: '16px 0 0' }}>
-        <button
-          onClick={handleSubmit}
-          disabled={!canSubmit || isSubmitting}
-          style={{
-            width: '100%',
-            padding: '14px 16px',
-            backgroundColor: canSubmit && !isSubmitting ? '#4A6CF7' : '#C7CFE8',
-            color: '#FFFFFF',
-            border: 'none',
-            borderRadius: '12px',
-            fontSize: '15px',
-            fontWeight: 600,
-            cursor: canSubmit && !isSubmitting ? 'pointer' : 'not-allowed',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            gap: '8px',
-            transition: 'background-color 0.15s ease',
-          }}
-        >
-          {isSubmitting ? (
-            <>
-              <span
-                style={{
-                  width: '16px',
-                  height: '16px',
-                  border: '2px solid rgba(255,255,255,0.4)',
-                  borderTopColor: '#FFFFFF',
-                  borderRadius: '50%',
-                  display: 'inline-block',
-                  animation: 'spin 0.7s linear infinite',
-                }}
-              />
-              Placing order…
-            </>
-          ) : (
-            'Send order request'
-          )}
-        </button>
-        <p
-          style={{
-            textAlign: 'center',
-            fontSize: '11px',
-            color: '#9CA3AF',
-            marginTop: '6px',
-            lineHeight: 1.3,
-          }}
-        >
-          {hasSupplier
-            ? `${selectedInfo.businessName} will be notified to accept or decline`
-            : 'Select a supplier to continue'}
-        </p>
+          {/* CTA below order summary */}
+          <div>
+            <button
+              onClick={handleSubmit}
+              disabled={!canSubmit || isSubmitting}
+              style={{
+                width: '100%',
+                padding: '14px 16px',
+                backgroundColor: canSubmit && !isSubmitting ? '#4A6CF7' : '#C7CFE8',
+                color: '#FFFFFF',
+                border: 'none',
+                borderRadius: '12px',
+                fontSize: '15px',
+                fontWeight: 600,
+                cursor: canSubmit && !isSubmitting ? 'pointer' : 'not-allowed',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: '8px',
+                transition: 'background-color 0.15s ease',
+              }}
+            >
+              {isSubmitting ? (
+                <>
+                  <span
+                    style={{
+                      width: '16px',
+                      height: '16px',
+                      border: '2px solid rgba(255,255,255,0.4)',
+                      borderTopColor: '#FFFFFF',
+                      borderRadius: '50%',
+                      display: 'inline-block',
+                      animation: 'spin 0.7s linear infinite',
+                    }}
+                  />
+                  Placing order…
+                </>
+              ) : (
+                'Send order request'
+              )}
+            </button>
+            <p
+              style={{
+                textAlign: 'center',
+                fontSize: '11px',
+                color: '#9CA3AF',
+                marginTop: '6px',
+                lineHeight: 1.3,
+              }}
+            >
+              {hasSupplier
+                ? `${selectedInfo.businessName} will be notified to accept or decline`
+                : 'Select a supplier to continue'}
+            </p>
+          </div>
+        </div>
       </div>
 
       <style>{`
