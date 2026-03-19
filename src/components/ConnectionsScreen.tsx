@@ -5,7 +5,7 @@ import { behaviourEngine } from '@/lib/behaviour-engine'
 import { useDataListener } from '@/lib/data-events'
 import type { Connection, ConnectionState } from '@/lib/types'
 import { getConnectionStateLabel, getConnectionStateColor } from '@/lib/connection-state-utils'
-import { Plus, Users, PencilSimple, MagnifyingGlass, DownloadSimple } from '@phosphor-icons/react'
+import { Plus, Users, UsersThree, PencilSimple, MagnifyingGlass, DownloadSimple } from '@phosphor-icons/react'
 import { Phone, MapPin, User, Inbox } from 'lucide-react'
 import { LedgerDownloadSheet } from '@/components/LedgerDownloadSheet'
 
@@ -288,9 +288,13 @@ export function ConnectionsScreen({ currentBusinessId, onSelectConnection, onAdd
               <DownloadSimple size={17} weight="bold" />
               <span style={{ fontSize: '13px', fontWeight: 600 }}>Ledger</span>
             </button>
-<button onClick={onAddConnection} className="relative flex items-center" style={{ color: 'var(--brand-primary)', minWidth: '44px', minHeight: '44px', justifyContent: 'center' }}>
-              <Plus size={20} weight="regular" />
-              <Users size={20} weight="regular" />
+<button
+              onClick={onAddConnection}
+              className="flex items-center gap-1"
+              style={{ color: 'var(--brand-primary)', minWidth: '44px', minHeight: '44px', paddingLeft: '4px', paddingRight: '8px' }}
+            >
+              <UsersThree size={17} weight="bold" />
+              <span style={{ fontSize: '13px', fontWeight: 600 }}>Add / Manage</span>
             </button>
           </div>
         </div>
