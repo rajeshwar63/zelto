@@ -260,7 +260,7 @@ export function ConnectionsScreen({ currentBusinessId, onSelectConnection, onAdd
           }
         </div>
         <button
-          onClick={handleOpenOrderModal}
+          onClick={() => onNavigateToPlaceOrder(null)}
           className="fixed bottom-24 right-4 w-14 h-14 flex items-center justify-center z-20"
           style={{
             backgroundColor: 'var(--brand-primary)',
