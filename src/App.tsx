@@ -622,7 +622,6 @@ function App() {
           onNavigateToIncomingRequests={navigateToIncomingRequests}
           onNavigateToManageConnectionsReceived={navigateToManageConnectionsReceived}
           onLogout={handleLogout}
-          onNavigateToBusinessDetails={navigateToBusinessDetails}
           onNavigateToNotifications={navigateToNotifications}
           onNavigateToProfileNotifications={navigateToProfileNotifications}
           onNavigateToProfileAccount={navigateToProfileAccount}
@@ -653,7 +652,6 @@ function TabShell({
   onNavigateToIncomingRequests,
   onNavigateToManageConnectionsReceived,
   onLogout,
-  onNavigateToBusinessDetails,
   onNavigateToNotifications,
   onNavigateToProfileNotifications,
   onNavigateToProfileAccount,
@@ -676,7 +674,6 @@ function TabShell({
   onNavigateToIncomingRequests: () => void
   onNavigateToManageConnectionsReceived: () => void
   onLogout: () => Promise<void>
-  onNavigateToBusinessDetails: () => void
   onNavigateToNotifications: () => void
   onNavigateToProfileNotifications: () => void
   onNavigateToProfileAccount: () => void
@@ -727,7 +724,6 @@ function TabShell({
           <ProfileScreen
             currentBusinessId={currentBusinessId}
             onLogout={onLogout}
-            onNavigateToBusinessDetails={onNavigateToBusinessDetails}
             onNavigateToNotifications={onNavigateToNotifications}
             onNavigateToNotificationSettings={onNavigateToProfileNotifications}
             onNavigateToAccount={onNavigateToProfileAccount}
