@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { ArrowLeft, Buildings, Note, Briefcase, MapPin, Link, User, Phone } from '@phosphor-icons/react'
+import { ArrowLeft, Buildings, Note, Briefcase, MapPin, Link, User, Phone, PencilSimple } from '@phosphor-icons/react'
 import { dataStore } from '@/lib/data-store'
 import { calculateCredibility, getBusinessActivityCounts, type CredibilityBreakdown } from '@/lib/credibility'
 import { TrustBadge } from './TrustBadge'
@@ -301,7 +301,7 @@ export function TrustProfileScreen({
 
       {/* Dark Header — non-scrolling */}
       <div style={{ backgroundColor: '#0F1320', padding: '16px 16px 20px', flexShrink: 0 }}>
-        {/* Back + Title */}
+        {/* Back + Title + Edit (self-profile only) */}
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '16px' }}>
           <button
             onClick={onBack}
@@ -309,7 +309,16 @@ export function TrustProfileScreen({
           >
             <ArrowLeft size={20} color="#fff" />
           </button>
-          <span style={{ fontSize: '15px', fontWeight: 600, color: '#fff' }}>Trust Profile</span>
+          <span style={{ fontSize: '15px', fontWeight: 600, color: '#fff', flex: 1 }}>Trust Profile</span>
+          {isSelfProfileReady && (
+            <button
+              onClick={() => onNavigateToEditBusiness?.()}
+              style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '4px', display: 'flex', alignItems: 'center' }}
+              aria-label="Edit business details"
+            >
+              <PencilSimple size={20} color="rgba(255,255,255,0.75)" />
+            </button>
+          )}
         </div>
 
         {/* Business info row */}
