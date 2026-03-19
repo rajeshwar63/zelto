@@ -106,7 +106,34 @@ export function TrustProfileScreen({
   const [receiverRole, setReceiverRole] = useState<'buyer' | 'supplier'>('buyer')
   const [roleError, setRoleError] = useState<string | null>(null)
   const [processing, setProcessing] = useState(false)
-  const [sending, setSending] = useState(false)
+
+  // Connection status for send-request mode
+  const [connectionStatus, setConnectionStatus] = useState<'none' | 'pending' | 'connected'>('none')
+
+  useEffect(() => {
+    if (action !== 'send-request') return
+    Promise.all([
+      dataStore.getAllConnections(),
+      dataStore.getAllConnectionRequests(),
+    ]).then(([connections, requests]) => {
+      const isConnected = connections.some(
+        c =>
+          (c.buyerBusinessId === currentBusinessId && c.supplierBusinessId === targetBusinessId) ||
+          (c.buyerBusinessId === targetBusinessId && c.supplierBusinessId === currentBusinessId)
+      )
+      if (isConnected) {
+        setConnectionStatus('connected')
+        return
+      }
+      const isPending = requests.some(
+        r =>
+          r.requesterBusinessId === currentBusinessId &&
+          r.receiverBusinessId === targetBusinessId &&
+          r.status === 'Pending'
+      )
+      setConnectionStatus(isPending ? 'pending' : 'none')
+    })
+  }, [currentBusinessId, targetBusinessId, action])
 
   useEffect(() => {
     Promise.all([
@@ -146,12 +173,6 @@ export function TrustProfileScreen({
       }).catch(() => {})
     }
   }, [action, connectionRequestId])
-
-  const handleSendRequest = async () => {
-    setSending(true)
-    setShowRoleConfirm(true)
-    setSending(false)
-  }
 
   const handleConfirmSendRequest = async () => {
     if (!business) return
@@ -300,29 +321,29 @@ export function TrustProfileScreen({
     <div style={{ position: 'fixed', inset: 0, zIndex: 50, display: 'flex', flexDirection: 'column', backgroundColor: '#F2F4F8' }}>
 
       {/* Header — non-scrolling */}
-      <div style={{ backgroundColor: '#FFFFFF', borderBottom: '1px solid rgba(0,0,0,0.06)', padding: '16px 16px 20px', flexShrink: 0 }}>
+      <div style={{ backgroundColor: '#0F1320', flexShrink: 0 }}>
         {/* Back + Title + Edit (self-profile only) */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '16px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '16px 16px 0', marginBottom: '16px' }}>
           <button
             onClick={onBack}
             style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '4px', display: 'flex', alignItems: 'center' }}
           >
-            <ArrowLeft size={20} color="#0F1320" />
+            <ArrowLeft size={20} color="#fff" />
           </button>
-          <span style={{ fontSize: '15px', fontWeight: 600, color: '#0F1320', flex: 1 }}>Trust Profile</span>
+          <span style={{ fontSize: '15px', fontWeight: 600, color: '#fff', flex: 1 }}>Trust Profile</span>
           {isSelfProfileReady && (
             <button
               onClick={() => onNavigateToEditBusiness?.()}
               style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '4px', display: 'flex', alignItems: 'center' }}
               aria-label="Edit business details"
             >
-              <PencilSimple size={20} color="#8492A6" />
+              <PencilSimple size={20} color="rgba(255,255,255,0.6)" />
             </button>
           )}
         </div>
 
         {/* Business info row */}
-        <div style={{ display: 'flex', alignItems: 'flex-start', gap: '12px' }}>
+        <div style={{ display: 'flex', alignItems: 'flex-start', gap: '12px', padding: '0 16px', marginBottom: '16px' }}>
           {/* Avatar */}
           <div style={{
             width: 44,
@@ -340,21 +361,60 @@ export function TrustProfileScreen({
           {/* Name + meta */}
           <div style={{ flex: 1, minWidth: 0 }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap', marginBottom: '3px' }}>
-              <span style={{ fontSize: '16px', fontWeight: 700, color: '#0F1320' }}>{business.businessName}</span>
+              <span style={{ fontSize: '16px', fontWeight: 700, color: '#fff' }}>{business.businessName}</span>
               {credibility && <TrustBadge level={credibility.level} variant="light" size="sm" />}
             </div>
             {(business.businessType || business.city) && (
-              <p style={{ fontSize: '11px', color: '#8492A6', marginBottom: '4px' }}>
+              <p style={{ fontSize: '11px', color: 'rgba(255,255,255,0.6)', marginBottom: '4px' }}>
                 {[business.businessType, business.city].filter(Boolean).join(' · ')}
               </p>
             )}
-            <p style={{ fontSize: '10px', color: '#B0BAC9', fontFamily: '"DM Mono", "Courier New", monospace', marginBottom: '2px' }}>
+            <p style={{ fontSize: '10px', color: 'rgba(255,255,255,0.5)', fontFamily: '"DM Mono", "Courier New", monospace', marginBottom: '2px' }}>
               {business.zeltoId}
             </p>
-            <p style={{ fontSize: '11px', color: '#8492A6' }}>
+            <p style={{ fontSize: '11px', color: 'rgba(255,255,255,0.6)' }}>
               Member since {memberSince}
             </p>
           </div>
+        </div>
+
+        {/* Stats row */}
+        <div style={{ display: 'flex', padding: '10px 16px 0' }}>
+          {[
+            { value: activityCounts?.connectionCount ?? '—', label: 'connections' },
+            { value: activityCounts?.orderCount ?? '—', label: 'orders placed' },
+            {
+              value: credibility ? `${credibility.score}/100` : '—',
+              label: 'trust score',
+            },
+          ].map((stat, i, arr) => (
+            <div
+              key={stat.label}
+              style={{
+                flex: 1,
+                textAlign: 'center',
+                padding: '8px 0 16px',
+                borderRight: i < arr.length - 1 ? '1px solid rgba(255,255,255,0.12)' : 'none',
+              }}
+            >
+              <p style={{
+                fontSize: '22px',
+                fontWeight: 700,
+                color: '#fff',
+                lineHeight: 1,
+                margin: 0,
+              }}>
+                {stat.value}
+              </p>
+              <p style={{
+                fontSize: '11px',
+                color: 'rgba(255,255,255,0.45)',
+                margin: '3px 0 0',
+              }}>
+                {stat.label}
+              </p>
+            </div>
+          ))}
         </div>
       </div>
 
@@ -625,85 +685,121 @@ export function TrustProfileScreen({
         )}
       </div>
 
-      {/* Fixed Bottom CTA */}
-      <div style={{
-        padding: '12px 16px',
-        paddingBottom: 'max(12px, env(safe-area-inset-bottom))',
-        backgroundColor: '#fff',
-        borderTop: '1px solid #E8ECF2',
-        flexShrink: 0,
-      }}>
-        {action === 'send-request' && (
-          <button
-            onClick={handleSendRequest}
-            disabled={sending}
-            style={{ width: '100%', padding: '14px', backgroundColor: '#4A6CF7', color: '#fff', border: 'none', borderRadius: '12px', fontSize: '15px', fontWeight: 500, cursor: 'pointer' }}
-          >
-            {sending ? 'Loading…' : 'Send Connection Request'}
-          </button>
-        )}
-
-        {action === 'accept-request' && (
-          <div style={{ display: 'flex', gap: '12px' }}>
-            <button
-              onClick={handleDecline}
-              disabled={processing}
-              style={{ flex: 1, padding: '14px', backgroundColor: 'transparent', border: '1px solid #E8ECF2', borderRadius: '12px', fontSize: '15px', fontWeight: 500, cursor: 'pointer', color: '#1A1F2E' }}
-            >
-              Decline
-            </button>
-            <button
-              onClick={handleAccept}
-              disabled={processing}
-              style={{ flex: 2, padding: '14px', backgroundColor: '#4A6CF7', color: '#fff', border: 'none', borderRadius: '12px', fontSize: '15px', fontWeight: 500, cursor: 'pointer' }}
-            >
-              Accept Connection →
-            </button>
-          </div>
-        )}
-
-        {action === 'view-connection' && (
-          <button
-            onClick={onBack}
-            style={{ width: '100%', padding: '14px', backgroundColor: 'transparent', border: '1px solid #E8ECF2', borderRadius: '12px', fontSize: '15px', fontWeight: 500, cursor: 'pointer', color: '#1A1F2E' }}
-          >
-            {isSelfProfileReady ? 'Back to Profile' : 'Close'}
-          </button>
-        )}
-      </div>
-
-      {/* Role confirm dialog — send-request mode */}
+      {/* Fixed Bottom CTA — send-request mode */}
       {action === 'send-request' && (
-        <Dialog open={showRoleConfirm} onOpenChange={setShowRoleConfirm}>
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>Your Role</DialogTitle>
-              <DialogDescription>
-                Select your role in this connection with {business.businessName}.
-              </DialogDescription>
-            </DialogHeader>
-            <div className="space-y-4 py-4">
-              <RadioGroup value={receiverRole} onValueChange={val => setReceiverRole(val as 'buyer' | 'supplier')}>
-                <div className="flex items-center space-x-2">
-                  <RadioGroupItem value="buyer" id="send-buyer" />
-                  <Label htmlFor="send-buyer" className="font-normal cursor-pointer">I am the Buyer</Label>
-                </div>
-                <div className="flex items-center space-x-2">
-                  <RadioGroupItem value="supplier" id="send-supplier" />
-                  <Label htmlFor="send-supplier" className="font-normal cursor-pointer">I am the Supplier</Label>
-                </div>
-              </RadioGroup>
-              <div className="flex gap-2">
-                <Button onClick={handleConfirmSendRequest} disabled={processing} className="flex-1">
-                  {processing ? 'Sending…' : 'Send Request'}
-                </Button>
-                <Button onClick={() => setShowRoleConfirm(false)} variant="outline" className="flex-1">
-                  Cancel
-                </Button>
+        <div style={{
+          padding: '12px 16px 28px',
+          borderTop: '1px solid var(--border-light)',
+          backgroundColor: 'var(--bg-card)',
+          flexShrink: 0,
+        }}>
+          {connectionStatus === 'none' && (
+            <>
+              <p style={{
+                fontSize: '12px',
+                fontWeight: 500,
+                color: 'var(--text-secondary)',
+                marginBottom: '8px',
+              }}>
+                Select your role
+              </p>
+              <div style={{ display: 'flex', gap: '10px', marginBottom: '10px' }}>
+                {(['buyer', 'supplier'] as const).map(role => (
+                  <button
+                    key={role}
+                    onClick={() => setReceiverRole(role)}
+                    style={{
+                      flex: 1,
+                      padding: '10px',
+                      border: `1.5px solid ${receiverRole === role ? 'var(--brand-primary)' : 'var(--border-light)'}`,
+                      borderRadius: '10px',
+                      fontSize: '13px',
+                      fontWeight: 500,
+                      color: receiverRole === role ? 'var(--brand-primary)' : 'var(--text-primary)',
+                      background: receiverRole === role ? 'rgba(74,108,247,0.06)' : 'var(--bg-card)',
+                      cursor: 'pointer',
+                    }}
+                  >
+                    {role === 'buyer' ? 'I am the Buyer' : 'I am the Supplier'}
+                  </button>
+                ))}
               </div>
+              <button
+                onClick={handleConfirmSendRequest}
+                disabled={processing}
+                style={{
+                  width: '100%',
+                  padding: '14px',
+                  backgroundColor: 'var(--brand-primary)',
+                  color: '#fff',
+                  border: 'none',
+                  borderRadius: '12px',
+                  fontSize: '15px',
+                  fontWeight: 600,
+                  cursor: processing ? 'not-allowed' : 'pointer',
+                  opacity: processing ? 0.7 : 1,
+                }}
+              >
+                {processing ? 'Sending…' : 'Send Connection Request'}
+              </button>
+            </>
+          )}
+
+          {connectionStatus === 'pending' && (
+            <div style={{
+              padding: '14px',
+              borderRadius: '12px',
+              border: '1px solid var(--border-light)',
+              textAlign: 'center',
+              color: 'var(--text-secondary)',
+              fontSize: '14px',
+              fontWeight: 500,
+            }}>
+              Connection Request Sent
             </div>
-          </DialogContent>
-        </Dialog>
+          )}
+
+          {/* connectionStatus === 'connected': render nothing */}
+        </div>
+      )}
+
+      {/* Fixed Bottom CTA — accept-request and view-connection modes */}
+      {(action === 'accept-request' || action === 'view-connection') && (
+        <div style={{
+          padding: '12px 16px',
+          paddingBottom: 'max(12px, env(safe-area-inset-bottom))',
+          backgroundColor: '#fff',
+          borderTop: '1px solid #E8ECF2',
+          flexShrink: 0,
+        }}>
+          {action === 'accept-request' && (
+            <div style={{ display: 'flex', gap: '12px' }}>
+              <button
+                onClick={handleDecline}
+                disabled={processing}
+                style={{ flex: 1, padding: '14px', backgroundColor: 'transparent', border: '1px solid #E8ECF2', borderRadius: '12px', fontSize: '15px', fontWeight: 500, cursor: 'pointer', color: '#1A1F2E' }}
+              >
+                Decline
+              </button>
+              <button
+                onClick={handleAccept}
+                disabled={processing}
+                style={{ flex: 2, padding: '14px', backgroundColor: '#4A6CF7', color: '#fff', border: 'none', borderRadius: '12px', fontSize: '15px', fontWeight: 500, cursor: 'pointer' }}
+              >
+                Accept Connection →
+              </button>
+            </div>
+          )}
+
+          {action === 'view-connection' && (
+            <button
+              onClick={onBack}
+              style={{ width: '100%', padding: '14px', backgroundColor: 'transparent', border: '1px solid #E8ECF2', borderRadius: '12px', fontSize: '15px', fontWeight: 500, cursor: 'pointer', color: '#1A1F2E' }}
+            >
+              {isSelfProfileReady ? 'Back to Profile' : 'Close'}
+            </button>
+          )}
+        </div>
       )}
 
       {/* Role confirm dialog — accept-request mode */}
