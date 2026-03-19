@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { useOrdersData } from '@/hooks/data/use-business-data'
 import { PencilSimple, MagnifyingGlass, Faders } from '@phosphor-icons/react'
 import { OrderCard } from '@/components/order/OrderCard'
@@ -12,6 +12,16 @@ import {
 } from '@/components/order/OrderSearchPanel'
 import { getStatusChipBackground, getStatusChipColor } from '@/components/order/FilterSheet'
 import { startOfDay } from 'date-fns'
+import {
+  type OrdersDefaultTab,
+  clearOrdersDefaultTabLocal,
+  getOrdersDefaultTab,
+  hasPinHintBeenShown,
+  markPinHintShown,
+  saveOrdersDefaultTabToSupabase,
+  setOrdersDefaultTabLocal,
+  syncOrdersDefaultTabFromSupabase,
+} from '@/lib/orders-tab-preference'
 
 interface OrdersTabParams {
   role?: RoleFilter
@@ -67,6 +77,22 @@ function matchesChip(
   }
 }
 
+// Small inline SVG pin icon
+function PinIcon({ color = 'var(--text-secondary)' }: { color?: string }) {
+  return (
+    <svg
+      width="10"
+      height="10"
+      viewBox="0 0 24 24"
+      fill={color}
+      style={{ display: 'inline-block', verticalAlign: 'middle', flexShrink: 0 }}
+      aria-hidden="true"
+    >
+      <path d="M16 3a1 1 0 0 1 .707 1.707L15.414 6l1.879 5.172A2 2 0 0 1 15.414 14H13v5.586l-1 1-1-1V14H8.586a2 2 0 0 1-1.879-2.828L8.586 6 7.293 4.707A1 1 0 0 1 8 3h8z" />
+    </svg>
+  )
+}
+
 export function OrdersScreen({ currentBusinessId, onSelectOrder, initialFilter, initialParams, isActive = true, onNavigateToPlaceOrder }: Props) {
   const { data: orders = [], isInitialLoading, isRefreshing } = useOrdersData(currentBusinessId, isActive)
   const { initialLoading, refreshing } = useScreenLoadState({
@@ -75,9 +101,57 @@ export function OrdersScreen({ currentBusinessId, onSelectOrder, initialFilter, 
     isRefreshing: isActive && isRefreshing,
   })
 
-  const [roleFilter, setRoleFilter] = useState<RoleFilter>('all')
+  const [roleFilter, setRoleFilter] = useState<RoleFilter>(() => getOrdersDefaultTab())
+  const [pinnedTab, setPinnedTab] = useState<OrdersDefaultTab>(() => getOrdersDefaultTab())
   const [orderFilters, setOrderFilters] = useState<OrderFilters>(EMPTY_FILTERS)
   const [filterPanelOpen, setFilterPanelOpen] = useState(false)
+  const [popoverTab, setPopoverTab] = useState<RoleFilter | null>(null)
+  const [showPinHint, setShowPinHint] = useState(false)
+
+  // Long-press timer refs
+  const pressTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const popoverRef = useRef<HTMLDivElement | null>(null)
+
+  // On mount: background-sync preference from Supabase
+  useEffect(() => {
+    syncOrdersDefaultTabFromSupabase((remoteTab) => {
+      setPinnedTab(remoteTab)
+      // Only update active tab if no deep-link has overridden it
+      setRoleFilter(prev => {
+        // If no deep-link params were applied yet, use remoteTab
+        return prev === getOrdersDefaultTab() ? remoteTab : prev
+      })
+    })
+  }, [])
+
+  // Show first-time hint once
+  useEffect(() => {
+    if (!hasPinHintBeenShown()) {
+      setShowPinHint(true)
+    }
+  }, [])
+
+  // Auto-dismiss hint after 5s
+  useEffect(() => {
+    if (!showPinHint) return
+    const timer = setTimeout(() => {
+      setShowPinHint(false)
+      markPinHintShown()
+    }, 5000)
+    return () => clearTimeout(timer)
+  }, [showPinHint])
+
+  // Dismiss popover on outside click
+  useEffect(() => {
+    if (!popoverTab) return
+    const handler = (e: MouseEvent) => {
+      if (popoverRef.current && !popoverRef.current.contains(e.target as Node)) {
+        setPopoverTab(null)
+      }
+    }
+    document.addEventListener('mousedown', handler)
+    return () => document.removeEventListener('mousedown', handler)
+  }, [popoverTab])
 
   // Handle legacy initialFilter (old string-based filter)
   useEffect(() => {
@@ -125,6 +199,40 @@ export function OrdersScreen({ currentBusinessId, onSelectOrder, initialFilter, 
     // Reset filters when switching tabs to avoid confusion
     setOrderFilters(EMPTY_FILTERS)
     setFilterPanelOpen(false)
+  }
+
+  // Long-press handlers
+  const handlePressStart = (role: RoleFilter) => {
+    pressTimerRef.current = setTimeout(() => {
+      setPopoverTab(role)
+    }, 500)
+  }
+
+  const handlePressEnd = () => {
+    if (pressTimerRef.current) {
+      clearTimeout(pressTimerRef.current)
+      pressTimerRef.current = null
+    }
+  }
+
+  const handleSetDefault = (role: RoleFilter) => {
+    const tab = role as OrdersDefaultTab
+    setPinnedTab(tab)
+    setOrdersDefaultTabLocal(tab)
+    saveOrdersDefaultTabToSupabase(tab)
+    setPopoverTab(null)
+    // Dismiss hint if visible
+    if (showPinHint) {
+      setShowPinHint(false)
+      markPinHintShown()
+    }
+  }
+
+  const handleRemoveDefault = () => {
+    setPinnedTab('all')
+    clearOrdersDefaultTabLocal()
+    saveOrdersDefaultTabToSupabase(null)
+    setPopoverTab(null)
   }
 
   const toggleStatusFilter = (chip: StatusChip) => {
@@ -249,37 +357,135 @@ export function OrdersScreen({ currentBusinessId, onSelectOrder, initialFilter, 
             Orders
           </h1>
 
-          {/* Compact pill toggle — All | Buying | Selling */}
+          {/* Compact pill toggle — All | Buying | Selling with long-press to pin */}
           <div style={{
             display: 'flex',
             borderRadius: 999,
             border: '0.5px solid var(--border-light)',
-            overflow: 'hidden',
+            overflow: 'visible',
+            position: 'relative',
           }}>
-            {(['all', 'buying', 'selling'] as const).map(role => (
-              <button
-                key={role}
-                onClick={() => handleRoleChange(role)}
-                style={{
-                  padding: '5px 14px',
-                  fontSize: 12,
-                  fontWeight: roleFilter === role ? 600 : 400,
-                  border: 'none',
-                  cursor: 'pointer',
-                  background: roleFilter === role
-                    ? 'var(--text-primary)'
-                    : 'transparent',
-                  color: roleFilter === role
-                    ? 'var(--bg-card)'
-                    : 'var(--text-secondary)',
-                  transition: 'all 150ms',
-                }}
-              >
-                {role === 'all' ? 'All' : role === 'buying' ? 'Buying' : 'Selling'}
-              </button>
-            ))}
+            {(['all', 'buying', 'selling'] as const).map(role => {
+              const isPinned = pinnedTab === role
+              const isActive = roleFilter === role
+              return (
+                <div
+                  key={role}
+                  style={{ position: 'relative' }}
+                >
+                  <button
+                    onClick={() => handleRoleChange(role)}
+                    onMouseDown={() => handlePressStart(role)}
+                    onMouseUp={handlePressEnd}
+                    onMouseLeave={handlePressEnd}
+                    onTouchStart={() => handlePressStart(role)}
+                    onTouchEnd={handlePressEnd}
+                    onContextMenu={(e) => { e.preventDefault(); setPopoverTab(role) }}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 3,
+                      padding: '5px 14px',
+                      fontSize: 12,
+                      fontWeight: isActive ? 600 : 400,
+                      border: 'none',
+                      cursor: 'pointer',
+                      background: isActive
+                        ? 'var(--text-primary)'
+                        : 'transparent',
+                      color: isActive
+                        ? 'var(--bg-card)'
+                        : 'var(--text-secondary)',
+                      transition: 'all 150ms',
+                      borderRadius: role === 'all' ? '999px 0 0 999px' : role === 'selling' ? '0 999px 999px 0' : '0',
+                      userSelect: 'none',
+                      WebkitUserSelect: 'none',
+                    }}
+                  >
+                    {isPinned && (
+                      <PinIcon color={isActive ? 'var(--bg-card)' : 'var(--text-secondary)'} />
+                    )}
+                    {role === 'all' ? 'All' : role === 'buying' ? 'Buying' : 'Selling'}
+                  </button>
+
+                  {/* Popover for this tab */}
+                  {popoverTab === role && (
+                    <div
+                      ref={popoverRef}
+                      style={{
+                        position: 'absolute',
+                        top: 'calc(100% + 6px)',
+                        right: role === 'selling' ? 0 : undefined,
+                        left: role === 'all' ? 0 : undefined,
+                        transform: role === 'buying' ? 'translateX(-25%)' : undefined,
+                        zIndex: 100,
+                        background: 'var(--bg-card)',
+                        borderRadius: 10,
+                        boxShadow: '0 4px 16px rgba(0,0,0,0.14)',
+                        border: '0.5px solid var(--border-light)',
+                        padding: '0',
+                        minWidth: 160,
+                        overflow: 'hidden',
+                      }}
+                    >
+                      <button
+                        onClick={() => isPinned ? handleRemoveDefault() : handleSetDefault(role)}
+                        style={{
+                          display: 'block',
+                          width: '100%',
+                          padding: '12px 16px',
+                          fontSize: 13,
+                          fontWeight: 500,
+                          color: 'var(--text-primary)',
+                          background: 'none',
+                          border: 'none',
+                          cursor: 'pointer',
+                          textAlign: 'left',
+                          whiteSpace: 'nowrap',
+                        }}
+                      >
+                        {isPinned ? 'Remove as default' : 'Set as default'}
+                      </button>
+                    </div>
+                  )}
+                </div>
+              )
+            })}
           </div>
         </div>
+
+        {/* First-time pin hint */}
+        {showPinHint && (
+          <div style={{
+            margin: '0 16px 8px',
+            padding: '8px 12px',
+            borderRadius: 8,
+            background: 'rgba(74, 108, 247, 0.06)',
+            border: '0.5px solid rgba(74, 108, 247, 0.18)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            gap: 8,
+          }}>
+            <p style={{ margin: 0, fontSize: 12, color: 'var(--text-secondary)', lineHeight: 1.4 }}>
+              Tip: Long-press a tab to set it as your default view
+            </p>
+            <button
+              onClick={() => { setShowPinHint(false); markPinHintShown() }}
+              style={{
+                background: 'none',
+                border: 'none',
+                cursor: 'pointer',
+                fontSize: 12,
+                color: 'var(--text-secondary)',
+                padding: '0 4px',
+                flexShrink: 0,
+              }}
+            >
+              ✕
+            </button>
+          </div>
+        )}
 
         {/* Row 2 — Search Bar + Filter Button */}
         <div style={{
@@ -407,7 +613,7 @@ export function OrdersScreen({ currentBusinessId, onSelectOrder, initialFilter, 
             {/* Status chips */}
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
               {visibleChips.map(chip => {
-                const isActive = orderFilters.activeChips.has(chip)
+                const isChipActive = orderFilters.activeChips.has(chip)
                 return (
                   <button
                     key={chip}
@@ -416,10 +622,10 @@ export function OrdersScreen({ currentBusinessId, onSelectOrder, initialFilter, 
                       fontSize: '13px',
                       padding: '6px 14px',
                       borderRadius: 999,
-                      border: isActive ? 'none' : '0.5px solid var(--border-light)',
-                      background: isActive ? getStatusChipBackground(chip) : 'transparent',
-                      color: isActive ? getStatusChipColor(chip) : 'var(--text-secondary)',
-                      fontWeight: isActive ? 500 : 400,
+                      border: isChipActive ? 'none' : '0.5px solid var(--border-light)',
+                      background: isChipActive ? getStatusChipBackground(chip) : 'transparent',
+                      color: isChipActive ? getStatusChipColor(chip) : 'var(--text-secondary)',
+                      fontWeight: isChipActive ? 500 : 400,
                       cursor: 'pointer',
                     }}
                   >
