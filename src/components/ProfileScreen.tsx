@@ -242,18 +242,18 @@ export function ProfileScreen({
   return (
     <div style={{ backgroundColor: '#F2F4F8', minHeight: '100%', paddingBottom: 'env(safe-area-inset-bottom)' }}>
 
-      {/* ── DARK HEADER ── */}
-      <div style={{ backgroundColor: '#0F1320', paddingTop: 'env(safe-area-inset-top)' }}>
+      {/* ── HEADER ── */}
+      <div style={{ backgroundColor: '#FFFFFF', borderBottom: '1px solid rgba(0,0,0,0.06)', paddingTop: 'env(safe-area-inset-top)' }}>
 
         {/* Title bar */}
         <div className="flex items-center px-4" style={{ height: '44px' }}>
-          <h1 style={{ fontSize: '22px', fontWeight: 700, color: '#FFFFFF', letterSpacing: '-0.02em', flex: 1 }}>
+          <h1 style={{ fontSize: '22px', fontWeight: 700, color: '#0F1320', letterSpacing: '-0.02em', flex: 1 }}>
             Profile
           </h1>
           <button
             onClick={onNavigateToNotifications}
             className="relative flex items-center justify-center"
-            style={{ color: '#FFFFFF', minWidth: '44px', minHeight: '44px' }}
+            style={{ color: '#0F1320', minWidth: '44px', minHeight: '44px' }}
           >
             <Bell size={22} weight="regular" />
             {unreadCount > 0 && (
@@ -281,8 +281,8 @@ export function ProfileScreen({
         {/* ── HERO CARD ── */}
         <div className="px-4 pb-3">
           <div style={{
-            backgroundColor: 'rgba(255,255,255,0.06)',
-            border: '1px solid rgba(255,255,255,0.1)',
+            backgroundColor: '#F7F8FA',
+            border: '1px solid rgba(0,0,0,0.07)',
             borderRadius: '18px',
             padding: '14px',
           }}>
@@ -304,11 +304,11 @@ export function ProfileScreen({
                 {getInitials(business.businessName)}
               </div>
               <div style={{ flex: 1, minWidth: 0 }}>
-                <p style={{ fontSize: '16px', fontWeight: 700, color: '#FFFFFF', lineHeight: '1.2' }}>
+                <p style={{ fontSize: '16px', fontWeight: 700, color: '#0F1320', lineHeight: '1.2' }}>
                   {business.businessName}
                 </p>
                 {businessTypeAndCity && (
-                  <p style={{ fontSize: '12px', color: 'rgba(255,255,255,0.55)', marginTop: '2px' }}>
+                  <p style={{ fontSize: '12px', color: '#8492A6', marginTop: '2px' }}>
                     {businessTypeAndCity}
                   </p>
                 )}
@@ -321,14 +321,14 @@ export function ProfileScreen({
             </div>
 
             {/* Divider */}
-            <div style={{ height: '1px', backgroundColor: 'rgba(255,255,255,0.08)', marginBottom: '12px' }} />
+            <div style={{ height: '1px', backgroundColor: 'rgba(0,0,0,0.07)', marginBottom: '12px' }} />
 
             {/* Zelto code + share */}
             <div className="flex items-center justify-between">
               <span style={{
                 fontFamily: '"DM Mono", monospace',
                 fontSize: '11px',
-                color: 'rgba(255,255,255,0.35)',
+                color: '#B0BAC9',
                 letterSpacing: '0.05em',
               }}>
                 {business.zeltoId}
@@ -339,11 +339,11 @@ export function ProfileScreen({
                 style={{
                   fontSize: '12px',
                   fontWeight: 600,
-                  color: 'rgba(255,255,255,0.7)',
+                  color: '#4A6CF7',
                   padding: '6px 10px',
                   borderRadius: '8px',
-                  backgroundColor: 'rgba(255,255,255,0.1)',
-                  border: '1px solid rgba(255,255,255,0.12)',
+                  backgroundColor: 'rgba(74,108,247,0.08)',
+                  border: '1px solid rgba(74,108,247,0.2)',
                   minHeight: '32px',
                 }}
               >
@@ -360,8 +360,8 @@ export function ProfileScreen({
             onClick={onNavigateToSelfTrustProfile}
             className="w-full flex items-center gap-3 text-left"
             style={{
-              background: 'linear-gradient(135deg, rgba(74,108,247,0.18), rgba(123,143,247,0.1))',
-              border: '1px solid rgba(74,108,247,0.3)',
+              backgroundColor: 'rgba(74,108,247,0.06)',
+              border: '1px solid rgba(74,108,247,0.2)',
               borderRadius: '14px',
               padding: '12px 14px',
               minHeight: '60px',
@@ -383,10 +383,10 @@ export function ProfileScreen({
 
             {/* Text */}
             <div style={{ flex: 1, minWidth: 0 }}>
-              <p style={{ fontSize: '13px', fontWeight: 700, color: '#FFFFFF' }}>
+              <p style={{ fontSize: '13px', fontWeight: 700, color: '#0F1320' }}>
                 Your Trust Profile
               </p>
-              <p style={{ fontSize: '11px', color: 'rgba(255,255,255,0.45)', marginTop: '1px' }}>
+              <p style={{ fontSize: '11px', color: '#8492A6', marginTop: '1px' }}>
                 Identity · Compliance docs
               </p>
               {hasDocWarning && (
@@ -406,7 +406,7 @@ export function ProfileScreen({
               )}
             </div>
 
-            <CaretRight size={16} color="rgba(255,255,255,0.4)" />
+            <CaretRight size={16} color="#B0BAC9" />
           </button>
         </div>
       </div>

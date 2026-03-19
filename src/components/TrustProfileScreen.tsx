@@ -299,24 +299,24 @@ export function TrustProfileScreen({
   return (
     <div style={{ position: 'fixed', inset: 0, zIndex: 50, display: 'flex', flexDirection: 'column', backgroundColor: '#F2F4F8' }}>
 
-      {/* Dark Header — non-scrolling */}
-      <div style={{ backgroundColor: '#0F1320', padding: '16px 16px 20px', flexShrink: 0 }}>
+      {/* Header — non-scrolling */}
+      <div style={{ backgroundColor: '#FFFFFF', borderBottom: '1px solid rgba(0,0,0,0.06)', padding: '16px 16px 20px', flexShrink: 0 }}>
         {/* Back + Title + Edit (self-profile only) */}
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '16px' }}>
           <button
             onClick={onBack}
             style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '4px', display: 'flex', alignItems: 'center' }}
           >
-            <ArrowLeft size={20} color="#fff" />
+            <ArrowLeft size={20} color="#0F1320" />
           </button>
-          <span style={{ fontSize: '15px', fontWeight: 600, color: '#fff', flex: 1 }}>Trust Profile</span>
+          <span style={{ fontSize: '15px', fontWeight: 600, color: '#0F1320', flex: 1 }}>Trust Profile</span>
           {isSelfProfileReady && (
             <button
               onClick={() => onNavigateToEditBusiness?.()}
               style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '4px', display: 'flex', alignItems: 'center' }}
               aria-label="Edit business details"
             >
-              <PencilSimple size={20} color="rgba(255,255,255,0.75)" />
+              <PencilSimple size={20} color="#8492A6" />
             </button>
           )}
         </div>
@@ -334,24 +334,24 @@ export function TrustProfileScreen({
             justifyContent: 'center',
             flexShrink: 0,
           }}>
-            <span style={{ fontSize: '15px', fontWeight: 700, color: '#fff' }}>{getInitials(business.businessName)}</span>
+            <span style={{ fontSize: '15px', fontWeight: 700, color: '#FFFFFF' }}>{getInitials(business.businessName)}</span>
           </div>
 
           {/* Name + meta */}
           <div style={{ flex: 1, minWidth: 0 }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap', marginBottom: '3px' }}>
-              <span style={{ fontSize: '16px', fontWeight: 700, color: '#fff' }}>{business.businessName}</span>
+              <span style={{ fontSize: '16px', fontWeight: 700, color: '#0F1320' }}>{business.businessName}</span>
               {credibility && <TrustBadge level={credibility.level} variant="light" size="sm" />}
             </div>
             {(business.businessType || business.city) && (
-              <p style={{ fontSize: '11px', color: 'rgba(255,255,255,0.45)', marginBottom: '4px' }}>
+              <p style={{ fontSize: '11px', color: '#8492A6', marginBottom: '4px' }}>
                 {[business.businessType, business.city].filter(Boolean).join(' · ')}
               </p>
             )}
-            <p style={{ fontSize: '10px', color: 'rgba(255,255,255,0.35)', fontFamily: '"DM Mono", "Courier New", monospace', marginBottom: '2px' }}>
+            <p style={{ fontSize: '10px', color: '#B0BAC9', fontFamily: '"DM Mono", "Courier New", monospace', marginBottom: '2px' }}>
               {business.zeltoId}
             </p>
-            <p style={{ fontSize: '11px', color: 'rgba(255,255,255,0.35)' }}>
+            <p style={{ fontSize: '11px', color: '#8492A6' }}>
               Member since {memberSince}
             </p>
           </div>
