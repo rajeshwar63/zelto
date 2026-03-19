@@ -560,8 +560,15 @@ export function ManageConnectionsScreen({ currentBusinessId, onBack, onSuccess, 
           >
             <ArrowLeft size={20} color="var(--text-primary)" />
           </button>
-          <h1 style={{ fontSize: '17px', fontWeight: 600, color: 'var(--text-primary)', flex: 1, marginLeft: '4px' }}>Manage Connections</h1>
+          <h1 style={{ fontSize: '17px', fontWeight: 600, color: 'var(--text-primary)', flex: 1 }}>Manage Connections</h1>
           <button
+            onClick={() => setActiveTab('add')}
+            style={{ display: 'flex', alignItems: 'center', gap: '4px', color: 'var(--brand-primary)', minWidth: '44px', minHeight: '44px', paddingRight: '0' }}
+          >
+            <span style={{ fontSize: '14px', fontWeight: 600 }}>Add</span>
+            <UserPlus size={20} weight="regular" />
+          </button>
+        </div>          <button
             onClick={() => setShowSearch(prev => !prev)}
             style={{
               minWidth: '44px',
