@@ -329,11 +329,15 @@ function App() {
     return <WelcomeScreen onContinue={handleWelcomeSubmit} onLoginOnly={handleLoginOnly} />
   }
 
-  const navigateToConnection = (connectionId: string) => {
+  const navigateToConnection = (connectionId: string, orderId?: string) => {
     if (currentBusinessId) {
       updateConnectionLastSeen(currentBusinessId, connectionId)
     }
-    setNavigationStack(stack => [...stack, { type: 'connection-detail', connectionId }])
+    if (orderId) {
+      setNavigationStack(stack => [...stack, { type: 'order-detail', orderId, connectionId, mode: 'connection' }])
+    } else {
+      setNavigationStack(stack => [...stack, { type: 'connection-detail', connectionId }])
+    }
   }
 
   const navigateBack = () => {
