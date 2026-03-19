@@ -292,7 +292,8 @@ export class ZeltoDataStore {
       .eq('business_id', businessId)
       .order('uploaded_at', { ascending: false })
 
-    if (error) throw error
+    // Silently return empty array if table doesn't exist yet or query fails
+    if (error) return []
     return toCamelCase(data || [])
   }
 
