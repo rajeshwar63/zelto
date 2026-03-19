@@ -27,13 +27,6 @@ export interface CredibilityBreakdown {
  *   - Has at least 1 order: 10
  *   - Has at least 10 orders: 10 (additional)
  *
- * Document bonuses (max 20 points):
- *   - MSME / Udyam certificate: +8
- *   - Trade licence: +7
- *   - FSSAI licence: +5
- *   - PAN card: +5
- *   - Any other verified document: +3 each, max +6
- *
  * Max possible score: 100
  */
 export async function calculateCredibility(businessId: string): Promise<CredibilityBreakdown> {
@@ -131,51 +124,6 @@ export async function calculateCredibility(businessId: string): Promise<Credibil
   if (totalOrders >= 10) {
     score += 10
     completedItems.push('10+ orders')
-  }
-
-  // Document bonuses (max +20)
-  try {
-    const documents = await dataStore.getDocumentsByBusinessId(businessId)
-    let docPoints = 0
-
-    const hasMsme = documents.some(d => d.documentType === 'msme_udyam')
-    const hasTrade = documents.some(d => d.documentType === 'trade_licence')
-    const hasFssai = documents.some(d => d.documentType === 'fssai_licence')
-    const hasPan = documents.some(d => d.documentType === 'pan_card')
-    const otherDocs = documents.filter(d => !['msme_udyam', 'trade_licence', 'fssai_licence', 'pan_card'].includes(d.documentType))
-
-    if (hasMsme) {
-      docPoints += 8
-      completedItems.push('MSME certificate')
-    } else {
-      missingItems.push('Upload MSME certificate')
-    }
-
-    if (hasTrade) {
-      docPoints += 7
-      completedItems.push('Trade licence')
-    } else {
-      missingItems.push('Upload trade licence')
-    }
-
-    if (hasFssai) {
-      docPoints += 5
-      completedItems.push('FSSAI licence')
-    }
-
-    if (hasPan) {
-      docPoints += 5
-      completedItems.push('PAN card')
-    }
-
-    // Other documents: +3 each, max +6
-    const otherPoints = Math.min(otherDocs.length * 3, 6)
-    docPoints += otherPoints
-
-    // Cap document points at 20
-    score += Math.min(docPoints, 20)
-  } catch {
-    // Documents are non-critical — skip if unavailable
   }
 
   // Cap score at 100

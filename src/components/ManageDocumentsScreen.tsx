@@ -6,12 +6,12 @@ import { calculateCredibility } from '@/lib/credibility'
 import { toast } from 'sonner'
 import type { BusinessDocument } from '@/lib/types'
 
-const DOCUMENT_TYPES: { type: string; label: string; points: number; hasExpiry: boolean }[] = [
-  { type: 'msme_udyam', label: 'MSME / Udyam Certificate', points: 8, hasExpiry: false },
-  { type: 'trade_licence', label: 'Trade Licence', points: 7, hasExpiry: true },
-  { type: 'fssai_licence', label: 'FSSAI Licence', points: 5, hasExpiry: true },
-  { type: 'pan_card', label: 'PAN Card', points: 5, hasExpiry: false },
-  { type: 'other', label: 'Other Document', points: 3, hasExpiry: false },
+const DOCUMENT_TYPES: { type: string; label: string; hasExpiry: boolean }[] = [
+  { type: 'msme_udyam', label: 'MSME / Udyam Certificate', hasExpiry: false },
+  { type: 'trade_licence', label: 'Trade Licence', hasExpiry: true },
+  { type: 'fssai_licence', label: 'FSSAI Licence', hasExpiry: true },
+  { type: 'pan_card', label: 'PAN Card', hasExpiry: false },
+  { type: 'other', label: 'Other Document', hasExpiry: false },
 ]
 
 function formatFileSize(bytes?: number): string {
@@ -225,11 +225,6 @@ export function ManageDocumentsScreen({ currentBusinessId, onBack }: Props) {
                       <span style={{ fontSize: '14px', fontWeight: 500, color: '#1A1F2E' }}>
                         {docDef.label}
                       </span>
-                      {!uploaded && (
-                        <span style={{ fontSize: '11px', color: '#4A6CF7', fontWeight: 600 }}>
-                          +{docDef.points} pts
-                        </span>
-                      )}
                     </div>
 
                     {uploaded && (
