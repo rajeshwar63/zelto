@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { ArrowLeft, FilePdf, Image, CheckCircle, Clock, Warning } from '@phosphor-icons/react'
+import { ArrowLeft, Buildings, Note, Briefcase, MapPin, Link, User, Phone, UploadSimple } from '@phosphor-icons/react'
 import { dataStore } from '@/lib/data-store'
 import { calculateCredibility, getBusinessActivityCounts, type CredibilityBreakdown } from '@/lib/credibility'
 import { TrustBadge } from './TrustBadge'
@@ -11,7 +11,6 @@ import { emitDataChange } from '@/lib/data-events'
 import { consumePendingConnectionLabels } from '@/lib/pending-connection-labels'
 import { toast } from 'sonner'
 import type { BusinessEntity, BusinessDocument, Connection } from '@/lib/types'
-import { formatDistanceToNow, formatDistance } from 'date-fns'
 
 export type TrustProfileActionMode = 'send-request' | 'accept-request' | 'view-connection'
 export type TrustProfileAudience = 'connection-review' | 'self-profile-ready'
@@ -44,41 +43,32 @@ function getInitials(name: string): string {
     .toUpperCase()
 }
 
-function formatFileSize(bytes?: number): string {
-  if (!bytes) return ''
-  if (bytes < 1024) return `${bytes} B`
-  if (bytes < 1024 * 1024) return `${Math.round(bytes / 1024)} KB`
-  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`
-}
-
 function formatUploadDate(ts: number): string {
   return new Date(ts).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })
 }
 
-function isExpiringWithin90Days(expiryDate: string): boolean {
-  const expiry = new Date(expiryDate)
-  const now = new Date()
-  const diff = expiry.getTime() - now.getTime()
-  return diff > 0 && diff <= 90 * 24 * 60 * 60 * 1000
-}
+type DocExpiryInfo =
+  | { status: 'none' }
+  | { status: 'valid'; validTill: string }
+  | { status: 'expiring'; daysLeft: number }
+  | { status: 'expired'; daysAgo: number }
 
-function isExpired(expiryDate: string): boolean {
-  return new Date(expiryDate) < new Date()
-}
-
-function getDocumentLabel(type: string): string {
-  const labels: Record<string, string> = {
-    gst_certificate: 'GST Certificate',
-    msme_udyam: 'MSME / Udyam Certificate',
-    trade_licence: 'Trade Licence',
-    fssai_licence: 'FSSAI Licence',
-    pan_card: 'PAN Card',
-    fire_safety: 'Fire Safety Certificate',
-    other: 'Other Document',
+function getDocExpiryInfo(expiryDate?: string): DocExpiryInfo {
+  if (!expiryDate) return { status: 'none' }
+  const expiryMs = new Date(expiryDate).getTime()
+  if (isNaN(expiryMs)) return { status: 'none' }
+  const now = Date.now()
+  const diffMs = expiryMs - now
+  const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24))
+  if (diffMs < 0) {
+    return { status: 'expired', daysAgo: Math.abs(diffDays) }
+  } else if (diffDays <= 30) {
+    return { status: 'expiring', daysLeft: diffDays }
+  } else {
+    const validTill = new Date(expiryDate).toLocaleDateString('en-IN', { month: 'short', year: 'numeric' })
+    return { status: 'valid', validTill }
   }
-  return labels[type] ?? type
 }
-
 
 export function TrustProfileScreen({
   targetBusinessId,
@@ -117,7 +107,6 @@ export function TrustProfileScreen({
   const [sending, setSending] = useState(false)
 
   useEffect(() => {
-    // Load business + activity + connection
     Promise.all([
       dataStore.getBusinessEntityById(targetBusinessId),
       getBusinessActivityCounts(targetBusinessId),
@@ -127,19 +116,16 @@ export function TrustProfileScreen({
       setLoadingBusiness(false)
     }).catch(() => setLoadingBusiness(false))
 
-    // Load credibility
     calculateCredibility(targetBusinessId).then(cred => {
       setCredibility(cred)
       setLoadingCred(false)
     }).catch(() => setLoadingCred(false))
 
-    // Load documents
     dataStore.getDocumentsByBusinessId(targetBusinessId).then(docs => {
       setDocuments(docs)
       setLoadingDocs(false)
     }).catch(() => setLoadingDocs(false))
 
-    // Load relationship context for connection review mode
     if (action === 'view-connection' && isConnectionReview && connectionId) {
       dataStore.getConnectionById(connectionId, currentBusinessId).then(conn => {
         setConnection(conn ?? null)
@@ -147,7 +133,6 @@ export function TrustProfileScreen({
     }
   }, [targetBusinessId, action, connectionId, currentBusinessId, isConnectionReview])
 
-  // Load the connection request to get requester's role (for accept mode)
   const [requestData, setRequestData] = useState<{ requesterRole: 'buyer' | 'supplier'; receiverRole: 'buyer' | 'supplier' } | null>(null)
   useEffect(() => {
     if (action === 'accept-request' && connectionRequestId) {
@@ -162,7 +147,6 @@ export function TrustProfileScreen({
 
   const handleSendRequest = async () => {
     setSending(true)
-    // Navigate to role selection is handled by parent; for now open role dialog inline
     setShowRoleConfirm(true)
     setSending(false)
   }
@@ -257,322 +241,388 @@ export function TrustProfileScreen({
     }
   }
 
-  const verifiedCount = documents.filter(d => d.verificationStatus === 'verified').length
-  const pendingCount = documents.filter(d => d.verificationStatus === 'pending').length
-  const expiringCount = documents.filter(d => d.expiryDate && isExpiringWithin90Days(d.expiryDate)).length
-
-  const memberSince = business
-    ? new Date(business.createdAt).toLocaleDateString('en-IN', { month: 'short', year: 'numeric' })
-    : ''
-
-  const onZeltoMonths = business
-    ? Math.max(1, Math.round((Date.now() - business.createdAt) / (30 * 24 * 60 * 60 * 1000)))
-    : 0
-
-  const relationshipAge = connection
-    ? formatDistance(connection.createdAt, Date.now(), { addSuffix: false })
-    : ''
-  const relationshipSince = connection
-    ? new Date(connection.createdAt).toLocaleDateString('en-IN', { month: 'short', year: 'numeric' })
-    : ''
-
   if (loadingBusiness) {
     return (
-      <div style={{ position: 'fixed', inset: 0, backgroundColor: 'var(--bg-screen)', zIndex: 50, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-        <p style={{ color: 'var(--text-secondary)', fontSize: '14px' }}>Loading...</p>
+      <div style={{ position: 'fixed', inset: 0, backgroundColor: '#F2F4F8', zIndex: 50, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        <p style={{ color: '#8492A6', fontSize: '14px' }}>Loading...</p>
       </div>
     )
   }
 
   if (!business) {
     return (
-      <div style={{ position: 'fixed', inset: 0, backgroundColor: 'var(--bg-screen)', zIndex: 50, display: 'flex', flexDirection: 'column' }}>
-        <div style={{ display: 'flex', alignItems: 'center', padding: '16px', borderBottom: '1px solid var(--border-light)' }}>
-          <button onClick={onBack} style={{ background: 'none', border: 'none', cursor: 'pointer' }}>
-            <ArrowLeft size={20} />
+      <div style={{ position: 'fixed', inset: 0, backgroundColor: '#F2F4F8', zIndex: 50, display: 'flex', flexDirection: 'column' }}>
+        <div style={{ backgroundColor: '#0F1320', padding: '16px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <button onClick={onBack} style={{ background: 'none', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center' }}>
+            <ArrowLeft size={20} color="#fff" />
           </button>
+          <span style={{ fontSize: '15px', fontWeight: 600, color: '#fff' }}>Trust Profile</span>
         </div>
         <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-          <p style={{ color: 'var(--text-secondary)' }}>Business not found.</p>
+          <p style={{ color: '#8492A6' }}>Business not found.</p>
         </div>
       </div>
     )
   }
 
+  const memberSince = new Date(business.createdAt).toLocaleDateString('en-IN', { month: 'short', year: 'numeric' })
+
+  // Identity rows — only include rows where data exists
+  const legalIdentityRows = [
+    { field: 'businessName', label: 'Registered business name', value: business.businessName, iconBg: '#EEF0FF', Icon: Buildings },
+    business.gstNumber ? { field: 'gstNumber', label: 'GST number', value: business.gstNumber, iconBg: '#E8F8F0', Icon: Note } : null,
+    business.businessType ? { field: 'businessType', label: 'Business type', value: business.businessType, iconBg: '#FFF4E0', Icon: Briefcase } : null,
+    business.city ? { field: 'city', label: 'City / State', value: business.city, iconBg: '#F2F4F8', Icon: MapPin } : null,
+    business.businessAddress ? { field: 'businessAddress', label: 'Address', value: business.businessAddress, iconBg: '#F2F4F8', Icon: MapPin } : null,
+    business.website ? { field: 'website', label: 'Website', value: business.website, iconBg: '#F2F4F8', Icon: Link } : null,
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  ].filter(Boolean) as Array<{ field: string; label: string; value: string; iconBg: string; Icon: any }>
+
+  const contactRows = [
+    { field: 'owner', label: 'Owner / Contact person', value: business.businessName, iconBg: '#EEF0FF', Icon: User },
+    business.phone ? { field: 'phone', label: 'Business phone', value: business.phone, iconBg: '#F2F4F8', Icon: Phone } : null,
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  ].filter(Boolean) as Array<{ field: string; label: string; value: string; iconBg: string; Icon: any }>
+
+  // Doc alert counts (≤30 days threshold)
+  const now = Date.now()
+  const expiredDocs = documents.filter(d => d.expiryDate && new Date(d.expiryDate).getTime() < now)
+  const expiringDocs = documents.filter(d => {
+    if (!d.expiryDate) return false
+    const expMs = new Date(d.expiryDate).getTime()
+    const diffDays = Math.floor((expMs - now) / (1000 * 60 * 60 * 24))
+    return expMs > now && diffDays <= 30
+  })
+
   return (
-    <div style={{ position: 'fixed', inset: 0, backgroundColor: 'var(--bg-screen)', zIndex: 50, display: 'flex', flexDirection: 'column' }}>
-      {/* Sticky Header */}
-      <div style={{
-        backgroundColor: 'var(--bg-card)',
-        borderBottom: '0.5px solid var(--border-light)',
-        padding: '12px 16px 0',
-        flexShrink: 0,
-      }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '8px' }}>
-          <button onClick={onBack} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '4px', flexShrink: 0 }}>
-            <ArrowLeft size={20} />
+    <div style={{ position: 'fixed', inset: 0, zIndex: 50, display: 'flex', flexDirection: 'column', backgroundColor: '#F2F4F8' }}>
+
+      {/* Dark Header — non-scrolling */}
+      <div style={{ backgroundColor: '#0F1320', padding: '16px 16px 20px', flexShrink: 0 }}>
+        {/* Back + Title */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '16px' }}>
+          <button
+            onClick={onBack}
+            style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '4px', display: 'flex', alignItems: 'center' }}
+          >
+            <ArrowLeft size={20} color="#fff" />
           </button>
-          <div style={{ flex: 1, minWidth: 0 }}>
-            <p style={{ fontSize: '15px', fontWeight: 700, color: 'var(--text-primary)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-              {business.businessName}
-            </p>
-            <p style={{ fontSize: '11px', color: 'var(--text-secondary)' }}>
-              {business.zeltoId}
-              {business.city ? ` · ${business.city}` : ''}
-            </p>
-          </div>
-          {credibility && <TrustBadge level={credibility.level} variant="dark" size="md" />}
+          <span style={{ fontSize: '15px', fontWeight: 600, color: '#fff' }}>Trust Profile</span>
         </div>
 
-        {/* Tabs */}
-        <div style={{ display: 'flex', gap: '0' }}>
-          {(['identity', 'docs'] as const).map(tab => (
-            <button
-              key={tab}
-              onClick={() => setActiveTab(tab)}
-              style={{
-                padding: '8px 16px',
-                fontSize: '13px',
-                fontWeight: activeTab === tab ? 600 : 400,
-                color: activeTab === tab ? 'var(--brand-primary)' : 'var(--text-secondary)',
-                background: 'none',
-                border: 'none',
-                borderBottom: activeTab === tab ? '2px solid var(--brand-primary)' : '2px solid transparent',
-                cursor: 'pointer',
-                textTransform: 'capitalize',
-              }}
-            >
-              {tab === 'identity' ? 'Identity' : 'Docs'}
-            </button>
-          ))}
+        {/* Business info row */}
+        <div style={{ display: 'flex', alignItems: 'flex-start', gap: '12px' }}>
+          {/* Avatar */}
+          <div style={{
+            width: 44,
+            height: 44,
+            borderRadius: '12px',
+            background: 'linear-gradient(135deg, #4A6CF7 0%, #7B8FF7 100%)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            flexShrink: 0,
+          }}>
+            <span style={{ fontSize: '15px', fontWeight: 700, color: '#fff' }}>{getInitials(business.businessName)}</span>
+          </div>
+
+          {/* Name + meta */}
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap', marginBottom: '3px' }}>
+              <span style={{ fontSize: '16px', fontWeight: 700, color: '#fff' }}>{business.businessName}</span>
+              {credibility && <TrustBadge level={credibility.level} variant="light" size="sm" />}
+            </div>
+            {(business.businessType || business.city) && (
+              <p style={{ fontSize: '11px', color: 'rgba(255,255,255,0.45)', marginBottom: '4px' }}>
+                {[business.businessType, business.city].filter(Boolean).join(' · ')}
+              </p>
+            )}
+            <p style={{ fontSize: '10px', color: 'rgba(255,255,255,0.35)', fontFamily: '"DM Mono", "Courier New", monospace', marginBottom: '2px' }}>
+              {business.zeltoId}
+            </p>
+            <p style={{ fontSize: '11px', color: 'rgba(255,255,255,0.35)' }}>
+              Member since {memberSince}
+            </p>
+          </div>
         </div>
       </div>
 
-      {/* Scrollable Tab Content */}
-      <div style={{ flex: 1, overflowY: 'auto', padding: '16px' }}>
+      {/* Tab Strip — white, immediately below dark header */}
+      <div style={{ backgroundColor: '#fff', borderBottom: '1px solid #E8ECF2', display: 'flex', flexShrink: 0 }}>
+        {(['identity', 'docs'] as const).map(tab => (
+          <button
+            key={tab}
+            onClick={() => setActiveTab(tab)}
+            style={{
+              padding: '12px 20px',
+              fontSize: '14px',
+              fontWeight: activeTab === tab ? 600 : 400,
+              color: activeTab === tab ? '#4A6CF7' : '#8492A6',
+              background: 'none',
+              border: 'none',
+              borderBottom: activeTab === tab ? '2px solid #4A6CF7' : '2px solid transparent',
+              cursor: 'pointer',
+            }}
+          >
+            {tab === 'identity' ? 'Identity' : 'Docs'}
+          </button>
+        ))}
+      </div>
+
+      {/* Scrollable Content — grey background */}
+      <div style={{ flex: 1, overflowY: 'auto' }}>
 
         {/* === IDENTITY TAB === */}
         {activeTab === 'identity' && (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+          <div style={{ padding: '20px 16px', display: 'flex', flexDirection: 'column', gap: '20px' }}>
 
-            {/* Trust Level Card */}
-            <div style={{ backgroundColor: 'var(--bg-card)', borderRadius: '14px', padding: '16px', border: '1px solid var(--border-light)' }}>
-              {loadingCred ? (
-                <p style={{ fontSize: '13px', color: 'var(--text-secondary)' }}>Loading…</p>
-              ) : credibility ? (
-                <>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '12px' }}>
-                    <TrustBadge level={credibility.level} variant="dark" size="md" />
-                    <span style={{ fontSize: '13px', color: 'var(--text-secondary)' }}>Trust Level</span>
-                  </div>
-
-                  {/* Completed items */}
-                  {credibility.completedItems.length > 0 && (
-                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', marginBottom: (isConnectionReview || isSelfProfileReady) && credibility.missingItems.length > 0 ? '8px' : '0' }}>
-                      {credibility.completedItems.map(item => (
-                        <span key={item} style={{ fontSize: '11px', fontWeight: 500, color: '#16A34A', backgroundColor: '#DCFCE7', padding: '2px 8px', borderRadius: '100px' }}>
-                          ✓ {item}
-                        </span>
-                      ))}
-                    </div>
-                  )}
-
-                  {/* Missing items — visible for connection review and self-profile-ready modes */}
-                  {(isConnectionReview || isSelfProfileReady) && credibility.missingItems.length > 0 && (
-                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
-                      {credibility.missingItems.slice(0, 4).map(item => (
-                        <span key={item} style={{ fontSize: '11px', fontWeight: 500, color: '#D97706', backgroundColor: '#FEF3C7', padding: '2px 8px', borderRadius: '100px' }}>
-                          + {item}
-                        </span>
-                      ))}
-                    </div>
-                  )}
-                </>
-              ) : null}
-            </div>
-
-            {/* Business Details */}
-            <div style={{ backgroundColor: 'var(--bg-card)', borderRadius: '14px', overflow: 'hidden', border: '1px solid var(--border-light)' }}>
-              {[
-                business.businessType && { label: 'Business type', value: business.businessType },
-                business.gstNumber && { label: 'GST number', value: business.gstNumber, mono: true },
-                { label: 'GST status', value: business.gstNumber ? 'Active' : '—', green: !!business.gstNumber },
-                (business.businessAddress || business.formattedAddress) && {
-                  label: 'Location',
-                  value: business.formattedAddress || business.businessAddress || '',
-                },
-                business.latitude && business.longitude && { label: 'Map verified', value: 'Yes ✓', green: true },
-                business.description && { label: 'Description', value: `"${business.description}"` },
-                memberSince && { label: 'Member since', value: `${memberSince} · ${onZeltoMonths} months` },
-                business.website && { label: 'Website', value: business.website },
-              ]
-                .filter(Boolean)
-                .map((row: any, idx, arr) => (
+            {/* LEGAL IDENTITY */}
+            <div>
+              <p style={{ fontSize: '11px', fontWeight: 600, color: '#8492A6', letterSpacing: '0.6px', marginBottom: '8px' }}>
+                LEGAL IDENTITY
+              </p>
+              <div style={{ backgroundColor: '#fff', borderRadius: '12px', overflow: 'hidden' }}>
+                {legalIdentityRows.map((row, idx) => (
                   <div
-                    key={row.label}
+                    key={row.field}
                     style={{
                       display: 'flex',
-                      justifyContent: 'space-between',
-                      alignItems: 'flex-start',
-                      padding: '10px 16px',
-                      borderBottom: idx < arr.length - 1 ? '1px solid var(--border-light)' : 'none',
+                      alignItems: 'center',
                       gap: '12px',
+                      padding: '12px 16px',
+                      borderBottom: idx < legalIdentityRows.length - 1 ? '1px solid #F2F4F8' : 'none',
                     }}
                   >
-                    <span style={{ fontSize: '13px', color: 'var(--text-secondary)', flexShrink: 0 }}>{row.label}</span>
-                    <span style={{
-                      fontSize: '13px',
-                      fontWeight: 500,
-                      color: row.green ? '#16A34A' : 'var(--text-primary)',
-                      fontFamily: row.mono ? 'monospace' : undefined,
-                      textAlign: 'right',
-                      flex: 1,
+                    <div style={{
+                      width: 28,
+                      height: 28,
+                      borderRadius: '8px',
+                      backgroundColor: row.iconBg,
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      flexShrink: 0,
                     }}>
-                      {row.value}
-                    </span>
+                      <row.Icon size={14} color="#4A6CF7" />
+                    </div>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <p style={{ fontSize: '10px', color: '#8492A6', marginBottom: '1px' }}>{row.label}</p>
+                      <p style={{ fontSize: '13px', fontWeight: 600, color: '#1A1F2E', wordBreak: 'break-word' }}>{row.value}</p>
+                    </div>
                   </div>
                 ))}
-            </div>
-
-            {/* Network presence */}
-            <div style={{ backgroundColor: 'var(--bg-card)', borderRadius: '14px', padding: '12px', border: '1px solid var(--border-light)' }}>
-              <div style={{ display: 'flex', gap: '0' }}>
-                <div style={{ flex: 1, textAlign: 'center', padding: '8px' }}>
-                  <p style={{ fontSize: '20px', fontWeight: 600, color: 'var(--text-primary)', marginBottom: '2px' }}>
-                    {activityCounts?.connectionCount ?? '—'}
-                  </p>
-                  <p style={{ fontSize: '11px', color: 'var(--text-secondary)' }}>Connections</p>
-                </div>
-                <div style={{ width: '1px', backgroundColor: 'var(--border-light)' }} />
-                <div style={{ flex: 1, textAlign: 'center', padding: '8px' }}>
-                  <p style={{ fontSize: '20px', fontWeight: 600, color: 'var(--text-primary)', marginBottom: '2px' }}>
-                    {activityCounts?.orderCount ?? '—'}
-                  </p>
-                  <p style={{ fontSize: '11px', color: 'var(--text-secondary)' }}>Orders</p>
-                </div>
-                <div style={{ width: '1px', backgroundColor: 'var(--border-light)' }} />
-                <div style={{ flex: 1, textAlign: 'center', padding: '8px' }}>
-                  <p style={{ fontSize: '20px', fontWeight: 600, color: 'var(--text-primary)', marginBottom: '2px' }}>
-                    {onZeltoMonths}
-                  </p>
-                  <p style={{ fontSize: '11px', color: 'var(--text-secondary)' }}>Months on Zelto</p>
-                </div>
               </div>
             </div>
 
-            {/* Relationship row — connection review only */}
-            {isConnectionReview && connection && (
-              <div style={{ backgroundColor: 'var(--bg-card)', borderRadius: '14px', padding: '12px 16px', border: '1px solid var(--border-light)' }}>
-                <p style={{ fontSize: '13px', color: 'var(--text-secondary)' }}>
-                  Your relationship · Trading for {relationshipAge} · Since {relationshipSince}
-                </p>
+            {/* CONTACT */}
+            <div>
+              <p style={{ fontSize: '11px', fontWeight: 600, color: '#8492A6', letterSpacing: '0.6px', marginBottom: '8px' }}>
+                CONTACT
+              </p>
+              <div style={{ backgroundColor: '#fff', borderRadius: '12px', overflow: 'hidden' }}>
+                {contactRows.map((row, idx) => (
+                  <div
+                    key={row.field}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '12px',
+                      padding: '12px 16px',
+                      borderBottom: idx < contactRows.length - 1 ? '1px solid #F2F4F8' : 'none',
+                    }}
+                  >
+                    <div style={{
+                      width: 28,
+                      height: 28,
+                      borderRadius: '8px',
+                      backgroundColor: row.iconBg,
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      flexShrink: 0,
+                    }}>
+                      <row.Icon size={14} color="#4A6CF7" />
+                    </div>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <p style={{ fontSize: '10px', color: '#8492A6', marginBottom: '1px' }}>{row.label}</p>
+                      <p style={{ fontSize: '13px', fontWeight: 600, color: '#1A1F2E' }}>{row.value}</p>
+                    </div>
+                  </div>
+                ))}
               </div>
+            </div>
+
+            {/* Edit business details — self-view owner only */}
+            {isSelfProfileReady && (
+              <button
+                onClick={() => {
+                  toast.info('Going to business details')
+                  onBack()
+                }}
+                style={{
+                  background: 'none',
+                  border: 'none',
+                  cursor: 'pointer',
+                  fontSize: '13px',
+                  fontWeight: 500,
+                  color: '#4A6CF7',
+                  textAlign: 'left',
+                  padding: '0',
+                }}
+              >
+                Edit business details →
+              </button>
             )}
           </div>
         )}
 
         {/* === DOCS TAB === */}
         {activeTab === 'docs' && (
-          <div>
-            {/* Summary row */}
-            {documents.length > 0 && (
-              <div style={{ display: 'flex', gap: '12px', marginBottom: '16px' }}>
-                {verifiedCount > 0 && (
-                  <span style={{ fontSize: '12px', fontWeight: 600, color: '#16A34A', backgroundColor: '#DCFCE7', padding: '4px 10px', borderRadius: '100px' }}>
-                    {verifiedCount} Verified
-                  </span>
-                )}
-                {pendingCount > 0 && (
-                  <span style={{ fontSize: '12px', fontWeight: 600, color: '#D97706', backgroundColor: '#FEF3C7', padding: '4px 10px', borderRadius: '100px' }}>
-                    {pendingCount} Pending
-                  </span>
-                )}
-                {expiringCount > 0 && (
-                  <span style={{ fontSize: '12px', fontWeight: 600, color: '#D97706', backgroundColor: '#FEF3C7', padding: '4px 10px', borderRadius: '100px' }}>
-                    {expiringCount} Expiring
-                  </span>
-                )}
+          <div style={{ padding: '20px 16px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
+
+            {/* Alert banner — expired takes priority */}
+            {expiredDocs.length > 0 && (
+              <div style={{
+                backgroundColor: '#FFF0F0',
+                borderBottom: '1px solid #FFD5D5',
+                padding: '12px 16px',
+                borderRadius: '10px',
+              }}>
+                <p style={{ fontSize: '13px', fontWeight: 500, color: '#E53535' }}>
+                  {expiredDocs.length} document{expiredDocs.length > 1 ? 's' : ''} expired · renewal needed
+                </p>
+              </div>
+            )}
+            {expiredDocs.length === 0 && expiringDocs.length > 0 && (
+              <div style={{
+                backgroundColor: '#FFF8E8',
+                padding: '12px 16px',
+                borderRadius: '10px',
+              }}>
+                <p style={{ fontSize: '13px', fontWeight: 500, color: '#E67E00' }}>
+                  {expiringDocs.length} document{expiringDocs.length > 1 ? 's' : ''} expiring soon
+                </p>
               </div>
             )}
 
-            {loadingDocs ? (
-              <p style={{ fontSize: '13px', color: 'var(--text-secondary)' }}>Loading documents…</p>
-            ) : documents.length === 0 ? (
-              <div style={{ backgroundColor: 'var(--bg-card)', borderRadius: '14px', padding: '24px', textAlign: 'center', border: '1px solid var(--border-light)' }}>
-                <p style={{ fontSize: '14px', color: 'var(--text-secondary)' }}>No documents uploaded yet.</p>
-              </div>
-            ) : (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '2px', borderRadius: '14px', overflow: 'hidden', border: '1px solid var(--border-light)' }}>
-                {documents.map((doc, idx) => {
-                  const expiring = doc.expiryDate ? isExpiringWithin90Days(doc.expiryDate) : false
-                  const expired = doc.expiryDate ? isExpired(doc.expiryDate) : false
-                  const isPdf = doc.mimeType === 'application/pdf'
-                  const isLast = idx === documents.length - 1
+            {/* COMPLIANCE DOCUMENTS */}
+            <div>
+              <p style={{ fontSize: '11px', fontWeight: 600, color: '#8492A6', letterSpacing: '0.6px', marginBottom: '8px' }}>
+                COMPLIANCE DOCUMENTS
+              </p>
 
-                  return (
-                    <div
-                      key={doc.id}
-                      style={{
-                        display: 'flex',
-                        alignItems: 'flex-start',
-                        padding: '12px 16px',
-                        backgroundColor: 'var(--bg-card)',
-                        borderBottom: isLast ? 'none' : '1px solid var(--border-light)',
-                        gap: '12px',
-                      }}
-                    >
-                      {/* File type badge */}
-                      <div style={{
-                        width: '36px',
-                        height: '36px',
-                        borderRadius: '8px',
-                        backgroundColor: isPdf ? '#FEE2E2' : '#DBEAFE',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        flexShrink: 0,
-                      }}>
-                        {isPdf ? (
-                          <FilePdf size={18} color="#DC2626" />
-                        ) : (
-                          <Image size={18} color="#2563EB" />
-                        )}
-                      </div>
+              {loadingDocs ? (
+                <p style={{ fontSize: '13px', color: '#8492A6' }}>Loading documents…</p>
+              ) : documents.length === 0 ? (
+                <div style={{ backgroundColor: '#fff', borderRadius: '12px', padding: '24px', textAlign: 'center' }}>
+                  <p style={{ fontSize: '14px', color: '#8492A6' }}>No documents uploaded yet.</p>
+                </div>
+              ) : (
+                <div style={{ backgroundColor: '#fff', borderRadius: '12px', overflow: 'hidden' }}>
+                  {documents.map((doc, idx) => {
+                    const expiryInfo = getDocExpiryInfo(doc.expiryDate)
+                    return (
+                      <div
+                        key={doc.id}
+                        onClick={isConnectionReview ? () => window.open(doc.fileUrl, '_blank') : undefined}
+                        style={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '12px',
+                          padding: '12px 16px',
+                          borderBottom: idx < documents.length - 1 ? '1px solid #F2F4F8' : 'none',
+                          cursor: isConnectionReview ? 'pointer' : 'default',
+                        }}
+                      >
+                        {/* Doc icon */}
+                        <div style={{
+                          width: 34,
+                          height: 28,
+                          borderRadius: '8px',
+                          backgroundColor: '#F2F4F8',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          flexShrink: 0,
+                        }}>
+                          <Note size={14} color="#8492A6" />
+                        </div>
 
-                      {/* Content */}
-                      <div style={{ flex: 1, minWidth: 0 }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
-                          <span style={{ fontSize: '14px', fontWeight: 500, color: 'var(--text-primary)' }}>
-                            {doc.displayName ?? getDocumentLabel(doc.documentType)}
-                          </span>
-                          {doc.verificationStatus === 'verified' && (
-                            <CheckCircle size={14} color="#16A34A" weight="fill" />
+                        {/* Name + upload date */}
+                        <div style={{ flex: 1, minWidth: 0 }}>
+                          <p style={{ fontSize: '13px', fontWeight: 600, color: '#1A1F2E', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                            {doc.displayName ?? doc.documentType}
+                          </p>
+                          <p style={{ fontSize: '11px', color: '#8492A6', marginTop: '2px' }}>
+                            {formatUploadDate(doc.uploadedAt)}
+                          </p>
+                        </div>
+
+                        {/* Status chip + days */}
+                        <div style={{ flexShrink: 0, textAlign: 'right' }}>
+                          {expiryInfo.status === 'valid' && (
+                            <>
+                              <span style={{ fontSize: '11px', fontWeight: 600, color: '#22B573', backgroundColor: '#E8F8F0', padding: '2px 8px', borderRadius: '100px', display: 'inline-block' }}>
+                                Valid
+                              </span>
+                              <p style={{ fontSize: '10px', color: '#8492A6', marginTop: '2px' }}>
+                                till {expiryInfo.validTill}
+                              </p>
+                            </>
+                          )}
+                          {expiryInfo.status === 'expiring' && (
+                            <>
+                              <span style={{ fontSize: '11px', fontWeight: 600, color: '#E67E00', backgroundColor: '#FFF4E0', padding: '2px 8px', borderRadius: '100px', display: 'inline-block' }}>
+                                Expiring
+                              </span>
+                              <p style={{ fontSize: '10px', color: '#E67E00', marginTop: '2px' }}>
+                                {expiryInfo.daysLeft}d left
+                              </p>
+                            </>
+                          )}
+                          {expiryInfo.status === 'expired' && (
+                            <>
+                              <span style={{ fontSize: '11px', fontWeight: 600, color: '#E53535', backgroundColor: '#FFF0F0', padding: '2px 8px', borderRadius: '100px', display: 'inline-block' }}>
+                                Expired
+                              </span>
+                              <p style={{ fontSize: '10px', color: '#E53535', marginTop: '2px' }}>
+                                {expiryInfo.daysAgo}d ago
+                              </p>
+                            </>
                           )}
                         </div>
-                        <p style={{ fontSize: '12px', color: 'var(--text-secondary)', marginTop: '2px' }}>
-                          {formatFileSize(doc.fileSizeBytes)} · {formatUploadDate(doc.uploadedAt)}
-                        </p>
-
-                        {doc.verificationStatus === 'pending' && (
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '4px', marginTop: '2px' }}>
-                            <Clock size={12} color="var(--status-dispatched)" />
-                            <span style={{ fontSize: '11px', color: 'var(--status-dispatched)' }}>Verification pending</span>
-                          </div>
-                        )}
-
-                        {doc.expiryDate && (
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '4px', marginTop: '2px' }}>
-                            {expired || expiring ? <Warning size={12} color="#D97706" weight="fill" /> : null}
-                            <span style={{ fontSize: '11px', color: expired || expiring ? '#D97706' : '#16A34A' }}>
-                              Exp: {doc.expiryDate}
-                            </span>
-                          </div>
-                        )}
                       </div>
-                    </div>
-                  )
-                })}
-              </div>
+                    )
+                  })}
+                </div>
+              )}
+            </div>
+
+            {/* Upload button — self-view owner only */}
+            {isSelfProfileReady && (
+              <>
+                <button
+                  onClick={() => toast.info('Upload coming soon')}
+                  style={{
+                    width: '100%',
+                    padding: '14px',
+                    backgroundColor: 'transparent',
+                    border: '1.5px dashed #C5CEDE',
+                    borderRadius: '12px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: '8px',
+                    cursor: 'pointer',
+                  }}
+                >
+                  <UploadSimple size={16} color="#8492A6" />
+                  <span style={{ fontSize: '14px', fontWeight: 500, color: '#8492A6' }}>Upload a document</span>
+                </button>
+                <p style={{ fontSize: '12px', color: '#8492A6', textAlign: 'center', marginTop: '-8px' }}>
+                  Documents you upload are visible to your trade connections on Zelto.
+                </p>
+              </>
             )}
           </div>
         )}
@@ -582,15 +632,15 @@ export function TrustProfileScreen({
       <div style={{
         padding: '12px 16px',
         paddingBottom: 'max(12px, env(safe-area-inset-bottom))',
-        backgroundColor: 'var(--bg-card)',
-        borderTop: '1px solid var(--border-light)',
+        backgroundColor: '#fff',
+        borderTop: '1px solid #E8ECF2',
         flexShrink: 0,
       }}>
         {action === 'send-request' && (
           <button
             onClick={handleSendRequest}
             disabled={sending}
-            style={{ width: '100%', padding: '14px', backgroundColor: 'var(--brand-primary)', color: '#fff', border: 'none', borderRadius: '12px', fontSize: '15px', fontWeight: 500, cursor: 'pointer' }}
+            style={{ width: '100%', padding: '14px', backgroundColor: '#4A6CF7', color: '#fff', border: 'none', borderRadius: '12px', fontSize: '15px', fontWeight: 500, cursor: 'pointer' }}
           >
             {sending ? 'Loading…' : 'Send Connection Request'}
           </button>
@@ -601,14 +651,14 @@ export function TrustProfileScreen({
             <button
               onClick={handleDecline}
               disabled={processing}
-              style={{ flex: 1, padding: '14px', backgroundColor: 'transparent', border: '1px solid var(--border-light)', borderRadius: '12px', fontSize: '15px', fontWeight: 500, cursor: 'pointer', color: 'var(--text-primary)' }}
+              style={{ flex: 1, padding: '14px', backgroundColor: 'transparent', border: '1px solid #E8ECF2', borderRadius: '12px', fontSize: '15px', fontWeight: 500, cursor: 'pointer', color: '#1A1F2E' }}
             >
               Decline
             </button>
             <button
               onClick={handleAccept}
               disabled={processing}
-              style={{ flex: 2, padding: '14px', backgroundColor: 'var(--brand-primary)', color: '#fff', border: 'none', borderRadius: '12px', fontSize: '15px', fontWeight: 500, cursor: 'pointer' }}
+              style={{ flex: 2, padding: '14px', backgroundColor: '#4A6CF7', color: '#fff', border: 'none', borderRadius: '12px', fontSize: '15px', fontWeight: 500, cursor: 'pointer' }}
             >
               Accept Connection →
             </button>
@@ -618,7 +668,7 @@ export function TrustProfileScreen({
         {action === 'view-connection' && (
           <button
             onClick={onBack}
-            style={{ width: '100%', padding: '14px', backgroundColor: 'transparent', border: '1px solid var(--border-light)', borderRadius: '12px', fontSize: '15px', fontWeight: 500, cursor: 'pointer', color: 'var(--text-primary)' }}
+            style={{ width: '100%', padding: '14px', backgroundColor: 'transparent', border: '1px solid #E8ECF2', borderRadius: '12px', fontSize: '15px', fontWeight: 500, cursor: 'pointer', color: '#1A1F2E' }}
           >
             {isSelfProfileReady ? 'Back to Profile' : 'Close'}
           </button>
