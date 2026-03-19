@@ -500,20 +500,8 @@ export function PlaceOrderScreen({
         </div>
       </div>
 
-      {/* Fixed bottom CTA */}
-      <div
-        style={{
-          position: 'fixed',
-          bottom: 0,
-          left: 0,
-          right: 0,
-          backgroundColor: '#FFFFFF',
-          borderTop: '0.5px solid #E2E4EA',
-          padding: '12px 16px',
-          paddingBottom: 'max(12px, env(safe-area-inset-bottom))',
-          zIndex: 20,
-        }}
-      >
+      {/* CTA below order summary */}
+      <div style={{ padding: '16px 0 0' }}>
         <button
           onClick={handleSubmit}
           disabled={!canSubmit || isSubmitting}
