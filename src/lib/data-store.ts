@@ -611,7 +611,6 @@ export class ZeltoDataStore {
       .insert([{
         connection_id: connectionId,
         item_summary: itemSummary,
-        order_value: orderValue,
         created_at: Date.now(),
         payment_term_snapshot: snapshotPaymentTerms(connection.paymentTerms)
       }])

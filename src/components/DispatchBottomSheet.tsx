@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { supabase } from '@/lib/supabase-client'
 import { dataStore } from '@/lib/data-store'
+import { transitionOrderState } from '@/lib/interactions'
 import { emitDataChange } from '@/lib/data-events'
 import { AttachmentUploadBox, type SelectedFile } from '@/components/AttachmentUploadBox'
 import { toast } from 'sonner'
@@ -14,8 +15,14 @@ interface Props {
 }
 
 export function DispatchBottomSheet({ open, orderId, currentBusinessId, onClose }: Props) {
+  const [invoiceAmount, setInvoiceAmount] = useState('')
   const [selectedFile, setSelectedFile] = useState<SelectedFile | null>(null)
   const [uploadState, setUploadState] = useState<'empty' | 'selected' | 'uploading' | 'uploaded'>('empty')
+  const [isConfirming, setIsConfirming] = useState(false)
+
+  const parsedAmount = parseFloat(invoiceAmount)
+  const isAmountValid = !isNaN(parsedAmount) && parsedAmount > 0
+  const canConfirm = isAmountValid && !isConfirming
 
   const handleFileSelect = (file: File) => {
     setSelectedFile({ file, previewName: file.name, sizeBytes: file.size })
@@ -27,48 +34,60 @@ export function DispatchBottomSheet({ open, orderId, currentBusinessId, onClose 
     setUploadState('empty')
   }
 
-  const handleSkip = () => {
-    resetAndClose()
-  }
-
-  const handleUploadAndSave = async () => {
-    if (!selectedFile) return
-    setUploadState('uploading')
+  const handleConfirmDispatch = async () => {
+    if (!isAmountValid || isConfirming) return
+    setIsConfirming(true)
     try {
-      const file = selectedFile.file
-      const fileExt = file.name.split('.').pop()
-      const storagePath = `${orderId}/dispatch_note/${Date.now()}.${fileExt}`
+      // 1. Write order_value + dispatched_at + state
+      await transitionOrderState(orderId, 'Dispatched', currentBusinessId, parsedAmount)
+      toast.success('Order dispatched')
 
-      const { error: uploadError } = await supabase.storage
-        .from('order-attachments')
-        .upload(storagePath, file)
+      // 2. If file attached, upload and create attachment record
+      if (selectedFile) {
+        setUploadState('uploading')
+        try {
+          const file = selectedFile.file
+          const fileExt = file.name.split('.').pop()
+          const storagePath = `${orderId}/dispatch_note/${Date.now()}.${fileExt}`
 
-      if (uploadError) throw uploadError
+          const { error: uploadError } = await supabase.storage
+            .from('order-attachments')
+            .upload(storagePath, file)
 
-      const { data: urlData } = supabase.storage
-        .from('order-attachments')
-        .getPublicUrl(storagePath)
+          if (uploadError) throw uploadError
 
-      await dataStore.createOrderAttachment(orderId, 'dispatch_note', currentBusinessId, {
-        fileUrl: urlData.publicUrl,
-        fileName: file.name,
-        fileType: file.type,
-      })
+          const { data: urlData } = supabase.storage
+            .from('order-attachments')
+            .getPublicUrl(storagePath)
 
-      emitDataChange('attachments:changed')
-      setUploadState('uploaded')
-      toast.success('Dispatch note saved')
-      setTimeout(resetAndClose, 600)
+          await dataStore.createOrderAttachment(orderId, 'dispatch_note', currentBusinessId, {
+            fileUrl: urlData.publicUrl,
+            fileName: file.name,
+            fileType: file.type,
+          })
+
+          emitDataChange('attachments:changed')
+          setUploadState('uploaded')
+        } catch (uploadErr) {
+          console.error('Attachment upload failed:', uploadErr)
+          toast.error('Dispatch confirmed, but attachment upload failed.')
+        }
+      }
+
+      resetAndClose()
     } catch (err) {
-      console.error('Upload failed:', err)
-      toast.error('Upload failed. Please try again.')
-      setUploadState('selected')
+      console.error('Dispatch failed:', err)
+      toast.error(err instanceof Error ? err.message : 'Failed to dispatch order')
+    } finally {
+      setIsConfirming(false)
     }
   }
 
   const resetAndClose = () => {
+    setInvoiceAmount('')
     setSelectedFile(null)
     setUploadState('empty')
+    setIsConfirming(false)
     onClose()
   }
 
@@ -81,7 +100,7 @@ export function DispatchBottomSheet({ open, orderId, currentBusinessId, onClose 
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             className="fixed inset-0 bg-black/30 z-50"
-            onClick={resetAndClose}
+            onClick={isConfirming ? undefined : resetAndClose}
           />
           <motion.div
             initial={{ y: '100%' }}
@@ -97,13 +116,57 @@ export function DispatchBottomSheet({ open, orderId, currentBusinessId, onClose 
             </div>
 
             <div className="px-4 pb-4">
-              <h3 style={{ fontSize: '17px', fontWeight: 700, color: 'var(--text-primary)', marginBottom: '4px' }}>
-                Order marked as dispatched
+              <h3 style={{ fontSize: '17px', fontWeight: 700, color: 'var(--text-primary)', marginBottom: '20px' }}>
+                Mark as dispatched
               </h3>
-              <p style={{ fontSize: '14px', color: 'var(--text-secondary)', marginBottom: '20px' }}>
-                Attach an invoice or dispatch note? (optional)
-              </p>
 
+              {/* Invoice amount input */}
+              <div style={{ marginBottom: '20px' }}>
+                <p style={{ fontSize: '13px', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: '8px' }}>
+                  Invoice amount
+                </p>
+                <div
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    backgroundColor: '#FFFFFF',
+                    border: '0.5px solid #E2E4EA',
+                    borderRadius: '10px',
+                    padding: '10px 12px',
+                    gap: '6px',
+                  }}
+                >
+                  <span style={{ fontSize: '16px', fontWeight: 600, color: 'var(--text-primary)' }}>₹</span>
+                  <input
+                    type="number"
+                    inputMode="decimal"
+                    value={invoiceAmount}
+                    onChange={e => {
+                      const val = e.target.value
+                      if (val === '' || parseFloat(val) >= 0) setInvoiceAmount(val)
+                    }}
+                    placeholder="0.00"
+                    min="0.01"
+                    step="any"
+                    autoFocus
+                    style={{
+                      flex: 1,
+                      border: 'none',
+                      outline: 'none',
+                      fontSize: '16px',
+                      fontWeight: 600,
+                      color: 'var(--text-primary)',
+                      backgroundColor: 'transparent',
+                      fontFamily: 'inherit',
+                    }}
+                  />
+                </div>
+              </div>
+
+              {/* Optional attachment */}
+              <p style={{ fontSize: '13px', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: '8px' }}>
+                Attach invoice or dispatch note (optional)
+              </p>
               <AttachmentUploadBox
                 helperText="Invoice or dispatch note"
                 uploadState={uploadState}
@@ -114,8 +177,8 @@ export function DispatchBottomSheet({ open, orderId, currentBusinessId, onClose 
 
               <div className="flex gap-3 mt-5">
                 <button
-                  onClick={handleSkip}
-                  disabled={uploadState === 'uploading'}
+                  onClick={resetAndClose}
+                  disabled={isConfirming}
                   style={{
                     flex: 1,
                     padding: '12px',
@@ -128,11 +191,11 @@ export function DispatchBottomSheet({ open, orderId, currentBusinessId, onClose 
                     minHeight: '44px',
                   }}
                 >
-                  Skip
+                  Cancel
                 </button>
                 <button
-                  onClick={handleUploadAndSave}
-                  disabled={!selectedFile || uploadState === 'uploading' || uploadState === 'uploaded'}
+                  onClick={handleConfirmDispatch}
+                  disabled={!canConfirm}
                   style={{
                     flex: 1,
                     padding: '12px',
@@ -143,10 +206,10 @@ export function DispatchBottomSheet({ open, orderId, currentBusinessId, onClose 
                     border: 'none',
                     borderRadius: 'var(--radius-button)',
                     minHeight: '44px',
-                    opacity: !selectedFile || uploadState === 'uploading' ? 0.4 : 1,
+                    opacity: !canConfirm ? 0.4 : 1,
                   }}
                 >
-                  {uploadState === 'uploading' ? 'Uploading...' : 'Upload & save'}
+                  {isConfirming ? 'Confirming...' : 'Confirm dispatch'}
                 </button>
               </div>
             </div>
