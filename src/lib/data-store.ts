@@ -289,7 +289,7 @@ export class ZeltoDataStore {
     const { data, error } = await supabase
       .from('business_documents')
       .select('*')
-      .eq('business_id', businessId)
+      .eq('business_entity_id', businessId)
       .order('uploaded_at', { ascending: false })
 
     // Silently return empty array if table doesn't exist yet or query fails
@@ -311,13 +311,13 @@ export class ZeltoDataStore {
     const { data, error } = await supabase
       .from('business_documents')
       .insert([{
-        business_id: businessId,
+        business_entity_id: businessId,
         document_type: doc.documentType,
         file_name: doc.fileName,
         file_url: doc.fileUrl,
         file_size_bytes: doc.fileSizeBytes ?? null,
         mime_type: doc.mimeType ?? null,
-        expiry_date: doc.expiryDate ?? null,
+        expires_at: doc.expiryDate ?? null,
         verification_status: 'pending',
         uploaded_at: Date.now(),
       }])
