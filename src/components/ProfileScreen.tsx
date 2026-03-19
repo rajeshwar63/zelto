@@ -1,8 +1,26 @@
+/**
+ * ProfileScreen — revamped per spec section 3.
+ *
+ * Layout (top to bottom):
+ *   - Dark header (#0F1320) with "Profile" title and bell icon
+ *   - Hero card (dark, business info + trust badge + zelto code + share)
+ *   - Trust Profile CTA card (blue gradient border)
+ *   - YOU section (username + email)
+ *   - BUSINESS section (Business details + Members rows)
+ *   - SETTINGS section
+ *   - Footer + Logout
+ *
+ * Removed per spec:
+ *   - Credibility progress bar (score/100)
+ *   - Inline credibility badge from profile
+ *   - "Add business details to build credibility" CTA
+ *   - Inline business details card
+ */
+
 import { useEffect, useState, useRef } from 'react'
 import { dataStore } from '@/lib/data-store'
-import { CaretRight, Bell, PencilSimple, Check, X } from '@phosphor-icons/react'
-import { SettingsItem } from './SettingsItem'
-import { CredibilityBadge } from './CredibilityBadge'
+import { Bell, PencilSimple, Check, X, CaretRight, ShareNetwork, ShieldCheck, Buildings, Users, Warning } from '@phosphor-icons/react'
+import { TrustBadge } from './TrustBadge'
 import { toast } from 'sonner'
 import { useProfileData } from '@/hooks/data/use-business-data'
 
@@ -16,8 +34,8 @@ interface Props {
   onNavigateToSupport: () => void
   onNavigateToManageDocuments?: () => void
   onNavigateToSelfTrustProfile?: () => void
+  onNavigateToMembers?: () => void
 }
-
 
 function getInitials(name: string): string {
   return name
@@ -29,34 +47,90 @@ function getInitials(name: string): string {
     .toUpperCase()
 }
 
-// Points available for each missing item (for "To improve" list)
-const MISSING_ITEM_POINTS: Record<string, number> = {
-  'Phone number': 10,
-  'GST number': 10,
-  'Business address': 10,
-  'Map location': 10,
-  'Business type': 5,
-  'Website': 5,
-  'Business description': 5,
-  'Active connections': 10,
-  'Order history': 10,
-  'Upload MSME certificate': 8,
-  'Upload trade licence': 7,
+function SectionLabel({ children }: { children: React.ReactNode }) {
+  return (
+    <p style={{
+      fontSize: '11px',
+      fontWeight: 700,
+      color: '#8492A6',
+      textTransform: 'uppercase',
+      letterSpacing: '0.08em',
+      marginBottom: '8px',
+      paddingLeft: '4px',
+    }}>
+      {children}
+    </p>
+  )
 }
 
-export function ProfileScreen({ currentBusinessId, onLogout, onNavigateToBusinessDetails, onNavigateToNotifications, onNavigateToNotificationSettings, onNavigateToAccount, onNavigateToSupport, onNavigateToManageDocuments, onNavigateToSelfTrustProfile }: Props) {
+interface RowProps {
+  icon: React.ReactNode
+  iconBg: string
+  title: string
+  subtitle?: string
+  onPress?: () => void
+  showDivider?: boolean
+  badge?: React.ReactNode
+}
+
+function MenuRow({ icon, iconBg, title, subtitle, onPress, showDivider = true, badge }: RowProps) {
+  return (
+    <button
+      onClick={onPress}
+      className="w-full flex items-center gap-3 text-left"
+      style={{
+        padding: '12px 16px',
+        minHeight: '52px',
+        borderBottom: showDivider ? '1px solid var(--border-section)' : 'none',
+        background: 'none',
+        cursor: onPress ? 'pointer' : 'default',
+      }}
+    >
+      <div style={{
+        width: '36px',
+        height: '36px',
+        borderRadius: '10px',
+        backgroundColor: iconBg,
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        flexShrink: 0,
+      }}>
+        {icon}
+      </div>
+      <div style={{ flex: 1, minWidth: 0 }}>
+        <p style={{ fontSize: '13px', fontWeight: 600, color: '#1A1F2E' }}>{title}</p>
+        {subtitle && (
+          <p style={{ fontSize: '11px', fontWeight: 500, color: '#8492A6', marginTop: '1px' }}>{subtitle}</p>
+        )}
+      </div>
+      {badge && <div style={{ marginRight: '4px' }}>{badge}</div>}
+      {onPress && <CaretRight size={16} color="#8492A6" />}
+    </button>
+  )
+}
+
+export function ProfileScreen({
+  currentBusinessId,
+  onLogout,
+  onNavigateToBusinessDetails,
+  onNavigateToNotifications,
+  onNavigateToNotificationSettings,
+  onNavigateToAccount,
+  onNavigateToSupport,
+  onNavigateToSelfTrustProfile,
+  onNavigateToMembers,
+}: Props) {
   const { data, isInitialLoading: loading, refresh } = useProfileData(currentBusinessId)
   const business = data?.business ?? null
   const userAccount = data?.userAccount ?? null
   const unreadCount = data?.unreadCount ?? 0
   const credibility = data?.credibility ?? null
-  const activityCounts = data?.activityCounts ?? null
 
   const [isEditingUsername, setIsEditingUsername] = useState(false)
   const [editedUsername, setEditedUsername] = useState('')
   const [isSavingUsername, setIsSavingUsername] = useState(false)
   const usernameInputRef = useRef<HTMLInputElement>(null)
-
 
   useEffect(() => {
     const handleVisibilityChange = () => {
@@ -64,7 +138,6 @@ export function ProfileScreen({ currentBusinessId, onLogout, onNavigateToBusines
         void refresh(true)
       }
     }
-
     document.addEventListener('visibilitychange', handleVisibilityChange)
     return () => document.removeEventListener('visibilitychange', handleVisibilityChange)
   }, [refresh])
@@ -76,36 +149,28 @@ export function ProfileScreen({ currentBusinessId, onLogout, onNavigateToBusines
     }
   }, [isEditingUsername])
 
-  const hasBusinessDetails = business && (
-    business.gstNumber ||
-    business.businessAddress ||
-    business.businessType ||
-    business.website
-  )
-
   if (loading || !business || !userAccount) {
     return (
-      <div style={{ backgroundColor: 'var(--bg-screen)', minHeight: '100vh' }}>
-        <div className="sticky top-0 z-10" style={{ backgroundColor: 'var(--bg-header)', paddingTop: 'env(safe-area-inset-top)' }}>
+      <div style={{ backgroundColor: '#F2F4F8', minHeight: '100vh' }}>
+        <div className="sticky top-0 z-10" style={{ backgroundColor: '#0F1320', paddingTop: 'env(safe-area-inset-top)' }}>
           <div className="h-11 flex items-center px-4">
-            <h1 style={{ fontSize: '22px', fontWeight: 700, color: 'var(--text-primary)', letterSpacing: '-0.02em' }}>Profile</h1>
+            <h1 style={{ fontSize: '22px', fontWeight: 700, color: '#FFFFFF', letterSpacing: '-0.02em' }}>Profile</h1>
           </div>
         </div>
         <div className="flex items-center justify-center py-16">
-          <p style={{ fontSize: '14px', fontWeight: 500, color: 'var(--text-secondary)' }}>Loading...</p>
+          <p style={{ fontSize: '14px', fontWeight: 500, color: '#8492A6' }}>Loading...</p>
         </div>
       </div>
     )
   }
 
   const handleShare = async () => {
-    const shareMessage = `Connect with me on Zelto. My Zelto ID is ${business.zeltoId}`
+    const shareMessage = `${business.businessName} is on Zelto — view their Trust Profile: zeltoapp.com/trust/${business.zeltoId}`
+    const shareUrl = `https://zeltoapp.com/trust/${business.zeltoId}`
 
     if (navigator.share) {
       try {
-        await navigator.share({
-          text: shareMessage,
-        })
+        await navigator.share({ text: shareMessage, url: shareUrl })
       } catch (err) {
         if ((err as Error).name !== 'AbortError') {
           console.error('Error sharing:', err)
@@ -113,7 +178,7 @@ export function ProfileScreen({ currentBusinessId, onLogout, onNavigateToBusines
       }
     } else {
       await navigator.clipboard.writeText(shareMessage)
-      alert('Zelto ID copied to clipboard')
+      toast.success('Link copied to clipboard')
     }
   }
 
@@ -133,12 +198,10 @@ export function ProfileScreen({ currentBusinessId, onLogout, onNavigateToBusines
       toast.error('Username must be 2-50 characters')
       return
     }
-
     if (trimmed === userAccount.username) {
       setIsEditingUsername(false)
       return
     }
-
     setIsSavingUsername(true)
     try {
       await dataStore.updateUsername(userAccount.id, trimmed)
@@ -154,43 +217,52 @@ export function ProfileScreen({ currentBusinessId, onLogout, onNavigateToBusines
   }
 
   const handleUsernameKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === 'Enter') {
-      e.preventDefault()
-      handleSaveUsername()
-    } else if (e.key === 'Escape') {
-      handleCancelEditUsername()
-    }
+    if (e.key === 'Enter') { e.preventDefault(); handleSaveUsername() }
+    else if (e.key === 'Escape') { handleCancelEditUsername() }
   }
 
-  const isTrusted = credibility && credibility.score >= 70
-  const missingItemsWithPoints = (credibility?.missingItems ?? [])
-    .filter(item => MISSING_ITEM_POINTS[item] !== undefined)
-    .map(item => ({ label: item, points: MISSING_ITEM_POINTS[item] }))
+  // Doc alert logic
+  const now = Date.now()
+  const thirtyDays = 30 * 24 * 60 * 60 * 1000
+
+  // Compute expiring/expired doc count from credibility missing items as a proxy
+  // (actual doc expiry will come from business_documents once that table is live)
+  const hasDocWarning = false // placeholder — will be driven by business_documents query
+  const docWarningText = '' // placeholder
+
+  const businessTypeAndCity = [business.businessType, business.city].filter(Boolean).join(' · ')
 
   return (
-    <div style={{ backgroundColor: 'var(--bg-screen)', minHeight: '100%' }}>
-      {/* Header */}
-      <div className="sticky top-0 z-10" style={{ backgroundColor: 'var(--bg-header)', paddingTop: 'env(safe-area-inset-top)' }}>
-        <div className="h-11 flex items-center px-4">
-          <h1 style={{ fontSize: '22px', fontWeight: 700, color: 'var(--text-primary)', letterSpacing: '-0.02em', flex: 1 }}>Profile</h1>
+    <div style={{ backgroundColor: '#F2F4F8', minHeight: '100%', paddingBottom: 'env(safe-area-inset-bottom)' }}>
+
+      {/* ── DARK HEADER ── */}
+      <div style={{ backgroundColor: '#0F1320', paddingTop: 'env(safe-area-inset-top)' }}>
+
+        {/* Title bar */}
+        <div className="flex items-center px-4" style={{ height: '44px' }}>
+          <h1 style={{ fontSize: '22px', fontWeight: 700, color: '#FFFFFF', letterSpacing: '-0.02em', flex: 1 }}>
+            Profile
+          </h1>
           <button
             onClick={onNavigateToNotifications}
-            className="relative flex items-center"
-            style={{ color: 'var(--text-primary)', minWidth: '44px', minHeight: '44px', justifyContent: 'center' }}
+            className="relative flex items-center justify-center"
+            style={{ color: '#FFFFFF', minWidth: '44px', minHeight: '44px' }}
           >
             <Bell size={22} weight="regular" />
             {unreadCount > 0 && (
               <div
-                className="absolute -top-1 -right-1 flex items-center justify-center"
+                className="absolute flex items-center justify-center"
                 style={{
-                  minWidth: '18px',
-                  height: '18px',
-                  borderRadius: 'var(--radius-badge)',
-                  backgroundColor: 'var(--status-overdue)',
+                  top: '2px',
+                  right: '2px',
+                  minWidth: '16px',
+                  height: '16px',
+                  borderRadius: '100px',
+                  backgroundColor: '#E53535',
                   color: '#FFFFFF',
                   fontSize: '10px',
                   fontWeight: 700,
-                  padding: '0 4px',
+                  padding: '0 3px',
                 }}
               >
                 {unreadCount > 99 ? '99+' : unreadCount}
@@ -198,316 +270,307 @@ export function ProfileScreen({ currentBusinessId, onLogout, onNavigateToBusines
             )}
           </button>
         </div>
-      </div>
 
-      {/* Avatar + Business Name Section */}
-      <div className="px-4 pt-6 pb-4">
-        <div className="flex flex-col items-center mb-4">
-          <div
-            className="flex items-center justify-center mb-3"
-            style={{
-              width: '64px',
-              height: '64px',
-              borderRadius: 'var(--radius-avatar)',
-              background: 'linear-gradient(135deg, var(--brand-primary), var(--brand-primary-light))',
-              boxShadow: '0 4px 12px rgba(74,108,247,0.3)',
-              color: '#FFFFFF',
-              fontSize: '22px',
-              fontWeight: 700,
-            }}
-          >
-            {getInitials(business.businessName)}
-          </div>
-          <h2 style={{ fontSize: '22px', fontWeight: 700, color: 'var(--text-primary)' }}>{business.businessName}</h2>
-          {credibility && credibility.level !== 'none' && (
-            <div className="mt-1">
-              <CredibilityBadge level={credibility.level} />
+        {/* ── HERO CARD ── */}
+        <div className="px-4 pb-3">
+          <div style={{
+            backgroundColor: 'rgba(255,255,255,0.06)',
+            border: '1px solid rgba(255,255,255,0.1)',
+            borderRadius: '18px',
+            padding: '14px',
+          }}>
+            {/* Avatar + business info */}
+            <div className="flex items-start gap-3 mb-3">
+              <div style={{
+                width: '52px',
+                height: '52px',
+                borderRadius: '14px',
+                background: 'linear-gradient(135deg, #4A6CF7, #6B8AFF)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                flexShrink: 0,
+                color: '#FFFFFF',
+                fontSize: '18px',
+                fontWeight: 700,
+              }}>
+                {getInitials(business.businessName)}
+              </div>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <p style={{ fontSize: '16px', fontWeight: 700, color: '#FFFFFF', lineHeight: '1.2' }}>
+                  {business.businessName}
+                </p>
+                {businessTypeAndCity && (
+                  <p style={{ fontSize: '12px', color: 'rgba(255,255,255,0.55)', marginTop: '2px' }}>
+                    {businessTypeAndCity}
+                  </p>
+                )}
+                {credibility && credibility.level !== 'none' && (
+                  <div style={{ marginTop: '6px' }}>
+                    <TrustBadge level={credibility.level} variant="light" />
+                  </div>
+                )}
+              </div>
             </div>
-          )}
-        </div>
-      </div>
 
-      {/* User Info Card */}
-      <div className="px-4 mb-3">
-        <div style={{ backgroundColor: 'var(--bg-card)', borderRadius: 'var(--radius-card)', overflow: 'hidden' }}>
-          <div style={{ padding: '13px 16px', borderBottom: '1px solid var(--border-section)' }}>
-            <div className="flex items-center gap-2">
-              {isEditingUsername ? (
-                <div className="flex items-center gap-2 flex-1">
-                  <input
-                    ref={usernameInputRef}
-                    type="text"
-                    value={editedUsername}
-                    onChange={(e) => setEditedUsername(e.target.value)}
-                    onKeyDown={handleUsernameKeyDown}
-                    disabled={isSavingUsername}
-                    maxLength={50}
-                    style={{
-                      fontSize: '14px',
-                      fontWeight: 600,
-                      color: 'var(--text-primary)',
-                      backgroundColor: 'transparent',
-                      borderBottom: '1px solid var(--brand-primary)',
-                      outline: 'none',
-                      flex: 1,
-                      minWidth: 0,
-                      padding: '2px 0',
-                    }}
-                  />
-                  <button
-                    onClick={handleSaveUsername}
-                    disabled={isSavingUsername}
-                    style={{ color: 'var(--brand-primary)', padding: '4px', minWidth: '44px', minHeight: '44px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
-                  >
-                    <Check size={18} weight="bold" />
-                  </button>
-                  <button
-                    onClick={handleCancelEditUsername}
-                    disabled={isSavingUsername}
-                    style={{ color: 'var(--text-muted)', padding: '4px', minWidth: '44px', minHeight: '44px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
-                  >
-                    <X size={18} />
-                  </button>
-                </div>
-              ) : (
-                <>
-                  <p style={{ fontSize: '14px', fontWeight: 600, color: 'var(--text-primary)', flex: 1 }}>{userAccount.username}</p>
-                  <button
-                    onClick={handleStartEditUsername}
-                    style={{ color: 'var(--text-muted)', padding: '4px', minWidth: '44px', minHeight: '44px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
-                  >
-                    <PencilSimple size={16} />
-                  </button>
-                </>
-              )}
-            </div>
-            <p style={{ fontSize: '12px', fontWeight: 500, color: 'var(--text-secondary)', marginTop: '2px' }}>{userAccount.email}</p>
-          </div>
+            {/* Divider */}
+            <div style={{ height: '1px', backgroundColor: 'rgba(255,255,255,0.08)', marginBottom: '12px' }} />
 
-          <div style={{ padding: '13px 16px', borderBottom: '1px solid var(--border-section)' }}>
-            <div className="flex items-center gap-2 mb-1">
-              <p style={{ fontSize: '13px', fontWeight: 500, color: 'var(--text-secondary)' }}>Zelto ID</p>
-            </div>
-            <div className="flex items-center gap-2">
-              <p style={{ fontSize: '14px', fontWeight: 600, color: 'var(--text-primary)', fontFamily: 'monospace' }}>{business.zeltoId}</p>
+            {/* Zelto code + share */}
+            <div className="flex items-center justify-between">
+              <span style={{
+                fontFamily: '"DM Mono", monospace',
+                fontSize: '11px',
+                color: 'rgba(255,255,255,0.35)',
+                letterSpacing: '0.05em',
+              }}>
+                {business.zeltoId}
+              </span>
               <button
                 onClick={handleShare}
-                style={{ fontSize: '13px', fontWeight: 600, color: 'var(--brand-primary)', minHeight: '44px', display: 'flex', alignItems: 'center' }}
+                className="flex items-center gap-1.5"
+                style={{
+                  fontSize: '12px',
+                  fontWeight: 600,
+                  color: 'rgba(255,255,255,0.7)',
+                  padding: '6px 10px',
+                  borderRadius: '8px',
+                  backgroundColor: 'rgba(255,255,255,0.1)',
+                  border: '1px solid rgba(255,255,255,0.12)',
+                  minHeight: '32px',
+                }}
               >
+                <ShareNetwork size={14} />
                 Share
               </button>
             </div>
           </div>
+        </div>
 
-          {activityCounts && (
-            <div style={{ padding: '13px 16px' }}>
-              <p style={{ fontSize: '12px', fontWeight: 500, color: 'var(--text-secondary)' }}>
-                {activityCounts.connectionCount} connection{activityCounts.connectionCount !== 1 ? 's' : ''} · {activityCounts.orderCount} order{activityCounts.orderCount !== 1 ? 's' : ''}
+        {/* ── TRUST PROFILE CTA ── */}
+        <div className="px-4 pb-4">
+          <button
+            onClick={onNavigateToSelfTrustProfile}
+            className="w-full flex items-center gap-3 text-left"
+            style={{
+              background: 'linear-gradient(135deg, rgba(74,108,247,0.18), rgba(123,143,247,0.1))',
+              border: '1px solid rgba(74,108,247,0.3)',
+              borderRadius: '14px',
+              padding: '12px 14px',
+              minHeight: '60px',
+            }}
+          >
+            {/* Shield icon */}
+            <div style={{
+              width: '36px',
+              height: '36px',
+              borderRadius: '10px',
+              backgroundColor: 'rgba(74,108,247,0.25)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              flexShrink: 0,
+            }}>
+              <ShieldCheck size={18} color="#7B8FF7" weight="fill" />
+            </div>
+
+            {/* Text */}
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <p style={{ fontSize: '13px', fontWeight: 700, color: '#FFFFFF' }}>
+                Your Trust Profile
               </p>
-              {business.formattedAddress && (
-                <p style={{ fontSize: '12px', fontWeight: 500, color: 'var(--text-secondary)', marginTop: '2px' }}>
-                  {business.formattedAddress}
-                </p>
-              )}
-              {business.phone && (
-                <p style={{ fontSize: '12px', fontWeight: 500, color: 'var(--text-secondary)', marginTop: '2px' }}>
-                  {business.phone}
-                </p>
+              <p style={{ fontSize: '11px', color: 'rgba(255,255,255,0.45)', marginTop: '1px' }}>
+                Identity · Compliance docs
+              </p>
+              {hasDocWarning && (
+                <div className="flex items-center gap-1 mt-1.5">
+                  <Warning size={12} color="#E67E00" />
+                  <span style={{
+                    fontSize: '11px',
+                    fontWeight: 600,
+                    color: '#E67E00',
+                    backgroundColor: 'rgba(230,126,0,0.2)',
+                    padding: '1px 6px',
+                    borderRadius: '4px',
+                  }}>
+                    {docWarningText}
+                  </span>
+                </div>
               )}
             </div>
-          )}
+
+            <CaretRight size={16} color="rgba(255,255,255,0.4)" />
+          </button>
         </div>
       </div>
 
-      {/* Your Trust Profile Card */}
-      {credibility && (
-        <div className="px-4 mb-3">
-          <div style={{ backgroundColor: 'var(--bg-card)', borderRadius: '14px', padding: '16px', border: '1px solid var(--border-light)' }}>
-            <p style={{ fontSize: '13px', fontWeight: 700, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '12px' }}>
-              YOUR TRUST PROFILE
-            </p>
+      {/* ── GREY BACKGROUND CONTENT ── */}
+      <div style={{ padding: '20px 16px 0' }}>
 
-            {/* Score + bar */}
-            <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '8px' }}>
-              <div style={{ flex: 1, height: '6px', backgroundColor: 'var(--border-light)', borderRadius: '3px', overflow: 'hidden' }}>
-                <div
-                  style={{
-                    height: '100%',
-                    borderRadius: '3px',
-                    width: `${credibility.score}%`,
-                    background: 'linear-gradient(90deg, #4A6CF7, #22B573)',
-                    transition: 'width 0.5s',
-                  }}
-                />
+        {/* YOU section */}
+        <SectionLabel>YOU</SectionLabel>
+        <div style={{ backgroundColor: '#FFFFFF', borderRadius: '14px', overflow: 'hidden', marginBottom: '20px' }}>
+          <div style={{ padding: '13px 16px' }}>
+            <div className="flex items-center gap-3">
+              {/* User avatar */}
+              <div style={{
+                width: '38px',
+                height: '38px',
+                borderRadius: '12px',
+                backgroundColor: '#F2F4F8',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                flexShrink: 0,
+              }}>
+                <span style={{ fontSize: '14px', fontWeight: 700, color: '#8492A6' }}>
+                  {userAccount.username.slice(0, 2).toUpperCase()}
+                </span>
               </div>
-              <span style={{ fontSize: '22px', fontWeight: 700, color: 'var(--text-primary)', lineHeight: 1 }}>
-                {credibility.score} / 100
-              </span>
-            </div>
 
-            <div style={{ marginBottom: '12px' }}>
-              <CredibilityBadge level={credibility.level} />
-            </div>
-
-            {isTrusted ? (
-              /* State B — complete */
-              <div>
-                <p style={{ fontSize: '13px', color: 'var(--text-secondary)', marginBottom: '12px' }}>
-                  Your profile is complete. Other businesses can verify you with confidence.
-                </p>
-                {onNavigateToSelfTrustProfile && (
-                  <button
-                    onClick={onNavigateToSelfTrustProfile}
-                    style={{ width: '100%', padding: '12px', backgroundColor: 'var(--brand-primary)', color: '#fff', border: 'none', borderRadius: '12px', fontSize: '14px', fontWeight: 500, cursor: 'pointer' }}
-                  >
-                    Preview My Trust Profile →
-                  </button>
-                )}
-              </div>
-            ) : (
-              /* State A — incomplete */
-              <div>
-                {/* Completed items */}
-                {credibility.completedItems.length > 0 && (
-                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', marginBottom: '12px' }}>
-                    {credibility.completedItems.slice(0, 6).map(item => (
-                      <span
-                        key={item}
-                        style={{
-                          fontSize: '11px',
-                          fontWeight: 500,
-                          color: '#16A34A',
-                          backgroundColor: '#DCFCE7',
-                          padding: '2px 8px',
-                          borderRadius: '100px',
-                        }}
-                      >
-                        ✓ {item}
-                      </span>
-                    ))}
+              {/* Username (editable) */}
+              <div style={{ flex: 1, minWidth: 0 }}>
+                {isEditingUsername ? (
+                  <div className="flex items-center gap-2">
+                    <input
+                      ref={usernameInputRef}
+                      type="text"
+                      value={editedUsername}
+                      onChange={(e) => setEditedUsername(e.target.value)}
+                      onKeyDown={handleUsernameKeyDown}
+                      disabled={isSavingUsername}
+                      maxLength={50}
+                      style={{
+                        fontSize: '13px',
+                        fontWeight: 600,
+                        color: '#1A1F2E',
+                        backgroundColor: 'transparent',
+                        borderBottom: '1px solid #4A6CF7',
+                        outline: 'none',
+                        flex: 1,
+                        minWidth: 0,
+                        padding: '2px 0',
+                      }}
+                    />
+                    <button
+                      onClick={handleSaveUsername}
+                      disabled={isSavingUsername}
+                      style={{ color: '#4A6CF7', padding: '4px', minWidth: '36px', minHeight: '36px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                    >
+                      <Check size={16} weight="bold" />
+                    </button>
+                    <button
+                      onClick={handleCancelEditUsername}
+                      disabled={isSavingUsername}
+                      style={{ color: '#8492A6', padding: '4px', minWidth: '36px', minHeight: '36px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                    >
+                      <X size={16} />
+                    </button>
+                  </div>
+                ) : (
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p style={{ fontSize: '13px', fontWeight: 600, color: '#1A1F2E' }}>
+                        {userAccount.username}
+                      </p>
+                      <p style={{ fontSize: '11px', fontWeight: 500, color: '#8492A6', marginTop: '1px' }}>
+                        {userAccount.email}
+                      </p>
+                    </div>
+                    <button
+                      onClick={handleStartEditUsername}
+                      style={{ color: '#8492A6', padding: '6px', minWidth: '44px', minHeight: '44px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                    >
+                      <PencilSimple size={15} />
+                    </button>
                   </div>
                 )}
-
-                {/* To improve */}
-                {missingItemsWithPoints.length > 0 && (
-                  <div style={{ marginBottom: '12px' }}>
-                    <p style={{ fontSize: '11px', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: '6px' }}>
-                      To improve:
-                    </p>
-                    {missingItemsWithPoints.slice(0, 4).map(item => (
-                      <div key={item.label} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', paddingTop: '4px', paddingBottom: '4px' }}>
-                        <span style={{ fontSize: '13px', color: 'var(--text-primary)' }}>○ {item.label}</span>
-                        <span style={{ fontSize: '12px', fontWeight: 600, color: 'var(--brand-primary)' }}>+{item.points} pts</span>
-                      </div>
-                    ))}
-                  </div>
-                )}
-
-                <button
-                  onClick={onNavigateToBusinessDetails}
-                  style={{ width: '100%', padding: '12px', backgroundColor: 'var(--brand-primary)', color: '#fff', border: 'none', borderRadius: '12px', fontSize: '14px', fontWeight: 500, cursor: 'pointer' }}
-                >
-                  Complete Your Profile →
-                </button>
               </div>
-            )}
+            </div>
           </div>
         </div>
-      )}
 
-      {/* Business Details Card */}
-      <div className="px-4 mb-3">
-        <p style={{ fontSize: '13px', fontWeight: 700, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '10px' }}>
-          BUSINESS
-        </p>
-        <div style={{ backgroundColor: 'var(--bg-card)', borderRadius: 'var(--radius-card)', overflow: 'hidden' }}>
-          {!hasBusinessDetails ? (
-            <button
-              onClick={onNavigateToBusinessDetails}
-              className="w-full flex items-center justify-between"
-              style={{ padding: '13px 16px', minHeight: '44px' }}
-            >
-              <span style={{ fontSize: '14px', fontWeight: 600, color: 'var(--status-dispatched)' }}>
-                Edit Business Details →
-              </span>
-              <CaretRight size={16} style={{ color: 'var(--text-muted)' }} />
-            </button>
-          ) : (
-            <div>
-              <button
-                onClick={onNavigateToBusinessDetails}
-                className="w-full flex items-center justify-between"
-                style={{ padding: '13px 16px', minHeight: '44px', borderBottom: '1px solid var(--border-section)' }}
-              >
-                <div style={{ textAlign: 'left' }}>
-                  <p style={{ fontSize: '14px', fontWeight: 600, color: 'var(--text-primary)' }}>{business.businessName}</p>
-                  <p style={{ fontSize: '12px', color: 'var(--text-secondary)', fontFamily: 'monospace', marginTop: '1px' }}>{business.zeltoId}</p>
-                </div>
-                <CaretRight size={16} style={{ color: 'var(--text-muted)' }} />
-              </button>
-
-              <button
-                onClick={onNavigateToBusinessDetails}
-                className="w-full flex items-center justify-between"
-                style={{ padding: '13px 16px', minHeight: '44px', borderBottom: '1px solid var(--border-section)' }}
-              >
-                <span style={{ fontSize: '14px', fontWeight: 500, color: 'var(--text-primary)' }}>Edit Business Details</span>
-                <CaretRight size={16} style={{ color: 'var(--text-muted)' }} />
-              </button>
-
-              <button
-                onClick={onNavigateToManageDocuments}
-                className="w-full flex items-center justify-between"
-                style={{ padding: '13px 16px', minHeight: '44px', borderBottom: '1px solid var(--border-section)' }}
-              >
-                <span style={{ fontSize: '14px', fontWeight: 500, color: 'var(--text-primary)' }}>Manage Documents</span>
-                <CaretRight size={16} style={{ color: 'var(--text-muted)' }} />
-              </button>
-            </div>
-          )}
+        {/* BUSINESS section */}
+        <SectionLabel>BUSINESS</SectionLabel>
+        <div style={{ backgroundColor: '#FFFFFF', borderRadius: '14px', overflow: 'hidden', marginBottom: '20px' }}>
+          <MenuRow
+            icon={<Buildings size={18} color="#4A6CF7" weight="bold" />}
+            iconBg="#EEF0FF"
+            title="Business details"
+            subtitle={[business.gstNumber ? 'GST' : null, business.businessType, business.city].filter(Boolean).join(' · ') || 'Add your business details'}
+            onPress={onNavigateToBusinessDetails}
+          />
+          <MenuRow
+            icon={<Users size={18} color="#22B573" weight="bold" />}
+            iconBg="#E8F8F0"
+            title="Members"
+            subtitle="1 active member · Owner"
+            onPress={onNavigateToMembers}
+            showDivider={false}
+          />
         </div>
-      </div>
 
-      {/* Settings Card */}
-      <div className="px-4 mb-3">
-        <p style={{ fontSize: '13px', fontWeight: 700, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '10px' }}>
-          SETTINGS
-        </p>
-        <div style={{ backgroundColor: 'var(--bg-card)', borderRadius: 'var(--radius-card)', overflow: 'hidden' }}>
-          <SettingsItem title="Notifications" onPress={onNavigateToNotificationSettings} />
-          <SettingsItem title="Account" onPress={onNavigateToAccount} />
-          <SettingsItem title="Help & Support" onPress={onNavigateToSupport} showDivider={false} />
+        {/* SETTINGS section */}
+        <SectionLabel>SETTINGS</SectionLabel>
+        <div style={{ backgroundColor: '#FFFFFF', borderRadius: '14px', overflow: 'hidden', marginBottom: '20px' }}>
+          <MenuRow
+            icon={<Bell size={18} color="#E67E00" weight="bold" />}
+            iconBg="#FFF4E0"
+            title="Notifications"
+            onPress={onNavigateToNotificationSettings}
+          />
+          <MenuRow
+            icon={
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
+                <path d="M12 15a3 3 0 100-6 3 3 0 000 6z" fill="#4A6CF7"/>
+                <path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-2 2 2 2 0 01-2-2v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83 0 2 2 0 010-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 01-2-2 2 2 0 012-2h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 010-2.83 2 2 0 012.83 0l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 012-2 2 2 0 012 2v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 0 2 2 0 010 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 012 2 2 2 0 01-2 2h-.09a1.65 1.65 0 00-1.51 1z" stroke="#4A6CF7" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+              </svg>
+            }
+            iconBg="#EEF0FF"
+            title="Account"
+            onPress={onNavigateToAccount}
+          />
+          <MenuRow
+            icon={
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
+                <path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2v10z" stroke="#8492A6" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+              </svg>
+            }
+            iconBg="#F2F4F8"
+            title="Help & Support"
+            onPress={onNavigateToSupport}
+            showDivider={false}
+          />
         </div>
-      </div>
 
-      {/* Footer Links */}
-      <div className="px-4 py-4" style={{ borderTop: '1px solid var(--border-light)' }}>
-        <div className="flex items-center justify-center gap-6">
-          <a
-            href="/privacy"
-            style={{ fontSize: '12px', fontWeight: 500, color: 'var(--text-secondary)' }}
-          >
+        {/* Footer links */}
+        <div className="flex items-center justify-center gap-6 py-4">
+          <a href="/privacy" style={{ fontSize: '12px', fontWeight: 500, color: '#8492A6' }}>
             Privacy Policy
           </a>
-          <span style={{ color: 'var(--text-secondary)', fontSize: '12px' }}>·</span>
-          <a
-            href="/terms"
-            style={{ fontSize: '12px', fontWeight: 500, color: 'var(--text-secondary)' }}
-          >
+          <span style={{ color: '#8492A6', fontSize: '12px' }}>·</span>
+          <a href="/terms" style={{ fontSize: '12px', fontWeight: 500, color: '#8492A6' }}>
             Terms of Service
           </a>
         </div>
-      </div>
 
-      {/* Logout */}
-      <div className="px-4 pb-24 pt-4">
-        <button
-          onClick={onLogout}
-          className="w-full text-center"
-          style={{ padding: '13px 16px', minHeight: '44px' }}
-        >
-          <p style={{ fontSize: '14px', fontWeight: 600, color: 'var(--status-overdue)' }}>Log out</p>
-        </button>
+        {/* Logout button */}
+        <div style={{ paddingBottom: '100px' }}>
+          <button
+            onClick={onLogout}
+            className="w-full"
+            style={{
+              padding: '13px 16px',
+              minHeight: '48px',
+              backgroundColor: '#E53535',
+              borderRadius: '14px',
+              border: 'none',
+              cursor: 'pointer',
+            }}
+          >
+            <p style={{ fontSize: '14px', fontWeight: 600, color: '#FFFFFF' }}>Log out</p>
+          </button>
+        </div>
       </div>
     </div>
   )
