@@ -17,9 +17,10 @@ export interface EnrichedOrder extends OrderWithPaymentState {
 
 interface AttentionCounts {
   approvalNeeded: number
-  dispatched: number
-  delivered: number
-  paymentPending: number
+  awaitingDispatch: number
+  awaitingDeliveryConfirmation: number
+  paymentDue: number
+  awaitingPayment: number
   disputes: number
   pendingReceivedRequests: number
 }
@@ -158,9 +159,10 @@ export function useBusinessOverviewData(currentBusinessId: string, isActive = tr
       let overdueYesterday = 0
       let overdueOrdersCount = 0
       let totalOverdueDelayDays = 0
-      let dispatched = 0
-      let delivered = 0
-      let paymentPending = 0
+      let awaitingDispatch = 0
+      let awaitingDeliveryConfirmation = 0
+      let paymentDue = 0
+      let awaitingPayment = 0
 
       let next7DaysComingIn = 0
       let next7DaysGoingOut = 0
@@ -266,9 +268,24 @@ export function useBusinessOverviewData(currentBusinessId: string, isActive = tr
           }
         }
 
-        if (order.dispatchedAt && !order.deliveredAt) dispatched += 1
-        if (order.deliveredAt && order.settlementState !== 'Paid') delivered += 1
-        if (order.deliveredAt && order.pendingAmount > 0 && order.settlementState !== 'Paid') paymentPending += 1
+        if (order.dispatchedAt && !order.deliveredAt) {
+          if (isSupplier) {
+            awaitingDeliveryConfirmation += 1
+          } else {
+            awaitingDispatch += 1
+          }
+        } else if (!order.dispatchedAt && !order.deliveredAt) {
+          if (!isSupplier) {
+            awaitingDispatch += 1
+          }
+        }
+        if (order.deliveredAt && order.pendingAmount > 0 && order.settlementState !== 'Paid') {
+          if (isSupplier) {
+            awaitingPayment += 1
+          } else {
+            paymentDue += 1
+          }
+        }
       }
 
       const approvalNeeded = attentionItems.filter(item => item.category === 'Approval Needed').length
@@ -339,9 +356,10 @@ export function useBusinessOverviewData(currentBusinessId: string, isActive = tr
         recentOrders,
         attentionCounts: {
           approvalNeeded,
-          dispatched,
-          delivered,
-          paymentPending,
+          awaitingDispatch,
+          awaitingDeliveryConfirmation,
+          paymentDue,
+          awaitingPayment,
           disputes,
           pendingReceivedRequests,
         },

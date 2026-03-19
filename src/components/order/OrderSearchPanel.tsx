@@ -2,7 +2,7 @@ import { useState, useCallback } from 'react'
 import { MagnifyingGlass, X } from '@phosphor-icons/react'
 import { startOfDay, isToday, isSameDay } from 'date-fns'
 
-export type StatusChip = 'placed' | 'dispatched' | 'delivered' | 'payment_pending' | 'paid'
+export type StatusChip = 'placed' | 'dispatched' | 'delivered' | 'payment_pending' | 'paid' | 'dispatched_buyer' | 'dispatched_supplier' | 'payment_pending_supplier'
 
 export interface OrderFilters {
   searchText: string
@@ -17,6 +17,9 @@ export const CHIP_LABELS: Record<StatusChip, string> = {
   delivered: 'Delivered',
   payment_pending: 'Due',
   paid: 'Paid',
+  dispatched_buyer: 'Awaiting Dispatch',
+  dispatched_supplier: 'Awaiting Delivery Confirmation',
+  payment_pending_supplier: 'Awaiting Payment',
 }
 
 const CHIP_COLORS: Record<StatusChip, string> = {
@@ -25,6 +28,9 @@ const CHIP_COLORS: Record<StatusChip, string> = {
   delivered: 'var(--status-delivered)',
   payment_pending: 'var(--status-overdue)',
   paid: 'var(--status-success)',
+  dispatched_buyer: '#B0BAD0',
+  dispatched_supplier: '#B0BAD0',
+  payment_pending_supplier: '#B0BAD0',
 }
 
 const ALL_CHIPS: StatusChip[] = ['placed', 'dispatched', 'delivered', 'payment_pending', 'paid']

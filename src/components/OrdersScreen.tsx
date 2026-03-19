@@ -43,6 +43,9 @@ export function OrdersScreen({ currentBusinessId, onSelectOrder, initialFilter, 
       delivered: 'delivered',
       payment_pending: 'payment_pending',
       paid: 'paid',
+      dispatched_buyer: 'dispatched_buyer',
+      dispatched_supplier: 'dispatched_supplier',
+      payment_pending_supplier: 'payment_pending_supplier',
     }
     const chip = chipMap[initialFilter]
     if (chip) {
@@ -75,11 +78,14 @@ export function OrdersScreen({ currentBusinessId, onSelectOrder, initialFilter, 
 
       if (activeChips.size > 0) {
         const matchChip = [...activeChips].some(chip => {
-          if (chip === 'placed')          return order.lifecycleState === 'Placed'
-          if (chip === 'dispatched')      return order.lifecycleState === 'Dispatched'
-          if (chip === 'delivered')       return order.lifecycleState === 'Delivered'
-          if (chip === 'payment_pending') return order.settlementState !== 'Paid' && order.lifecycleState === 'Delivered'
-          if (chip === 'paid')            return order.settlementState === 'Paid'
+          if (chip === 'placed')                    return order.lifecycleState === 'Placed'
+          if (chip === 'dispatched')                return order.lifecycleState === 'Dispatched'
+          if (chip === 'delivered')                 return order.lifecycleState === 'Delivered'
+          if (chip === 'payment_pending')           return order.settlementState !== 'Paid' && order.lifecycleState === 'Delivered'
+          if (chip === 'paid')                      return order.settlementState === 'Paid'
+          if (chip === 'dispatched_buyer')          return order.isBuyer && !order.deliveredAt
+          if (chip === 'dispatched_supplier')       return !order.isBuyer && order.lifecycleState === 'Dispatched'
+          if (chip === 'payment_pending_supplier')  return !order.isBuyer && order.settlementState !== 'Paid' && order.lifecycleState === 'Delivered'
           return false
         })
         if (!matchChip) return false
@@ -107,6 +113,9 @@ export function OrdersScreen({ currentBusinessId, onSelectOrder, initialFilter, 
         delivered: 'DELIVERED',
         payment_pending: 'DUE',
         paid: 'PAID',
+        dispatched_buyer: 'AWAITING DISPATCH',
+        dispatched_supplier: 'AWAITING DELIVERY CONFIRMATION',
+        payment_pending_supplier: 'AWAITING PAYMENT',
       }
       parts.push([...activeChips].map(c => chipUpperLabels[c]).join(' · '))
     }
