@@ -524,8 +524,7 @@ export function OrdersScreen({ currentBusinessId, onSelectOrder, initialFilter, 
                 deliveredAt={order.deliveredAt}
                 latestActivity={order.latestActivity}
                 isBuyer={order.isBuyer}
-                showRoleIndicator={roleFilter === 'all'}
-                onClick={() => onSelectOrder(order.id, order.connectionId)}
+onClick={() => onSelectOrder(order.id, order.connectionId)}
               />
             ))}
           </div>
