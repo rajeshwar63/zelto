@@ -70,7 +70,7 @@ export interface ComplianceAlert {
   otherBusinessZeltoId: string
   issueType: 'expired' | 'expiring' | 'missing'
   documentDisplayName: string
-  expiresAt: string | null
+  expiresAtMs: number | null
   daysRemaining: number | null
 }
 
