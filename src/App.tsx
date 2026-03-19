@@ -525,6 +525,17 @@ function App() {
           connectionId={detailScreen.connectionId}
           initialTab={detailScreen.initialTab}
           onBack={navigateBack}
+          onNavigateToEditBusiness={
+            detailScreen.screenMode.audience === 'self-profile-ready'
+              ? (scrollToDocuments?: boolean) => {
+                  if (scrollToDocuments) {
+                    setNavigationStack(stack => [...stack, { type: 'manage-documents' }])
+                  } else {
+                    setNavigationStack(stack => [...stack, { type: 'business-details' }])
+                  }
+                }
+              : undefined
+          }
           onRequestSent={() => { navigateBack(); emitDataChange('connections:changed') }}
           onRequestAccepted={() => { navigateBack(); emitDataChange('connections:changed') }}
           onRequestDeclined={() => { navigateBack(); emitDataChange('connections:changed') }}

@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { ArrowLeft, Buildings, Note, Briefcase, MapPin, Link, User, Phone, UploadSimple } from '@phosphor-icons/react'
+import { ArrowLeft, Buildings, Note, Briefcase, MapPin, Link, User, Phone } from '@phosphor-icons/react'
 import { dataStore } from '@/lib/data-store'
 import { calculateCredibility, getBusinessActivityCounts, type CredibilityBreakdown } from '@/lib/credibility'
 import { TrustBadge } from './TrustBadge'
@@ -28,6 +28,7 @@ interface Props {
   connectionId?: string
   initialTab?: 'identity' | 'docs'
   onBack: () => void
+  onNavigateToEditBusiness?: (scrollToDocuments?: boolean) => void
   onRequestSent?: () => void
   onRequestAccepted?: () => void
   onRequestDeclined?: () => void
@@ -78,6 +79,7 @@ export function TrustProfileScreen({
   connectionId,
   initialTab,
   onBack,
+  onNavigateToEditBusiness,
   onRequestSent,
   onRequestAccepted,
   onRequestDeclined,
@@ -452,33 +454,41 @@ export function TrustProfileScreen({
               </div>
             </div>
 
-            {/* Edit business details — self-view owner only */}
-            {isSelfProfileReady && (
-              <button
-                onClick={() => {
-                  toast.info('Going to business details')
-                  onBack()
-                }}
-                style={{
-                  background: 'none',
-                  border: 'none',
-                  cursor: 'pointer',
-                  fontSize: '13px',
-                  fontWeight: 500,
-                  color: '#4A6CF7',
-                  textAlign: 'left',
-                  padding: '0',
-                }}
-              >
-                Edit business details →
-              </button>
-            )}
           </div>
         )}
 
         {/* === DOCS TAB === */}
         {activeTab === 'docs' && (
           <div style={{ padding: '20px 16px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
+
+            {/* Manage Documents row — only for own profile */}
+            {isSelfProfileReady && (
+              <button
+                onClick={() => onNavigateToEditBusiness?.(true)}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  width: '100%',
+                  padding: '14px 16px',
+                  backgroundColor: 'var(--bg-card, #fff)',
+                  border: '1px solid var(--border-light, #E8ECF2)',
+                  borderRadius: '14px',
+                  cursor: 'pointer',
+                  textAlign: 'left',
+                }}
+              >
+                <div>
+                  <p style={{ fontSize: '14px', fontWeight: 600, color: 'var(--text-primary, #1A1F2E)', margin: 0 }}>
+                    Manage Documents
+                  </p>
+                  <p style={{ fontSize: '12px', color: 'var(--text-secondary, #8492A6)', marginTop: '2px', marginBottom: 0 }}>
+                    Upload GST, FSSAI, PAN and other certificates
+                  </p>
+                </div>
+                <span style={{ fontSize: '18px', color: 'var(--text-secondary, #8492A6)' }}>›</span>
+              </button>
+            )}
 
             {/* Alert banner — expired takes priority */}
             {expiredDocs.length > 0 && (
@@ -515,7 +525,11 @@ export function TrustProfileScreen({
                 <p style={{ fontSize: '13px', color: '#8492A6' }}>Loading documents…</p>
               ) : documents.length === 0 ? (
                 <div style={{ backgroundColor: '#fff', borderRadius: '12px', padding: '24px', textAlign: 'center' }}>
-                  <p style={{ fontSize: '14px', color: '#8492A6' }}>No documents uploaded yet.</p>
+                  <p style={{ fontSize: '14px', color: '#8492A6' }}>
+                    {isSelfProfileReady
+                      ? 'No documents uploaded yet. Tap Manage Documents above to add.'
+                      : 'No documents shared yet.'}
+                  </p>
                 </div>
               ) : (
                 <div style={{ backgroundColor: '#fff', borderRadius: '12px', overflow: 'hidden' }}>
@@ -598,32 +612,6 @@ export function TrustProfileScreen({
               )}
             </div>
 
-            {/* Upload button — self-view owner only */}
-            {isSelfProfileReady && (
-              <>
-                <button
-                  onClick={() => toast.info('Upload coming soon')}
-                  style={{
-                    width: '100%',
-                    padding: '14px',
-                    backgroundColor: 'transparent',
-                    border: '1.5px dashed #C5CEDE',
-                    borderRadius: '12px',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    gap: '8px',
-                    cursor: 'pointer',
-                  }}
-                >
-                  <UploadSimple size={16} color="#8492A6" />
-                  <span style={{ fontSize: '14px', fontWeight: 500, color: '#8492A6' }}>Upload a document</span>
-                </button>
-                <p style={{ fontSize: '12px', color: '#8492A6', textAlign: 'center', marginTop: '-8px' }}>
-                  Documents you upload are visible to your trade connections on Zelto.
-                </p>
-              </>
-            )}
           </div>
         )}
       </div>
