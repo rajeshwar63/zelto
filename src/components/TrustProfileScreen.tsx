@@ -321,23 +321,23 @@ export function TrustProfileScreen({
     <div style={{ position: 'fixed', inset: 0, zIndex: 50, display: 'flex', flexDirection: 'column', backgroundColor: '#F2F4F8' }}>
 
       {/* Header — non-scrolling */}
-      <div style={{ backgroundColor: '#0F1320', flexShrink: 0 }}>
+      <div style={{ backgroundColor: '#fff', flexShrink: 0, borderBottom: '1px solid #E8ECF2' }}>
         {/* Back + Title + Edit (self-profile only) */}
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '16px 16px 0', marginBottom: '16px' }}>
           <button
             onClick={onBack}
             style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '4px', display: 'flex', alignItems: 'center' }}
           >
-            <ArrowLeft size={20} color="#fff" />
+            <ArrowLeft size={20} color="#1A1F36" />
           </button>
-          <span style={{ fontSize: '15px', fontWeight: 600, color: '#fff', flex: 1 }}>Trust Profile</span>
+          <span style={{ fontSize: '15px', fontWeight: 600, color: '#1A1F36', flex: 1 }}>Trust Profile</span>
           {isSelfProfileReady && (
             <button
               onClick={() => onNavigateToEditBusiness?.()}
               style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '4px', display: 'flex', alignItems: 'center' }}
               aria-label="Edit business details"
             >
-              <PencilSimple size={20} color="rgba(255,255,255,0.6)" />
+              <PencilSimple size={20} color="#8492A6" />
             </button>
           )}
         </div>
@@ -361,18 +361,18 @@ export function TrustProfileScreen({
           {/* Name + meta */}
           <div style={{ flex: 1, minWidth: 0 }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap', marginBottom: '3px' }}>
-              <span style={{ fontSize: '16px', fontWeight: 700, color: '#fff' }}>{business.businessName}</span>
-              {credibility && <TrustBadge level={credibility.level} variant="light" size="sm" />}
+              <span style={{ fontSize: '16px', fontWeight: 700, color: '#1A1F36' }}>{business.businessName}</span>
+              {credibility && <TrustBadge level={credibility.level} variant="dark" size="sm" />}
             </div>
             {(business.businessType || business.city) && (
-              <p style={{ fontSize: '11px', color: 'rgba(255,255,255,0.6)', marginBottom: '4px' }}>
+              <p style={{ fontSize: '11px', color: '#8492A6', marginBottom: '4px' }}>
                 {[business.businessType, business.city].filter(Boolean).join(' · ')}
               </p>
             )}
-            <p style={{ fontSize: '10px', color: 'rgba(255,255,255,0.5)', fontFamily: '"DM Mono", "Courier New", monospace', marginBottom: '2px' }}>
+            <p style={{ fontSize: '10px', color: '#AAB5C6', fontFamily: '"DM Mono", "Courier New", monospace', marginBottom: '2px' }}>
               {business.zeltoId}
             </p>
-            <p style={{ fontSize: '11px', color: 'rgba(255,255,255,0.6)' }}>
+            <p style={{ fontSize: '11px', color: '#8492A6' }}>
               Member since {memberSince}
             </p>
           </div>
@@ -394,13 +394,13 @@ export function TrustProfileScreen({
                 flex: 1,
                 textAlign: 'center',
                 padding: '8px 0 16px',
-                borderRight: i < arr.length - 1 ? '1px solid rgba(255,255,255,0.12)' : 'none',
+                borderRight: i < arr.length - 1 ? '1px solid #E8ECF2' : 'none',
               }}
             >
               <p style={{
-                fontSize: '22px',
+                fontSize: '17px',
                 fontWeight: 700,
-                color: '#fff',
+                color: '#1A1F36',
                 lineHeight: 1,
                 margin: 0,
               }}>
@@ -408,7 +408,7 @@ export function TrustProfileScreen({
               </p>
               <p style={{
                 fontSize: '11px',
-                color: 'rgba(255,255,255,0.45)',
+                color: '#8492A6',
                 margin: '3px 0 0',
               }}>
                 {stat.label}
