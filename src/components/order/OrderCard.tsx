@@ -17,6 +17,7 @@ export interface OrderCardProps {
   paymentTermSnapshot: PaymentTermType | null
   isBuyer: boolean
   // true = money going OUT (red ↑), false = money coming IN (green ↓)
+  showRoleIndicator?: boolean
   onClick: () => void
 }
 
@@ -168,6 +169,7 @@ export function OrderCard({
   latestActivity,
   paymentTermSnapshot,
   isBuyer,
+  showRoleIndicator = false,
   onClick,
 }: OrderCardProps) {
   // ── Amount display ──────────────────────────────────────────────────────────
@@ -222,6 +224,24 @@ export function OrderCard({
           </div>
         </div>
       </div>
+
+      {/* Role indicator for "All" view */}
+      {showRoleIndicator && (
+        <span style={{
+          display: 'inline-block',
+          fontSize: '10px',
+          fontWeight: 600,
+          letterSpacing: '0.04em',
+          textTransform: 'uppercase',
+          padding: '2px 8px',
+          borderRadius: 999,
+          marginTop: '4px',
+          background: isBuyer ? 'rgba(224, 85, 85, 0.08)' : 'rgba(34, 181, 115, 0.08)',
+          color: isBuyer ? '#E05555' : '#22B573',
+        }}>
+          {isBuyer ? 'Buying' : 'Selling'}
+        </span>
+      )}
 
       {/* Row 2: Payment term */}
       <div style={{ fontSize: '13px', color: 'var(--text-secondary)', marginTop: '3px' }}>

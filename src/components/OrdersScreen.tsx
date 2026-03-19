@@ -10,7 +10,7 @@ import {
   CHIP_LABELS,
   CHIPS_BY_ROLE,
 } from '@/components/order/OrderSearchPanel'
-import { FilterSheet, getStatusChipBackground, getStatusChipColor } from '@/components/order/FilterSheet'
+import { getStatusChipBackground, getStatusChipColor } from '@/components/order/FilterSheet'
 import { startOfDay } from 'date-fns'
 
 interface OrdersTabParams {
@@ -75,9 +75,9 @@ export function OrdersScreen({ currentBusinessId, onSelectOrder, initialFilter, 
     isRefreshing: isActive && isRefreshing,
   })
 
-  const [roleFilter, setRoleFilter] = useState<RoleFilter>('buying')
+  const [roleFilter, setRoleFilter] = useState<RoleFilter>('all')
   const [orderFilters, setOrderFilters] = useState<OrderFilters>(EMPTY_FILTERS)
-  const [filterSheetOpen, setFilterSheetOpen] = useState(false)
+  const [filterPanelOpen, setFilterPanelOpen] = useState(false)
 
   // Handle legacy initialFilter (old string-based filter)
   useEffect(() => {
@@ -99,7 +99,7 @@ export function OrdersScreen({ currentBusinessId, onSelectOrder, initialFilter, 
   useEffect(() => {
     if (!initialParams) return
 
-    if (initialParams.role && initialParams.role !== 'all') {
+    if (initialParams.role) {
       setRoleFilter(initialParams.role)
     }
 
@@ -122,13 +122,9 @@ export function OrdersScreen({ currentBusinessId, onSelectOrder, initialFilter, 
 
   const handleRoleChange = (newRole: RoleFilter) => {
     setRoleFilter(newRole)
-    const validChips = new Set(CHIPS_BY_ROLE[newRole])
-    setOrderFilters(prev => {
-      const reconciledChips = new Set(
-        [...prev.activeChips].filter(chip => validChips.has(chip))
-      )
-      return { ...prev, activeChips: reconciledChips }
-    })
+    // Reset filters when switching tabs to avoid confusion
+    setOrderFilters(EMPTY_FILTERS)
+    setFilterPanelOpen(false)
   }
 
   const toggleStatusFilter = (chip: StatusChip) => {
@@ -202,6 +198,7 @@ export function OrdersScreen({ currentBusinessId, onSelectOrder, initialFilter, 
 
   const totalOrders = useMemo(() =>
     orders.filter(o => {
+      if (roleFilter === 'all') return !o.declinedAt
       const matchesRole = roleFilter === 'buying' ? o.isBuyer : !o.isBuyer
       return matchesRole && !o.declinedAt
     }).length
@@ -210,6 +207,8 @@ export function OrdersScreen({ currentBusinessId, onSelectOrder, initialFilter, 
   const activeStatusFilters = useMemo(() => [...orderFilters.activeChips], [orderFilters.activeChips])
 
   const hasActiveFilters = orderFilters.activeChips.size > 0
+
+  const visibleChips = CHIPS_BY_ROLE[roleFilter]
 
   if (initialLoading) {
     return (
@@ -250,14 +249,14 @@ export function OrdersScreen({ currentBusinessId, onSelectOrder, initialFilter, 
             Orders
           </h1>
 
-          {/* Compact pill toggle */}
+          {/* Compact pill toggle — All | Buying | Selling */}
           <div style={{
             display: 'flex',
             borderRadius: 999,
             border: '0.5px solid var(--border-light)',
             overflow: 'hidden',
           }}>
-            {(['buying', 'selling'] as const).map(role => (
+            {(['all', 'buying', 'selling'] as const).map(role => (
               <button
                 key={role}
                 onClick={() => handleRoleChange(role)}
@@ -276,7 +275,7 @@ export function OrdersScreen({ currentBusinessId, onSelectOrder, initialFilter, 
                   transition: 'all 150ms',
                 }}
               >
-                {role === 'buying' ? 'Buying' : 'Selling'}
+                {role === 'all' ? 'All' : role === 'buying' ? 'Buying' : 'Selling'}
               </button>
             ))}
           </div>
@@ -317,9 +316,9 @@ export function OrdersScreen({ currentBusinessId, onSelectOrder, initialFilter, 
             />
           </div>
 
-          {/* Filter button */}
+          {/* Filter button — toggles inline panel */}
           <button
-            onClick={() => setFilterSheetOpen(true)}
+            onClick={() => setFilterPanelOpen(prev => !prev)}
             style={{
               display: 'flex',
               alignItems: 'center',
@@ -336,11 +335,12 @@ export function OrdersScreen({ currentBusinessId, onSelectOrder, initialFilter, 
                 ? 'var(--brand-primary)'
                 : 'var(--text-secondary)',
               transition: 'all 150ms',
+              position: 'relative',
             }}
           >
             <Faders size={16} />
             Filter
-            {hasActiveFilters && (
+            {hasActiveFilters && !filterPanelOpen && (
               <span style={{
                 background: 'var(--brand-primary)',
                 color: 'white',
@@ -359,13 +359,85 @@ export function OrdersScreen({ currentBusinessId, onSelectOrder, initialFilter, 
           </button>
         </div>
 
+        {/* Inline Filter Panel — expands below search bar */}
+        <div style={{
+          maxHeight: filterPanelOpen ? '200px' : '0px',
+          overflow: 'hidden',
+          transition: 'max-height 200ms ease',
+        }}>
+          <div style={{
+            padding: '8px 16px 12px',
+            background: 'var(--bg-card)',
+            borderBottom: '0.5px solid var(--border-light)',
+          }}>
+            {/* Header row */}
+            <div style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              marginBottom: '10px',
+            }}>
+              <p style={{
+                fontSize: '11px',
+                fontWeight: 600,
+                color: 'var(--text-secondary)',
+                textTransform: 'uppercase',
+                letterSpacing: '0.06em',
+                margin: 0,
+              }}>
+                Status
+              </p>
+              {hasActiveFilters && (
+                <button
+                  onClick={clearAllFilters}
+                  style={{
+                    fontSize: '13px',
+                    color: 'var(--brand-primary)',
+                    background: 'none',
+                    border: 'none',
+                    cursor: 'pointer',
+                    fontWeight: 500,
+                    padding: 0,
+                  }}
+                >
+                  Clear all
+                </button>
+              )}
+            </div>
+            {/* Status chips */}
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
+              {visibleChips.map(chip => {
+                const isActive = orderFilters.activeChips.has(chip)
+                return (
+                  <button
+                    key={chip}
+                    onClick={() => toggleStatusFilter(chip)}
+                    style={{
+                      fontSize: '13px',
+                      padding: '6px 14px',
+                      borderRadius: 999,
+                      border: isActive ? 'none' : '0.5px solid var(--border-light)',
+                      background: isActive ? getStatusChipBackground(chip) : 'transparent',
+                      color: isActive ? getStatusChipColor(chip) : 'var(--text-secondary)',
+                      fontWeight: isActive ? 500 : 400,
+                      cursor: 'pointer',
+                    }}
+                  >
+                    {CHIP_LABELS[chip]}
+                  </button>
+                )
+              })}
+            </div>
+          </div>
+        </div>
+
         {/* Row 3 — Active Filter Chips (conditional) */}
         {hasActiveFilters && (
           <div style={{
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'space-between',
-            padding: '0 16px 10px',
+            padding: '8px 16px 10px',
           }}>
             <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
               {activeStatusFilters.map(chip => (
@@ -424,6 +496,8 @@ export function OrdersScreen({ currentBusinessId, onSelectOrder, initialFilter, 
             <p style={{ fontSize: '13px', color: 'var(--text-secondary)' }}>
               {orderFilters.activeChips.has('overdue')
                 ? 'No overdue orders.'
+                : roleFilter === 'all' && !hasActiveFilters && !orderFilters.searchText.trim()
+                ? 'No orders yet.'
                 : roleFilter === 'buying' && !hasActiveFilters && !orderFilters.searchText.trim()
                 ? 'No orders as buyer yet.'
                 : roleFilter === 'selling' && !hasActiveFilters && !orderFilters.searchText.trim()
@@ -451,6 +525,7 @@ export function OrdersScreen({ currentBusinessId, onSelectOrder, initialFilter, 
                 latestActivity={order.latestActivity}
                 paymentTermSnapshot={order.paymentTermSnapshot}
                 isBuyer={order.isBuyer}
+                showRoleIndicator={roleFilter === 'all'}
                 onClick={() => onSelectOrder(order.id, order.connectionId)}
               />
             ))}
@@ -470,16 +545,6 @@ export function OrdersScreen({ currentBusinessId, onSelectOrder, initialFilter, 
       >
         <PencilSimple size={24} weight="regular" color="#FFFFFF" />
       </button>
-
-      {/* Filter Bottom Sheet */}
-      <FilterSheet
-        open={filterSheetOpen}
-        onClose={() => setFilterSheetOpen(false)}
-        activeChips={orderFilters.activeChips}
-        onToggleChip={toggleStatusFilter}
-        onClearAll={clearAllFilters}
-        roleFilter={roleFilter}
-      />
     </div>
   )
 }
