@@ -1,19 +1,16 @@
-import { useEffect, useMemo, useState, useRef } from 'react'
-import { motion, AnimatePresence } from 'framer-motion'
+import { useEffect, useMemo, useState } from 'react'
 import { useOrdersData } from '@/hooks/data/use-business-data'
-import { PencilSimple, X } from '@phosphor-icons/react'
+import { PencilSimple, MagnifyingGlass, Faders } from '@phosphor-icons/react'
 import { OrderCard } from '@/components/order/OrderCard'
 import { InlineRefreshSpinner, ScreenRefreshIndicator, useScreenLoadState } from '@/components/ScreenLoadState'
 import {
-  OrderSearchPanel,
   type OrderFilters,
   type StatusChip,
   type RoleFilter,
   CHIP_LABELS,
-  CHIP_COLORS,
   CHIPS_BY_ROLE,
-  formatDateShort,
 } from '@/components/order/OrderSearchPanel'
+import { FilterSheet, getStatusChipBackground, getStatusChipColor } from '@/components/order/FilterSheet'
 import { startOfDay } from 'date-fns'
 
 interface OrdersTabParams {
@@ -70,12 +67,6 @@ function matchesChip(
   }
 }
 
-const ROLE_LABELS: Record<RoleFilter, string> = {
-  all: 'All',
-  buying: 'Buying',
-  selling: 'Selling',
-}
-
 export function OrdersScreen({ currentBusinessId, onSelectOrder, initialFilter, initialParams, isActive = true, onNavigateToPlaceOrder }: Props) {
   const { data: orders = [], isInitialLoading, isRefreshing } = useOrdersData(currentBusinessId, isActive)
   const { initialLoading, refreshing } = useScreenLoadState({
@@ -84,17 +75,13 @@ export function OrdersScreen({ currentBusinessId, onSelectOrder, initialFilter, 
     isRefreshing: isActive && isRefreshing,
   })
 
-  const [roleFilter, setRoleFilter] = useState<RoleFilter>('all')
+  const [roleFilter, setRoleFilter] = useState<RoleFilter>('buying')
   const [orderFilters, setOrderFilters] = useState<OrderFilters>(EMPTY_FILTERS)
-  const [panelVisible, setPanelVisible] = useState(false)
-  const [deepLinkActive, setDeepLinkActive] = useState(false)
-  const listScrollRef = useRef<HTMLDivElement>(null)
-  const lastScrollTop = useRef(0)
+  const [filterSheetOpen, setFilterSheetOpen] = useState(false)
 
   // Handle legacy initialFilter (old string-based filter)
   useEffect(() => {
     if (!initialFilter) return
-    // Map old chip names to new navigation params
     const legacyMap: Record<string, { role: RoleFilter; chip: StatusChip }> = {
       accept:     { role: 'selling', chip: 'new' },
       dispatch:   { role: 'selling', chip: 'accepted' },
@@ -105,8 +92,6 @@ export function OrdersScreen({ currentBusinessId, onSelectOrder, initialFilter, 
     if (mapped) {
       setRoleFilter(mapped.role)
       setOrderFilters(prev => ({ ...prev, activeChips: new Set([mapped.chip]) }))
-      setPanelVisible(true)
-      setDeepLinkActive(true)
     }
   }, [initialFilter])
 
@@ -114,7 +99,7 @@ export function OrdersScreen({ currentBusinessId, onSelectOrder, initialFilter, 
   useEffect(() => {
     if (!initialParams) return
 
-    if (initialParams.role) {
+    if (initialParams.role && initialParams.role !== 'all') {
       setRoleFilter(initialParams.role)
     }
 
@@ -123,8 +108,6 @@ export function OrdersScreen({ currentBusinessId, onSelectOrder, initialFilter, 
         ...prev,
         activeChips: new Set([initialParams.chip!]),
       }))
-      setPanelVisible(true)
-      setDeepLinkActive(true)
     }
 
     if (initialParams.dateToday) {
@@ -134,8 +117,6 @@ export function OrdersScreen({ currentBusinessId, onSelectOrder, initialFilter, 
         fromDate: startOfDay(today),
         toDate: startOfDay(today),
       }))
-      setPanelVisible(true)
-      setDeepLinkActive(true)
     }
   }, [initialParams])
 
@@ -150,25 +131,26 @@ export function OrdersScreen({ currentBusinessId, onSelectOrder, initialFilter, 
     })
   }
 
-  const clearDeepLink = () => {
-    setDeepLinkActive(false)
-    setRoleFilter('all')
-    setOrderFilters(EMPTY_FILTERS)
+  const toggleStatusFilter = (chip: StatusChip) => {
+    setOrderFilters(prev => {
+      const next = new Set(prev.activeChips)
+      if (next.has(chip)) next.delete(chip)
+      else next.add(chip)
+      return { ...prev, activeChips: next }
+    })
   }
 
-  const handleListScroll = () => {
-    const el = listScrollRef.current
-    if (!el) return
-    const st = el.scrollTop
-    lastScrollTop.current = st
-    if (st > 30) setPanelVisible(true)
-    else if (st <= 8) setPanelVisible(false)
+  const removeStatusFilter = (chip: StatusChip) => {
+    setOrderFilters(prev => {
+      const next = new Set(prev.activeChips)
+      next.delete(chip)
+      return { ...prev, activeChips: next }
+    })
   }
 
-  // Order counts for role toggle badges
-  const allCount = useMemo(() => orders.filter(o => !o.declinedAt).length, [orders])
-  const buyingCount = useMemo(() => orders.filter(o => !o.declinedAt && o.isBuyer).length, [orders])
-  const sellingCount = useMemo(() => orders.filter(o => !o.declinedAt && !o.isBuyer).length, [orders])
+  const clearAllFilters = () => {
+    setOrderFilters(prev => ({ ...prev, activeChips: new Set() }))
+  }
 
   const filteredOrders = useMemo(() => {
     const { searchText, activeChips, fromDate, toDate } = orderFilters
@@ -218,44 +200,23 @@ export function OrdersScreen({ currentBusinessId, onSelectOrder, initialFilter, 
     return result
   }, [orders, roleFilter, orderFilters])
 
-  const sectionLabel = useMemo(() => {
-    const { searchText, activeChips, fromDate, toDate } = orderFilters
-    const parts: string[] = []
+  const totalOrders = useMemo(() =>
+    orders.filter(o => {
+      const matchesRole = roleFilter === 'buying' ? o.isBuyer : !o.isBuyer
+      return matchesRole && !o.declinedAt
+    }).length
+  , [orders, roleFilter])
 
-    if (roleFilter !== 'all') {
-      parts.push(ROLE_LABELS[roleFilter].toUpperCase())
-    }
+  const activeStatusFilters = useMemo(() => [...orderFilters.activeChips], [orderFilters.activeChips])
 
-    if (activeChips.size > 0) {
-      parts.push([...activeChips].map(c => CHIP_LABELS[c].toUpperCase()).join(' · '))
-    }
-
-    if (fromDate || toDate) {
-      const fmt = (d: Date) =>
-        d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' }).toUpperCase()
-      if (fromDate && toDate) {
-        parts.push(`${fmt(fromDate)} – ${fmt(toDate)}`)
-      } else if (fromDate) {
-        parts.push(`FROM ${fmt(fromDate)}`)
-      }
-    }
-
-    let label = parts.length > 0 ? parts.join(' · ') : 'ALL ORDERS'
-    if (searchText.trim()) {
-      label += ` · "${searchText.trim()}"`
-    }
-    return label
-  }, [orderFilters, roleFilter])
-
-  const hasActiveFilters =
-    orderFilters.activeChips.size > 0 || !!orderFilters.fromDate || !!orderFilters.toDate
+  const hasActiveFilters = orderFilters.activeChips.size > 0
 
   if (initialLoading) {
     return (
       <div className="flex flex-col h-full" style={{ backgroundColor: 'var(--bg-screen)' }}>
         <div className="sticky top-0 z-10" style={{ backgroundColor: 'var(--bg-header)', paddingTop: 'env(safe-area-inset-top)' }}>
-          <div className="h-11 flex items-center px-4">
-            <h1 style={{ fontSize: '22px', fontWeight: 700, color: 'var(--text-primary)', letterSpacing: '-0.02em' }}>Orders</h1>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '16px 16px 8px' }}>
+            <h1 style={{ fontSize: 22, fontWeight: 700, margin: 0, color: 'var(--text-primary)', letterSpacing: '-0.02em' }}>Orders</h1>
           </div>
         </div>
         <div className="flex-1 px-4 pt-4 space-y-2">
@@ -267,205 +228,197 @@ export function OrdersScreen({ currentBusinessId, onSelectOrder, initialFilter, 
     )
   }
 
-  const roleCounts: Record<RoleFilter, number> = {
-    all: allCount,
-    buying: buyingCount,
-    selling: sellingCount,
-  }
-
   return (
     <div className="flex flex-col h-full" style={{ backgroundColor: 'var(--bg-screen)' }}>
       <div className="sticky top-0 z-10" style={{ backgroundColor: 'var(--bg-header)', paddingTop: 'env(safe-area-inset-top)' }}>
-        <div className="h-11 flex items-center px-4">
-          <h1 style={{ fontSize: '22px', fontWeight: 700, color: 'var(--text-primary)', letterSpacing: '-0.02em' }}>Orders</h1>
-        </div>
         <ScreenRefreshIndicator refreshing={refreshing} />
 
-        {/* Role Toggle */}
-        <div style={{ padding: '0 16px', marginBottom: '8px' }}>
+        {/* Row 1 — Title + Role Toggle */}
+        <div style={{
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          padding: '16px 16px 8px',
+        }}>
+          <h1 style={{
+            fontSize: 22,
+            fontWeight: 700,
+            margin: 0,
+            color: 'var(--text-primary)',
+            letterSpacing: '-0.02em',
+          }}>
+            Orders
+          </h1>
+
+          {/* Compact pill toggle */}
           <div style={{
             display: 'flex',
-            backgroundColor: 'var(--bg-screen)',
-            borderRadius: '10px',
-            padding: '3px',
+            borderRadius: 999,
+            border: '0.5px solid var(--border-light)',
+            overflow: 'hidden',
           }}>
-            {(['all', 'buying', 'selling'] as RoleFilter[]).map(role => {
-              const isActiveRole = roleFilter === role
-              const count = roleCounts[role]
-              return (
-                <button
-                  key={role}
-                  onClick={() => handleRoleChange(role)}
-                  style={{
-                    flex: 1,
-                    borderRadius: '8px',
-                    padding: '6px 0',
-                    fontSize: '13px',
-                    fontWeight: 600,
-                    textAlign: 'center',
-                    backgroundColor: isActiveRole ? 'var(--bg-card)' : 'transparent',
-                    color: isActiveRole ? 'var(--text-primary)' : 'var(--text-secondary)',
-                    boxShadow: isActiveRole ? '0 1px 3px rgba(0,0,0,0.08)' : 'none',
-                    border: 'none',
-                    cursor: 'pointer',
-                    transition: 'all 150ms',
-                  }}
-                >
-                  {ROLE_LABELS[role]}{count > 0 ? ` (${count})` : ''}
-                </button>
-              )
-            })}
+            {(['buying', 'selling'] as const).map(role => (
+              <button
+                key={role}
+                onClick={() => handleRoleChange(role)}
+                style={{
+                  padding: '5px 14px',
+                  fontSize: 12,
+                  fontWeight: roleFilter === role ? 600 : 400,
+                  border: 'none',
+                  cursor: 'pointer',
+                  background: roleFilter === role
+                    ? 'var(--text-primary)'
+                    : 'transparent',
+                  color: roleFilter === role
+                    ? 'var(--bg-card)'
+                    : 'var(--text-secondary)',
+                  transition: 'all 150ms',
+                }}
+              >
+                {role === 'buying' ? 'Buying' : 'Selling'}
+              </button>
+            ))}
           </div>
         </div>
 
-        <AnimatePresence>
-          {panelVisible && (
-            <motion.div
-              key="filter-panel"
-              initial={{ opacity: 0, y: -10 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -10 }}
-              transition={{ duration: 0.22, ease: [0.4, 0, 0.2, 1] }}
-              style={{ overflow: 'hidden' }}
-            >
-              <OrderSearchPanel
-                filters={orderFilters}
-                onFiltersChange={setOrderFilters}
-                roleFilter={roleFilter}
-                placeholder="Search orders…"
-              />
+        {/* Row 2 — Search Bar + Filter Button */}
+        <div style={{
+          display: 'flex',
+          gap: 8,
+          alignItems: 'center',
+          padding: '0 16px 8px',
+        }}>
+          {/* Search input */}
+          <div style={{
+            flex: 1,
+            display: 'flex',
+            alignItems: 'center',
+            gap: 8,
+            border: '0.5px solid var(--border-light)',
+            borderRadius: 'var(--radius-input)',
+            padding: '8px 12px',
+          }}>
+            <MagnifyingGlass size={16} color="var(--text-secondary)" />
+            <input
+              type="text"
+              placeholder="Search orders..."
+              value={orderFilters.searchText}
+              onChange={e => setOrderFilters(prev => ({ ...prev, searchText: e.target.value }))}
+              style={{
+                flex: 1,
+                border: 'none',
+                outline: 'none',
+                background: 'transparent',
+                fontSize: 13,
+                color: 'var(--text-primary)',
+                fontFamily: 'inherit',
+              }}
+            />
+          </div>
 
-              {/* Active filter pills */}
-              {hasActiveFilters && (
-                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px', padding: '6px 16px 8px' }}>
-                  {[...orderFilters.activeChips].map(chip => (
-                    <div
-                      key={chip}
-                      style={{
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: '2px',
-                        backgroundColor: '#E8EDFF',
-                        borderRadius: '20px',
-                        padding: '3px 6px 3px 10px',
-                      }}
-                    >
-                      <span style={{ fontSize: '10px', fontWeight: 600, color: '#4A6CF7' }}>
-                        {CHIP_LABELS[chip]}
-                      </span>
-                      <button
-                        onClick={() => {
-                          const newChips = new Set(orderFilters.activeChips)
-                          newChips.delete(chip)
-                          setOrderFilters(prev => ({ ...prev, activeChips: newChips }))
-                        }}
-                        style={{ display: 'flex', alignItems: 'center', color: '#4A6CF7', paddingLeft: '4px', background: 'none', border: 'none', cursor: 'pointer' }}
-                      >
-                        <X size={10} weight="bold" />
-                      </button>
-                    </div>
-                  ))}
-                  {(orderFilters.fromDate || orderFilters.toDate) && (
-                    <div
-                      style={{
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: '2px',
-                        backgroundColor: '#E8EDFF',
-                        borderRadius: '20px',
-                        padding: '3px 6px 3px 10px',
-                      }}
-                    >
-                      <span style={{ fontSize: '10px', fontWeight: 600, color: '#4A6CF7' }}>
-                        {orderFilters.fromDate && orderFilters.toDate
-                          ? `${formatDateShort(orderFilters.fromDate)} – ${formatDateShort(orderFilters.toDate)}`
-                          : orderFilters.fromDate
-                          ? `From ${formatDateShort(orderFilters.fromDate)}`
-                          : `To ${formatDateShort(orderFilters.toDate!)}`}
-                      </span>
-                      <button
-                        onClick={() => setOrderFilters(prev => ({ ...prev, fromDate: null, toDate: null }))}
-                        style={{ display: 'flex', alignItems: 'center', color: '#4A6CF7', paddingLeft: '4px', background: 'none', border: 'none', cursor: 'pointer' }}
-                      >
-                        <X size={10} weight="bold" />
-                      </button>
-                    </div>
-                  )}
-                </div>
-              )}
-            </motion.div>
-          )}
-        </AnimatePresence>
-      </div>
-
-      <div
-        ref={listScrollRef}
-        onScroll={handleListScroll}
-        className="flex-1 overflow-y-auto px-4 pt-3 pb-24"
-      >
-        {/* Deep-link filter banner */}
-        {deepLinkActive && (
-          <div
+          {/* Filter button */}
+          <button
+            onClick={() => setFilterSheetOpen(true)}
             style={{
               display: 'flex',
               alignItems: 'center',
-              justifyContent: 'space-between',
-              padding: '8px 12px',
-              marginBottom: '10px',
-              borderRadius: '10px',
-              backgroundColor: orderFilters.activeChips.size === 1
-                ? `color-mix(in srgb, ${CHIP_COLORS[[...orderFilters.activeChips][0]]} 8%, transparent)`
-                : 'var(--bg-card)',
-              border: '1px solid var(--border-light)',
+              gap: 4,
+              border: '0.5px solid var(--border-light)',
+              borderRadius: 'var(--radius-input)',
+              padding: '8px 10px',
+              background: hasActiveFilters
+                ? 'rgba(74, 108, 247, 0.08)'
+                : 'transparent',
+              cursor: 'pointer',
+              fontSize: 12,
+              color: hasActiveFilters
+                ? 'var(--brand-primary)'
+                : 'var(--text-secondary)',
+              transition: 'all 150ms',
             }}
           >
-            <span style={{ fontSize: '13px', fontWeight: 600, color: 'var(--text-primary)' }}>
-              Showing: {roleFilter !== 'all' ? `${ROLE_LABELS[roleFilter]}` : ''}{roleFilter !== 'all' && orderFilters.activeChips.size > 0 ? ' · ' : ''}{[...orderFilters.activeChips].map(c => CHIP_LABELS[c]).join(', ')}
-              {orderFilters.fromDate && orderFilters.toDate ? ` · ${formatDateShort(orderFilters.fromDate)} – ${formatDateShort(orderFilters.toDate)}` : ''}
-            </span>
-            <button
-              onClick={clearDeepLink}
-              style={{
+            <Faders size={16} />
+            Filter
+            {hasActiveFilters && (
+              <span style={{
+                background: 'var(--brand-primary)',
+                color: 'white',
+                borderRadius: 999,
+                fontSize: 10,
+                fontWeight: 600,
+                width: 16,
+                height: 16,
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
-                width: '24px',
-                height: '24px',
-                borderRadius: '50%',
-                backgroundColor: 'var(--border-light)',
-                border: 'none',
-                cursor: 'pointer',
-                flexShrink: 0,
-              }}
-            >
-              <X size={12} weight="bold" style={{ color: 'var(--text-secondary)' }} />
-            </button>
+              }}>
+                {activeStatusFilters.length}
+              </span>
+            )}
+          </button>
+        </div>
+
+        {/* Row 3 — Active Filter Chips (conditional) */}
+        {hasActiveFilters && (
+          <div style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            padding: '0 16px 10px',
+          }}>
+            <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+              {activeStatusFilters.map(chip => (
+                <span
+                  key={chip}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 4,
+                    fontSize: 12,
+                    padding: '4px 10px',
+                    borderRadius: 999,
+                    background: getStatusChipBackground(chip),
+                    color: getStatusChipColor(chip),
+                    fontWeight: 500,
+                    cursor: 'pointer',
+                  }}
+                  onClick={() => removeStatusFilter(chip)}
+                >
+                  {CHIP_LABELS[chip]}
+                  <span style={{ fontSize: 10, opacity: 0.7 }}>✕</span>
+                </span>
+              ))}
+            </div>
+            <span style={{
+              fontSize: 12,
+              color: 'var(--text-secondary)',
+              whiteSpace: 'nowrap',
+              marginLeft: 8,
+            }}>
+              {totalOrders} orders · {filteredOrders.length} match
+            </span>
           </div>
         )}
 
-        <div className="flex items-center justify-between mb-[10px]">
-          <div>
-            <p style={{ fontSize: '13px', fontWeight: 700, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.08em' }}>
-              {sectionLabel}
-            </p>
-            {orderFilters.activeChips.size === 1 && (() => {
-              const activeChip = [...orderFilters.activeChips][0]
-              return (
-                <p style={{ fontSize: '12px', color: 'var(--text-secondary)', marginTop: '2px' }}>
-                  {filteredOrders.length} order{filteredOrders.length !== 1 ? 's' : ''}
-                </p>
-              )
-            })()}
+        {/* Divider */}
+        <div style={{
+          height: 0.5,
+          background: 'var(--border-light)',
+          margin: '0 16px',
+        }} />
+      </div>
+
+      {/* Order List */}
+      <div className="flex-1 overflow-y-auto px-4 pt-3 pb-24">
+        {!hasActiveFilters && (
+          <div className="flex items-center justify-between mb-[10px]">
+            <div />
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <InlineRefreshSpinner refreshing={refreshing} />
+            </div>
           </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-            {orders.length > 0 && filteredOrders.length !== orders.length && orderFilters.activeChips.size !== 1 && (
-              <p style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>
-                {filteredOrders.length} of {orders.length} orders
-              </p>
-            )}
-            <InlineRefreshSpinner refreshing={refreshing} />
-          </div>
-        </div>
+        )}
         {filteredOrders.length === 0 ? (
           <div className="flex items-center justify-center py-16">
             <p style={{ fontSize: '13px', color: 'var(--text-secondary)' }}>
@@ -517,6 +470,16 @@ export function OrdersScreen({ currentBusinessId, onSelectOrder, initialFilter, 
       >
         <PencilSimple size={24} weight="regular" color="#FFFFFF" />
       </button>
+
+      {/* Filter Bottom Sheet */}
+      <FilterSheet
+        open={filterSheetOpen}
+        onClose={() => setFilterSheetOpen(false)}
+        activeChips={orderFilters.activeChips}
+        onToggleChip={toggleStatusFilter}
+        onClearAll={clearAllFilters}
+        roleFilter={roleFilter}
+      />
     </div>
   )
 }
