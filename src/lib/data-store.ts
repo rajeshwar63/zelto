@@ -1458,6 +1458,9 @@ export class ZeltoDataStore {
       fileType?: string
       thumbnailUrl?: string
       noteText?: string
+      paymentEventId?: string
+      fileSizeBytes?: number
+      storagePath?: string
     }
   ): Promise<OrderAttachment> {
     const order = await this.getOrderById(orderId)
@@ -1476,13 +1479,24 @@ export class ZeltoDataStore {
         note_text: options.noteText || null,
         type,
         uploaded_by: uploadedBy,
-        timestamp: Date.now()
+        timestamp: Date.now(),
+        payment_event_id: options.paymentEventId || null,
+        file_size_bytes: options.fileSizeBytes || null,
+        storage_path: options.storagePath || null,
       }])
       .select()
       .single()
 
     if (error) throw error
     return toCamelCase(data)
+  }
+
+  async getSignedAttachmentUrl(storagePath: string): Promise<string | null> {
+    const { data, error } = await supabase.storage
+      .from('order-attachments')
+      .createSignedUrl(storagePath, 3600)
+    if (error) return null
+    return data.signedUrl
   }
 
   async getAttachmentById(attachmentId: string): Promise<OrderAttachment | undefined> {

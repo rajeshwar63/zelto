@@ -1,11 +1,12 @@
 import { differenceInDays } from 'date-fns'
-import type { Connection, OrderWithPaymentState } from '@/lib/types'
+import type { Connection, OrderWithPaymentState, OrderAttachment, PaymentEvent } from '@/lib/types'
 
 export interface OrderTimelineEvent {
   label: string
   actor: string
   timestamp: number | null
   completed: boolean
+  attachmentIndicator?: string | null  // filename to show as attachment indicator
 }
 
 export function getLifecycleState(order: OrderWithPaymentState): string {
@@ -55,11 +56,19 @@ export function buildOrderTimeline(
   order: OrderWithPaymentState,
   buyerName: string,
   supplierName: string,
-  paymentTimestamp?: number,
+  payments: PaymentEvent[],
+  attachments: OrderAttachment[],
 ): OrderTimelineEvent[] {
+  const dispatchAttachment = attachments.find(a => a.type === 'dispatch_note')
+  const deliveryAttachment = attachments.find(a => a.type === 'delivery_proof')
+
+  // Determine who delivered (from delivery_proof attachment — if exists, supplier delivered)
+  const deliveredBySupplier = !!deliveryAttachment
+  const deliveredLabel = deliveredBySupplier ? 'Delivered · Proof attached' : 'Delivered'
+
   const timeline: OrderTimelineEvent[] = [
     {
-      label: 'Order Placed',
+      label: 'Order placed',
       actor: buyerName,
       timestamp: order.createdAt,
       completed: true,
@@ -81,24 +90,33 @@ export function buildOrderTimeline(
       actor: supplierName,
       timestamp: order.dispatchedAt,
       completed: !!order.dispatchedAt,
+      attachmentIndicator: dispatchAttachment?.fileName ?? null,
     })
   }
 
   if (order.deliveredAt) {
     timeline.push({
-      label: 'Delivered',
-      actor: '',
+      label: deliveredLabel,
+      actor: deliveredBySupplier ? supplierName : buyerName,
       timestamp: order.deliveredAt,
       completed: true,
+      attachmentIndicator: deliveryAttachment?.fileName ?? null,
     })
   }
 
-  if (paymentTimestamp) {
-    timeline.push({
-      label: order.settlementState === 'Paid' ? 'Paid' : 'Payment Recorded',
-      actor: '',
-      timestamp: paymentTimestamp,
-      completed: true,
+  // Payment entries
+  if (payments.length > 0) {
+    const paymentAttachments = attachments.filter(a => a.type === 'payment_proof')
+    payments.forEach(payment => {
+      const proof = paymentAttachments.find(a => a.paymentEventId === payment.id)
+      const label = proof ? 'Payment recorded · Proof attached' : 'Payment recorded'
+      timeline.push({
+        label,
+        actor: '',
+        timestamp: payment.timestamp,
+        completed: true,
+        attachmentIndicator: proof?.fileName ?? null,
+      })
     })
   }
 
