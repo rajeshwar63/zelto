@@ -576,6 +576,7 @@ export function ManageConnectionsScreen({ currentBusinessId, onBack, onSuccess, 
             }}
             aria-label="Find business"
           >
+            <span style={{ fontSize: '14px', fontWeight: 500, color: 'var(--text-primary)', marginRight: '4px' }}>Add</span>
             <MagnifyingGlassPlus size={20} color="var(--text-primary)" />
           </button>
         </div>
