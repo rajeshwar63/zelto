@@ -54,19 +54,17 @@ type DocExpiryInfo =
   | { status: 'expiring'; daysLeft: number }
   | { status: 'expired'; daysAgo: number }
 
-function getDocExpiryInfo(expiryDate?: string): DocExpiryInfo {
-  if (!expiryDate) return { status: 'none' }
-  const expiryMs = new Date(expiryDate).getTime()
-  if (isNaN(expiryMs)) return { status: 'none' }
+function getDocExpiryInfo(expiresAt?: number): DocExpiryInfo {
+  if (!expiresAt) return { status: 'none' }
   const now = Date.now()
-  const diffMs = expiryMs - now
+  const diffMs = expiresAt - now
   const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24))
   if (diffMs < 0) {
     return { status: 'expired', daysAgo: Math.abs(diffDays) }
   } else if (diffDays <= 30) {
     return { status: 'expiring', daysLeft: diffDays }
   } else {
-    const validTill = new Date(expiryDate).toLocaleDateString('en-IN', { month: 'short', year: 'numeric' })
+    const validTill = new Date(expiresAt).toLocaleDateString('en-IN', { month: 'short', year: 'numeric' })
     return { status: 'valid', validTill }
   }
 }
@@ -309,12 +307,11 @@ export function TrustProfileScreen({
 
   // Doc alert counts (≤30 days threshold)
   const now = Date.now()
-  const expiredDocs = documents.filter(d => d.expiryDate && new Date(d.expiryDate).getTime() < now)
+  const expiredDocs = documents.filter(d => d.expiresAt && d.expiresAt < now)
   const expiringDocs = documents.filter(d => {
-    if (!d.expiryDate) return false
-    const expMs = new Date(d.expiryDate).getTime()
-    const diffDays = Math.floor((expMs - now) / (1000 * 60 * 60 * 24))
-    return expMs > now && diffDays <= 30
+    if (!d.expiresAt) return false
+    const diffDays = Math.floor((d.expiresAt - now) / (1000 * 60 * 60 * 24))
+    return d.expiresAt > now && diffDays <= 30
   })
 
   return (
@@ -604,7 +601,7 @@ export function TrustProfileScreen({
               ) : (
                 <div style={{ backgroundColor: '#fff', borderRadius: '12px', overflow: 'hidden' }}>
                   {documents.map((doc, idx) => {
-                    const expiryInfo = getDocExpiryInfo(doc.expiryDate)
+                    const expiryInfo = getDocExpiryInfo(doc.expiresAt)
                     return (
                       <div
                         key={doc.id}

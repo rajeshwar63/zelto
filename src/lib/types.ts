@@ -58,7 +58,7 @@ export interface BusinessDocument {
   fileUrl: string
   fileSizeBytes?: number
   mimeType?: string
-  expiryDate?: string
+  expiresAt?: number
   verificationStatus: 'pending' | 'verified'
   uploadedAt: number
 }
