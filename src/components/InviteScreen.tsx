@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { supabase } from '@/lib/supabase-client'
+import { supabase, supabaseUrl } from '@/lib/supabase-client'
 import { toast } from 'sonner'
 import { ArrowLeft, Link, ShareNetwork, Envelope } from '@phosphor-icons/react'
 
@@ -26,7 +26,6 @@ export function InviteScreen({ currentBusinessId, onBack }: Props) {
         return
       }
 
-      const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || ''
       const response = await fetch(`${supabaseUrl}/functions/v1/create-invite`, {
         method: 'POST',
         headers: {
@@ -116,7 +115,6 @@ export function InviteScreen({ currentBusinessId, onBack }: Props) {
         return
       }
 
-      const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || ''
       const response = await fetch(`${supabaseUrl}/functions/v1/create-invite`, {
         method: 'POST',
         headers: {
