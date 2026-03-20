@@ -64,7 +64,8 @@ export function OrderDetailScreen({ orderId, connectionId, currentBusinessId, mo
   const [viewingAttachmentIndex, setViewingAttachmentIndex] = useState<number | null>(null)
 
   // Invoice
-  const [existingInvoiceId, setExistingInvoiceId] = useState<string | null>(null)
+  // null = not yet checked, false = checked and none found, string = invoice exists
+  const [existingInvoiceId, setExistingInvoiceId] = useState<string | null | false>(null)
 
   // Issue detail
   const [selectedIssue, setSelectedIssue] = useState<IssueReport | null>(null)
@@ -104,7 +105,7 @@ export function OrderDetailScreen({ orderId, connectionId, currentBusinessId, mo
       if (targetIssue) setSelectedIssue(targetIssue)
     }
     setAttachments(orderAttachments)
-    setExistingInvoiceId(invoiceData?.id || null)
+    setExistingInvoiceId(invoiceData?.id ?? false)
     setLoading(false)
   }
 
@@ -374,9 +375,9 @@ export function OrderDetailScreen({ orderId, connectionId, currentBusinessId, mo
         />
 
         {/* Invoice Button */}
-        {isConnectionMode && (
+        {isConnectionMode && existingInvoiceId !== null && (
           <div className="px-4 mb-3">
-            {isSupplier && !existingInvoiceId && onNavigateToInvoiceCreate && (
+            {isSupplier && existingInvoiceId === false && onNavigateToInvoiceCreate && (
               <button
                 onClick={() => onNavigateToInvoiceCreate(orderId, connectionId)}
                 className="w-full flex items-center justify-center gap-2"
