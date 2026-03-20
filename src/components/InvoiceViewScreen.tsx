@@ -42,9 +42,13 @@ export function InvoiceViewScreen({ invoiceId, currentBusinessId, onBack }: Prop
         setSupplierBusiness(supplier || null)
         setBuyerBusiness(buyer || null)
 
-        // Get signed URL if pdf_url exists
+        // inv.pdfUrl is now a storage path, not a signed URL
+        // Generate a fresh signed URL (1 hour is fine — user is actively viewing)
         if (inv.pdfUrl) {
-          setPdfUrl(inv.pdfUrl)
+          const signedUrl = await dataStore.getSignedInvoiceUrl(inv.pdfUrl)
+          if (signedUrl) {
+            setPdfUrl(signedUrl)
+          }
         }
 
         setLoading(false)

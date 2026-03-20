@@ -356,18 +356,19 @@ serve(async (req) => {
       })
     }
 
-    // Generate signed URL
+    // Store the storage path — signed URL is generated fresh at view time
+    await supabase
+      .from('invoices')
+      .update({ pdf_url: storagePath, status: 'generated' })
+      .eq('id', invoice_id)
+
+    // Generate a short-lived URL just for this response (so InvoiceViewScreen
+    // can open it immediately after creation without a second round-trip)
     const { data: signedUrlData } = await supabase.storage
       .from('invoices')
       .createSignedUrl(storagePath, 3600)
 
-    const pdfUrl = signedUrlData?.signedUrl || null
-
-    // Update invoice record
-    await supabase
-      .from('invoices')
-      .update({ pdf_url: pdfUrl, status: 'generated' })
-      .eq('id', invoice_id)
+    const ephemeralUrl = signedUrlData?.signedUrl || null
 
     // Create notification for buyer
     const { data: order } = await supabase
@@ -389,7 +390,7 @@ serve(async (req) => {
     }
 
     return new Response(
-      JSON.stringify({ pdf_url: pdfUrl, html_url: pdfUrl }),
+      JSON.stringify({ pdf_url: ephemeralUrl, html_url: ephemeralUrl }),
       { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     )
   } catch (err) {
