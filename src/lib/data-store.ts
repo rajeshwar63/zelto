@@ -330,6 +330,27 @@ export class ZeltoDataStore {
     return toCamelCase(data)
   }
 
+  async updateBusinessDocument(
+    documentId: string,
+    updates: { displayName?: string; expiryDate?: string | null }
+  ): Promise<BusinessDocument> {
+    const updateFields: Record<string, unknown> = { updated_at: Date.now() }
+    if (updates.displayName !== undefined) updateFields.display_name = updates.displayName
+    if (updates.expiryDate !== undefined) {
+      updateFields.expires_at = updates.expiryDate ? new Date(updates.expiryDate).getTime() : null
+    }
+
+    const { data, error } = await supabase
+      .from('business_documents')
+      .update(updateFields)
+      .eq('id', documentId)
+      .select()
+      .single()
+
+    if (error) throw error
+    return toCamelCase(data)
+  }
+
   async deleteBusinessDocument(documentId: string): Promise<void> {
     const { error } = await supabase
       .from('business_documents')
