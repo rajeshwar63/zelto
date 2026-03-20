@@ -3,7 +3,7 @@
 
 import { useState } from 'react'
 import { X, DownloadSimple } from '@phosphor-icons/react'
-import { supabase, supabaseUrl } from '@/lib/supabase-client'
+import { supabaseDirect } from '@/lib/supabase-client'
 import { generateLedgerExcel } from '@/utils/ledger-excel'
 import { generateLedgerPdf } from '@/utils/ledger-pdf'
 import type { LedgerData } from '@/utils/ledger-excel'
@@ -48,12 +48,6 @@ export function LedgerDownloadSheet({ isOpen, onClose, scope, connectionId, conn
     setLoading(true)
     setError(null)
     try {
-      const { data: sessionData } = await supabase.auth.getSession()
-      const token = sessionData?.session?.access_token
-      if (!token) throw new Error('Not authenticated')
-
-      const functionUrl = `${supabaseUrl}/functions/v1/generate-ledger`
-
       const body: Record<string, string> = {
         scope,
         period,
@@ -63,21 +57,10 @@ export function LedgerDownloadSheet({ isOpen, onClose, scope, connectionId, conn
         body.connectionId = connectionId
       }
 
-      const response = await fetch(functionUrl, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify(body),
+      const { data: ledgerData, error: fnError } = await supabaseDirect.functions.invoke('generate-ledger', {
+        body,
       })
-
-      if (!response.ok) {
-        const errData = await response.json().catch(() => ({}))
-        throw new Error(errData?.error || `Request failed: ${response.status}`)
-      }
-
-      const ledgerData: LedgerData = await response.json()
+      if (fnError) throw new Error(fnError.message)
 
       if (fileFormat === 'excel') {
         generateLedgerExcel(ledgerData)
