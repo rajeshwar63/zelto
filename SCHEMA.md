@@ -237,6 +237,117 @@
 
 ---
 
+### `business_members` ✅ LIVE
+Join table linking users to businesses with a role. Supports multi-business per user in future (V2 enforces one).
+
+| Column | Type | Nullable | Default |
+|--------|------|----------|---------|
+| id | uuid | NO | gen_random_uuid() |
+| business_entity_id | uuid | NO | FK → business_entities(id) CASCADE |
+| user_account_id | uuid | NO | FK → user_accounts(id) CASCADE |
+| role | text | NO | 'member', CHECK ('admin','member') |
+| invited_by | uuid | YES | FK → user_accounts(id) SET NULL |
+| joined_at | timestamptz | NO | now() |
+| updated_at | timestamptz | NO | now() |
+| status | text | YES | — (unused legacy column) |
+| invited_at | timestamptz | YES | — (unused legacy column) |
+| created_at | bigint | YES | — (unused legacy column) |
+
+UNIQUE constraint on (business_entity_id, user_account_id).
+Indexes: idx on business_entity_id, idx on user_account_id.
+RLS: `read_own_business_members` (SELECT for same-business members), `admin_manage_members` (ALL for admins).
+Trigger: `trg_business_members_updated_at` → `set_updated_at()`.
+
+---
+
+### `business_invites` ✅ LIVE
+Tracks both link-based and direct email invites for team onboarding.
+
+| Column | Type | Nullable | Default |
+|--------|------|----------|---------|
+| id | uuid | NO | gen_random_uuid() |
+| business_entity_id | uuid | NO | FK → business_entities(id) CASCADE |
+| invited_by | uuid | NO | FK → user_accounts(id) CASCADE |
+| invite_type | text | NO | CHECK ('link','email') |
+| invite_code | text | NO | UNIQUE |
+| email | text | YES | NULL for link invites |
+| role | text | NO | 'member', CHECK ('admin','member') |
+| status | text | NO | 'pending', CHECK ('pending','accepted','expired','revoked') |
+| expires_at | timestamptz | NO | now() + 7 days |
+| accepted_by | uuid | YES | FK → user_accounts(id) SET NULL |
+| accepted_at | timestamptz | YES | — |
+| created_at | timestamptz | NO | now() |
+
+Indexes: idx on invite_code, idx on business_entity_id, partial idx on email WHERE email IS NOT NULL.
+RLS: `admin_manage_invites` (ALL for admins of the business), `read_invite_by_code` (SELECT for all authenticated).
+
+---
+
+### `business_subscriptions` ✅ LIVE
+Subscription at business level. One subscription per business covers all team members.
+
+| Column | Type | Nullable | Default |
+|--------|------|----------|---------|
+| business_entity_id | uuid | NO | PK, FK → business_entities(id) CASCADE |
+| plan | text | NO | 'free', CHECK ('free','pro') |
+| status | text | NO | 'active', CHECK ('active','lapsed') |
+| subscribed_at | timestamptz | YES | — |
+| expires_at | timestamptz | YES | — |
+| early_bird_used | boolean | NO | false |
+| razorpay_order_id | text | YES | — |
+| subscribed_by | uuid | YES | FK → user_accounts(id) SET NULL |
+| updated_at | timestamptz | NO | now() |
+
+RLS: `members_read_subscription` (SELECT for all business members), `admin_update_subscription` (UPDATE for admins).
+Trigger: `trg_business_subscriptions_updated_at` → `set_updated_at()`.
+
+> **Note:** `user_subscriptions` table is kept in DB during transition. Do not drop.
+
+---
+
+### `device_tokens`
+| Column | Type | Nullable | Default |
+|--------|------|----------|---------|
+| id | uuid | NO | gen_random_uuid() |
+| business_entity_id | uuid | NO | FK → business_entities(id) |
+| token | text | NO | — |
+| platform | text | YES | — |
+| created_at | timestamptz | YES | now() |
+
+---
+
+## RPCs ✅ LIVE
+
+### `promote_to_admin(target_user_account_id UUID)`
+Promotes a Member to Admin. Caller must be Admin of the same business.
+
+### `demote_to_member(target_user_account_id UUID)`
+Demotes an Admin to Member. Blocks if target is the last Admin. Caller must be Admin of same business.
+
+### `remove_team_member(target_user_account_id UUID)`
+Removes a Member from the business. Target must be Member (not Admin — demote first). Caller must be Admin.
+
+### `get_team_members()`
+Returns array of `{ user_account_id, name, email, role, joined_at }` for caller's business. Ordered by role (admin first), then joined_at ASC. Uses `ua.username` for the name field.
+
+---
+
+## Edge Functions
+
+### `create-invite` (POST)
+Creates a business invite (link or email). Caller must be Admin. Generates a 12-char URL-safe invite code. Optionally sends email via Resend.
+
+### `accept-invite` (POST)
+Accepts a business invite by code. Validates expiry, email match (for email invites), and V2 one-business-per-user constraint. Adds caller to business_members.
+
+### `generate-ledger` (POST)
+Aggregates ledger data for a business. Returns structured JSON for client-side report generation.
+
+### `send-push` (webhook-triggered)
+Triggered by DB webhook on notifications table INSERT. Sends push via Firebase Cloud Messaging V1 API.
+
+---
+
 ## 🔧 Fix SQL — Run This in Supabase SQL Editor
 
 The `user_accounts` table is missing columns that the entire auth and login flow depends on.
