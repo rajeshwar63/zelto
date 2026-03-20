@@ -27,6 +27,11 @@ import { getAuthState, getLocalAuthSessionSync, logout, clearAuthSession } from 
 import { PlaceOrderScreen } from '@/components/PlaceOrderScreen'
 import { ManageMembersScreen } from '@/components/ManageMembersScreen'
 import { ManageDocumentsScreen } from '@/components/ManageDocumentsScreen'
+import { TeamScreen } from '@/components/TeamScreen'
+import { InviteScreen } from '@/components/InviteScreen'
+import { JoinScreen } from '@/components/JoinScreen'
+import { TeamRoleProvider } from '@/contexts/TeamRoleContext'
+import { PermissionGate } from '@/components/PermissionGate'
 import { toast } from 'sonner'
 import { registerPushNotifications, removeDeviceTokens } from '@/lib/push-notifications'
 import { supabase } from '@/lib/supabase-client'
@@ -65,6 +70,8 @@ type Screen =
   | { type: 'incoming-requests' }
   | { type: 'trust-profile'; targetBusinessId: string; screenMode: TrustProfileScreenMode; connectionRequestId?: string; connectionId?: string; initialTab?: 'identity' | 'docs' }
   | { type: 'manage-members' }
+  | { type: 'team' }
+  | { type: 'invite' }
   | { type: 'place-order'; prefilledConnectionId?: string | null }
 type AuthScreen = 'welcome' | { type: 'otp'; email: string; signupData?: { name: string; businessName: string } } | { type: 'business_setup'; email: string }
 type TabShellScreen = Extract<Screen, { type: 'tab' }>
@@ -86,6 +93,10 @@ function App() {
   const [pendingInviteToken] = useState<string | null>(() => {
     const params = new URLSearchParams(window.location.search)
     return params.get('invite')
+  })
+  const [joinInviteCode] = useState<string | null>(() => {
+    const match = window.location.pathname.match(/^\/join\/([A-Za-z0-9]+)$/)
+    return match ? match[1] : null
   })
   
   const screen = navigationStack[navigationStack.length - 1]
@@ -350,6 +361,42 @@ function App() {
     return null
   }
 
+  // Handle /join/{code} route
+  if (joinInviteCode && !isCheckingAuth) {
+    if (authScreen || !currentBusinessId) {
+      // Not logged in — redirect to login with invite code preserved
+      if (authScreen === 'welcome' || !currentBusinessId) {
+        return <WelcomeScreen onContinue={handleWelcomeSubmit} onLoginOnly={handleLoginOnly} />
+      }
+    } else {
+      // Logged in — show join flow
+      return (
+        <JoinScreen
+          inviteCode={joinInviteCode}
+          onJoinSuccess={(businessId, businessName) => {
+            if (businessId) {
+              setCurrentBusinessId(businessId)
+            }
+            if (businessName) {
+              toast.success(`You've joined ${businessName}`)
+            }
+            // Clear /join/ from URL
+            window.history.replaceState({}, '', '/')
+            setNavigationStack([{ type: 'tab', tab: 'dashboard' }])
+            // Force re-render by clearing joinInviteCode effect
+            window.location.href = '/'
+          }}
+          onError={() => {
+            window.history.replaceState({}, '', '/')
+          }}
+          onNeedsLogin={() => {
+            setAuthScreen('welcome')
+          }}
+        />
+      )
+    }
+  }
+
   if (!currentBusinessId) {
     return <WelcomeScreen onContinue={handleWelcomeSubmit} onLoginOnly={handleLoginOnly} />
   }
@@ -418,6 +465,14 @@ function App() {
 
   const navigateToManageMembers = () => {
     setNavigationStack(stack => [...stack, { type: 'manage-members' }])
+  }
+
+  const navigateToTeam = () => {
+    setNavigationStack(stack => [...stack, { type: 'team' }])
+  }
+
+  const navigateToInvite = () => {
+    setNavigationStack(stack => [...stack, { type: 'invite' }])
   }
 
   const navigateToSupplierDocs = (targetBusinessId: string, connectionId: string) => {
@@ -526,12 +581,14 @@ function App() {
     }
     if (detailScreen.type === 'business-details') {
       return (
-        <BusinessDetailsScreen
-          currentBusinessId={currentBusinessId}
-          onBack={navigateBack}
-          onSave={handleBusinessDetailsSaved}
-          onNavigateToDocuments={navigateToManageDocuments}
-        />
+        <PermissionGate action="business_settings">
+          <BusinessDetailsScreen
+            currentBusinessId={currentBusinessId}
+            onBack={navigateBack}
+            onSave={handleBusinessDetailsSaved}
+            onNavigateToDocuments={navigateToManageDocuments}
+          />
+        </PermissionGate>
       )
     }
     if (detailScreen.type === 'manage-documents') {
@@ -545,6 +602,23 @@ function App() {
     if (detailScreen.type === 'manage-members') {
       return (
         <ManageMembersScreen
+          currentBusinessId={currentBusinessId}
+          onBack={navigateBack}
+        />
+      )
+    }
+    if (detailScreen.type === 'team') {
+      return (
+        <TeamScreen
+          currentBusinessId={currentBusinessId}
+          onBack={navigateBack}
+          onNavigateToInvite={navigateToInvite}
+        />
+      )
+    }
+    if (detailScreen.type === 'invite') {
+      return (
+        <InviteScreen
           currentBusinessId={currentBusinessId}
           onBack={navigateBack}
         />
@@ -658,6 +732,7 @@ function App() {
   }
 
   return (
+    <TeamRoleProvider>
     <Sentry.ErrorBoundary
       fallback={({ resetError }) => (
         <div style={{
@@ -712,6 +787,7 @@ function App() {
             onNavigateToProfileSupport={navigateToProfileSupport}
             onNavigateToManageDocuments={navigateToManageDocuments}
             onNavigateToManageMembers={navigateToManageMembers}
+            onNavigateToTeam={navigateToTeam}
             onNavigateToTrustProfile={navigateToTrustProfile}
             onNavigateToSupplierDocs={navigateToSupplierDocs}
             onNavigateToPlaceOrder={navigateToPlaceOrder}
@@ -721,6 +797,7 @@ function App() {
         )}
       </div>
     </Sentry.ErrorBoundary>
+    </TeamRoleProvider>
   )
 }
 
@@ -744,6 +821,7 @@ function TabShell({
   onNavigateToProfileSupport,
   onNavigateToManageDocuments,
   onNavigateToManageMembers,
+  onNavigateToTeam,
   onNavigateToTrustProfile,
   onNavigateToSupplierDocs,
   onNavigateToPlaceOrder,
@@ -767,6 +845,7 @@ function TabShell({
   onNavigateToProfileSupport: () => void
   onNavigateToManageDocuments?: () => void
   onNavigateToManageMembers?: () => void
+  onNavigateToTeam?: () => void
   onNavigateToTrustProfile?: (targetBusinessId: string, screenMode: TrustProfileScreenMode, connectionRequestId?: string, connectionId?: string) => void
   onNavigateToSupplierDocs?: (targetBusinessId: string, connectionId: string) => void
   onNavigateToPlaceOrder: (prefilledConnectionId?: string | null) => void
@@ -821,6 +900,7 @@ function TabShell({
             onNavigateToSupport={onNavigateToProfileSupport}
             onNavigateToManageDocuments={onNavigateToManageDocuments}
             onNavigateToMembers={onNavigateToManageMembers}
+            onNavigateToTeam={onNavigateToTeam}
             onNavigateToSelfTrustProfile={
               onNavigateToTrustProfile
                 ? () => onNavigateToTrustProfile(currentBusinessId, { action: 'view-connection', audience: 'self-profile-ready' })
