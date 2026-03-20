@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { supabase, supabaseUrl } from '@/lib/supabase-client'
+import { supabase } from '@/lib/supabase-client'
 import { toast } from 'sonner'
 import { ArrowLeft, Link, ShareNetwork, Envelope } from '@phosphor-icons/react'
 
@@ -20,27 +20,12 @@ export function InviteScreen({ currentBusinessId, onBack }: Props) {
   const generateLink = async (selectedRole: InviteRole) => {
     setGeneratingLink(true)
     try {
-      const { data: { session } } = await supabase.auth.getSession()
-      if (!session) {
-        toast.error('Not authenticated')
-        return
-      }
-
-      const response = await fetch(`${supabaseUrl}/functions/v1/create-invite`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${session.access_token}`,
-        },
-        body: JSON.stringify({ type: 'link', role: selectedRole }),
+      const { data, error } = await supabase.functions.invoke('create-invite', {
+        body: { type: 'link', role: selectedRole },
       })
 
-      if (!response.ok) {
-        const err = await response.json().catch(() => ({}))
-        throw new Error(err.error || 'Failed to generate invite link')
-      }
+      if (error) throw new Error(data?.error || error.message || 'Failed to generate invite link')
 
-      const data = await response.json()
       if (data?.inviteUrl) {
         setInviteUrl(data.inviteUrl)
       } else {
@@ -109,25 +94,11 @@ export function InviteScreen({ currentBusinessId, onBack }: Props) {
 
     setSendingEmail(true)
     try {
-      const { data: { session } } = await supabase.auth.getSession()
-      if (!session) {
-        toast.error('Not authenticated')
-        return
-      }
-
-      const response = await fetch(`${supabaseUrl}/functions/v1/create-invite`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${session.access_token}`,
-        },
-        body: JSON.stringify({ type: 'email', role, email: trimmed }),
+      const { data, error } = await supabase.functions.invoke('create-invite', {
+        body: { type: 'email', role, email: trimmed },
       })
 
-      if (!response.ok) {
-        const err = await response.json().catch(() => ({}))
-        throw new Error(err.error || 'Failed to send invite')
-      }
+      if (error) throw new Error(data?.error || error.message || 'Failed to send invite')
 
       toast.success('Invite sent!')
       setEmail('')
