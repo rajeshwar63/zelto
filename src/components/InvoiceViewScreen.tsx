@@ -1,13 +1,8 @@
 import { useState, useEffect } from 'react'
 import { ArrowLeft, DownloadSimple, ShareNetwork, Receipt, CheckCircle, Info } from '@phosphor-icons/react'
-import { toast } from 'sonner'
-import jsPDF from 'jspdf'
-import html2canvas from 'html2canvas'
 import { dataStore } from '@/lib/data-store'
-import { supabase } from '@/lib/supabase-client'
 import { formatInrCurrency } from '@/lib/utils'
-import { buildInvoiceHtmlForPdf } from '@/lib/invoice-html'
-import type { Invoice, InvoiceLineItem, BusinessEntity, InvoiceSettings } from '@/lib/types'
+import type { Invoice, InvoiceLineItem, BusinessEntity } from '@/lib/types'
 
 interface Props {
   invoiceId: string
@@ -27,90 +22,8 @@ export function InvoiceViewScreen({ invoiceId, currentBusinessId, onBack }: Prop
   const [buyerBusiness, setBuyerBusiness] = useState<BusinessEntity | null>(null)
   const [loading, setLoading] = useState(true)
   const [pdfUrl, setPdfUrl] = useState<string | null>(null)
-  const [generatingPdf, setGeneratingPdf] = useState(false)
-  const [invoiceSettings, setInvoiceSettings] = useState<InvoiceSettings | null>(null)
 
   const isSupplier = invoice?.supplierBusinessEntityId === currentBusinessId
-
-  const generateAndUploadPdf = async (
-    inv: Invoice,
-    supplier: BusinessEntity,
-    buyer: BusinessEntity,
-    items: InvoiceLineItem[],
-    settings: InvoiceSettings | null
-  ) => {
-    setGeneratingPdf(true)
-    try {
-      const container = document.createElement('div')
-      container.style.cssText = `
-        position: fixed; left: -9999px; top: 0;
-        width: 794px; background: #fff;
-        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-        color: #1a1f2e; padding: 40px;
-      `
-      container.innerHTML = buildInvoiceHtmlForPdf(inv, supplier, buyer, items, settings)
-      document.body.appendChild(container)
-
-      const canvas = await html2canvas(container, {
-        scale: 2,
-        useCORS: true,
-        allowTaint: true,
-        backgroundColor: '#ffffff',
-      })
-      document.body.removeChild(container)
-
-      const pdf = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' })
-      const pageWidth = pdf.internal.pageSize.getWidth()
-      const pageHeight = pdf.internal.pageSize.getHeight()
-      const imgWidth = pageWidth
-      const imgHeight = (canvas.height * pageWidth) / canvas.width
-
-      let yOffset = 0
-      while (yOffset < imgHeight) {
-        if (yOffset > 0) pdf.addPage()
-        pdf.addImage(
-          canvas.toDataURL('image/jpeg', 0.95),
-          'JPEG',
-          0,
-          -yOffset,
-          imgWidth,
-          imgHeight
-        )
-        yOffset += pageHeight
-      }
-
-      const pdfBytes = pdf.output('arraybuffer')
-      const storagePath = `${inv.supplierBusinessEntityId}/${inv.id}.pdf`
-      const { error: uploadError } = await supabase.storage
-        .from('invoices')
-        .upload(storagePath, pdfBytes, {
-          contentType: 'application/pdf',
-          upsert: true,
-        })
-
-      if (uploadError) throw uploadError
-
-      await supabase
-        .from('invoices')
-        .update({ pdf_url: storagePath })
-        .eq('id', inv.id)
-
-      const { data: signedData } = await supabase.storage
-        .from('invoices')
-        .createSignedUrl(storagePath, 3600)
-
-      if (signedData?.signedUrl) {
-        setPdfUrl(signedData.signedUrl)
-      }
-
-      toast.success('Invoice PDF ready')
-    } catch (err) {
-      console.error('PDF generation failed:', err)
-      toast.error('Failed to generate PDF')
-    } finally {
-      setGeneratingPdf(false)
-    }
-  }
 
   useEffect(() => {
     const load = async () => {
@@ -119,21 +32,17 @@ export function InvoiceViewScreen({ invoiceId, currentBusinessId, onBack }: Prop
         if (!inv) { onBack(); return }
         setInvoice(inv)
 
-        const [items, supplier, buyer, settings] = await Promise.all([
+        const [items, supplier, buyer] = await Promise.all([
           dataStore.getInvoiceLineItems(invoiceId),
           dataStore.getBusinessEntityById(inv.supplierBusinessEntityId),
           dataStore.getBusinessEntityById(inv.buyerBusinessEntityId),
-          dataStore.getInvoiceSettings(inv.supplierBusinessEntityId),
         ])
 
         setLineItems(items)
         setSupplierBusiness(supplier || null)
         setBuyerBusiness(buyer || null)
-        setInvoiceSettings(settings)
 
-        if (inv.status === 'generated' && !inv.pdfUrl && supplier && buyer && inv.supplierBusinessEntityId === currentBusinessId) {
-          generateAndUploadPdf(inv, supplier, buyer, items, settings)
-        } else if (inv.pdfUrl) {
+        if (inv.pdfUrl) {
           const signedUrl = await dataStore.getSignedInvoiceUrl(inv.pdfUrl)
           if (signedUrl) {
             setPdfUrl(signedUrl)
@@ -385,7 +294,7 @@ export function InvoiceViewScreen({ invoiceId, currentBusinessId, onBack }: Prop
       <div className="flex gap-3 px-4 py-3" style={{ paddingBottom: 'calc(env(safe-area-inset-bottom) + 12px)', borderTop: '1px solid rgba(0,0,0,0.06)' }}>
         <button
           onClick={handleShare}
-          disabled={generatingPdf || !pdfUrl}
+          disabled={!pdfUrl}
           className="flex items-center justify-center gap-2"
           style={{
             flex: 1,
@@ -396,8 +305,8 @@ export function InvoiceViewScreen({ invoiceId, currentBusinessId, onBack }: Prop
             backgroundColor: 'rgba(74,108,247,0.06)',
             borderRadius: '14px',
             border: '1px solid rgba(74,108,247,0.2)',
-            cursor: generatingPdf || !pdfUrl ? 'not-allowed' : 'pointer',
-            opacity: generatingPdf || !pdfUrl ? 0.5 : 1,
+            cursor: !pdfUrl ? 'not-allowed' : 'pointer',
+            opacity: !pdfUrl ? 0.5 : 1,
           }}
         >
           <ShareNetwork size={18} />
@@ -405,7 +314,7 @@ export function InvoiceViewScreen({ invoiceId, currentBusinessId, onBack }: Prop
         </button>
         <button
           onClick={handleDownload}
-          disabled={generatingPdf || !pdfUrl}
+          disabled={!pdfUrl}
           className="flex items-center justify-center gap-2"
           style={{
             flex: 1,
@@ -416,12 +325,12 @@ export function InvoiceViewScreen({ invoiceId, currentBusinessId, onBack }: Prop
             backgroundColor: '#4A6CF7',
             borderRadius: '14px',
             border: 'none',
-            cursor: generatingPdf || !pdfUrl ? 'not-allowed' : 'pointer',
-            opacity: generatingPdf || !pdfUrl ? 0.5 : 1,
+            cursor: !pdfUrl ? 'not-allowed' : 'pointer',
+            opacity: !pdfUrl ? 0.5 : 1,
           }}
         >
           <DownloadSimple size={18} />
-          {generatingPdf ? 'Generating...' : 'Download'}
+          Download
         </button>
       </div>
     </div>
