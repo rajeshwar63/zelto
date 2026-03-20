@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react'
 import { ArrowLeft, Plus, X, Receipt } from '@phosphor-icons/react'
 import { dataStore } from '@/lib/data-store'
 import { emitDataChange } from '@/lib/data-events'
-import { supabase, supabaseUrl } from '@/lib/supabase-client'
+import { supabase } from '@/lib/supabase-client'
 import { toast } from 'sonner'
 import { formatInrCurrency } from '@/lib/utils'
 import { ItemPickerSheet, type PickedItem } from './ItemPickerSheet'
@@ -222,18 +222,12 @@ export function InvoiceCreateScreen({ orderId, connectionId, currentBusinessId, 
       if (status === 'generated') {
         // Call edge function to generate PDF
         try {
-          const { data: { session } } = await supabase.auth.getSession()
-          const response = await fetch(`${supabaseUrl}/functions/v1/generate-invoice`, {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              'Authorization': `Bearer ${session?.access_token}`,
-            },
-            body: JSON.stringify({ invoice_id: invoice.id }),
+          const { error: fnError } = await supabase.functions.invoke('generate-invoice', {
+            body: { invoice_id: invoice.id },
           })
 
-          if (!response.ok) {
-            console.error('PDF generation failed:', await response.text())
+          if (fnError) {
+            console.error('PDF generation failed:', fnError)
             toast.error('Invoice saved but PDF generation failed')
           }
         } catch (pdfErr) {
