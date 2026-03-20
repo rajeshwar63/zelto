@@ -1,3 +1,4 @@
+import * as Sentry from '@sentry/react'
 import { useEffect, useState, useRef } from 'react'
 import { ConnectionsScreen } from '@/components/ConnectionsScreen'
 import { ConnectionDetailScreen } from '@/components/ConnectionDetailScreen'
@@ -180,6 +181,24 @@ function App() {
     }, 20 * 60 * 1000)
 
     return () => clearInterval(interval)
+  }, [currentBusinessId])
+
+  // Set Sentry user context when business/user changes
+  useEffect(() => {
+    if (!currentBusinessId) {
+      Sentry.setUser(null)
+      return
+    }
+    const session = getLocalAuthSessionSync()
+    if (!session) return
+    dataStore.getBusinessEntityById(currentBusinessId).then((business) => {
+      Sentry.setUser({
+        id: session.userId,
+        username: business?.zeltoId ?? currentBusinessId,
+      })
+    }).catch(() => {
+      Sentry.setUser({ id: session.userId })
+    })
   }, [currentBusinessId])
 
   useDataListener(
@@ -639,36 +658,69 @@ function App() {
   }
 
   return (
-    <div className="h-full flex flex-col overflow-hidden" style={{ backgroundColor: 'var(--bg-screen)' }}>
-      {screen.type === 'tab' ? (
-        <TabShell
-          currentBusinessId={currentBusinessId}
-          activeTabScreen={screen}
-          hasUnreadConnections={hasUnreadConnections}
-          unreadConnectionIds={unreadConnectionIds}
-          onNavigateToTab={navigateToTab}
-          onNavigateToTabWithFilter={navigateToTabWithFilter}
-          onNavigateToConnection={navigateToConnection}
-          onNavigateToOrderDetail={navigateToOrderDetail}
-          onNavigateToIssueDetail={navigateToIssueDetail}
-          onNavigateToAddConnection={navigateToManageConnections}
-          onNavigateToIncomingRequests={navigateToIncomingRequests}
-          onNavigateToManageConnectionsReceived={navigateToManageConnectionsReceived}
-          onLogout={handleLogout}
-          onNavigateToNotifications={navigateToNotifications}
-          onNavigateToProfileNotifications={navigateToProfileNotifications}
-          onNavigateToProfileAccount={navigateToProfileAccount}
-          onNavigateToProfileSupport={navigateToProfileSupport}
-          onNavigateToManageDocuments={navigateToManageDocuments}
-          onNavigateToManageMembers={navigateToManageMembers}
-          onNavigateToTrustProfile={navigateToTrustProfile}
-          onNavigateToSupplierDocs={navigateToSupplierDocs}
-          onNavigateToPlaceOrder={navigateToPlaceOrder}
-        />
-      ) : (
-        <div className="h-full flex flex-col">{renderDetailScreen(screen)}</div>
+    <Sentry.ErrorBoundary
+      fallback={({ resetError }) => (
+        <div style={{
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          justifyContent: 'center',
+          height: '100vh',
+          padding: 24,
+          gap: 16,
+        }}>
+          <p style={{ fontSize: 16, textAlign: 'center', color: 'var(--text-primary)' }}>
+            Something went wrong. Please restart the app.
+          </p>
+          <button
+            onClick={resetError}
+            style={{
+              padding: '10px 24px',
+              borderRadius: 8,
+              background: 'var(--accent-blue)',
+              color: '#fff',
+              border: 'none',
+              fontSize: 14,
+              fontWeight: 600,
+              cursor: 'pointer',
+            }}
+          >
+            Try Again
+          </button>
+        </div>
       )}
-    </div>
+    >
+      <div className="h-full flex flex-col overflow-hidden" style={{ backgroundColor: 'var(--bg-screen)' }}>
+        {screen.type === 'tab' ? (
+          <TabShell
+            currentBusinessId={currentBusinessId}
+            activeTabScreen={screen}
+            hasUnreadConnections={hasUnreadConnections}
+            unreadConnectionIds={unreadConnectionIds}
+            onNavigateToTab={navigateToTab}
+            onNavigateToTabWithFilter={navigateToTabWithFilter}
+            onNavigateToConnection={navigateToConnection}
+            onNavigateToOrderDetail={navigateToOrderDetail}
+            onNavigateToIssueDetail={navigateToIssueDetail}
+            onNavigateToAddConnection={navigateToManageConnections}
+            onNavigateToIncomingRequests={navigateToIncomingRequests}
+            onNavigateToManageConnectionsReceived={navigateToManageConnectionsReceived}
+            onLogout={handleLogout}
+            onNavigateToNotifications={navigateToNotifications}
+            onNavigateToProfileNotifications={navigateToProfileNotifications}
+            onNavigateToProfileAccount={navigateToProfileAccount}
+            onNavigateToProfileSupport={navigateToProfileSupport}
+            onNavigateToManageDocuments={navigateToManageDocuments}
+            onNavigateToManageMembers={navigateToManageMembers}
+            onNavigateToTrustProfile={navigateToTrustProfile}
+            onNavigateToSupplierDocs={navigateToSupplierDocs}
+            onNavigateToPlaceOrder={navigateToPlaceOrder}
+          />
+        ) : (
+          <div className="h-full flex flex-col">{renderDetailScreen(screen)}</div>
+        )}
+      </div>
+    </Sentry.ErrorBoundary>
   )
 }
 
