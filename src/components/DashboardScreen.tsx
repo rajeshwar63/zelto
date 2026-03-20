@@ -310,13 +310,6 @@ export function DashboardScreen({ currentBusinessId, onNavigateToOrders, onNavig
 
         </div>
 
-        {onNavigateToSupplierDocs && (
-          <ComplianceCard
-            currentBusinessId={currentBusinessId}
-            onNavigateToSupplierDocs={onNavigateToSupplierDocs}
-          />
-        )}
-
         <div>
           <h2 className="text-[10px] uppercase tracking-wide text-muted-foreground/60 mb-3">
             Needs Attention
@@ -490,6 +483,13 @@ export function DashboardScreen({ currentBusinessId, onNavigateToOrders, onNavig
               )}
           </div>
         </div>
+
+        {onNavigateToSupplierDocs && (
+          <ComplianceCard
+            currentBusinessId={currentBusinessId}
+            onNavigateToSupplierDocs={onNavigateToSupplierDocs}
+          />
+        )}
 
         {recentOrders.length > 0 && (
           <div>
