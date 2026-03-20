@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react'
 import { ArrowLeft, Plus, X, Receipt } from '@phosphor-icons/react'
 import { dataStore } from '@/lib/data-store'
 import { emitDataChange } from '@/lib/data-events'
-import { supabase } from '@/lib/supabase-client'
+import { supabase, supabaseDirect } from '@/lib/supabase-client'
 import { toast } from 'sonner'
 import { formatInrCurrency } from '@/lib/utils'
 import { ItemPickerSheet, type PickedItem } from './ItemPickerSheet'
@@ -222,7 +222,7 @@ export function InvoiceCreateScreen({ orderId, connectionId, currentBusinessId, 
       if (status === 'generated') {
         // Call edge function to generate PDF
         try {
-          const { error: fnError } = await supabase.functions.invoke('generate-invoice', {
+          const { error: fnError } = await supabaseDirect.functions.invoke('generate-invoice', {
             body: { invoice_id: invoice.id },
           })
 
