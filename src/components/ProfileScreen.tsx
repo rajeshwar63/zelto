@@ -35,6 +35,7 @@ interface Props {
   onNavigateToManageDocuments?: () => void
   onNavigateToSelfTrustProfile?: () => void
   onNavigateToMembers?: () => void
+  onNavigateToTeam?: () => void
 }
 
 function getInitials(name: string): string {
@@ -119,6 +120,7 @@ export function ProfileScreen({
   onNavigateToSupport,
   onNavigateToSelfTrustProfile,
   onNavigateToMembers,
+  onNavigateToTeam,
 }: Props) {
   const { data, isInitialLoading: loading, refresh } = useProfileData(currentBusinessId)
   const business = data?.business ?? null
@@ -501,17 +503,17 @@ export function ProfileScreen({
         <SectionLabel>BUSINESS</SectionLabel>
         <div style={{ backgroundColor: '#FFFFFF', borderRadius: '14px', overflow: 'hidden', marginBottom: '20px' }}>
           <MenuRow
-            icon={<Users size={18} color="#22B573" weight="bold" />}
-            iconBg="#E8F8F0"
-            title="Members"
+            icon={<Users size={18} color="#4A6CF7" weight="bold" />}
+            iconBg="#EEF0FF"
+            title="Team"
             subtitle={
               members.length === 0
                 ? 'No members yet'
                 : members.length === 1
-                  ? '1 member · ' + (members[0]?.role === 'owner' ? 'Owner' : 'Member')
+                  ? '1 member'
                   : `${members.length} members`
             }
-            onPress={onNavigateToMembers}
+            onPress={onNavigateToTeam}
             showDivider={false}
           />
         </div>
