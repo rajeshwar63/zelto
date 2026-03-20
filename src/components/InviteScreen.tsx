@@ -26,12 +26,22 @@ export function InviteScreen({ currentBusinessId, onBack }: Props) {
         return
       }
 
-      const response = await supabase.functions.invoke('create-invite', {
-        body: { type: 'link', role: selectedRole },
+      const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || ''
+      const response = await fetch(`${supabaseUrl}/functions/v1/create-invite`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${session.access_token}`,
+        },
+        body: JSON.stringify({ type: 'link', role: selectedRole }),
       })
 
-      if (response.error) throw response.error
-      const data = response.data
+      if (!response.ok) {
+        const err = await response.json().catch(() => ({}))
+        throw new Error(err.error || 'Failed to generate invite link')
+      }
+
+      const data = await response.json()
       if (data?.inviteUrl) {
         setInviteUrl(data.inviteUrl)
       } else {
@@ -100,11 +110,27 @@ export function InviteScreen({ currentBusinessId, onBack }: Props) {
 
     setSendingEmail(true)
     try {
-      const response = await supabase.functions.invoke('create-invite', {
-        body: { type: 'email', role, email: trimmed },
+      const { data: { session } } = await supabase.auth.getSession()
+      if (!session) {
+        toast.error('Not authenticated')
+        return
+      }
+
+      const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || ''
+      const response = await fetch(`${supabaseUrl}/functions/v1/create-invite`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${session.access_token}`,
+        },
+        body: JSON.stringify({ type: 'email', role, email: trimmed }),
       })
 
-      if (response.error) throw response.error
+      if (!response.ok) {
+        const err = await response.json().catch(() => ({}))
+        throw new Error(err.error || 'Failed to send invite')
+      }
+
       toast.success('Invite sent!')
       setEmail('')
     } catch (err) {
