@@ -3,7 +3,7 @@
 
 import { useState } from 'react'
 import { X, DownloadSimple } from '@phosphor-icons/react'
-import { supabase } from '@/lib/supabase-client'
+import { supabase, supabaseUrl } from '@/lib/supabase-client'
 import { generateLedgerExcel } from '@/utils/ledger-excel'
 import { generateLedgerPdf } from '@/utils/ledger-pdf'
 import type { LedgerData } from '@/utils/ledger-excel'
@@ -52,7 +52,6 @@ export function LedgerDownloadSheet({ isOpen, onClose, scope, connectionId, conn
       const token = sessionData?.session?.access_token
       if (!token) throw new Error('Not authenticated')
 
-      const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || ''
       const functionUrl = `${supabaseUrl}/functions/v1/generate-ledger`
 
       const body: Record<string, string> = {
