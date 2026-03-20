@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { CaretRight, Warning, Clock, FileX } from '@phosphor-icons/react'
+import { CaretDown, CaretRight, Warning, Clock, FileX } from '@phosphor-icons/react'
 import { dataStore } from '@/lib/data-store'
 import type { ComplianceAlert } from '@/lib/types'
 
@@ -55,75 +55,107 @@ function expiryLabel(alert: ComplianceAlert): string {
 export function ComplianceCard({ currentBusinessId, onNavigateToSupplierDocs }: Props) {
   const [alerts, setAlerts] = useState<ComplianceAlert[]>([])
   const [loaded, setLoaded] = useState(false)
+  const [complianceExpanded, setComplianceExpanded] = useState(false)
 
   useEffect(() => {
     dataStore.getComplianceAlerts(currentBusinessId).then(data => {
       setAlerts(data)
+      setComplianceExpanded(data.length > 0)
       setLoaded(true)
     }).catch(() => setLoaded(true))
   }, [currentBusinessId])
 
-  // Hidden entirely when no issues or still loading
-  if (!loaded || alerts.length === 0) return null
+  if (!loaded) return null
 
   const visibleAlerts = alerts.slice(0, 3)
 
   return (
     <div>
-      <h2 className="text-[10px] uppercase tracking-wide text-muted-foreground/60 mb-3">
-        Supplier Compliance
-      </h2>
-      <div
-        className="rounded-2xl border bg-card overflow-hidden"
-        style={{ borderColor: '#F59E0B' }}
+      {/* Collapsible section header */}
+      <button
+        onClick={() => setComplianceExpanded(prev => !prev)}
+        className="w-full flex items-center justify-between"
+        style={{ paddingTop: '10px', paddingBottom: '10px' }}
       >
-        {/* Header */}
-        <div
-          className="flex items-center gap-2 px-4 py-2.5"
-          style={{ backgroundColor: '#FFFBEB', borderBottom: '1px solid #FEF3C7' }}
-        >
-          <Warning size={14} weight="fill" color="#D97706" />
-          <p className="text-[12px] font-semibold" style={{ color: '#92400E' }}>
-            {alerts.length} supplier doc {alerts.length === 1 ? 'issue' : 'issues'} need attention
-          </p>
-        </div>
-
-        {/* Rows */}
-        <div className="divide-y divide-border/60">
-          {visibleAlerts.map((alert, idx) => (
-            <button
-              key={`${alert.connectionId}-${alert.issueType}-${idx}`}
-              onClick={() => onNavigateToSupplierDocs(alert.otherBusinessId, alert.connectionId)}
-              className="w-full flex items-center justify-between px-4 py-3 text-left hover:bg-muted/30 transition-colors"
+        <div className="flex items-center gap-1.5">
+          <span className="text-[11px] font-semibold tracking-wide uppercase" style={{ color: 'var(--text-secondary, #8A8A8A)' }}>
+            Supplier Compliance
+          </span>
+          {alerts.length > 0 && (
+            <span
+              className="text-[11px] font-semibold px-1.5 py-0.5 rounded-full"
+              style={{ backgroundColor: 'var(--status-warning-bg, #FEF3C7)', color: 'var(--status-warning, #D97706)' }}
             >
-              <div className="flex-1 min-w-0">
-                <div className="flex items-center gap-2 mb-0.5">
-                  <span className="text-[13px] font-semibold text-foreground truncate">
-                    {alert.otherBusinessName}
-                  </span>
-                  <IssueChip issueType={alert.issueType} />
-                </div>
-                <p className="text-[12px] text-muted-foreground truncate">
-                  {alert.documentDisplayName}
-                  {expiryLabel(alert) ? ` · ${expiryLabel(alert)}` : ''}
-                </p>
-              </div>
-              <CaretRight size={14} className="text-muted-foreground flex-shrink-0 ml-2" />
-            </button>
-          ))}
+              {alerts.length}
+            </span>
+          )}
+          {alerts.length === 0 && (
+            <span className="text-[11px]" style={{ color: 'var(--status-delivered)' }}>
+              All clear
+            </span>
+          )}
         </div>
+        <CaretDown
+          size={14}
+          color="var(--text-secondary, #8A8A8A)"
+          style={{ transform: `rotate(${complianceExpanded ? '180deg' : '0deg'})`, transition: 'transform 0.2s' }}
+        />
+      </button>
 
-        {alerts.length > 3 && (
+      {/* Compliance card — only shown when expanded and issues exist */}
+      {complianceExpanded && alerts.length > 0 && (
+        <div
+          className="rounded-2xl border bg-card overflow-hidden mb-1"
+          style={{ borderColor: '#F59E0B' }}
+        >
+          {/* Header */}
           <div
-            className="px-4 py-2 text-center"
-            style={{ backgroundColor: '#FFFBEB', borderTop: '1px solid #FEF3C7' }}
+            className="flex items-center gap-2 px-4 py-2.5"
+            style={{ backgroundColor: '#FFFBEB', borderBottom: '1px solid #FEF3C7' }}
           >
-            <p className="text-[11px]" style={{ color: '#92400E' }}>
-              +{alerts.length - 3} more — open each supplier to review
+            <Warning size={14} weight="fill" color="#D97706" />
+            <p className="text-[12px] font-semibold" style={{ color: '#92400E' }}>
+              {alerts.length} supplier doc {alerts.length === 1 ? 'issue' : 'issues'} need attention
             </p>
           </div>
-        )}
-      </div>
+
+          {/* Rows */}
+          <div className="divide-y divide-border/60">
+            {visibleAlerts.map((alert, idx) => (
+              <button
+                key={`${alert.connectionId}-${alert.issueType}-${idx}`}
+                onClick={() => onNavigateToSupplierDocs(alert.otherBusinessId, alert.connectionId)}
+                className="w-full flex items-center justify-between px-4 py-3 text-left hover:bg-muted/30 transition-colors"
+              >
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2 mb-0.5">
+                    <span className="text-[13px] font-semibold text-foreground truncate">
+                      {alert.otherBusinessName}
+                    </span>
+                    <IssueChip issueType={alert.issueType} />
+                  </div>
+                  <p className="text-[12px] text-muted-foreground truncate">
+                    {alert.documentDisplayName}
+                    {expiryLabel(alert) ? ` · ${expiryLabel(alert)}` : ''}
+                  </p>
+                </div>
+                <CaretRight size={14} className="text-muted-foreground flex-shrink-0 ml-2" />
+              </button>
+            ))}
+          </div>
+
+          {alerts.length > 3 && (
+            <div
+              className="px-4 py-2 text-center"
+              style={{ backgroundColor: '#FFFBEB', borderTop: '1px solid #FEF3C7' }}
+            >
+              <p className="text-[11px]" style={{ color: '#92400E' }}>
+                +{alerts.length - 3} more — open each supplier to review
+              </p>
+            </div>
+          )}
+        </div>
+      )}
     </div>
   )
 }
