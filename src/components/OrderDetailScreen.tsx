@@ -4,7 +4,7 @@ import { recordPayment, addAttachment, deleteAttachment, acknowledgeIssue, resol
 import { useDataListener } from '@/lib/data-events'
 import { formatDistanceToNow, differenceInDays } from 'date-fns'
 import type { Connection, OrderWithPaymentState, BusinessEntity, PaymentEvent, IssueReport, OrderAttachment, AttachmentType } from '@/lib/types'
-import { CaretLeft } from '@phosphor-icons/react'
+import { CaretLeft, Receipt } from '@phosphor-icons/react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { toast } from 'sonner'
@@ -30,9 +30,11 @@ interface Props {
   onBack: () => void
   onReportIssue: (orderId: string, connectionId: string) => void
   initialIssueId?: string
+  onNavigateToInvoiceCreate?: (orderId: string, connectionId: string) => void
+  onNavigateToInvoiceView?: (invoiceId: string) => void
 }
 
-export function OrderDetailScreen({ orderId, connectionId, currentBusinessId, mode = 'issue', onBack, onReportIssue, initialIssueId }: Props) {
+export function OrderDetailScreen({ orderId, connectionId, currentBusinessId, mode = 'issue', onBack, onReportIssue, initialIssueId, onNavigateToInvoiceCreate, onNavigateToInvoiceView }: Props) {
   const [order, setOrder] = useState<OrderWithPaymentState | null>(null)
   const [connection, setConnection] = useState<Connection | null>(null)
   const [otherBusiness, setOtherBusiness] = useState<BusinessEntity | null>(null)
@@ -61,6 +63,9 @@ export function OrderDetailScreen({ orderId, connectionId, currentBusinessId, mo
   const [showAttachmentSheet, setShowAttachmentSheet] = useState(false)
   const [viewingAttachmentIndex, setViewingAttachmentIndex] = useState<number | null>(null)
 
+  // Invoice
+  const [existingInvoiceId, setExistingInvoiceId] = useState<string | null>(null)
+
   // Issue detail
   const [selectedIssue, setSelectedIssue] = useState<IssueReport | null>(null)
 
@@ -81,12 +86,13 @@ export function OrderDetailScreen({ orderId, connectionId, currentBusinessId, mo
       ? conn.supplierBusinessId
       : conn.buyerBusinessId
 
-    const [otherBiz, myBiz, paymentEvents, issueReports, orderAttachments] = await Promise.all([
+    const [otherBiz, myBiz, paymentEvents, issueReports, orderAttachments, invoiceData] = await Promise.all([
       dataStore.getBusinessEntityById(otherId),
       dataStore.getBusinessEntityById(currentBusinessId),
       dataStore.getPaymentEventsByOrderId(orderId),
       dataStore.getIssueReportsByOrderId(orderId),
       dataStore.getAttachmentsByOrderId(orderId),
+      dataStore.getInvoiceByOrderId(orderId),
     ])
 
     setOtherBusiness(otherBiz || null)
@@ -98,6 +104,7 @@ export function OrderDetailScreen({ orderId, connectionId, currentBusinessId, mo
       if (targetIssue) setSelectedIssue(targetIssue)
     }
     setAttachments(orderAttachments)
+    setExistingInvoiceId(invoiceData?.id || null)
     setLoading(false)
   }
 
@@ -106,7 +113,7 @@ export function OrderDetailScreen({ orderId, connectionId, currentBusinessId, mo
   }, [orderId, connectionId])
 
   useDataListener(
-    ['orders:changed', 'payments:changed', 'issues:changed', 'attachments:changed'],
+    ['orders:changed', 'payments:changed', 'issues:changed', 'attachments:changed', 'invoices:changed'],
     () => { loadData() }
   )
 
@@ -365,6 +372,50 @@ export function OrderDetailScreen({ orderId, connectionId, currentBusinessId, mo
           onViewAttachment={(index) => setViewingAttachmentIndex(index)}
           onDeleteAttachment={handleDeleteAttachment}
         />
+
+        {/* Invoice Button */}
+        {isConnectionMode && (
+          <div className="px-4 mb-3">
+            {isSupplier && !existingInvoiceId && onNavigateToInvoiceCreate && (
+              <button
+                onClick={() => onNavigateToInvoiceCreate(orderId, connectionId)}
+                className="w-full flex items-center justify-center gap-2"
+                style={{
+                  padding: '12px',
+                  fontSize: '13px',
+                  fontWeight: 600,
+                  color: '#4A6CF7',
+                  backgroundColor: 'rgba(74,108,247,0.06)',
+                  border: '1px solid rgba(74,108,247,0.2)',
+                  borderRadius: '12px',
+                  cursor: 'pointer',
+                }}
+              >
+                <Receipt size={16} weight="bold" />
+                Generate invoice
+              </button>
+            )}
+            {existingInvoiceId && onNavigateToInvoiceView && (
+              <button
+                onClick={() => onNavigateToInvoiceView(existingInvoiceId)}
+                className="w-full flex items-center justify-center gap-2"
+                style={{
+                  padding: '12px',
+                  fontSize: '13px',
+                  fontWeight: 600,
+                  color: '#4A6CF7',
+                  backgroundColor: 'rgba(74,108,247,0.06)',
+                  border: '1px solid rgba(74,108,247,0.2)',
+                  borderRadius: '12px',
+                  cursor: 'pointer',
+                }}
+              >
+                <Receipt size={16} weight="bold" />
+                View invoice
+              </button>
+            )}
+          </div>
+        )}
 
         {/* Payment Details */}
         {payments.length > 0 && (

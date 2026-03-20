@@ -19,7 +19,7 @@
 
 import { useEffect, useState, useRef } from 'react'
 import { dataStore } from '@/lib/data-store'
-import { Bell, PencilSimple, Check, X, CaretRight, ShareNetwork, ShieldCheck, Users, Warning } from '@phosphor-icons/react'
+import { Bell, PencilSimple, Check, X, CaretRight, ShareNetwork, ShieldCheck, Users, Warning, Receipt } from '@phosphor-icons/react'
 import { TrustBadge } from './TrustBadge'
 import { toast } from 'sonner'
 import { useProfileData } from '@/hooks/data/use-business-data'
@@ -36,6 +36,7 @@ interface Props {
   onNavigateToSelfTrustProfile?: () => void
   onNavigateToMembers?: () => void
   onNavigateToTeam?: () => void
+  onNavigateToInvoiceSettings?: () => void
 }
 
 function getInitials(name: string): string {
@@ -121,6 +122,7 @@ export function ProfileScreen({
   onNavigateToSelfTrustProfile,
   onNavigateToMembers,
   onNavigateToTeam,
+  onNavigateToInvoiceSettings,
 }: Props) {
   const { data, isInitialLoading: loading, refresh } = useProfileData(currentBusinessId)
   const business = data?.business ?? null
@@ -514,6 +516,13 @@ export function ProfileScreen({
                   : `${members.length} members`
             }
             onPress={onNavigateToTeam}
+          />
+          <MenuRow
+            icon={<Receipt size={18} color="#22C55E" weight="bold" />}
+            iconBg="#ECFDF5"
+            title="Invoice settings"
+            subtitle="Items, bank details, numbering"
+            onPress={onNavigateToInvoiceSettings}
             showDivider={false}
           />
         </div>
