@@ -10,6 +10,8 @@ type EventType =
   | 'issues:changed'
   | 'notifications:changed'
   | 'attachments:changed'
+  | 'invoices:changed'
+  | 'items:changed'
 
 type Listener = () => void
 

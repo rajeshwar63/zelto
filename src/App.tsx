@@ -30,6 +30,11 @@ import { ManageDocumentsScreen } from '@/components/ManageDocumentsScreen'
 import { TeamScreen } from '@/components/TeamScreen'
 import { InviteScreen } from '@/components/InviteScreen'
 import { JoinScreen } from '@/components/JoinScreen'
+import { ItemMasterScreen } from '@/components/ItemMasterScreen'
+import { ItemCreateScreen } from '@/components/ItemCreateScreen'
+import { InvoiceSettingsScreen } from '@/components/InvoiceSettingsScreen'
+import { InvoiceCreateScreen } from '@/components/InvoiceCreateScreen'
+import { InvoiceViewScreen } from '@/components/InvoiceViewScreen'
 import { TeamRoleProvider } from '@/contexts/TeamRoleContext'
 import { PermissionGate } from '@/components/PermissionGate'
 import { toast } from 'sonner'
@@ -73,6 +78,11 @@ type Screen =
   | { type: 'team' }
   | { type: 'invite' }
   | { type: 'place-order'; prefilledConnectionId?: string | null }
+  | { type: 'invoice-settings' }
+  | { type: 'item-master' }
+  | { type: 'item-create'; itemId?: string }
+  | { type: 'invoice-create'; orderId: string; connectionId: string }
+  | { type: 'invoice-view'; invoiceId: string }
 type AuthScreen = 'welcome' | { type: 'otp'; email: string; signupData?: { name: string; businessName: string } } | { type: 'business_setup'; email: string }
 type TabShellScreen = Extract<Screen, { type: 'tab' }>
 type DetailScreen = Exclude<Screen, { type: 'tab' }>
@@ -534,6 +544,26 @@ function App() {
     setNavigationStack(stack => [...stack, { type: 'incoming-requests' }])
   }
 
+  const navigateToInvoiceSettings = () => {
+    setNavigationStack(stack => [...stack, { type: 'invoice-settings' }])
+  }
+
+  const navigateToItemMaster = () => {
+    setNavigationStack(stack => [...stack, { type: 'item-master' }])
+  }
+
+  const navigateToItemCreate = (itemId?: string) => {
+    setNavigationStack(stack => [...stack, { type: 'item-create', itemId }])
+  }
+
+  const navigateToInvoiceCreate = (orderId: string, connectionId: string) => {
+    setNavigationStack(stack => [...stack, { type: 'invoice-create', orderId, connectionId }])
+  }
+
+  const navigateToInvoiceView = (invoiceId: string) => {
+    setNavigationStack(stack => [...stack, { type: 'invoice-view', invoiceId }])
+  }
+
   const navigateToTabWithFilter = (tab: Tab, filter?: string, ordersParams?: OrdersTabParams) => {
     if (currentBusinessId) {
       if (tab === 'connections') {
@@ -697,6 +727,8 @@ function App() {
           onReportIssue={navigateToReportIssue}
           initialIssueId={detailScreen.initialIssueId}
           mode={detailScreen.mode ?? 'issue'}
+          onNavigateToInvoiceCreate={navigateToInvoiceCreate}
+          onNavigateToInvoiceView={navigateToInvoiceView}
         />
       )
     }
@@ -713,6 +745,61 @@ function App() {
               { type: 'order-detail', orderId, connectionId, mode: 'connection' },
             ])
           }}
+        />
+      )
+    }
+    if (detailScreen.type === 'invoice-settings') {
+      return (
+        <InvoiceSettingsScreen
+          currentBusinessId={currentBusinessId}
+          onBack={navigateBack}
+          onNavigateToBusinessDetails={navigateToBusinessDetails}
+          onNavigateToItemMaster={navigateToItemMaster}
+        />
+      )
+    }
+    if (detailScreen.type === 'item-master') {
+      return (
+        <ItemMasterScreen
+          currentBusinessId={currentBusinessId}
+          onBack={navigateBack}
+          onNavigateToItemCreate={() => navigateToItemCreate()}
+          onNavigateToItemEdit={(itemId) => navigateToItemCreate(itemId)}
+        />
+      )
+    }
+    if (detailScreen.type === 'item-create') {
+      return (
+        <ItemCreateScreen
+          currentBusinessId={currentBusinessId}
+          itemId={detailScreen.itemId}
+          onBack={navigateBack}
+        />
+      )
+    }
+    if (detailScreen.type === 'invoice-create') {
+      return (
+        <InvoiceCreateScreen
+          orderId={detailScreen.orderId}
+          connectionId={detailScreen.connectionId}
+          currentBusinessId={currentBusinessId}
+          onBack={navigateBack}
+          onInvoiceCreated={(invoiceId) => {
+            // Replace InvoiceCreateScreen with InvoiceViewScreen
+            setNavigationStack(stack => [
+              ...stack.slice(0, -1),
+              { type: 'invoice-view', invoiceId },
+            ])
+          }}
+        />
+      )
+    }
+    if (detailScreen.type === 'invoice-view') {
+      return (
+        <InvoiceViewScreen
+          invoiceId={detailScreen.invoiceId}
+          currentBusinessId={currentBusinessId}
+          onBack={navigateBack}
         />
       )
     }
@@ -791,6 +878,7 @@ function App() {
             onNavigateToTrustProfile={navigateToTrustProfile}
             onNavigateToSupplierDocs={navigateToSupplierDocs}
             onNavigateToPlaceOrder={navigateToPlaceOrder}
+            onNavigateToInvoiceSettings={navigateToInvoiceSettings}
           />
         ) : (
           <div className="h-full flex flex-col">{renderDetailScreen(screen)}</div>
@@ -825,6 +913,7 @@ function TabShell({
   onNavigateToTrustProfile,
   onNavigateToSupplierDocs,
   onNavigateToPlaceOrder,
+  onNavigateToInvoiceSettings,
 }: {
   currentBusinessId: string
   activeTabScreen: TabShellScreen
@@ -849,6 +938,7 @@ function TabShell({
   onNavigateToTrustProfile?: (targetBusinessId: string, screenMode: TrustProfileScreenMode, connectionRequestId?: string, connectionId?: string) => void
   onNavigateToSupplierDocs?: (targetBusinessId: string, connectionId: string) => void
   onNavigateToPlaceOrder: (prefilledConnectionId?: string | null) => void
+  onNavigateToInvoiceSettings?: () => void
 }) {
   return (
     <>
@@ -906,6 +996,7 @@ function TabShell({
                 ? () => onNavigateToTrustProfile(currentBusinessId, { action: 'view-connection', audience: 'self-profile-ready' })
                 : undefined
             }
+            onNavigateToInvoiceSettings={onNavigateToInvoiceSettings}
           />
         )}
       </div>

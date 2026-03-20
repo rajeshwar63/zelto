@@ -10,8 +10,12 @@ import {
   AcceptConnectionRequestResult,
   EntityFlag,
   FrozenEntity,
+  Invoice,
+  InvoiceLineItem,
+  InvoiceSettings,
   IssueComment,
   IssueReport,
+  ItemMaster,
   Notification,
   NotificationType,
   Order,
@@ -1613,6 +1617,276 @@ export class ZeltoDataStore {
       throw new Error(messages[result?.error_code] ?? 'Could not accept invite.')
     }
     return { businessId: result.business_id, businessName: result.business_name }
+  }
+
+  // ============ INVOICE SETTINGS ============
+
+  async getInvoiceSettings(businessEntityId: string): Promise<InvoiceSettings | null> {
+    const { data, error } = await supabase
+      .from('invoice_settings')
+      .select('*')
+      .eq('business_entity_id', businessEntityId)
+      .maybeSingle()
+
+    if (error) throw error
+    return data ? toCamelCase(data) : null
+  }
+
+  async upsertInvoiceSettings(
+    businessEntityId: string,
+    settings: Partial<Omit<InvoiceSettings, 'id' | 'businessEntityId' | 'createdAt' | 'updatedAt'>>
+  ): Promise<InvoiceSettings> {
+    const dbData: any = { business_entity_id: businessEntityId }
+    if (settings.invoicePrefix !== undefined) dbData.invoice_prefix = settings.invoicePrefix
+    if (settings.nextInvoiceNumber !== undefined) dbData.next_invoice_number = settings.nextInvoiceNumber
+    if (settings.defaultDueDays !== undefined) dbData.default_due_days = settings.defaultDueDays
+    if (settings.bankAccountName !== undefined) dbData.bank_account_name = settings.bankAccountName
+    if (settings.bankAccountNumber !== undefined) dbData.bank_account_number = settings.bankAccountNumber
+    if (settings.bankIfsc !== undefined) dbData.bank_ifsc = settings.bankIfsc
+    if (settings.bankName !== undefined) dbData.bank_name = settings.bankName
+    if (settings.upiId !== undefined) dbData.upi_id = settings.upiId
+    if (settings.termsAndConditions !== undefined) dbData.terms_and_conditions = settings.termsAndConditions
+    if (settings.logoUrl !== undefined) dbData.logo_url = settings.logoUrl
+    if (settings.signatureUrl !== undefined) dbData.signature_url = settings.signatureUrl
+
+    const { data, error } = await supabase
+      .from('invoice_settings')
+      .upsert(dbData, { onConflict: 'business_entity_id' })
+      .select()
+      .single()
+
+    if (error) throw error
+    return toCamelCase(data)
+  }
+
+  // ============ ITEM MASTER ============
+
+  async getItemsByBusinessId(businessEntityId: string): Promise<ItemMaster[]> {
+    const { data, error } = await supabase
+      .from('item_master')
+      .select('*')
+      .eq('business_entity_id', businessEntityId)
+      .eq('is_active', true)
+      .order('name', { ascending: true })
+
+    if (error) throw error
+    return toCamelCase(data || [])
+  }
+
+  async getItemById(itemId: string): Promise<ItemMaster | null> {
+    const { data, error } = await supabase
+      .from('item_master')
+      .select('*')
+      .eq('id', itemId)
+      .maybeSingle()
+
+    if (error) throw error
+    return data ? toCamelCase(data) : null
+  }
+
+  async createItem(
+    businessEntityId: string,
+    item: { name: string; hsnCode?: string; taxRate?: number; salePrice?: number; purchasePrice?: number }
+  ): Promise<ItemMaster> {
+    const { data, error } = await supabase
+      .from('item_master')
+      .insert([{
+        business_entity_id: businessEntityId,
+        name: item.name,
+        hsn_code: item.hsnCode || null,
+        tax_rate: item.taxRate ?? null,
+        sale_price: item.salePrice ?? null,
+        purchase_price: item.purchasePrice ?? null,
+      }])
+      .select()
+      .single()
+
+    if (error) throw error
+    return toCamelCase(data)
+  }
+
+  async updateItem(
+    itemId: string,
+    updates: { name?: string; hsnCode?: string | null; taxRate?: number | null; salePrice?: number | null; purchasePrice?: number | null }
+  ): Promise<ItemMaster> {
+    const dbUpdates: any = {}
+    if (updates.name !== undefined) dbUpdates.name = updates.name
+    if (updates.hsnCode !== undefined) dbUpdates.hsn_code = updates.hsnCode
+    if (updates.taxRate !== undefined) dbUpdates.tax_rate = updates.taxRate
+    if (updates.salePrice !== undefined) dbUpdates.sale_price = updates.salePrice
+    if (updates.purchasePrice !== undefined) dbUpdates.purchase_price = updates.purchasePrice
+
+    const { data, error } = await supabase
+      .from('item_master')
+      .update(dbUpdates)
+      .eq('id', itemId)
+      .select()
+      .single()
+
+    if (error) throw error
+    return toCamelCase(data)
+  }
+
+  async deactivateItem(itemId: string): Promise<void> {
+    const { error } = await supabase
+      .from('item_master')
+      .update({ is_active: false })
+      .eq('id', itemId)
+
+    if (error) throw error
+  }
+
+  // ============ INVOICES ============
+
+  async getInvoiceByOrderId(orderId: string): Promise<Invoice | null> {
+    const { data, error } = await supabase
+      .from('invoices')
+      .select('*')
+      .eq('order_id', orderId)
+      .maybeSingle()
+
+    if (error) throw error
+    return data ? toCamelCase(data) : null
+  }
+
+  async getInvoiceById(invoiceId: string): Promise<Invoice | null> {
+    const { data, error } = await supabase
+      .from('invoices')
+      .select('*')
+      .eq('id', invoiceId)
+      .maybeSingle()
+
+    if (error) throw error
+    return data ? toCamelCase(data) : null
+  }
+
+  async createInvoice(invoice: {
+    orderId: string
+    supplierBusinessEntityId: string
+    buyerBusinessEntityId: string
+    invoiceNumber: string
+    invoiceDate: string
+    dueDate?: string
+    placeOfSupply?: string
+    subtotal: number
+    taxableAmount: number
+    totalCgst: number
+    totalSgst: number
+    totalIgst: number
+    totalAmount: number
+    isInterState: boolean
+    status: 'draft' | 'generated'
+  }): Promise<Invoice> {
+    const { data, error } = await supabase
+      .from('invoices')
+      .insert([{
+        order_id: invoice.orderId,
+        supplier_business_entity_id: invoice.supplierBusinessEntityId,
+        buyer_business_entity_id: invoice.buyerBusinessEntityId,
+        invoice_number: invoice.invoiceNumber,
+        invoice_date: invoice.invoiceDate,
+        due_date: invoice.dueDate || null,
+        place_of_supply: invoice.placeOfSupply || null,
+        subtotal: invoice.subtotal,
+        taxable_amount: invoice.taxableAmount,
+        total_cgst: invoice.totalCgst,
+        total_sgst: invoice.totalSgst,
+        total_igst: invoice.totalIgst,
+        total_amount: invoice.totalAmount,
+        is_inter_state: invoice.isInterState,
+        status: invoice.status,
+      }])
+      .select()
+      .single()
+
+    if (error) throw error
+    return toCamelCase(data)
+  }
+
+  async updateInvoice(invoiceId: string, updates: Partial<Pick<Invoice, 'pdfUrl' | 'status'>>): Promise<Invoice> {
+    const dbUpdates: any = {}
+    if (updates.pdfUrl !== undefined) dbUpdates.pdf_url = updates.pdfUrl
+    if (updates.status !== undefined) dbUpdates.status = updates.status
+
+    const { data, error } = await supabase
+      .from('invoices')
+      .update(dbUpdates)
+      .eq('id', invoiceId)
+      .select()
+      .single()
+
+    if (error) throw error
+    return toCamelCase(data)
+  }
+
+  async getNextInvoiceNumber(businessEntityId: string): Promise<string> {
+    const { data, error } = await supabase.rpc('get_next_invoice_number', {
+      p_business_entity_id: businessEntityId,
+    })
+
+    if (error) throw error
+    return data as string
+  }
+
+  // ============ INVOICE LINE ITEMS ============
+
+  async getInvoiceLineItems(invoiceId: string): Promise<InvoiceLineItem[]> {
+    const { data, error } = await supabase
+      .from('invoice_line_items')
+      .select('*')
+      .eq('invoice_id', invoiceId)
+      .order('sort_order', { ascending: true })
+
+    if (error) throw error
+    return toCamelCase(data || [])
+  }
+
+  async createInvoiceLineItems(items: Array<{
+    invoiceId: string
+    itemMasterId?: string
+    name: string
+    hsnCode?: string
+    quantity: number
+    unit?: string
+    rate: number
+    taxRate: number
+    taxableAmount: number
+    taxAmount: number
+    totalAmount: number
+    sortOrder: number
+  }>): Promise<InvoiceLineItem[]> {
+    const rows = items.map(item => ({
+      invoice_id: item.invoiceId,
+      item_master_id: item.itemMasterId || null,
+      name: item.name,
+      hsn_code: item.hsnCode || null,
+      quantity: item.quantity,
+      unit: item.unit || null,
+      rate: item.rate,
+      tax_rate: item.taxRate,
+      taxable_amount: item.taxableAmount,
+      tax_amount: item.taxAmount,
+      total_amount: item.totalAmount,
+      sort_order: item.sortOrder,
+    }))
+
+    const { data, error } = await supabase
+      .from('invoice_line_items')
+      .insert(rows)
+      .select()
+
+    if (error) throw error
+    return toCamelCase(data || [])
+  }
+
+  // ============ INVOICE STORAGE ============
+
+  async getSignedInvoiceUrl(storagePath: string): Promise<string | null> {
+    const { data, error } = await supabase.storage
+      .from('invoices')
+      .createSignedUrl(storagePath, 3600)
+    if (error) return null
+    return data.signedUrl
   }
 
   // ============ UTILITY ============

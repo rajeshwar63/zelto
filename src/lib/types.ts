@@ -238,6 +238,80 @@ export interface Notification {
 
 export type AttachmentType = 'bill' | 'payment_proof' | 'note' | 'dispatch_note' | 'delivery_proof'
 
+// ============ INVOICE TYPES ============
+
+export interface InvoiceSettings {
+  id: string
+  businessEntityId: string
+  invoicePrefix: string
+  nextInvoiceNumber: number
+  defaultDueDays: number
+  bankAccountName: string | null
+  bankAccountNumber: string | null
+  bankIfsc: string | null
+  bankName: string | null
+  upiId: string | null
+  termsAndConditions: string | null
+  logoUrl: string | null
+  signatureUrl: string | null
+  createdAt: string
+  updatedAt: string
+}
+
+export interface ItemMaster {
+  id: string
+  businessEntityId: string
+  name: string
+  hsnCode: string | null
+  taxRate: number | null
+  salePrice: number | null
+  purchasePrice: number | null
+  isActive: boolean
+  createdAt: string
+  updatedAt: string
+}
+
+export type InvoiceStatus = 'draft' | 'generated'
+
+export interface Invoice {
+  id: string
+  orderId: string
+  supplierBusinessEntityId: string
+  buyerBusinessEntityId: string
+  invoiceNumber: string
+  invoiceDate: string
+  dueDate: string | null
+  placeOfSupply: string | null
+  subtotal: number
+  taxableAmount: number
+  totalCgst: number
+  totalSgst: number
+  totalIgst: number
+  totalAmount: number
+  isInterState: boolean
+  pdfUrl: string | null
+  status: InvoiceStatus
+  createdAt: string
+  updatedAt: string
+}
+
+export interface InvoiceLineItem {
+  id: string
+  invoiceId: string
+  itemMasterId: string | null
+  name: string
+  hsnCode: string | null
+  quantity: number
+  unit: string | null
+  rate: number
+  taxRate: number
+  taxableAmount: number
+  taxAmount: number
+  totalAmount: number
+  sortOrder: number
+  createdAt: string
+}
+
 export interface OrderAttachment {
   id: string
   orderId: string
