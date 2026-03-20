@@ -1,6 +1,7 @@
 // src/lib/push-notifications.ts
 // Registers device for push notifications and saves FCM token to DB
 
+import * as Sentry from '@sentry/react'
 import { PushNotifications } from '@capacitor/push-notifications'
 import { Capacitor } from '@capacitor/core'
 import { supabase } from './supabase-client'
@@ -124,6 +125,9 @@ export async function registerPushNotifications(businessEntityId: string): Promi
 
     await PushNotifications.register()
   } catch (e) {
+    Sentry.captureException(e, {
+      tags: { flow: 'fcm_registration' },
+    })
     console.error('Push setup error:', e)
   }
 }

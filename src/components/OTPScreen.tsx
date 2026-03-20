@@ -1,3 +1,4 @@
+import * as Sentry from '@sentry/react'
 import { useState, useEffect } from 'react'
 import { Input } from '@/components/ui/input'
 import { sendEmailOTP, verifyEmailOTP, findOrCreateBusinessSession } from '@/lib/auth'
@@ -55,6 +56,9 @@ export function OTPScreen({ email, signupData, onSuccess, onBack }: OTPScreenPro
       const session = await findOrCreateBusinessSession(email, signupData)
       onSuccess(session.businessId)
     } catch (err) {
+      Sentry.captureException(err, {
+        tags: { flow: 'otp_verification' },
+      })
       console.error('OTP verification error:', err)
       setError('Incorrect code, please try again')
       setIsLoading(false)
