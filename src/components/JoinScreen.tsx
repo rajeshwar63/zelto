@@ -41,8 +41,8 @@ export function JoinScreen({ inviteCode, onJoinSuccess, onError, onNeedsLogin }:
     try {
       let token: string | null = null
       try {
-        const raw = localStorage.getItem('sb-cncimuwunjjxrlsnjstm-auth-token')
-        if (raw) token = JSON.parse(raw)?.access_token ?? null
+        const session = JSON.parse(localStorage.getItem('sb-app-auth-token') || '{}')
+        token = session?.access_token ?? null
       } catch { /* ignore */ }
       const response = await supabaseDirect.functions.invoke('accept-invite', {
         body: { inviteCode },
