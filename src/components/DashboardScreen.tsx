@@ -2,10 +2,17 @@ import { ArrowDown, ArrowUp, CaretRight, CurrencyInr, Hourglass, NotePencil, Pac
 import { CredibilityBadge } from '@/components/CredibilityBadge'
 import { BadgeInfoSheet } from '@/components/BadgeInfoSheet'
 import { ComplianceCard } from '@/components/ComplianceCard'
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import { useBusinessOverviewData } from '@/hooks/data/use-business-data'
-import { Carousel, CarouselApi, CarouselContent, CarouselItem } from '@/components/ui/carousel'
 import { OrderCard } from '@/components/order/OrderCard'
+
+function formatINR(amount: number): string {
+  return amount.toLocaleString('en-IN', {
+    maximumFractionDigits: 0,
+    style: 'currency',
+    currency: 'INR',
+  })
+}
 
 interface OrdersTabParams {
   role?: 'all' | 'buying' | 'selling'
@@ -26,28 +33,7 @@ interface Props {
 }
 
 export function DashboardScreen({ currentBusinessId, onNavigateToOrders, onNavigateToConnection, onNavigateToProfile, onNavigateToConnections, onNavigateToAttention, onNavigateToManageConnections, onNavigateToSupplierDocs, isActive = true }: Props) {
-  const [tradePositionCarouselApi, setTradePositionCarouselApi] = useState<CarouselApi>()
-  const [activeTradePositionSlide, setActiveTradePositionSlide] = useState(0)
   const [showBadgeInfo, setShowBadgeInfo] = useState(false)
-
-  useEffect(() => {
-    if (!tradePositionCarouselApi) {
-      return
-    }
-
-    const handleSelect = () => {
-      setActiveTradePositionSlide(tradePositionCarouselApi.selectedScrollSnap())
-    }
-
-    handleSelect()
-    tradePositionCarouselApi.on('select', handleSelect)
-    tradePositionCarouselApi.on('reInit', handleSelect)
-
-    return () => {
-      tradePositionCarouselApi.off('select', handleSelect)
-      tradePositionCarouselApi.off('reInit', handleSelect)
-    }
-  }, [tradePositionCarouselApi])
 
   const { data: overview, isInitialLoading } = useBusinessOverviewData(currentBusinessId, isActive)
   const recentOrders = overview?.recentOrders ?? []
@@ -78,13 +64,10 @@ export function DashboardScreen({ currentBusinessId, onNavigateToOrders, onNavig
     overdueOrdersCount: overview.overdueOrdersCount ?? 0,
     overdueAverageDelayDays: overview.overdueAverageDelayDays ?? 0,
     overdueChangeFromYesterday: overview.overdueChangeFromYesterday ?? 0,
-    tradePosition: overview.tradePosition ?? {
-      next7Days: { comingIn: 0, goingOut: 0, net: 0, comingInOrders: 0, goingOutOrders: 0 },
-      next30Days: { comingIn: 0, goingOut: 0, net: 0, comingInOrders: 0, goingOutOrders: 0 },
-      past7Days: { moneyPaid: 0, moneyReceived: 0, receivedOrders: 0, paidOrders: 0 },
-      past30Days: { moneyPaid: 0, moneyReceived: 0, receivedOrders: 0, paidOrders: 0 },
-    },
   }
+
+  const toReceiveOrders = (overview.tradePosition?.next30Days?.comingInOrders ?? 0)
+  const toPayOrders = (overview.tradePosition?.next30Days?.goingOutOrders ?? 0)
   return (
     <div className="flex flex-col h-full">
       <div className="sticky top-0 bg-white z-10" style={{ paddingTop: 'env(safe-area-inset-top)' }}>
@@ -124,190 +107,133 @@ export function DashboardScreen({ currentBusinessId, onNavigateToOrders, onNavig
       </div>
 
       <div className="flex-1 overflow-y-auto px-4 py-3 space-y-6 pb-24" style={{ backgroundColor: 'var(--bg-screen)' }}>
-        <div>
-          <div className="rounded-2xl border border-border bg-card p-4">
-            <h2 className="text-[16px] font-semibold text-foreground">Trade Position</h2>
-            <div className="grid grid-cols-4 mt-2 rounded-lg overflow-hidden border border-border">
-              {[['Next', '7 Days'], ['Next', '30 Days'], ['Past', '7 Days'], ['Past', '30 Days']].map(([prefix, days], index) => (
-                <button
-                  key={`${prefix}-${days}`}
-                  type="button"
-                  onClick={() => tradePositionCarouselApi?.scrollTo(index)}
-                  className={`py-1.5 text-center transition-colors ${index > 0 ? 'border-l border-border' : ''} ${
-                    activeTradePositionSlide === index
-                      ? 'bg-[var(--status-delivered)] text-white'
-                      : 'bg-transparent text-muted-foreground hover:text-foreground'
-                  }`}
-                >
-                  <span className="block text-[9px] font-normal leading-tight">{prefix}</span>
-                  <span className="block text-[11px] font-semibold leading-tight">{days}</span>
-                </button>
-              ))}
+        {/* Trade Position — To Receive / To Pay */}
+        <div className="grid grid-cols-2 gap-[10px]">
+          {/* To Receive */}
+          <div
+            className="rounded-[14px] p-[14px] relative overflow-hidden cursor-pointer"
+            style={{
+              backgroundColor: 'var(--status-delivered-bg, #F0FFF6)',
+              border: '1px solid rgba(34, 181, 115, 0.15)',
+            }}
+            onClick={() => onNavigateToOrders('selling', { role: 'selling' })}
+          >
+            {/* Decorative circle */}
+            <div
+              className="absolute"
+              style={{
+                top: -8,
+                right: -8,
+                width: 48,
+                height: 48,
+                borderRadius: '50%',
+                backgroundColor: 'rgba(34, 181, 115, 0.06)',
+              }}
+            />
+
+            {/* Icon + label row */}
+            <div className="flex items-center gap-[6px] mb-[10px]">
+              <div
+                className="flex items-center justify-center"
+                style={{
+                  width: 24,
+                  height: 24,
+                  borderRadius: 7,
+                  backgroundColor: 'rgba(34, 181, 115, 0.15)',
+                }}
+              >
+                <ArrowDown size={14} weight="bold" color="#22B573" />
+              </div>
+              <span
+                className="text-[12px] font-semibold"
+                style={{ color: 'var(--text-secondary, #8492A6)' }}
+              >
+                To receive
+              </span>
             </div>
 
-            <Carousel setApi={setTradePositionCarouselApi} opts={{ align: 'start' }} className="mt-3">
-              <CarouselContent className="-ml-0">
-                {/* Next 7 Days */}
-                <CarouselItem className="pl-0">
-                  <div className="space-y-0 divide-y divide-border/60">
-                    <div className="flex items-center gap-3 py-4">
-                      <div className="relative flex-shrink-0">
-                        <div className="flex h-9 w-9 items-center justify-center rounded-full bg-[var(--status-delivered)]/12 text-[var(--status-delivered)]">
-                          <CurrencyInr size={17} weight="bold" />
-                        </div>
-                        <span className="absolute -top-0.5 -right-0.5 flex h-4 w-4 items-center justify-center rounded-full bg-[var(--status-delivered)] text-white">
-                          <ArrowDown size={9} weight="bold" />
-                        </span>
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-baseline gap-1.5 flex-wrap">
-                          <span className="text-[20px] font-bold text-[var(--status-delivered)]">₹{data.tradePosition.next7Days.comingIn.toLocaleString('en-IN')}</span>
-                          <span className="text-[15px] font-semibold text-foreground">To Receive</span>
-                        </div>
-                        <p className="text-[12px] text-muted-foreground mt-0.5">from {data.tradePosition.next7Days.comingInOrders} orders</p>
-                      </div>
-                    </div>
+            {/* Amount */}
+            <p
+              className="text-[24px] font-extrabold m-0"
+              style={{
+                color: 'var(--status-delivered, #22B573)',
+                letterSpacing: '-0.03em',
+              }}
+            >
+              {formatINR(data.toReceive)}
+            </p>
 
-                    <div className="flex items-center gap-3 py-4">
-                      <div className="relative flex-shrink-0">
-                        <div className="flex h-9 w-9 items-center justify-center rounded-full bg-destructive/10 text-destructive">
-                          <CurrencyInr size={17} weight="bold" />
-                        </div>
-                        <span className="absolute -top-0.5 -right-0.5 flex h-4 w-4 items-center justify-center rounded-full bg-destructive text-white">
-                          <ArrowUp size={9} weight="bold" />
-                        </span>
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-baseline gap-1.5 flex-wrap">
-                          <span className="text-[20px] font-bold text-destructive">₹{data.tradePosition.next7Days.goingOut.toLocaleString('en-IN')}</span>
-                          <span className="text-[15px] font-semibold text-foreground">To Pay</span>
-                        </div>
-                        <p className="text-[12px] text-muted-foreground mt-0.5">for {data.tradePosition.next7Days.goingOutOrders} orders</p>
-                      </div>
-                    </div>
-                  </div>
-                  <p className="pt-2 text-center text-[11px] text-muted-foreground border-t border-border/60">Includes overdue amounts</p>
-                </CarouselItem>
-
-                {/* Next 30 Days */}
-                <CarouselItem className="pl-0">
-                  <div className="space-y-0 divide-y divide-border/60">
-                    <div className="flex items-center gap-3 py-4">
-                      <div className="relative flex-shrink-0">
-                        <div className="flex h-9 w-9 items-center justify-center rounded-full bg-[var(--status-delivered)]/12 text-[var(--status-delivered)]">
-                          <CurrencyInr size={17} weight="bold" />
-                        </div>
-                        <span className="absolute -top-0.5 -right-0.5 flex h-4 w-4 items-center justify-center rounded-full bg-[var(--status-delivered)] text-white">
-                          <ArrowDown size={9} weight="bold" />
-                        </span>
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-baseline gap-1.5 flex-wrap">
-                          <span className="text-[20px] font-bold text-[var(--status-delivered)]">₹{data.tradePosition.next30Days.comingIn.toLocaleString('en-IN')}</span>
-                          <span className="text-[15px] font-semibold text-foreground">To Receive</span>
-                        </div>
-                        <p className="text-[12px] text-muted-foreground mt-0.5">from {data.tradePosition.next30Days.comingInOrders} orders</p>
-                      </div>
-                    </div>
-
-                    <div className="flex items-center gap-3 py-4">
-                      <div className="relative flex-shrink-0">
-                        <div className="flex h-9 w-9 items-center justify-center rounded-full bg-destructive/10 text-destructive">
-                          <CurrencyInr size={17} weight="bold" />
-                        </div>
-                        <span className="absolute -top-0.5 -right-0.5 flex h-4 w-4 items-center justify-center rounded-full bg-destructive text-white">
-                          <ArrowUp size={9} weight="bold" />
-                        </span>
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-baseline gap-1.5 flex-wrap">
-                          <span className="text-[20px] font-bold text-destructive">₹{data.tradePosition.next30Days.goingOut.toLocaleString('en-IN')}</span>
-                          <span className="text-[15px] font-semibold text-foreground">To Pay</span>
-                        </div>
-                        <p className="text-[12px] text-muted-foreground mt-0.5">for {data.tradePosition.next30Days.goingOutOrders} orders</p>
-                      </div>
-                    </div>
-                  </div>
-                  <p className="pt-2 text-center text-[11px] text-muted-foreground border-t border-border/60">Includes overdue amounts</p>
-                </CarouselItem>
-
-                {/* Past 7 Days */}
-                <CarouselItem className="pl-0">
-                  <div className="space-y-0 divide-y divide-border/60">
-                    <div className="flex items-center gap-3 py-4">
-                      <div className="relative flex-shrink-0">
-                        <div className="flex h-9 w-9 items-center justify-center rounded-full bg-[var(--status-delivered)]/12 text-[var(--status-delivered)]">
-                          <CurrencyInr size={17} weight="bold" />
-                        </div>
-                        <span className="absolute -top-0.5 -right-0.5 flex h-4 w-4 items-center justify-center rounded-full bg-[var(--status-delivered)] text-white">
-                          <ArrowDown size={9} weight="bold" />
-                        </span>
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <p className="text-[14px] font-semibold text-foreground">Money Received</p>
-                        <p className="text-[22px] font-bold text-[var(--status-delivered)] leading-tight">₹{data.tradePosition.past7Days.moneyReceived.toLocaleString('en-IN')}</p>
-                      </div>
-                      <p className="text-[12px] text-muted-foreground flex-shrink-0">from {data.tradePosition.past7Days.receivedOrders} orders</p>
-                    </div>
-
-                    <div className="flex items-center gap-3 py-4">
-                      <div className="relative flex-shrink-0">
-                        <div className="flex h-9 w-9 items-center justify-center rounded-full bg-destructive/10 text-destructive">
-                          <CurrencyInr size={17} weight="bold" />
-                        </div>
-                        <span className="absolute -top-0.5 -right-0.5 flex h-4 w-4 items-center justify-center rounded-full bg-destructive text-white">
-                          <ArrowUp size={9} weight="bold" />
-                        </span>
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <p className="text-[14px] font-semibold text-foreground">Money Paid</p>
-                        <p className="text-[22px] font-bold text-foreground leading-tight">₹{data.tradePosition.past7Days.moneyPaid.toLocaleString('en-IN')}</p>
-                      </div>
-                      <p className="text-[12px] text-muted-foreground flex-shrink-0">to {data.tradePosition.past7Days.paidOrders} orders</p>
-                    </div>
-                  </div>
-                </CarouselItem>
-
-                {/* Past 30 Days */}
-                <CarouselItem className="pl-0">
-                  <div className="space-y-0 divide-y divide-border/60">
-                    <div className="flex items-center gap-3 py-4">
-                      <div className="relative flex-shrink-0">
-                        <div className="flex h-9 w-9 items-center justify-center rounded-full bg-[var(--status-delivered)]/12 text-[var(--status-delivered)]">
-                          <CurrencyInr size={17} weight="bold" />
-                        </div>
-                        <span className="absolute -top-0.5 -right-0.5 flex h-4 w-4 items-center justify-center rounded-full bg-[var(--status-delivered)] text-white">
-                          <ArrowDown size={9} weight="bold" />
-                        </span>
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <p className="text-[14px] font-semibold text-foreground">Money Received</p>
-                        <p className="text-[22px] font-bold text-[var(--status-delivered)] leading-tight">₹{data.tradePosition.past30Days.moneyReceived.toLocaleString('en-IN')}</p>
-                      </div>
-                      <p className="text-[12px] text-muted-foreground flex-shrink-0">from {data.tradePosition.past30Days.receivedOrders} orders</p>
-                    </div>
-
-                    <div className="flex items-center gap-3 py-4">
-                      <div className="relative flex-shrink-0">
-                        <div className="flex h-9 w-9 items-center justify-center rounded-full bg-destructive/10 text-destructive">
-                          <CurrencyInr size={17} weight="bold" />
-                        </div>
-                        <span className="absolute -top-0.5 -right-0.5 flex h-4 w-4 items-center justify-center rounded-full bg-destructive text-white">
-                          <ArrowUp size={9} weight="bold" />
-                        </span>
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <p className="text-[14px] font-semibold text-foreground">Money Paid</p>
-                        <p className="text-[22px] font-bold text-foreground leading-tight">₹{data.tradePosition.past30Days.moneyPaid.toLocaleString('en-IN')}</p>
-                      </div>
-                      <p className="text-[12px] text-muted-foreground flex-shrink-0">to {data.tradePosition.past30Days.paidOrders} orders</p>
-                    </div>
-                  </div>
-                </CarouselItem>
-              </CarouselContent>
-            </Carousel>
+            {/* Order count */}
+            <p
+              className="text-[11px] font-medium mt-1 m-0"
+              style={{ color: 'var(--text-secondary, #8492A6)' }}
+            >
+              from {toReceiveOrders} {toReceiveOrders === 1 ? 'order' : 'orders'}
+            </p>
           </div>
 
+          {/* To Pay */}
+          <div
+            className="rounded-[14px] p-[14px] relative overflow-hidden cursor-pointer"
+            style={{
+              backgroundColor: 'var(--status-overdue-bg, #FFF0F0)',
+              border: '1px solid rgba(255, 107, 107, 0.12)',
+            }}
+            onClick={() => onNavigateToOrders('buying', { role: 'buying' })}
+          >
+            {/* Decorative circle */}
+            <div
+              className="absolute"
+              style={{
+                top: -8,
+                right: -8,
+                width: 48,
+                height: 48,
+                borderRadius: '50%',
+                backgroundColor: 'rgba(255, 107, 107, 0.06)',
+              }}
+            />
+
+            {/* Icon + label row */}
+            <div className="flex items-center gap-[6px] mb-[10px]">
+              <div
+                className="flex items-center justify-center"
+                style={{
+                  width: 24,
+                  height: 24,
+                  borderRadius: 7,
+                  backgroundColor: 'rgba(255, 107, 107, 0.15)',
+                }}
+              >
+                <ArrowUp size={14} weight="bold" color="#FF6B6B" />
+              </div>
+              <span
+                className="text-[12px] font-semibold"
+                style={{ color: 'var(--text-secondary, #8492A6)' }}
+              >
+                To pay
+              </span>
+            </div>
+
+            {/* Amount */}
+            <p
+              className="text-[24px] font-extrabold m-0"
+              style={{
+                color: 'var(--status-overdue, #FF6B6B)',
+                letterSpacing: '-0.03em',
+              }}
+            >
+              {formatINR(data.toPay)}
+            </p>
+
+            {/* Order count */}
+            <p
+              className="text-[11px] font-medium mt-1 m-0"
+              style={{ color: data.toPay === 0 ? 'var(--text-tertiary, #B0B8C4)' : 'var(--text-secondary, #8492A6)' }}
+            >
+              {toPayOrders === 0 ? '0 orders' : `from ${toPayOrders} ${toPayOrders === 1 ? 'order' : 'orders'}`}
+            </p>
+          </div>
         </div>
 
         <div>
