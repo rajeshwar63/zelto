@@ -380,7 +380,7 @@ export function ConnectionsScreen({ currentBusinessId, onSelectConnection, onAdd
             const amountDirectionColor = isSupplier ? '#16A34A' : '#DC2626'
 
             const lastActivity = formatLastActivity(conn.lastActivityAt)
-            const subtitleParts = [conn.otherBusinessType, formattedTerms].filter(Boolean)
+            const subtitleParts = [conn.otherBusinessType].filter(Boolean)
 
             return (
               <div
