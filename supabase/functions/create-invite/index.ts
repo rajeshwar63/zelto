@@ -100,7 +100,7 @@ serve(async (req) => {
     // Resolve caller's user_account and verify Admin role
     const { data: callerAccount, error: accountError } = await serviceClient
       .from('user_accounts')
-      .select('id, business_entity_id')
+      .select('id, business_entity_id, role')
       .eq('auth_user_id', user.id)
       .single()
 
@@ -119,23 +119,19 @@ serve(async (req) => {
       })
     }
 
-    // Check caller is Admin
-    const { data: membership, error: memberError } = await serviceClient
+    // Check caller is Admin — owners are also permitted
+    const { data: membership } = await serviceClient
       .from('business_members')
       .select('role')
       .eq('business_entity_id', callerAccount.business_entity_id)
       .eq('user_account_id', callerAccount.id)
-      .single()
+      .maybeSingle()
 
-    if (memberError || !membership) {
-      console.error('[create-invite] Failed to resolve membership:', memberError)
-      return new Response(JSON.stringify({ error: 'Business membership not found' }), {
-        status: 403,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      })
-    }
+    const isAdmin = membership?.role === 'admin' ||
+                    callerAccount.role === 'owner' ||
+                    callerAccount.role === 'admin'
 
-    if (membership.role !== 'admin') {
+    if (!isAdmin) {
       return new Response(JSON.stringify({ error: 'Only Admins can create invites' }), {
         status: 403,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
