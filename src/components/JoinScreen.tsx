@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { supabase, supabaseDirect } from '@/lib/supabase-client'
+import { supabaseDirect } from '@/lib/supabase-client'
 import { getLocalAuthSessionSync, setAuthSession } from '@/lib/auth'
 import type { AuthSession } from '@/lib/auth'
 import { toast } from 'sonner'
@@ -30,8 +30,8 @@ export function JoinScreen({ inviteCode, onJoinSuccess, onError, onNeedsLogin }:
 
   async function handleJoin() {
     // Check if logged in
-    const session = getLocalAuthSessionSync()
-    if (!session) {
+    const localSession = getLocalAuthSessionSync()
+    if (!localSession) {
       onNeedsLogin(inviteCode)
       return
     }
@@ -39,11 +39,8 @@ export function JoinScreen({ inviteCode, onJoinSuccess, onError, onNeedsLogin }:
     setStatus('accepting')
 
     try {
-      const { data: { session } } = await supabase.auth.getSession()
-      const token = session?.access_token
       const response = await supabaseDirect.functions.invoke('accept-invite', {
-        body: { inviteCode },
-        ...(token ? { headers: { Authorization: `Bearer ${token}` } } : {}),
+        body: { inviteCode, userId: localSession.userId },
       })
 
       if (response.error) {
@@ -71,13 +68,13 @@ export function JoinScreen({ inviteCode, onJoinSuccess, onError, onNeedsLogin }:
 
       if (businessId) {
         const updatedSession: AuthSession = {
-          ...session,
+          ...localSession,
           businessId,
         }
         await setAuthSession(updatedSession)
       }
 
-      onJoinSuccess(businessId || session.businessId, businessName || 'the business')
+      onJoinSuccess(businessId || localSession.businessId, businessName || 'the business')
     } catch (err) {
       console.error('Accept invite error:', err)
       setStatus('error')

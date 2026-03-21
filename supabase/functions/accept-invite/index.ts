@@ -6,7 +6,6 @@ import { serve } from 'https://deno.land/std@0.168.0/http/server.ts'
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!
-const SUPABASE_ANON_KEY = Deno.env.get('SUPABASE_ANON_KEY')!
 const SUPABASE_SERVICE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
 
 const corsHeaders = {
@@ -17,6 +16,7 @@ const corsHeaders = {
 
 interface RequestBody {
   inviteCode: string
+  userId: string
 }
 
 serve(async (req) => {
@@ -32,32 +32,18 @@ serve(async (req) => {
   }
 
   try {
-    // Authenticate caller via JWT
-    const authHeader = req.headers.get('Authorization')
-    if (!authHeader) {
-      return new Response(JSON.stringify({ error: 'Missing authorization header' }), {
-        status: 401,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      })
-    }
-
-    const userClient = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
-      global: { headers: { Authorization: authHeader } },
-    })
-
-    const { data: { user }, error: authError } = await userClient.auth.getUser()
-    if (authError || !user) {
-      return new Response(JSON.stringify({ error: 'Unauthorized' }), {
-        status: 401,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      })
-    }
-
     // Parse request body
     const body: RequestBody = await req.json()
 
     if (!body.inviteCode || typeof body.inviteCode !== 'string') {
       return new Response(JSON.stringify({ error: 'inviteCode is required' }), {
+        status: 400,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      })
+    }
+
+    if (!body.userId) {
+      return new Response(JSON.stringify({ error: 'userId is required' }), {
         status: 400,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       })
@@ -105,7 +91,6 @@ serve(async (req) => {
     const now = new Date()
     const expiresAt = new Date(invite.expires_at)
     if (now > expiresAt) {
-      // Mark as expired
       await serviceClient
         .from('business_invites')
         .update({ status: 'expired' })
@@ -120,11 +105,11 @@ serve(async (req) => {
       })
     }
 
-    // Resolve caller's user_account
+    // Resolve caller's user_account by userId
     const { data: callerAccount, error: accountError } = await serviceClient
       .from('user_accounts')
       .select('id, email, business_entity_id')
-      .eq('auth_user_id', user.id)
+      .eq('id', body.userId)
       .single()
 
     if (accountError || !callerAccount) {
@@ -220,9 +205,6 @@ serve(async (req) => {
         })
         .eq('id', invite.id)
     } else {
-      // Link invites are reusable — just record this acceptance
-      // We don't change status to 'accepted' so others can still use it
-      // accepted_by/accepted_at track the last user who accepted
       await serviceClient
         .from('business_invites')
         .update({
