@@ -35,6 +35,21 @@ export function getLocalAuthSessionSync(): AuthSession | null {
   return session
 }
 
+export async function signInWithGoogle(): Promise<void> {
+  const { error } = await supabase.auth.signInWithOAuth({
+    provider: 'google',
+    options: {
+      redirectTo: `${window.location.origin}/auth/callback`,
+      queryParams: {
+        access_type: 'offline',
+        prompt: 'select_account',
+      },
+    },
+  })
+  if (error) throw new Error(error.message)
+  // Supabase redirects the browser — no return value needed
+}
+
 export async function sendEmailOTP(email: string): Promise<void> {
   const { error } = await supabase.auth.signInWithOtp({
     email,
@@ -127,10 +142,13 @@ export async function findOrCreateBusinessSession(
     userId = userAccount.id
   } else {
     const businessName = signupData?.businessName || email.split('@')[0]
-    const username = signupData?.name || email.split('@')[0]
 
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) throw new Error('Not authenticated')
+
+    const username = signupData?.name
+      || user.user_metadata?.full_name
+      || email.split('@')[0]
 
     const businessEntity = await dataStore.createBusinessEntity(businessName)
     const newAccount = await dataStore.createUserAccount(email, businessEntity.id, {
