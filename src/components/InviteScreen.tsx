@@ -2,8 +2,19 @@ import { useState } from 'react'
 import { supabaseDirect } from '@/lib/supabase-client'
 
 function getAccessToken(): string | null {
+  // DEBUG: log all localStorage keys related to supabase/sb-
+  const matchingKeys: string[] = []
+  for (let i = 0; i < localStorage.length; i++) {
+    const key = localStorage.key(i)
+    if (key && (key.toLowerCase().includes('supabase') || key.includes('sb-'))) {
+      matchingKeys.push(key)
+    }
+  }
+  console.log('[DEBUG] Supabase-related localStorage keys:', matchingKeys)
+
   try {
     const raw = localStorage.getItem('sb-cncimuwunjjxrlsnjstm-auth-token')
+    console.log('[DEBUG] sb-cncimuwunjjxrlsnjstm-auth-token raw:', raw ? 'found' : 'null')
     if (!raw) return null
     const parsed = JSON.parse(raw)
     return parsed?.access_token ?? null
