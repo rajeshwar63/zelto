@@ -1,12 +1,10 @@
 // supabase/functions/create-invite/index.ts
 // Creates a business invite (link or email) for team member onboarding.
-// Only Admins can create invites.
 
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts'
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!
-const SUPABASE_ANON_KEY = Deno.env.get('SUPABASE_ANON_KEY')!
 const SUPABASE_SERVICE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
 const RESEND_API_KEY = Deno.env.get('RESEND_API_KEY') || ''
 
@@ -22,6 +20,7 @@ interface RequestBody {
   type: 'link' | 'email'
   role: 'admin' | 'member'
   email?: string
+  businessId: string
 }
 
 // Generate a URL-safe invite code (12 chars, alphanumeric)
@@ -49,29 +48,15 @@ serve(async (req) => {
   }
 
   try {
-    // Authenticate caller via JWT
-    const authHeader = req.headers.get('Authorization')
-    if (!authHeader) {
-      return new Response(JSON.stringify({ error: 'Missing authorization header' }), {
-        status: 401,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      })
-    }
-
-    const userClient = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
-      global: { headers: { Authorization: authHeader } },
-    })
-
-    const { data: { user }, error: authError } = await userClient.auth.getUser()
-    if (authError || !user) {
-      return new Response(JSON.stringify({ error: 'Unauthorized' }), {
-        status: 401,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      })
-    }
-
     // Parse request body
     const body: RequestBody = await req.json()
+
+    if (!body.businessId) {
+      return new Response(JSON.stringify({ error: 'Missing businessId' }), {
+        status: 400,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      })
+    }
 
     if (!body.type || !['link', 'email'].includes(body.type)) {
       return new Response(JSON.stringify({ error: 'Invalid invite type. Must be "link" or "email".' }), {
@@ -94,45 +79,20 @@ serve(async (req) => {
       })
     }
 
-    // Use service-role client for DB operations
     const serviceClient = createClient(SUPABASE_URL, SUPABASE_SERVICE_KEY)
 
-    // Resolve caller's user_account and verify Admin role
+    // Verify business exists and find an owner/admin caller
     const { data: callerAccount, error: accountError } = await serviceClient
       .from('user_accounts')
       .select('id, business_entity_id, role')
-      .eq('auth_user_id', user.id)
+      .eq('business_entity_id', body.businessId)
+      .in('role', ['owner', 'admin'])
+      .limit(1)
       .single()
 
     if (accountError || !callerAccount) {
-      console.error('[create-invite] Failed to resolve user account:', accountError)
-      return new Response(JSON.stringify({ error: 'User account not found' }), {
-        status: 404,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      })
-    }
-
-    if (!callerAccount.business_entity_id) {
-      return new Response(JSON.stringify({ error: 'User is not associated with a business' }), {
-        status: 400,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      })
-    }
-
-    // Check caller is Admin — owners are also permitted
-    const { data: membership } = await serviceClient
-      .from('business_members')
-      .select('role')
-      .eq('business_entity_id', callerAccount.business_entity_id)
-      .eq('user_account_id', callerAccount.id)
-      .maybeSingle()
-
-    const isAdmin = membership?.role === 'admin' ||
-                    callerAccount.role === 'owner' ||
-                    callerAccount.role === 'admin'
-
-    if (!isAdmin) {
-      return new Response(JSON.stringify({ error: 'Only Admins can create invites' }), {
+      console.error('[create-invite] No admin/owner found for business:', accountError)
+      return new Response(JSON.stringify({ error: 'Business not found or no admin access' }), {
         status: 403,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       })
@@ -167,7 +127,7 @@ serve(async (req) => {
     const { data: invite, error: insertError } = await serviceClient
       .from('business_invites')
       .insert({
-        business_entity_id: callerAccount.business_entity_id,
+        business_entity_id: body.businessId,
         invited_by: callerAccount.id,
         invite_type: body.type,
         invite_code: inviteCode,
@@ -190,11 +150,10 @@ serve(async (req) => {
 
     // Send email if email invite and Resend is configured
     if (body.type === 'email' && body.email && RESEND_API_KEY) {
-      // Fetch business name for the email
       const { data: business } = await serviceClient
         .from('business_entities')
         .select('business_name')
-        .eq('id', callerAccount.business_entity_id)
+        .eq('id', body.businessId)
         .single()
 
       const businessName = business?.business_name || 'A business'
@@ -229,11 +188,9 @@ serve(async (req) => {
         if (!emailRes.ok) {
           const emailError = await emailRes.text()
           console.error('[create-invite] Resend email failed:', emailError)
-          // Don't fail the invite creation — email is best-effort
         }
       } catch (emailErr) {
         console.error('[create-invite] Email send error:', emailErr)
-        // Don't fail the invite creation — email is best-effort
       }
     }
 
