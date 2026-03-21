@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { supabase } from '@/lib/supabase-client'
+import { supabaseDirect } from '@/lib/supabase-client'
 import { toast } from 'sonner'
 import { ArrowLeft, Link, ShareNetwork, Envelope } from '@phosphor-icons/react'
 
@@ -20,7 +20,7 @@ export function InviteScreen({ currentBusinessId, onBack }: Props) {
   const generateLink = async (selectedRole: InviteRole) => {
     setGeneratingLink(true)
     try {
-      const { data, error } = await supabase.functions.invoke('create-invite', {
+      const { data, error } = await supabaseDirect.functions.invoke('create-invite', {
         body: { type: 'link', role: selectedRole },
       })
 
@@ -94,7 +94,7 @@ export function InviteScreen({ currentBusinessId, onBack }: Props) {
 
     setSendingEmail(true)
     try {
-      const { data, error } = await supabase.functions.invoke('create-invite', {
+      const { data, error } = await supabaseDirect.functions.invoke('create-invite', {
         body: { type: 'email', role, email: trimmed },
       })
 

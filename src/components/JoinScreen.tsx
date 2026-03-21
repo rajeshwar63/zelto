@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { supabase } from '@/lib/supabase-client'
+import { supabaseDirect } from '@/lib/supabase-client'
 import { getLocalAuthSessionSync, setAuthSession } from '@/lib/auth'
 import type { AuthSession } from '@/lib/auth'
 import { toast } from 'sonner'
@@ -39,7 +39,7 @@ export function JoinScreen({ inviteCode, onJoinSuccess, onError, onNeedsLogin }:
     setStatus('accepting')
 
     try {
-      const response = await supabase.functions.invoke('accept-invite', {
+      const response = await supabaseDirect.functions.invoke('accept-invite', {
         body: { inviteCode },
       })
 
