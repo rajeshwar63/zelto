@@ -1,6 +1,8 @@
 import { useState, useEffect } from 'react'
-import { ArrowLeft, DownloadSimple, ShareNetwork, Receipt, CheckCircle, Info } from '@phosphor-icons/react'
+import { ArrowLeft, DownloadSimple, ShareNetwork, Receipt, CheckCircle, Info, SpinnerGap } from '@phosphor-icons/react'
 import { dataStore } from '@/lib/data-store'
+import { supabaseDirect } from '@/lib/supabase-client'
+import { toast } from 'sonner'
 import { formatInrCurrency } from '@/lib/utils'
 import type { Invoice, InvoiceLineItem, BusinessEntity } from '@/lib/types'
 
@@ -22,6 +24,7 @@ export function InvoiceViewScreen({ invoiceId, currentBusinessId, onBack }: Prop
   const [buyerBusiness, setBuyerBusiness] = useState<BusinessEntity | null>(null)
   const [loading, setLoading] = useState(true)
   const [pdfUrl, setPdfUrl] = useState<string | null>(null)
+  const [generatingPdf, setGeneratingPdf] = useState(false)
 
   const isSupplier = invoice?.supplierBusinessEntityId === currentBusinessId
 
@@ -80,6 +83,32 @@ export function InvoiceViewScreen({ invoiceId, currentBusinessId, onBack }: Prop
   const handleDownload = () => {
     if (!pdfUrl) return
     window.open(pdfUrl, '_blank')
+  }
+
+  const handleGeneratePdf = async () => {
+    setGeneratingPdf(true)
+    try {
+      const { error: fnError } = await supabaseDirect.functions.invoke('generate-invoice', {
+        body: { invoice_id: invoiceId, businessId: currentBusinessId },
+      })
+      if (fnError) throw fnError
+
+      // Refresh invoice to get new pdfUrl
+      const inv = await dataStore.getInvoiceById(invoiceId)
+      if (inv?.pdfUrl) {
+        const signedUrl = await dataStore.getSignedInvoiceUrl(inv.pdfUrl)
+        if (signedUrl) setPdfUrl(signedUrl)
+        setInvoice(inv)
+        toast.success('PDF generated')
+      } else {
+        toast.error('PDF generation completed but no URL returned')
+      }
+    } catch (err) {
+      console.error('PDF generation failed:', err)
+      toast.error('Failed to generate PDF')
+    } finally {
+      setGeneratingPdf(false)
+    }
   }
 
   if (loading) {
@@ -292,6 +321,37 @@ export function InvoiceViewScreen({ invoiceId, currentBusinessId, onBack }: Prop
 
       {/* Footer actions */}
       <div className="flex gap-3 px-4 py-3" style={{ paddingBottom: 'calc(env(safe-area-inset-bottom) + 12px)', borderTop: '1px solid rgba(0,0,0,0.06)' }}>
+        {!pdfUrl && (
+          <button
+            onClick={handleGeneratePdf}
+            disabled={generatingPdf}
+            className="flex items-center justify-center gap-2"
+            style={{
+              flex: 1,
+              padding: '14px',
+              fontSize: '14px',
+              fontWeight: 600,
+              color: '#FFFFFF',
+              backgroundColor: '#4A6CF7',
+              borderRadius: '14px',
+              border: 'none',
+              cursor: generatingPdf ? 'not-allowed' : 'pointer',
+              opacity: generatingPdf ? 0.7 : 1,
+            }}
+          >
+            {generatingPdf ? (
+              <>
+                <SpinnerGap size={18} className="animate-spin" />
+                Generating...
+              </>
+            ) : (
+              <>
+                <Receipt size={18} />
+                Generate PDF
+              </>
+            )}
+          </button>
+        )}
         <button
           onClick={handleShare}
           disabled={!pdfUrl}
