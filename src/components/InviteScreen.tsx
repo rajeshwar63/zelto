@@ -1,5 +1,16 @@
 import { useState } from 'react'
-import { supabase, supabaseDirect } from '@/lib/supabase-client'
+import { supabaseDirect } from '@/lib/supabase-client'
+
+function getAccessToken(): string | null {
+  try {
+    const raw = localStorage.getItem('sb-cncimuwunjjxrlsnjstm-auth-token')
+    if (!raw) return null
+    const parsed = JSON.parse(raw)
+    return parsed?.access_token ?? null
+  } catch {
+    return null
+  }
+}
 import { toast } from 'sonner'
 import { ArrowLeft, Link, ShareNetwork, Envelope } from '@phosphor-icons/react'
 
@@ -20,10 +31,11 @@ export function InviteScreen({ currentBusinessId, onBack }: Props) {
   const generateLink = async (selectedRole: InviteRole) => {
     setGeneratingLink(true)
     try {
-      const { data: { session } } = await supabase.auth.getSession()
+      const token = getAccessToken()
+      if (!token) throw new Error('Not authenticated')
       const { data, error } = await supabaseDirect.functions.invoke('create-invite', {
         body: { type: 'link', role: selectedRole },
-        headers: { Authorization: `Bearer ${session?.access_token}` },
+        headers: { Authorization: `Bearer ${token}` },
       })
 
       if (error) throw new Error(data?.error || error.message || 'Failed to generate invite link')
@@ -96,10 +108,11 @@ export function InviteScreen({ currentBusinessId, onBack }: Props) {
 
     setSendingEmail(true)
     try {
-      const { data: { session } } = await supabase.auth.getSession()
+      const token = getAccessToken()
+      if (!token) throw new Error('Not authenticated')
       const { data, error } = await supabaseDirect.functions.invoke('create-invite', {
         body: { type: 'email', role, email: trimmed },
-        headers: { Authorization: `Bearer ${session?.access_token}` },
+        headers: { Authorization: `Bearer ${token}` },
       })
 
       if (error) throw new Error(data?.error || error.message || 'Failed to send invite')
