@@ -223,7 +223,7 @@ export function InvoiceCreateScreen({ orderId, connectionId, currentBusinessId, 
         // Call edge function to generate PDF
         try {
           const { error: fnError } = await supabaseDirect.functions.invoke('generate-invoice', {
-            body: { invoice_id: invoice.id },
+            body: { invoice_id: invoice.id, businessId: currentBusinessId },
           })
 
           if (fnError) {
