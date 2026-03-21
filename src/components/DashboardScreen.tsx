@@ -113,8 +113,8 @@ export function DashboardScreen({ currentBusinessId, onNavigateToOrders, onNavig
           <div
             className="rounded-[14px] p-[14px] relative overflow-hidden cursor-pointer"
             style={{
-              backgroundColor: 'var(--status-delivered-bg, #F0FFF6)',
-              border: '1px solid rgba(34, 181, 115, 0.15)',
+              backgroundColor: 'var(--card-bg, #FFFFFF)',
+              border: '1px solid var(--border-color, #E8ECF0)',
             }}
             onClick={() => onNavigateToOrders('selling', { role: 'selling' })}
           >
@@ -127,7 +127,7 @@ export function DashboardScreen({ currentBusinessId, onNavigateToOrders, onNavig
                 width: 48,
                 height: 48,
                 borderRadius: '50%',
-                backgroundColor: 'rgba(34, 181, 115, 0.06)',
+                backgroundColor: 'transparent',
               }}
             />
 
@@ -139,7 +139,7 @@ export function DashboardScreen({ currentBusinessId, onNavigateToOrders, onNavig
                   width: 24,
                   height: 24,
                   borderRadius: 7,
-                  backgroundColor: 'rgba(34, 181, 115, 0.15)',
+                  backgroundColor: 'var(--surface-secondary, #F5F7FA)',
                 }}
               >
                 <ArrowDown size={14} weight="bold" color="#22B573" />
@@ -176,8 +176,8 @@ export function DashboardScreen({ currentBusinessId, onNavigateToOrders, onNavig
           <div
             className="rounded-[14px] p-[14px] relative overflow-hidden cursor-pointer"
             style={{
-              backgroundColor: 'var(--status-overdue-bg, #FFF0F0)',
-              border: '1px solid rgba(255, 107, 107, 0.12)',
+              backgroundColor: 'var(--card-bg, #FFFFFF)',
+              border: '1px solid var(--border-color, #E8ECF0)',
             }}
             onClick={() => onNavigateToOrders('buying', { role: 'buying' })}
           >
@@ -190,7 +190,7 @@ export function DashboardScreen({ currentBusinessId, onNavigateToOrders, onNavig
                 width: 48,
                 height: 48,
                 borderRadius: '50%',
-                backgroundColor: 'rgba(255, 107, 107, 0.06)',
+                backgroundColor: 'transparent',
               }}
             />
 
@@ -202,7 +202,7 @@ export function DashboardScreen({ currentBusinessId, onNavigateToOrders, onNavig
                   width: 24,
                   height: 24,
                   borderRadius: 7,
-                  backgroundColor: 'rgba(255, 107, 107, 0.15)',
+                  backgroundColor: 'var(--surface-secondary, #F5F7FA)',
                 }}
               >
                 <ArrowUp size={14} weight="bold" color="#FF6B6B" />
