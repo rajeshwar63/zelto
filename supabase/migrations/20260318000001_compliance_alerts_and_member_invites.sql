@@ -53,6 +53,7 @@ $$;
 -- Returns up to 50 compliance issues from suppliers of p_business_id.
 -- issue_type: 'expired' | 'expiring' (within 30 days) | 'missing' (no docs at all)
 -- Sorted: expired first, then expiring soonest, then missing.
+DROP FUNCTION IF EXISTS get_compliance_alerts(uuid);
 CREATE OR REPLACE FUNCTION get_compliance_alerts(p_business_id uuid)
 RETURNS TABLE (
   connection_id          uuid,

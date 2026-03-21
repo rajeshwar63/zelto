@@ -11,17 +11,26 @@ CREATE INDEX IF NOT EXISTS idx_user_preferences_auth_user_id ON user_preferences
 ALTER TABLE user_preferences ENABLE ROW LEVEL SECURITY;
 
 -- Users can only read their own preferences
-CREATE POLICY IF NOT EXISTS "user_preferences_select_own"
-  ON user_preferences FOR SELECT
-  USING (auth_user_id = auth.uid());
+DO $$ BEGIN
+  CREATE POLICY "user_preferences_select_own"
+    ON user_preferences FOR SELECT
+    USING (auth_user_id = auth.uid());
+EXCEPTION WHEN duplicate_object THEN NULL;
+END $$;
 
 -- Users can insert their own preferences
-CREATE POLICY IF NOT EXISTS "user_preferences_insert_own"
-  ON user_preferences FOR INSERT
-  WITH CHECK (auth_user_id = auth.uid());
+DO $$ BEGIN
+  CREATE POLICY "user_preferences_insert_own"
+    ON user_preferences FOR INSERT
+    WITH CHECK (auth_user_id = auth.uid());
+EXCEPTION WHEN duplicate_object THEN NULL;
+END $$;
 
 -- Users can update their own preferences
-CREATE POLICY IF NOT EXISTS "user_preferences_update_own"
-  ON user_preferences FOR UPDATE
-  USING (auth_user_id = auth.uid())
-  WITH CHECK (auth_user_id = auth.uid());
+DO $$ BEGIN
+  CREATE POLICY "user_preferences_update_own"
+    ON user_preferences FOR UPDATE
+    USING (auth_user_id = auth.uid())
+    WITH CHECK (auth_user_id = auth.uid());
+EXCEPTION WHEN duplicate_object THEN NULL;
+END $$;

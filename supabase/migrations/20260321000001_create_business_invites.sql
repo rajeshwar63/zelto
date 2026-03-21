@@ -1,4 +1,4 @@
-CREATE TABLE business_invites (
+CREATE TABLE IF NOT EXISTS business_invites (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   business_entity_id UUID NOT NULL REFERENCES business_entities(id) ON DELETE CASCADE,
   invited_by UUID NOT NULL REFERENCES user_accounts(id),

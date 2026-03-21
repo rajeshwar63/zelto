@@ -2,7 +2,7 @@
 -- Plus get_next_invoice_number RPC
 
 -- ============ INVOICE SETTINGS ============
-CREATE TABLE invoice_settings (
+CREATE TABLE IF NOT EXISTS invoice_settings (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   business_entity_id UUID NOT NULL REFERENCES business_entities(id) ON DELETE CASCADE,
   invoice_prefix TEXT NOT NULL DEFAULT 'INV-',
@@ -23,20 +23,26 @@ CREATE TABLE invoice_settings (
 
 ALTER TABLE invoice_settings ENABLE ROW LEVEL SECURITY;
 
-CREATE POLICY "business reads own invoice settings"
-  ON invoice_settings FOR ALL TO authenticated
-  USING (
-    business_entity_id IN (
-      SELECT business_entity_id FROM user_accounts WHERE auth_user_id = auth.uid()
-    )
-  );
+DO $$ BEGIN
+  CREATE POLICY "business reads own invoice settings"
+    ON invoice_settings FOR ALL TO authenticated
+    USING (
+      business_entity_id IN (
+        SELECT business_entity_id FROM user_accounts WHERE auth_user_id = auth.uid()
+      )
+    );
+EXCEPTION WHEN duplicate_object THEN NULL;
+END $$;
 
-CREATE TRIGGER trg_invoice_settings_updated_at
-  BEFORE UPDATE ON invoice_settings
-  FOR EACH ROW EXECUTE FUNCTION set_updated_at();
+DO $$ BEGIN
+  CREATE TRIGGER trg_invoice_settings_updated_at
+    BEFORE UPDATE ON invoice_settings
+    FOR EACH ROW EXECUTE FUNCTION set_updated_at();
+EXCEPTION WHEN duplicate_object THEN NULL;
+END $$;
 
 -- ============ ITEM MASTER ============
-CREATE TABLE item_master (
+CREATE TABLE IF NOT EXISTS item_master (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   business_entity_id UUID NOT NULL REFERENCES business_entities(id) ON DELETE CASCADE,
   name TEXT NOT NULL,
@@ -51,20 +57,26 @@ CREATE TABLE item_master (
 
 ALTER TABLE item_master ENABLE ROW LEVEL SECURITY;
 
-CREATE POLICY "business manages own items"
-  ON item_master FOR ALL TO authenticated
-  USING (
-    business_entity_id IN (
-      SELECT business_entity_id FROM user_accounts WHERE auth_user_id = auth.uid()
-    )
-  );
+DO $$ BEGIN
+  CREATE POLICY "business manages own items"
+    ON item_master FOR ALL TO authenticated
+    USING (
+      business_entity_id IN (
+        SELECT business_entity_id FROM user_accounts WHERE auth_user_id = auth.uid()
+      )
+    );
+EXCEPTION WHEN duplicate_object THEN NULL;
+END $$;
 
-CREATE TRIGGER trg_item_master_updated_at
-  BEFORE UPDATE ON item_master
-  FOR EACH ROW EXECUTE FUNCTION set_updated_at();
+DO $$ BEGIN
+  CREATE TRIGGER trg_item_master_updated_at
+    BEFORE UPDATE ON item_master
+    FOR EACH ROW EXECUTE FUNCTION set_updated_at();
+EXCEPTION WHEN duplicate_object THEN NULL;
+END $$;
 
 -- ============ INVOICES ============
-CREATE TABLE invoices (
+CREATE TABLE IF NOT EXISTS invoices (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   order_id UUID NOT NULL REFERENCES orders(id) ON DELETE CASCADE,
   supplier_business_entity_id UUID NOT NULL REFERENCES business_entities(id),
@@ -90,40 +102,52 @@ CREATE TABLE invoices (
 
 ALTER TABLE invoices ENABLE ROW LEVEL SECURITY;
 
-CREATE POLICY "invoice parties can read"
-  ON invoices FOR SELECT TO authenticated
-  USING (
-    supplier_business_entity_id IN (
-      SELECT business_entity_id FROM user_accounts WHERE auth_user_id = auth.uid()
-    )
-    OR
-    buyer_business_entity_id IN (
-      SELECT business_entity_id FROM user_accounts WHERE auth_user_id = auth.uid()
-    )
-  );
+DO $$ BEGIN
+  CREATE POLICY "invoice parties can read"
+    ON invoices FOR SELECT TO authenticated
+    USING (
+      supplier_business_entity_id IN (
+        SELECT business_entity_id FROM user_accounts WHERE auth_user_id = auth.uid()
+      )
+      OR
+      buyer_business_entity_id IN (
+        SELECT business_entity_id FROM user_accounts WHERE auth_user_id = auth.uid()
+      )
+    );
+EXCEPTION WHEN duplicate_object THEN NULL;
+END $$;
 
-CREATE POLICY "supplier manages invoice"
-  ON invoices FOR INSERT TO authenticated
-  WITH CHECK (
-    supplier_business_entity_id IN (
-      SELECT business_entity_id FROM user_accounts WHERE auth_user_id = auth.uid()
-    )
-  );
+DO $$ BEGIN
+  CREATE POLICY "supplier manages invoice"
+    ON invoices FOR INSERT TO authenticated
+    WITH CHECK (
+      supplier_business_entity_id IN (
+        SELECT business_entity_id FROM user_accounts WHERE auth_user_id = auth.uid()
+      )
+    );
+EXCEPTION WHEN duplicate_object THEN NULL;
+END $$;
 
-CREATE POLICY "supplier updates invoice"
-  ON invoices FOR UPDATE TO authenticated
-  USING (
-    supplier_business_entity_id IN (
-      SELECT business_entity_id FROM user_accounts WHERE auth_user_id = auth.uid()
-    )
-  );
+DO $$ BEGIN
+  CREATE POLICY "supplier updates invoice"
+    ON invoices FOR UPDATE TO authenticated
+    USING (
+      supplier_business_entity_id IN (
+        SELECT business_entity_id FROM user_accounts WHERE auth_user_id = auth.uid()
+      )
+    );
+EXCEPTION WHEN duplicate_object THEN NULL;
+END $$;
 
-CREATE TRIGGER trg_invoices_updated_at
-  BEFORE UPDATE ON invoices
-  FOR EACH ROW EXECUTE FUNCTION set_updated_at();
+DO $$ BEGIN
+  CREATE TRIGGER trg_invoices_updated_at
+    BEFORE UPDATE ON invoices
+    FOR EACH ROW EXECUTE FUNCTION set_updated_at();
+EXCEPTION WHEN duplicate_object THEN NULL;
+END $$;
 
 -- ============ INVOICE LINE ITEMS ============
-CREATE TABLE invoice_line_items (
+CREATE TABLE IF NOT EXISTS invoice_line_items (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   invoice_id UUID NOT NULL REFERENCES invoices(id) ON DELETE CASCADE,
   item_master_id UUID REFERENCES item_master(id),
@@ -142,31 +166,37 @@ CREATE TABLE invoice_line_items (
 
 ALTER TABLE invoice_line_items ENABLE ROW LEVEL SECURITY;
 
-CREATE POLICY "invoice parties can read line items"
-  ON invoice_line_items FOR SELECT TO authenticated
-  USING (
-    invoice_id IN (
-      SELECT id FROM invoices WHERE
-        supplier_business_entity_id IN (
-          SELECT business_entity_id FROM user_accounts WHERE auth_user_id = auth.uid()
-        )
-        OR
-        buyer_business_entity_id IN (
-          SELECT business_entity_id FROM user_accounts WHERE auth_user_id = auth.uid()
-        )
-    )
-  );
+DO $$ BEGIN
+  CREATE POLICY "invoice parties can read line items"
+    ON invoice_line_items FOR SELECT TO authenticated
+    USING (
+      invoice_id IN (
+        SELECT id FROM invoices WHERE
+          supplier_business_entity_id IN (
+            SELECT business_entity_id FROM user_accounts WHERE auth_user_id = auth.uid()
+          )
+          OR
+          buyer_business_entity_id IN (
+            SELECT business_entity_id FROM user_accounts WHERE auth_user_id = auth.uid()
+          )
+      )
+    );
+EXCEPTION WHEN duplicate_object THEN NULL;
+END $$;
 
-CREATE POLICY "supplier inserts line items"
-  ON invoice_line_items FOR INSERT TO authenticated
-  WITH CHECK (
-    invoice_id IN (
-      SELECT id FROM invoices WHERE
-        supplier_business_entity_id IN (
-          SELECT business_entity_id FROM user_accounts WHERE auth_user_id = auth.uid()
-        )
-    )
-  );
+DO $$ BEGIN
+  CREATE POLICY "supplier inserts line items"
+    ON invoice_line_items FOR INSERT TO authenticated
+    WITH CHECK (
+      invoice_id IN (
+        SELECT id FROM invoices WHERE
+          supplier_business_entity_id IN (
+            SELECT business_entity_id FROM user_accounts WHERE auth_user_id = auth.uid()
+          )
+      )
+    );
+EXCEPTION WHEN duplicate_object THEN NULL;
+END $$;
 
 -- ============ GET NEXT INVOICE NUMBER RPC ============
 CREATE OR REPLACE FUNCTION get_next_invoice_number(p_business_entity_id UUID)

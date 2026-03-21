@@ -12,20 +12,20 @@ CREATE TABLE IF NOT EXISTS connection_contacts (
 
 -- Migrate existing shared data: give a copy to BOTH buyer and supplier
 -- (We cannot determine which party originally entered the data, so both get the existing values)
-INSERT INTO connection_contacts (connection_id, business_id, contact_phone, branch_label, contact_name)
-SELECT c.id, c.buyer_business_id, c.contact_phone, c.branch_label, c.contact_name
+-- Note: contact_phone was never added to connections, so only branch_label and contact_name are migrated
+INSERT INTO connection_contacts (connection_id, business_id, branch_label, contact_name)
+SELECT c.id, c.buyer_business_id, c.branch_label, c.contact_name
 FROM connections c
-WHERE c.contact_phone IS NOT NULL OR c.branch_label IS NOT NULL OR c.contact_name IS NOT NULL
+WHERE c.branch_label IS NOT NULL OR c.contact_name IS NOT NULL
 ON CONFLICT (connection_id, business_id) DO NOTHING;
 
-INSERT INTO connection_contacts (connection_id, business_id, contact_phone, branch_label, contact_name)
-SELECT c.id, c.supplier_business_id, c.contact_phone, c.branch_label, c.contact_name
+INSERT INTO connection_contacts (connection_id, business_id, branch_label, contact_name)
+SELECT c.id, c.supplier_business_id, c.branch_label, c.contact_name
 FROM connections c
-WHERE c.contact_phone IS NOT NULL OR c.branch_label IS NOT NULL OR c.contact_name IS NOT NULL
+WHERE c.branch_label IS NOT NULL OR c.contact_name IS NOT NULL
 ON CONFLICT (connection_id, business_id) DO NOTHING;
 
 -- Drop old shared columns from connections
 ALTER TABLE connections
-  DROP COLUMN IF EXISTS contact_phone,
   DROP COLUMN IF EXISTS branch_label,
   DROP COLUMN IF EXISTS contact_name;
