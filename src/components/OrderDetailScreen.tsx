@@ -375,7 +375,7 @@ export function OrderDetailScreen({ orderId, connectionId, currentBusinessId, mo
         />
 
         {/* Invoice Button */}
-        {isConnectionMode && existingInvoiceId !== null && (
+        {existingInvoiceId !== null && (
           <div className="px-4 mb-3">
             {isSupplier && existingInvoiceId === false && onNavigateToInvoiceCreate && (
               <button
