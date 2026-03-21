@@ -89,23 +89,23 @@ async function buildInvoicePdf(data: {
   const fontNormal = await pdfDoc.embedFont(regularFontBytes, { subset: true })
   const fontBold = await pdfDoc.embedFont(boldFontBytes, { subset: true })
 
-  const dark = rgb(26/255, 31/255, 46/255)
-  const grey = rgb(100/255, 110/255, 130/255)
-  const lightGrey = rgb(247/255, 248/255, 250/255)
+  // Colors
+  const gold = rgb(0.706, 0.608, 0.314)
+  const dark = rgb(0.118, 0.118, 0.118)
+  const medGrey = rgb(0.392, 0.392, 0.392)
+  const ltGrey = rgb(0.6, 0.6, 0.6)
+  const beige = rgb(0.941, 0.902, 0.765)
+  const offWhite = rgb(0.961, 0.961, 0.941)
+  const nearWhite = rgb(0.980, 0.973, 0.945)
   const white = rgb(1, 1, 1)
-  const midGrey = rgb(220/255, 225/255, 235/255)
-  const lightBg = rgb(240/255, 242/255, 248/255)
 
   const W = 210       // mm
   const margin = 14   // mm
-  const contentW = W - margin * 2  // mm
-  let y = margin      // mm, top-down (like jsPDF)
+  const contentW = W - margin * 2  // 182mm
 
-  // Draw text with optional right/center alignment
+  // Draw text helper
   const drawText = (
-    text: string,
-    xMm: number,
-    yMm: number,
+    text: string, xMm: number, yMm: number,
     options: { font?: any; size?: number; color?: any; align?: 'left' | 'right' | 'center' } = {}
   ) => {
     const { font = fontNormal, size = 8, color = dark, align = 'left' } = options
@@ -116,29 +116,31 @@ async function buildInvoicePdf(data: {
     page.drawText(text, { x, y: py(yMm), size, font, color })
   }
 
-  // Draw filled rectangle (y is top in mm, like jsPDF)
+  // Draw filled rectangle
   const drawRect = (xMm: number, yMm: number, wMm: number, hMm: number, fillColor: any) => {
     page.drawRectangle({
-      x: mm(xMm),
-      y: py(yMm + hMm),  // pdf-lib y is bottom-left
-      width: mm(wMm),
-      height: mm(hMm),
-      color: fillColor,
-      borderWidth: 0,
+      x: mm(xMm), y: py(yMm + hMm), width: mm(wMm), height: mm(hMm),
+      color: fillColor, borderWidth: 0,
     })
   }
 
-  // Draw line (y in mm from top)
-  const drawLine = (x1Mm: number, y1Mm: number, x2Mm: number, y2Mm: number, thicknessMm: number, color: any) => {
+  // Draw line
+  const drawLine = (x1Mm: number, y1Mm: number, x2Mm: number, y2Mm: number, thicknessPt: number, color: any) => {
     page.drawLine({
       start: { x: mm(x1Mm), y: py(y1Mm) },
       end: { x: mm(x2Mm), y: py(y2Mm) },
-      thickness: mm(thicknessMm),
+      thickness: thicknessPt,
       color,
     })
   }
 
+  // ============ SECTION 1 — HEADER (y: 10mm to 50mm) ============
+  // Two gold lines at top
+  drawLine(margin, 10, W - margin, 10, 2, gold)
+  drawLine(margin, 11.5, W - margin, 11.5, 1, gold)
+
   // Logo
+  let hasLogo = false
   if (settings?.logo_url) {
     try {
       const resp = await fetch(settings.logo_url)
@@ -146,163 +148,192 @@ async function buildInvoicePdf(data: {
         const imgBytes = new Uint8Array(await resp.arrayBuffer())
         const ext = (settings.logo_url.match(/\.(png|jpg|jpeg)/i)?.[1] || 'png').toLowerCase()
         const img = ext === 'png' ? await pdfDoc.embedPng(imgBytes) : await pdfDoc.embedJpg(imgBytes)
-        // drawImage y is bottom-left: top=y, height=14 → bottom=y+14
-        page.drawImage(img, { x: mm(margin), y: py(y + 14), width: mm(28), height: mm(14) })
+        page.drawImage(img, { x: mm(margin), y: py(13 + 22), width: mm(22), height: mm(22) })
+        hasLogo = true
       }
     } catch (_) {}
   }
 
-  // Supplier info
-  const headerLeftX = settings?.logo_url ? margin + 32 : margin
-  drawText(supplier.business_name, headerLeftX, y + 5, { font: fontBold, size: 14, color: dark })
+  const headerLeftX = hasLogo ? 40 : margin
 
-  let infoY = y + 10
-  if (supplier.gst_number) { drawText(`GSTIN: ${supplier.gst_number}`, headerLeftX, infoY, { size: 8, color: grey }); infoY += 4 }
-  if (supplier.phone) { drawText(supplier.phone, headerLeftX, infoY, { size: 8, color: grey }); infoY += 4 }
+  // Business name (uppercase, bold 18pt)
+  drawText(supplier.business_name.toUpperCase(), headerLeftX, 14, { font: fontBold, size: 18, color: dark })
+
+  // Tagline (first line of address or blank)
+  let infoY = 20
   if (supplier.business_address) {
-    const lines = wrapText(supplier.business_address, fontNormal, 8, 90)
-    lines.forEach((line: string) => { drawText(line, headerLeftX, infoY, { size: 8, color: grey }); infoY += 4 })
+    const firstLine = supplier.business_address.split(',')[0]?.trim()
+    if (firstLine) {
+      drawText(firstLine, headerLeftX, infoY, { size: 8, color: medGrey })
+      infoY += 5
+    }
+  }
+
+  // GSTIN row
+  if (supplier.gst_number) {
+    drawText(`GSTIN  ${supplier.gst_number}`, headerLeftX, infoY, { size: 8, color: dark })
+    infoY += 4.5
+  }
+
+  // Phone + email row
+  const contactParts: string[] = []
+  if (supplier.phone) contactParts.push(supplier.phone)
+  if (supplier.email) contactParts.push(supplier.email)
+  if (contactParts.length) {
+    drawText(contactParts.join('    '), headerLeftX, infoY, { size: 8, color: medGrey })
+    infoY += 4.5
+  }
+
+  // Full address
+  if (supplier.business_address) {
+    const lines = wrapText(supplier.business_address, fontNormal, 8, 120)
+    lines.forEach((line: string) => { drawText(line, headerLeftX, infoY, { size: 8, color: medGrey }); infoY += 4 })
   }
 
   // TAX INVOICE label (right-aligned)
-  drawText('TAX INVOICE', W - margin, y + 5, { font: fontBold, size: 16, color: dark, align: 'right' })
+  drawText('TAX INVOICE', W - margin, 18, { font: fontBold, size: 13, color: dark, align: 'right' })
 
-  y = Math.max(infoY, y + 20) + 4
+  // Two gold lines at bottom of header
+  drawLine(margin, 50, W - margin, 50, 2, gold)
+  drawLine(margin, 51.5, W - margin, 51.5, 1, gold)
 
-  // Divider
-  drawLine(margin, y, W - margin, y, 0.5, dark)
-  y += 5
+  // ============ SECTION 2 — INVOICE META (y: 53mm to 63mm) ============
+  drawRect(margin, 53, contentW, 10, offWhite)
+  drawLine(margin, 53, W - margin, 53, 0.5, gold)
+  drawLine(margin, 63, W - margin, 63, 0.5, gold)
 
-  // Invoice meta
-  drawText('INVOICE NO.',   margin,       y, { font: fontBold, size: 7, color: grey })
-  drawText('INVOICE DATE',  margin + 50,  y, { font: fontBold, size: 7, color: grey })
-  if (invoice.due_date) drawText('DUE DATE', margin + 100, y, { font: fontBold, size: 7, color: grey })
+  // Three columns
+  drawText('INVOICE NO.', margin + 2, 56, { font: fontBold, size: 7, color: ltGrey })
+  drawText(invoice.invoice_number, margin + 2, 59, { font: fontBold, size: 9, color: dark })
 
-  y += 4
-  drawText(invoice.invoice_number,          margin,       y, { font: fontBold, size: 10, color: dark })
-  drawText(formatDate(invoice.invoice_date), margin + 50,  y, { font: fontBold, size: 10, color: dark })
-  if (invoice.due_date) drawText(formatDate(invoice.due_date), margin + 100, y, { font: fontBold, size: 10, color: dark })
-  y += 7
+  drawText('INVOICE DATE', 70, 56, { font: fontBold, size: 7, color: ltGrey })
+  drawText(formatDate(invoice.invoice_date), 70, 59, { font: fontBold, size: 9, color: dark })
 
-  drawLine(margin, y, W - margin, y, 0.3, midGrey)
-  y += 5
-
-  // Bill To / Ship To
-  const colW = (contentW - 6) / 2
-  const boxH = 30
-
-  // Bill To
-  drawRect(margin, y, colW, boxH, lightGrey)
-  drawText('BILL TO', margin + 4, y + 5, { font: fontBold, size: 7, color: grey })
-  drawText(buyer.business_name, margin + 4, y + 10, { font: fontBold, size: 10, color: dark })
-  let byY = y + 15
-  if (buyer.business_address) {
-    const lines = wrapText(buyer.business_address, fontNormal, 7.5, colW - 8)
-    lines.slice(0, 2).forEach((l: string) => { drawText(l, margin + 4, byY, { size: 7.5, color: grey }); byY += 3.5 })
+  if (invoice.due_date) {
+    drawText('DUE DATE', 126, 56, { font: fontBold, size: 7, color: ltGrey })
+    drawText(formatDate(invoice.due_date), 126, 59, { font: fontBold, size: 9, color: dark })
   }
-  if (buyer.phone) { drawText(`Mobile: ${buyer.phone}`, margin + 4, byY, { size: 7.5, color: grey }); byY += 3.5 }
-  if (buyer.gst_number) drawText(`GSTIN: ${buyer.gst_number}`, margin + 4, byY, { size: 7.5, color: grey })
 
-  // Ship To
-  const shipX = margin + colW + 6
-  drawRect(shipX, y, colW, boxH, lightGrey)
-  drawText('SHIP TO', shipX + 4, y + 5, { font: fontBold, size: 7, color: grey })
-  drawText(buyer.business_name, shipX + 4, y + 10, { font: fontBold, size: 10, color: dark })
-  let syY = y + 15
+  // ============ SECTION 3 — BILL TO / SHIP TO (y: 65mm to ~100mm) ============
+  drawLine(margin, 65, W - margin, 65, 0.5, gold)
+
+  // Vertical divider
+  drawLine(105, 65, 105, 100, 0.5, gold)
+
+  // Bill To (left column)
+  drawText('Bill To', margin + 2, 68, { font: fontBold, size: 8, color: gold })
+  drawText(buyer.business_name, margin + 2, 73, { font: fontBold, size: 10, color: dark })
+  let byY = 78
   if (buyer.business_address) {
-    const lines = wrapText(buyer.business_address, fontNormal, 7.5, colW - 8)
-    lines.slice(0, 2).forEach((l: string) => { drawText(l, shipX + 4, syY, { size: 7.5, color: grey }); syY += 3.5 })
+    const lines = wrapText(buyer.business_address, fontNormal, 7.5, 85)
+    lines.forEach((l: string) => { drawText(l, margin + 2, byY, { size: 7.5, color: medGrey }); byY += 4 })
   }
-  if (invoice.place_of_supply) drawText(`Place of Supply: ${invoice.place_of_supply}`, shipX + 4, syY, { size: 7.5, color: grey })
+  if (buyer.phone) { drawText(`Mobile: ${buyer.phone}`, margin + 2, byY, { size: 7.5, color: medGrey }); byY += 4 }
+  if (buyer.gst_number) { drawText(`GSTIN: ${buyer.gst_number}`, margin + 2, byY, { size: 7.5, color: medGrey }); byY += 4 }
+  if (invoice.place_of_supply) { drawText(`Place of Supply: ${invoice.place_of_supply}`, margin + 2, byY, { size: 7.5, color: medGrey }); byY += 4 }
 
-  y += boxH + 6
+  // Ship To (right column)
+  drawText('Ship To', 109, 68, { font: fontBold, size: 8, color: gold })
+  drawText(buyer.business_name, 109, 73, { font: fontBold, size: 10, color: dark })
+  let syY = 78
+  if (buyer.business_address) {
+    const lines = wrapText(buyer.business_address, fontNormal, 7.5, 85)
+    lines.forEach((l: string) => { drawText(l, 109, syY, { size: 7.5, color: medGrey }); syY += 4 })
+  }
 
-  // Line items table
+  drawLine(margin, 100, W - margin, 100, 0.5, gold)
+
+  // ============ SECTION 4 — LINE ITEMS TABLE (y: 102mm onwards) ============
+  let y = 102
+
   const cols = {
-    no:    { x: margin,       w: 8 },
-    item:  { x: margin + 8,   w: 72 },
-    qty:   { x: margin + 80,  w: 18 },
-    rate:  { x: margin + 98,  w: 26 },
-    tax:   { x: margin + 124, w: 26 },
-    total: { x: margin + 150, w: contentW - 150 },
+    no:    { x: margin,      w: 8 },
+    item:  { x: margin + 8,  w: 68 },
+    hsn:   { x: margin + 76, w: 22 },
+    qty:   { x: margin + 98, w: 20 },
+    rate:  { x: margin + 118, w: 20 },
+    tax:   { x: margin + 138, w: 22 },
+    total: { x: margin + 160, w: 22 },
   }
 
   // Table header
-  drawRect(margin, y, contentW, 7, dark)
-  drawText('NO',    cols.no.x + 1,              y + 4.5, { font: fontBold, size: 7, color: white })
-  drawText('ITEMS', cols.item.x + 1,            y + 4.5, { font: fontBold, size: 7, color: white })
-  drawText('QTY',   cols.qty.x + 1,             y + 4.5, { font: fontBold, size: 7, color: white })
-  drawText('RATE',  cols.rate.x + cols.rate.w,  y + 4.5, { font: fontBold, size: 7, color: white, align: 'right' })
-  drawText('TAX',   cols.tax.x + cols.tax.w,    y + 4.5, { font: fontBold, size: 7, color: white, align: 'right' })
-  drawText('TOTAL', cols.total.x + cols.total.w,y + 4.5, { font: fontBold, size: 7, color: white, align: 'right' })
+  drawRect(margin, y, contentW, 7, beige)
+  drawText('NO',    cols.no.x + 1,                        y + 4.5, { font: fontBold, size: 6, color: dark })
+  drawText('ITEMS', cols.item.x + 1,                      y + 4.5, { font: fontBold, size: 6, color: dark })
+  drawText('HSN',   cols.hsn.x + cols.hsn.w / 2,          y + 4.5, { font: fontBold, size: 6, color: dark, align: 'center' })
+  drawText('QTY',   cols.qty.x + cols.qty.w / 2,          y + 4.5, { font: fontBold, size: 6, color: dark, align: 'center' })
+  drawText('RATE',  cols.rate.x + cols.rate.w,             y + 4.5, { font: fontBold, size: 6, color: dark, align: 'right' })
+  drawText('TAX',   cols.tax.x + cols.tax.w,               y + 4.5, { font: fontBold, size: 6, color: dark, align: 'right' })
+  drawText('TOTAL', cols.total.x + cols.total.w,           y + 4.5, { font: fontBold, size: 6, color: dark, align: 'right' })
   y += 7
 
   let totalQty = 0
   for (let i = 0; i < lineItems.length; i++) {
     const item = lineItems[i]
     totalQty += Number(item.quantity)
-    const rowBg = i % 2 === 0 ? white : lightGrey
-    const rowH = item.hsn_code ? 10 : 7
+    const rowBg = i % 2 === 0 ? white : nearWhite
+    const rowH = item.hsn_code ? 10 : 8
 
     drawRect(margin, y, contentW, rowH, rowBg)
-    drawLine(margin, y + rowH, margin + contentW, y + rowH, 0.2, midGrey)
 
-    drawText(String(i + 1), cols.no.x + 1, y + 5, { size: 8, color: grey })
-    drawText(item.name, cols.item.x + 1, y + 5, { font: fontBold, size: 8, color: dark })
+    drawText(String(i + 1),   cols.no.x + 1,                       y + 5, { size: 8, color: medGrey })
+    drawText(item.name,       cols.item.x + 1,                     y + 5, { size: 8, color: dark })
     if (item.hsn_code) {
-      drawText(`HSN: ${item.hsn_code}`, cols.item.x + 1, y + 8.5, { size: 7, color: grey })
+      drawText(item.hsn_code, cols.hsn.x + cols.hsn.w / 2,        y + 5, { size: 7.5, color: medGrey, align: 'center' })
     }
-    drawText(String(item.quantity), cols.qty.x + 1, y + 5, { size: 8, color: dark })
-    drawText(Number(item.rate).toLocaleString('en-IN'),        cols.rate.x + cols.rate.w,   y + 5,   { size: 8, color: dark, align: 'right' })
-    drawText(Number(item.tax_amount).toLocaleString('en-IN'),  cols.tax.x + cols.tax.w,     y + 5,   { size: 8, color: grey, align: 'right' })
-    drawText(`(${item.tax_rate}%)`,                            cols.tax.x + cols.tax.w,     y + 8.5, { size: 6.5, color: grey, align: 'right' })
-    drawText(Number(item.total_amount).toLocaleString('en-IN'),cols.total.x + cols.total.w, y + 5,   { font: fontBold, size: 8, color: dark, align: 'right' })
+    drawText(String(item.quantity), cols.qty.x + cols.qty.w / 2,   y + 5, { size: 8, color: dark, align: 'center' })
+    drawText(Number(item.rate).toLocaleString('en-IN'),            cols.rate.x + cols.rate.w, y + 5, { size: 8, color: dark, align: 'right' })
+    drawText(Number(item.tax_amount).toLocaleString('en-IN'),      cols.tax.x + cols.tax.w,  y + 5, { size: 8, color: medGrey, align: 'right' })
+    drawText(`(${item.tax_rate}%)`,                                cols.tax.x + cols.tax.w,  y + 8.5, { size: 7, color: ltGrey, align: 'right' })
+    drawText(Number(item.total_amount).toLocaleString('en-IN'),    cols.total.x + cols.total.w, y + 5, { font: fontBold, size: 8, color: dark, align: 'right' })
 
     y += rowH
   }
 
   // Subtotal row
-  drawRect(margin, y, contentW, 7, lightBg)
-  drawText('SUBTOTAL', cols.item.x + cols.item.w, y + 4.5, { font: fontBold, size: 8, color: grey, align: 'right' })
-  drawText(String(totalQty), cols.qty.x + 1, y + 4.5, { font: fontBold, size: 8, color: dark })
+  drawRect(margin, y, contentW, 7, beige)
+  drawText('SUBTOTAL', cols.item.x + cols.item.w / 2, y + 4.5, { font: fontBold, size: 8, color: gold, align: 'center' })
+  drawText(String(totalQty), cols.qty.x + cols.qty.w / 2, y + 4.5, { font: fontBold, size: 8, color: gold, align: 'center' })
   const taxTotal = Number(invoice.total_amount) - Number(invoice.taxable_amount)
-  drawText(taxTotal.toLocaleString('en-IN'),                cols.tax.x + cols.tax.w,     y + 4.5, { font: fontBold, size: 8, color: dark, align: 'right' })
-  drawText(Number(invoice.total_amount).toLocaleString('en-IN'), cols.total.x + cols.total.w, y + 4.5, { font: fontBold, size: 8, color: dark, align: 'right' })
+  drawText(taxTotal.toLocaleString('en-IN'), cols.tax.x + cols.tax.w, y + 4.5, { font: fontBold, size: 8, color: gold, align: 'right' })
+  drawText(Number(invoice.total_amount).toLocaleString('en-IN'), cols.total.x + cols.total.w, y + 4.5, { font: fontBold, size: 8, color: gold, align: 'right' })
   y += 10
 
-  // Footer: Terms+Bank left | Tax summary right
+  // ============ SECTION 5 — FOOTER (two columns) ============
   const footerY = y
-  const leftColW = contentW * 0.52
-  const rightColW = contentW * 0.44
-  const rightColX = margin + contentW - rightColW
+  const rightColX = 115
+  const valueX = W - margin
 
+  // --- Left column (terms + bank) ---
   let leftY = footerY
   if (settings?.terms_and_conditions) {
-    drawText('TERMS & CONDITIONS', margin, leftY, { font: fontBold, size: 7, color: grey })
+    drawText('Terms & Conditions', margin, leftY, { font: fontBold, size: 8, color: dark })
     leftY += 4
-    const termLines = wrapText(settings.terms_and_conditions, fontNormal, 7.5, leftColW)
-    termLines.forEach((line: string) => { drawText(line, margin, leftY, { size: 7.5, color: dark }); leftY += 3.5 })
-    leftY += 3
+    const termLines = wrapText(settings.terms_and_conditions, fontNormal, 7, 90)
+    termLines.forEach((line: string) => { drawText(line, margin, leftY, { size: 7, color: medGrey }); leftY += 3.5 })
+    leftY += 5
   }
 
   if (settings?.bank_account_number || settings?.upi_id) {
-    drawText('BANK DETAILS', margin, leftY, { font: fontBold, size: 7, color: grey })
-    leftY += 4
-    const bankLines: string[] = []
-    if (settings.bank_account_name) bankLines.push(`Name: ${settings.bank_account_name}`)
-    if (settings.bank_ifsc) bankLines.push(`IFSC: ${settings.bank_ifsc}`)
-    if (settings.bank_account_number) bankLines.push(`Account No: ${settings.bank_account_number}`)
-    if (settings.bank_name) bankLines.push(`Bank: ${settings.bank_name}`)
-    if (settings.upi_id) bankLines.push(`UPI ID: ${settings.upi_id}`)
-    bankLines.forEach(line => { drawText(line, margin, leftY, { size: 7.5, color: dark }); leftY += 3.5 })
+    drawText('Bank Details', margin, leftY, { font: fontBold, size: 8, color: dark })
+    leftY += 4.5
+    const bankField = (label: string, value: string) => {
+      drawText(label, margin, leftY, { size: 7.5, color: medGrey })
+      drawText(value, margin + 30, leftY, { size: 7.5, color: dark })
+      leftY += 4
+    }
+    if (settings.bank_account_name) bankField('Name', settings.bank_account_name)
+    if (settings.bank_ifsc) bankField('IFSC', settings.bank_ifsc)
+    if (settings.bank_account_number) bankField('Account No', settings.bank_account_number)
+    if (settings.bank_name) bankField('Bank', settings.bank_name)
+    if (settings.upi_id) bankField('UPI ID', settings.upi_id)
   }
 
-  // Tax summary (right column)
+  // --- Right column (tax summary) ---
   let rightY = footerY
-  const valueX = rightColX + rightColW
 
   const summaryRow = (label: string, value: string, bold = false) => {
-    drawText(label, rightColX, rightY, { font: bold ? fontBold : fontNormal, size: bold ? 9 : 8, color: bold ? dark : grey })
+    drawText(label, rightColX, rightY, { font: bold ? fontBold : fontNormal, size: bold ? 9 : 8, color: bold ? dark : medGrey })
     drawText(value, valueX, rightY, { font: bold ? fontBold : fontNormal, size: bold ? 9 : 8, color: dark, align: 'right' })
     rightY += bold ? 6 : 5
   }
@@ -328,24 +359,26 @@ async function buildInvoicePdf(data: {
     }
   }
 
-  drawLine(rightColX, rightY - 1, valueX, rightY - 1, 0.4, dark)
-  rightY += 1
+  // Gold divider
+  drawLine(rightColX, rightY - 1, valueX, rightY - 1, 1, gold)
+  rightY += 2
   summaryRow('Total Amount', formatCurrency(Number(invoice.total_amount)), true)
   summaryRow('Received Amount', formatCurrency(0))
 
   // Amount in words box
   rightY += 2
-  drawRect(rightColX, rightY, rightColW, 14, lightGrey)
-  drawText('TOTAL AMOUNT (IN WORDS)', rightColX + 3, rightY + 4, { font: fontBold, size: 6.5, color: grey })
+  const wordsBoxW = valueX - rightColX
+  drawRect(rightColX, rightY, wordsBoxW, 14, offWhite)
+  drawText('TOTAL AMOUNT (IN WORDS)', rightColX + 3, rightY + 4, { font: fontBold, size: 7, color: ltGrey })
   const words = toWords(Number(invoice.total_amount))
-  const wordLines = wrapText(words, fontNormal, 7, rightColW - 6)
+  const wordLines = wrapText(words, fontNormal, 7.5, wordsBoxW - 6)
   wordLines.slice(0, 2).forEach((line: string, i: number) => {
-    drawText(line, rightColX + 3, rightY + 8 + i * 3.5, { size: 7, color: dark })
+    drawText(line, rightColX + 3, rightY + 8 + i * 3.5, { size: 7.5, color: dark })
   })
 
-  // Signature section
+  // ============ SECTION 6 — SIGNATURE ============
   const sigY = Math.max(leftY, rightY + 18) + 6
-  drawLine(margin, sigY, W - margin, sigY, 0.3, midGrey)
+  drawLine(margin, sigY, W - margin, sigY, 1, gold)
 
   const sigBoxX = W - margin - 40
   if (settings?.signature_url) {
@@ -355,17 +388,19 @@ async function buildInvoicePdf(data: {
         const imgBytes = new Uint8Array(await resp.arrayBuffer())
         const ext = (settings.signature_url.match(/\.(png|jpg|jpeg)/i)?.[1] || 'png').toLowerCase()
         const img = ext === 'png' ? await pdfDoc.embedPng(imgBytes) : await pdfDoc.embedJpg(imgBytes)
-        // top=sigY+3, height=12 → bottom=sigY+15
-        page.drawImage(img, { x: mm(sigBoxX), y: py(sigY + 3 + 12), width: mm(30), height: mm(12) })
+        page.drawImage(img, { x: mm(sigBoxX), y: py(sigY + 3 + 14), width: mm(35), height: mm(14) })
       }
     } catch (_) {}
   }
 
-  drawLine(sigBoxX, sigY + 18, sigBoxX + 40, sigY + 18, 0.3, dark)
-  drawText('Signature',           sigBoxX + 20, sigY + 22, { font: fontBold, size: 7.5, color: dark, align: 'center' })
-  drawText(supplier.business_name, sigBoxX + 20, sigY + 26, { size: 7, color: grey, align: 'center' })
+  drawText('Signature', sigBoxX + 17.5, sigY + 20, { size: 7.5, color: medGrey, align: 'center' })
+  drawText(supplier.business_name, sigBoxX + 17.5, sigY + 24, { size: 7.5, color: medGrey, align: 'center' })
 
-  // pdfDoc.save() returns Uint8Array directly — no .output() needed
+  // Two gold lines at very bottom (mirror of top)
+  const bottomY = 287 // ~297mm page height minus 10mm margin
+  drawLine(margin, bottomY, W - margin, bottomY, 1, gold)
+  drawLine(margin, bottomY + 1.5, W - margin, bottomY + 1.5, 2, gold)
+
   return pdfDoc.save()
 }
 
