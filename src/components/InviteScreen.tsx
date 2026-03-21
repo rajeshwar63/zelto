@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { supabaseDirect } from '@/lib/supabase-client'
+import { supabase, supabaseDirect } from '@/lib/supabase-client'
 import { toast } from 'sonner'
 import { ArrowLeft, Link, ShareNetwork, Envelope } from '@phosphor-icons/react'
 
@@ -20,8 +20,10 @@ export function InviteScreen({ currentBusinessId, onBack }: Props) {
   const generateLink = async (selectedRole: InviteRole) => {
     setGeneratingLink(true)
     try {
+      const { data: { session } } = await supabase.auth.getSession()
       const { data, error } = await supabaseDirect.functions.invoke('create-invite', {
         body: { type: 'link', role: selectedRole },
+        headers: { Authorization: `Bearer ${session?.access_token}` },
       })
 
       if (error) throw new Error(data?.error || error.message || 'Failed to generate invite link')
@@ -94,8 +96,10 @@ export function InviteScreen({ currentBusinessId, onBack }: Props) {
 
     setSendingEmail(true)
     try {
+      const { data: { session } } = await supabase.auth.getSession()
       const { data, error } = await supabaseDirect.functions.invoke('create-invite', {
         body: { type: 'email', role, email: trimmed },
+        headers: { Authorization: `Bearer ${session?.access_token}` },
       })
 
       if (error) throw new Error(data?.error || error.message || 'Failed to send invite')
