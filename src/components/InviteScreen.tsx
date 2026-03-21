@@ -3,9 +3,11 @@ import { supabaseDirect } from '@/lib/supabase-client'
 
 function getAccessToken(): string | null {
   try {
-    const session = JSON.parse(localStorage.getItem('sb-app-auth-token') || '{}')
-    return session?.access_token ?? null
+    const token = JSON.parse(localStorage.getItem('sb-app-auth-token') ?? '{}')?.access_token
+    console.log('[DEBUG] access_token:', token ? token.substring(0, 20) + '...' : 'null')
+    return token ?? null
   } catch {
+    console.log('[DEBUG] Failed to parse sb-app-auth-token')
     return null
   }
 }
