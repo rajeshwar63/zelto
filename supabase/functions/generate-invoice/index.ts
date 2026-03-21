@@ -1,7 +1,8 @@
 // supabase/functions/generate-invoice/index.ts
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts'
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
-import { PDFDocument, rgb, StandardFonts } from 'https://esm.sh/pdf-lib@1.17.1'
+import { PDFDocument, rgb } from 'https://esm.sh/pdf-lib@1.17.1'
+import fontkit from 'https://esm.sh/@pdf-lib/fontkit@1.1.1'
 
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!
 const SUPABASE_SERVICE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
@@ -77,10 +78,16 @@ async function buildInvoicePdf(data: {
   const isInterState = invoice.is_inter_state
 
   const pdfDoc = await PDFDocument.create()
+  pdfDoc.registerFontkit(fontkit)
   const page = pdfDoc.addPage([595.28, PAGE_H])
 
-  const fontBold = await pdfDoc.embedFont(StandardFonts.HelveticaBold)
-  const fontNormal = await pdfDoc.embedFont(StandardFonts.Helvetica)
+  // Embed Noto Sans TTF fonts for Unicode support (₹ symbol etc.)
+  const [regularFontBytes, boldFontBytes] = await Promise.all([
+    fetch('https://github.com/googlefonts/noto-fonts/raw/main/hinted/ttf/NotoSans/NotoSans-Regular.ttf').then(r => r.arrayBuffer()),
+    fetch('https://github.com/googlefonts/noto-fonts/raw/main/hinted/ttf/NotoSans/NotoSans-Bold.ttf').then(r => r.arrayBuffer()),
+  ])
+  const fontNormal = await pdfDoc.embedFont(regularFontBytes, { subset: true })
+  const fontBold = await pdfDoc.embedFont(boldFontBytes, { subset: true })
 
   const dark = rgb(26/255, 31/255, 46/255)
   const grey = rgb(100/255, 110/255, 130/255)
