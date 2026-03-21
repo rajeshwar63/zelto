@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { supabaseDirect } from '@/lib/supabase-client'
+import { supabase, supabaseDirect } from '@/lib/supabase-client'
 import { getLocalAuthSessionSync, setAuthSession } from '@/lib/auth'
 import type { AuthSession } from '@/lib/auth'
 import { toast } from 'sonner'
@@ -39,11 +39,8 @@ export function JoinScreen({ inviteCode, onJoinSuccess, onError, onNeedsLogin }:
     setStatus('accepting')
 
     try {
-      let token: string | null = null
-      try {
-        token = JSON.parse(localStorage.getItem('sb-app-auth-token') ?? '{}')?.access_token ?? null
-        console.log('[DEBUG] accept-invite token:', token ? token.substring(0, 20) + '...' : 'null')
-      } catch { /* ignore */ }
+      const { data: { session } } = await supabase.auth.getSession()
+      const token = session?.access_token
       const response = await supabaseDirect.functions.invoke('accept-invite', {
         body: { inviteCode },
         ...(token ? { headers: { Authorization: `Bearer ${token}` } } : {}),
