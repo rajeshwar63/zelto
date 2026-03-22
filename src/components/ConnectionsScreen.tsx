@@ -5,8 +5,8 @@ import { behaviourEngine } from '@/lib/behaviour-engine'
 import { useDataListener } from '@/lib/data-events'
 import type { Connection, ConnectionState } from '@/lib/types'
 import { getConnectionStateLabel, getConnectionStateColor } from '@/lib/connection-state-utils'
-import { Plus, Users, UsersThree, PencilSimple, MagnifyingGlass, DownloadSimple } from '@phosphor-icons/react'
-import { Phone, MapPin, User, Inbox } from 'lucide-react'
+import { Users, UsersThree, PencilSimple, MagnifyingGlass, DownloadSimple } from '@phosphor-icons/react'
+import { Phone, MapPin, User } from 'lucide-react'
 import { LedgerDownloadSheet } from '@/components/LedgerDownloadSheet'
 
 interface ConnectionWithState extends Connection {
@@ -205,77 +205,9 @@ export function ConnectionsScreen({ currentBusinessId, onSelectConnection, onAdd
     else if (st <= 8) setPanelVisible(false)
   }
 
-  if (connections.length === 0) {
-    return (
-      <div style={{ backgroundColor: 'var(--bg-screen)', minHeight: '100%' }}>
-        <div className="sticky top-0 z-10" style={{ backgroundColor: 'var(--bg-header)', paddingTop: 'env(safe-area-inset-top)' }}>
-          <div className="h-11 flex items-center justify-between px-4">
-            <h1 style={{ fontSize: '22px', fontWeight: 700, color: 'var(--text-primary)', letterSpacing: '-0.02em' }}>Connections</h1>
-            <div className="flex items-center gap-1">
-              <button
-                onClick={onNavigateToIncomingRequests}
-                className="flex items-center"
-                style={{ color: 'var(--brand-primary)', minWidth: '44px', minHeight: '44px', justifyContent: 'center' }}
-              >
-                <Inbox size={20} color="#333" />
-              </button>
-              <button onClick={onAddConnection} className="relative flex items-center" style={{ color: 'var(--brand-primary)', minWidth: '44px', minHeight: '44px', justifyContent: 'center' }}>
-                <Plus size={20} weight="regular" />
-                <Users size={20} weight="regular" />
-              </button>
-            </div>
-          </div>
-        </div>
-        <div className="flex items-center justify-center min-h-[calc(100vh-44px)] px-4">
-          {isLoading
-            ? (
-              <div className="px-4 pt-4 space-y-2 w-full">
-                {[1, 2, 3].map(i => (
-                  <div key={i} className="animate-pulse" style={{ backgroundColor: 'var(--border-light)', borderRadius: 'var(--radius-card)', height: '80px' }} />
-                ))}
-              </div>
-            )
-            : (
-              <div className="flex flex-col items-center justify-center flex-1 px-6 text-center">
-                <p style={{ fontSize: '15px', fontWeight: 600, color: 'var(--text-primary)', marginBottom: '4px' }}>No connections yet</p>
-                <p style={{ fontSize: '14px', fontWeight: 500, color: 'var(--text-secondary)', marginBottom: '16px' }}>
-                  Add your first buyer or supplier to get started
-                </p>
-                <button
-                  onClick={onAddConnection}
-                  style={{
-                    backgroundColor: 'var(--brand-primary)',
-                    color: '#FFFFFF',
-                    borderRadius: 'var(--radius-button)',
-                    padding: '10px 20px',
-                    fontSize: '14px',
-                    fontWeight: 600,
-                    minHeight: '44px',
-                  }}
-                >
-                  Add Connection
-                </button>
-              </div>
-            )
-          }
-        </div>
-        <button
-          onClick={() => onNavigateToPlaceOrder(null)}
-          className="fixed bottom-24 right-4 w-14 h-14 flex items-center justify-center z-20"
-          style={{
-            backgroundColor: 'var(--brand-primary)',
-            borderRadius: 'var(--radius-card)',
-            boxShadow: '0 4px 16px rgba(74,108,247,0.4)',
-          }}
-        >
-          <PencilSimple size={24} weight="regular" color="#FFFFFF" />
-        </button>
-      </div>
-    )
-  }
-
   return (
     <div style={{ backgroundColor: 'var(--bg-screen)', minHeight: '100%' }}>
+      {/* ── Header — rendered always, single source of truth ── */}
       <div className="sticky top-0 z-10" style={{ backgroundColor: 'var(--bg-header)', paddingTop: 'env(safe-area-inset-top)' }}>
         <div className="h-11 flex items-center justify-between px-4">
           <h1 style={{ fontSize: '22px', fontWeight: 700, color: 'var(--text-primary)', letterSpacing: '-0.02em' }}>Connections</h1>
@@ -288,7 +220,7 @@ export function ConnectionsScreen({ currentBusinessId, onSelectConnection, onAdd
               <DownloadSimple size={17} weight="bold" />
               <span style={{ fontSize: '13px', fontWeight: 600 }}>Ledger</span>
             </button>
-<button
+            <button
               onClick={onAddConnection}
               className="flex items-center gap-1"
               style={{ color: 'var(--brand-primary)', minWidth: '44px', minHeight: '44px', paddingLeft: '4px', paddingRight: '8px' }}
@@ -350,6 +282,35 @@ export function ConnectionsScreen({ currentBusinessId, onSelectConnection, onAdd
         </AnimatePresence>
       </div>
 
+      {/* ── Body — conditional on state ── */}
+      {isLoading ? (
+        <div style={{ padding: '16px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
+          {[1, 2, 3].map(i => (
+            <div key={i} className="animate-pulse" style={{ backgroundColor: 'var(--border-light)', borderRadius: 'var(--radius-card)', height: '80px' }} />
+          ))}
+        </div>
+      ) : connections.length === 0 ? (
+        <div className="flex flex-col items-center justify-center px-6 text-center" style={{ minHeight: 'calc(100vh - 44px)' }}>
+          <p style={{ fontSize: '15px', fontWeight: 600, color: 'var(--text-primary)', marginBottom: '4px' }}>No connections yet</p>
+          <p style={{ fontSize: '14px', fontWeight: 500, color: 'var(--text-secondary)', marginBottom: '16px' }}>
+            Add your first buyer or supplier to get started
+          </p>
+          <button
+            onClick={onAddConnection}
+            style={{
+              backgroundColor: 'var(--brand-primary)',
+              color: '#FFFFFF',
+              borderRadius: 'var(--radius-button)',
+              padding: '10px 20px',
+              fontSize: '14px',
+              fontWeight: 600,
+              minHeight: '44px',
+            }}
+          >
+            Add Connection
+          </button>
+        </div>
+      ) : (
       <div
         ref={listContainerRef}
         className="px-4 pt-3 pb-24 overflow-y-auto"
@@ -531,7 +492,17 @@ export function ConnectionsScreen({ currentBusinessId, onSelectConnection, onAdd
           })}
         </div>
       </div>
+      )}
 
+      {/* ── Shared sheets ── */}
+      <LedgerDownloadSheet
+        isOpen={showLedgerSheet}
+        onClose={() => setShowLedgerSheet(false)}
+        scope="all"
+        currentBusinessId={currentBusinessId}
+      />
+
+      {/* ── FAB ── */}
       <button
         onClick={() => onNavigateToPlaceOrder(null)}
         className="fixed bottom-24 right-4 w-14 h-14 flex items-center justify-center z-20"
@@ -543,13 +514,6 @@ export function ConnectionsScreen({ currentBusinessId, onSelectConnection, onAdd
       >
         <PencilSimple size={24} weight="regular" color="#FFFFFF" />
       </button>
-
-      <LedgerDownloadSheet
-        isOpen={showLedgerSheet}
-        onClose={() => setShowLedgerSheet(false)}
-        scope="all"
-        currentBusinessId={currentBusinessId}
-      />
     </div>
   )
 }
