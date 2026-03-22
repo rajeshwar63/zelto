@@ -1,4 +1,4 @@
-import { supabase } from './supabase-client'
+import { supabase, supabaseDirect } from './supabase-client'
 import { dataStore } from './data-store'
 
 const AUTH_SESSION_KEY = 'zelto:local-auth-session'
@@ -36,7 +36,7 @@ export function getLocalAuthSessionSync(): AuthSession | null {
 }
 
 export async function signInWithGoogle(): Promise<void> {
-  const { error } = await supabase.auth.signInWithOAuth({
+  const { error } = await supabaseDirect.auth.signInWithOAuth({
     provider: 'google',
     options: {
       redirectTo: window.location.origin,
@@ -51,7 +51,7 @@ export async function signInWithGoogle(): Promise<void> {
 }
 
 export async function sendEmailOTP(email: string): Promise<void> {
-  const { error } = await supabase.auth.signInWithOtp({
+  const { error } = await supabaseDirect.auth.signInWithOtp({
     email,
     options: {
       shouldCreateUser: true,
@@ -66,7 +66,7 @@ export async function checkEmailRegistered(email: string): Promise<boolean> {
 }
 
 export async function verifyEmailOTP(email: string, token: string): Promise<void> {
-  const { error } = await supabase.auth.verifyOtp({
+  const { error } = await supabaseDirect.auth.verifyOtp({
     email,
     token,
     type: 'email',
@@ -76,7 +76,7 @@ export async function verifyEmailOTP(email: string, token: string): Promise<void
 
 // NEW: Replaces getAuthSession() — detects the desync state
 export async function getAuthState(): Promise<AuthState> {
-  const { data: { session } } = await supabase.auth.getSession()
+  const { data: { session } } = await supabaseDirect.auth.getSession()
   if (!session) return { status: 'unauthenticated' }
 
   const email = session.user.email
@@ -143,7 +143,7 @@ export async function findOrCreateBusinessSession(
   } else {
     const businessName = signupData?.businessName || email.split('@')[0]
 
-    const { data: { user } } = await supabase.auth.getUser()
+    const { data: { user } } = await supabaseDirect.auth.getUser()
     if (!user) throw new Error('Not authenticated')
 
     const username = signupData?.name
@@ -171,7 +171,7 @@ export async function findOrCreateBusinessSession(
 }
 
 export async function logout(): Promise<void> {
-  await supabase.auth.signOut()
+  await supabaseDirect.auth.signOut()
   await clearAuthSession()
 }
 
