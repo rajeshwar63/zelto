@@ -17,16 +17,47 @@ export default defineConfig({
   plugins: [
     react(),
     tailwindcss(),
-    VitePWA({
-      scope: '/',
-      base: '/',
-      workbox: {
-        maximumFileSizeToCacheInBytes: 3 * 1024 * 1024,
-      },
-    }),
     // DO NOT REMOVE
     createIconImportProxy() as PluginOption,
     sparkPlugin() as PluginOption,
+    VitePWA({
+      registerType: 'autoUpdate',
+      scope: '/',
+      base: '/',
+      filename: 'manifest.webmanifest',
+      workbox: {
+        maximumFileSizeToCacheInBytes: 3 * 1024 * 1024,
+      },
+      manifest: {
+        id: '/',
+        name: 'Zelto',
+        short_name: 'Zelto',
+        description: 'Zelto App',
+        theme_color: '#ffffff',
+        background_color: '#ffffff',
+        display: 'standalone',
+        icons: [
+          {
+            src: 'icons/icon-192.png',
+            sizes: '192x192',
+            type: 'image/png',
+            purpose: 'any',
+          },
+          {
+            src: 'icons/icon-512.png',
+            sizes: '512x512',
+            type: 'image/png',
+            purpose: 'any',
+          },
+          {
+            src: 'icons/icon-512-maskable.png',
+            sizes: '512x512',
+            type: 'image/png',
+            purpose: 'maskable',
+          },
+        ],
+      },
+    }),
   ],
   resolve: {
     alias: {
