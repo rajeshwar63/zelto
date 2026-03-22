@@ -1,10 +1,11 @@
 {
   "rewrites": [
     { "source": "/supabase-proxy/:path*", "destination": "https://cncimuwunjjxrlsnjstm.supabase.co/:path*" },
-    {
-      "source": "/((?!manifest\\.webmanifest|sw\\.js|workbox-.*\\.js|icons/.*).*)",
-      "destination": "/index.html"
-    }
+    { "source": "/sw.js", "destination": "/sw.js" },
+    { "source": "/workbox-:hash.js", "destination": "/workbox-:hash.js" },
+    { "source": "/manifest.webmanifest", "destination": "/manifest.webmanifest" },
+    { "source": "/icons/:path*", "destination": "/icons/:path*" },
+    { "source": "/:path*", "destination": "/index.html" }
   ],
   "headers": [
     {
