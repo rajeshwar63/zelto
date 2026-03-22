@@ -4,7 +4,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { dataStore } from '@/lib/data-store'
 import { setAuthSession } from '@/lib/auth'
-import { supabase } from '@/lib/supabase-client'
+import { supabase, supabaseDirect } from '@/lib/supabase-client'
 import { toast } from 'sonner'
 import type { BusinessEntity } from '@/lib/types'
 
@@ -91,6 +91,9 @@ export function BusinessSetupScreen({ email, onComplete }: BusinessSetupScreenPr
 
     setIsCreating(true)
     try {
+      const { data: { user } } = await supabaseDirect.auth.getUser()
+      if (!user) throw new Error('Not authenticated')
+
       const business = await dataStore.createBusinessEntity(businessName.trim(), {
         city: city.trim(),
         phone: phone.trim() || undefined,
@@ -99,6 +102,7 @@ export function BusinessSetupScreen({ email, onComplete }: BusinessSetupScreenPr
       const userAccount = await dataStore.createUserAccount(email, business.id, {
         username: username.trim() || undefined,
         role: 'owner',
+        authUserId: user.id,
       })
 
       await setAuthSession({
@@ -145,7 +149,7 @@ export function BusinessSetupScreen({ email, onComplete }: BusinessSetupScreenPr
   const handleJoinBusiness = async (business: BusinessEntity) => {
     setIsJoining(true)
     try {
-      const { data: { user } } = await supabase.auth.getUser()
+      const { data: { user } } = await supabaseDirect.auth.getUser()
       if (!user) throw new Error('Not authenticated')
 
       // MVP: auto-approve — create user with member role directly
