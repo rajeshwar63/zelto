@@ -46,7 +46,7 @@ serve(async (req) => {
     const { data: userAccount, error: lookupError } = await serviceClient
       .from('user_accounts')
       .select('id, auth_user_id, business_entity_id, role')
-      .eq('id', body.userId)
+      .eq('auth_user_id', body.userId)
       .single()
 
     if (lookupError || !userAccount) {
