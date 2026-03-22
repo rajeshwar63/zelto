@@ -24,36 +24,23 @@ export default defineConfig({
       registerType: 'autoUpdate',
       scope: '/',
       base: '/',
-      filename: 'manifest.webmanifest',
+      manifest: false, // disable — we use public/manifest.webmanifest directly
       workbox: {
         maximumFileSizeToCacheInBytes: 3 * 1024 * 1024,
-      },
-      manifest: {
-        id: '/',
-        name: 'Zelto',
-        short_name: 'Zelto',
-        description: 'Zelto App',
-        theme_color: '#ffffff',
-        background_color: '#ffffff',
-        display: 'standalone',
-        icons: [
+        globPatterns: ['**/*.{js,css,html,ico,png,svg,woff2}'],
+        navigateFallback: 'index.html',
+        navigateFallbackDenylist: [/^\/api/, /^\/auth/],
+        runtimeCaching: [
           {
-            src: 'icons/icon-192.png',
-            sizes: '192x192',
-            type: 'image/png',
-            purpose: 'any',
-          },
-          {
-            src: 'icons/icon-512.png',
-            sizes: '512x512',
-            type: 'image/png',
-            purpose: 'any',
-          },
-          {
-            src: 'icons/icon-512-maskable.png',
-            sizes: '512x512',
-            type: 'image/png',
-            purpose: 'maskable',
+            urlPattern: /^https:\/\/cncimuwunjjxrlsnjstm\.supabase\.co\/.*/i,
+            handler: 'NetworkFirst',
+            options: {
+              cacheName: 'supabase-cache',
+              expiration: {
+                maxEntries: 50,
+                maxAgeSeconds: 60 * 60 * 24,
+              },
+            },
           },
         ],
       },
