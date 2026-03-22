@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback } from 'react'
+import { useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -22,60 +22,11 @@ export function BusinessSetupScreen({ email, onComplete }: BusinessSetupScreenPr
 
   const [isCreating, setIsCreating] = useState(false)
   const [isJoining, setIsJoining] = useState(false)
-  const [isSearching, setIsSearching] = useState(false)
-
-  // Fuzzy match state
-  const [similarBusinesses, setSimilarBusinesses] = useState<BusinessEntity[]>([])
-  const [showSimilarBanner, setShowSimilarBanner] = useState(false)
-  const [joinRequestSent, setJoinRequestSent] = useState(false)
 
   // Zelto code lookup state
   const [zeltoLookupBusiness, setZeltoLookupBusiness] = useState<BusinessEntity | null>(null)
   const [zeltoLookupError, setZeltoLookupError] = useState('')
   const [isLookingUpZelto, setIsLookingUpZelto] = useState(false)
-
-  const debounceTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
-
-  // Debounced fuzzy search when business name + city are filled
-  const searchBusinesses = useCallback(async (name: string, searchCity: string) => {
-    if (name.length < 3 || searchCity.length < 2) {
-      setSimilarBusinesses([])
-      setShowSimilarBanner(false)
-      return
-    }
-
-    setIsSearching(true)
-    try {
-      const results = await dataStore.searchBusinessesByName(name, searchCity)
-      setSimilarBusinesses(results)
-      setShowSimilarBanner(results.length > 0)
-    } catch (err) {
-      console.error('Business search failed:', err)
-    } finally {
-      setIsSearching(false)
-    }
-  }, [])
-
-  useEffect(() => {
-    if (debounceTimer.current) {
-      clearTimeout(debounceTimer.current)
-    }
-
-    if (businessName.length >= 3 && city.length >= 2) {
-      debounceTimer.current = setTimeout(() => {
-        searchBusinesses(businessName, city)
-      }, 500)
-    } else {
-      setSimilarBusinesses([])
-      setShowSimilarBanner(false)
-    }
-
-    return () => {
-      if (debounceTimer.current) {
-        clearTimeout(debounceTimer.current)
-      }
-    }
-  }, [businessName, city, searchBusinesses])
 
   const handleCreateBusiness = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -174,29 +125,6 @@ export function BusinessSetupScreen({ email, onComplete }: BusinessSetupScreenPr
     }
   }
 
-  const handleFuzzyMatchJoin = async (business: BusinessEntity) => {
-    setJoinRequestSent(true)
-    // MVP: auto-approve — join directly
-    await handleJoinBusiness(business)
-  }
-
-  const handleDismissSimilar = () => {
-    setShowSimilarBanner(false)
-  }
-
-  if (joinRequestSent) {
-    return (
-      <div className="min-h-screen flex flex-col items-center justify-center bg-background px-6">
-        <div className="w-full max-w-sm text-center">
-          <h1 className="text-2xl font-semibold text-foreground mb-2">Request sent!</h1>
-          <p className="text-sm text-muted-foreground">
-            You'll be notified when approved.
-          </p>
-        </div>
-      </div>
-    )
-  }
-
   return (
     <div className="min-h-screen flex flex-col items-center justify-center bg-background px-6">
       <div className="w-full max-w-sm">
@@ -234,16 +162,10 @@ export function BusinessSetupScreen({ email, onComplete }: BusinessSetupScreenPr
               type="text"
               placeholder="Sri Lakshmi Traders"
               value={businessName}
-              onChange={(e) => {
-                setBusinessName(e.target.value)
-                setShowSimilarBanner(false)
-              }}
+              onChange={(e) => setBusinessName(e.target.value)}
               disabled={isCreating || isJoining}
               className="h-11"
             />
-            {isSearching && (
-              <p className="text-xs text-muted-foreground">Searching...</p>
-            )}
           </div>
 
           {/* City */}
@@ -256,10 +178,7 @@ export function BusinessSetupScreen({ email, onComplete }: BusinessSetupScreenPr
               type="text"
               placeholder="Hyderabad"
               value={city}
-              onChange={(e) => {
-                setCity(e.target.value)
-                setShowSimilarBanner(false)
-              }}
+              onChange={(e) => setCity(e.target.value)}
               disabled={isCreating || isJoining}
               className="h-11"
             />
@@ -281,46 +200,6 @@ export function BusinessSetupScreen({ email, onComplete }: BusinessSetupScreenPr
               className="h-11"
             />
           </div>
-
-          {/* Similar businesses banner */}
-          {showSimilarBanner && similarBusinesses.length > 0 && (
-            <div className="rounded-md border border-border bg-muted/50 p-4 space-y-3">
-              <p className="text-sm font-medium text-foreground">
-                Similar businesses found in {city}:
-              </p>
-              {similarBusinesses.map((biz) => (
-                <div key={biz.id} className="space-y-2">
-                  <div>
-                    <p className="text-sm font-medium text-foreground">
-                      {biz.businessName}
-                    </p>
-                    <p className="text-xs text-muted-foreground font-mono">
-                      {biz.zeltoId}
-                    </p>
-                  </div>
-                  <div className="flex gap-2">
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      onClick={() => handleFuzzyMatchJoin(biz)}
-                      disabled={isJoining}
-                    >
-                      {isJoining ? 'Joining…' : 'This is my business'}
-                    </Button>
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="sm"
-                      onClick={handleDismissSimilar}
-                    >
-                      Not mine
-                    </Button>
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
 
           {/* Divider */}
           <div className="relative py-4">
