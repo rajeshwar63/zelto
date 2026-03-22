@@ -5,8 +5,7 @@ const config: CapacitorConfig = {
   appName: 'Zelto',
   webDir: 'dist',
   server: {
-    androidScheme: 'http',
-    cleartext: true,
+    androidScheme: 'https',
   },
   plugins: {
     SplashScreen: {
