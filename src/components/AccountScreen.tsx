@@ -1,14 +1,30 @@
 import { useState } from 'react'
 import { CaretLeft, X } from '@phosphor-icons/react'
+import { deleteAccount } from '@/lib/auth'
+import { toast } from 'sonner'
 
 interface Props {
   onBack: () => void
   onLogout: () => void
+  onDeleteAccount: () => void
 }
 
-export function AccountScreen({ onBack, onLogout }: Props) {
+export function AccountScreen({ onBack, onLogout, onDeleteAccount }: Props) {
   const [showChangeEmailModal, setShowChangeEmailModal] = useState(false)
   const [showDeleteModal, setShowDeleteModal] = useState(false)
+  const [isDeletingAccount, setIsDeletingAccount] = useState(false)
+
+  const handleDeleteAccount = async () => {
+    setIsDeletingAccount(true)
+    try {
+      await deleteAccount()
+      onDeleteAccount()
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : 'Could not delete account. Please try again.'
+      toast.error(msg)
+      setIsDeletingAccount(false)
+    }
+  }
 
   return (
     <div>
@@ -58,11 +74,11 @@ export function AccountScreen({ onBack, onLogout }: Props) {
 
       {showDeleteModal && (
         <DeleteAccountModal
-          onClose={() => setShowDeleteModal(false)}
-          onConfirm={() => {
-            setShowDeleteModal(false)
-            // TODO: Call account deletion API endpoint when backend is available
+          onClose={() => {
+            if (!isDeletingAccount) setShowDeleteModal(false)
           }}
+          onConfirm={handleDeleteAccount}
+          isLoading={isDeletingAccount}
         />
       )}
     </div>
@@ -103,9 +119,17 @@ function ChangeEmailModal({ onClose }: { onClose: () => void }) {
   )
 }
 
-function DeleteAccountModal({ onClose, onConfirm }: { onClose: () => void; onConfirm: () => void }) {
+function DeleteAccountModal({
+  onClose,
+  onConfirm,
+  isLoading,
+}: {
+  onClose: () => void
+  onConfirm: () => void
+  isLoading: boolean
+}) {
   return (
-    <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/40" onClick={onClose}>
+    <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/40" onClick={isLoading ? undefined : onClose}>
       <div
         className="bg-white w-full max-w-md rounded-t-2xl p-6"
         onClick={e => e.stopPropagation()}
@@ -113,23 +137,31 @@ function DeleteAccountModal({ onClose, onConfirm }: { onClose: () => void; onCon
       >
         <div className="flex items-center justify-between mb-3">
           <h2 className="text-[16px] font-medium text-foreground">Delete Account</h2>
-          <button onClick={onClose} className="text-muted-foreground hover:text-foreground">
-            <X size={20} />
-          </button>
+          {!isLoading && (
+            <button onClick={onClose} className="text-muted-foreground hover:text-foreground">
+              <X size={20} />
+            </button>
+          )}
         </div>
         <p className="text-[14px] text-muted-foreground mb-6">
           This will permanently delete your account and all associated data. This action cannot be undone.
         </p>
         <button
           onClick={onConfirm}
+          disabled={isLoading}
           className="w-full py-2.5 rounded-lg text-white text-[14px] font-medium mb-3"
-          style={{ backgroundColor: 'var(--status-overdue)' }}
+          style={{
+            backgroundColor: 'var(--status-overdue)',
+            opacity: isLoading ? 0.6 : 1,
+          }}
         >
-          Delete Account
+          {isLoading ? 'Deleting…' : 'Delete Account'}
         </button>
         <button
           onClick={onClose}
+          disabled={isLoading}
           className="w-full py-2.5 rounded-lg border border-border text-[14px] text-foreground"
+          style={{ opacity: isLoading ? 0.4 : 1 }}
         >
           Cancel
         </button>

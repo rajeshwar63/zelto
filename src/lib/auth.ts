@@ -174,3 +174,13 @@ export async function logout(): Promise<void> {
   await supabase.auth.signOut()
   await clearAuthSession()
 }
+
+export async function deleteAccount(): Promise<void> {
+  const { error } = await supabase.functions.invoke('delete-account', {
+    method: 'POST',
+  })
+  if (error) throw new Error(error.message || 'Failed to delete account')
+  // Clear local session after successful deletion
+  await supabase.auth.signOut()
+  await clearAuthSession()
+}
