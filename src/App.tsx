@@ -11,6 +11,7 @@ import { OTPScreen } from '@/components/OTPScreen'
 import { AdminApp } from '@/components/admin/AdminApp'
 import { PrivacyPolicyScreen } from '@/components/PrivacyPolicyScreen'
 import { TermsScreen } from '@/components/TermsScreen'
+import { DeleteAccountScreen } from '@/components/DeleteAccountScreen'
 import { ManageConnectionsScreen } from '@/components/ManageConnectionsScreen'
 import { PaymentTermsSetupScreen } from '@/components/PaymentTermsSetupScreen'
 import { BusinessDetailsScreen } from '@/components/BusinessDetailsScreen'
@@ -91,6 +92,7 @@ function App() {
   const [isAdminRoute, setIsAdminRoute] = useState(false)
   const [isPrivacyRoute, setIsPrivacyRoute] = useState(false)
   const [isTermsRoute, setIsTermsRoute] = useState(false)
+  const [isDeleteAccountRoute, setIsDeleteAccountRoute] = useState(false)
   const [bootstrappedSession] = useState(() => getLocalAuthSessionSync())
   const [currentBusinessId, setCurrentBusinessId] = useState<string | null>(bootstrappedSession?.businessId ?? null)
   const [navigationStack, setNavigationStack] = useState<Screen[]>([{ type: 'tab', tab: 'dashboard' }])
@@ -167,6 +169,7 @@ function App() {
     setIsAdminRoute(window.location.pathname === '/admin')
     setIsPrivacyRoute(window.location.pathname === '/privacy')
     setIsTermsRoute(window.location.pathname === '/terms')
+    setIsDeleteAccountRoute(window.location.pathname === '/delete-account')
   }
 
   async function checkUnread() {
@@ -322,6 +325,10 @@ function App() {
 
   if (isTermsRoute) {
     return <TermsScreen />
+  }
+
+  if (isDeleteAccountRoute) {
+    return <DeleteAccountScreen />
   }
 
   if (error) {
