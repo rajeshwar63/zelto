@@ -595,7 +595,13 @@ function App() {
       return <NotificationSettingsScreen onBack={navigateBack} />
     }
     if (detailScreen.type === 'profile-account') {
-      return <AccountScreen onBack={navigateBack} onLogout={handleLogout} />
+      return (
+        <AccountScreen
+          onBack={navigateBack}
+          onLogout={handleLogout}
+          onDeleteAccount={handleLogout}
+        />
+      )
     }
     if (detailScreen.type === 'profile-support') {
       return <HelpSupportScreen onBack={navigateBack} />

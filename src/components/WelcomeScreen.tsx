@@ -86,21 +86,17 @@ export function WelcomeScreen({ onContinue, onLoginOnly }: WelcomeScreenProps) {
       <div className="w-full max-w-sm">
         {/* Logo + wordmark */}
         <div className="flex flex-col items-center mb-8">
-          <div
+          <img
+            src="/zelto-icon-512.png"
+            alt="Zelto"
             style={{
               width: 56,
               height: 56,
-              backgroundColor: 'var(--brand-primary)',
               borderRadius: 14,
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
               marginBottom: 12,
               boxShadow: '0 4px 16px rgba(74, 108, 247, 0.35)',
             }}
-          >
-            <span style={{ fontSize: 28, fontWeight: 800, color: '#FFFFFF', letterSpacing: '-0.03em' }}>Z</span>
-          </div>
+          />
           <h1 style={{ fontSize: 26, fontWeight: 700, color: 'var(--text-primary)', letterSpacing: '-0.02em' }}>
             Zelto
           </h1>
