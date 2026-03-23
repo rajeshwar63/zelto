@@ -1,7 +1,8 @@
 import { useState } from 'react'
 import { dataStore } from '@/lib/data-store'
 import { emitDataChange } from '@/lib/data-events'
-import { calculateCredibility, getBusinessActivityCounts, type CredibilityBreakdown } from '@/lib/credibility'
+import { getBusinessActivityCounts, type CredibilityBreakdown } from '@/lib/credibility'
+import { computeTrustScore } from '@/lib/trust-score'
 import { setPendingConnectionLabels } from '@/lib/pending-connection-labels'
 import { ArrowLeft } from '@phosphor-icons/react'
 import { Button } from '@/components/ui/button'
@@ -56,10 +57,11 @@ export function AddConnectionScreen({ currentBusinessId, onBack, onSuccess, onNa
 
     setFoundBusiness(business)
 
-    const [cred, activity] = await Promise.all([
-      calculateCredibility(business.id),
+    const [ts, activity] = await Promise.all([
+      computeTrustScore(business.id),
       getBusinessActivityCounts(business.id),
     ])
+    const cred: CredibilityBreakdown = { score: ts.total, level: ts.level, completedItems: [], missingItems: [] }
     setFoundCredibility(cred)
     setFoundActivity(activity)
 
