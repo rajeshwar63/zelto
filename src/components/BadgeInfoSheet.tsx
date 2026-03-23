@@ -91,7 +91,7 @@ export function BadgeInfoSheet({ currentLevel, trustScore, onClose, onCompletePr
                   border: isCurrent ? '1px solid #E0E7FF' : '1px solid transparent',
                 }}
               >
-                <TrustBadge level={level} variant="dark" size="sm" />
+                <TrustBadge level={level} size="sm" />
                 <p style={{ flex: 1, fontSize: '13px', fontWeight: isCurrent ? 600 : 500, color: isCurrent ? '#111' : '#555' }}>
                   {description}
                 </p>

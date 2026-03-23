@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { dataStore } from '@/lib/data-store'
 import { emitDataChange } from '@/lib/data-events'
-import { scoreToLevel, getBusinessActivityCounts, type CredibilityBreakdown } from '@/lib/credibility'
+import { calculateCredibility, getBusinessActivityCounts, type CredibilityBreakdown } from '@/lib/credibility'
 import { setPendingConnectionLabels } from '@/lib/pending-connection-labels'
 import { ArrowLeft } from '@phosphor-icons/react'
 import { Button } from '@/components/ui/button'
@@ -56,14 +56,11 @@ export function AddConnectionScreen({ currentBusinessId, onBack, onSuccess, onNa
 
     setFoundBusiness(business)
 
-    const activity = await getBusinessActivityCounts(business.id)
-    const cachedScore = business.credibilityScore ?? 0
-    setFoundCredibility({
-      score: cachedScore,
-      level: scoreToLevel(cachedScore),
-      completedItems: [],
-      missingItems: [],
-    })
+    const [cred, activity] = await Promise.all([
+      calculateCredibility(business.id),
+      getBusinessActivityCounts(business.id),
+    ])
+    setFoundCredibility(cred)
     setFoundActivity(activity)
 
     setSearching(false)
@@ -192,7 +189,7 @@ export function AddConnectionScreen({ currentBusinessId, onBack, onSuccess, onNa
                   </div>
                 </div>
                 {foundCredibility && (
-                  <TrustBadge level={foundCredibility.level} variant="dark" size="sm" />
+                  <TrustBadge level={foundCredibility.level} size="sm" />
                 )}
               </div>
 
