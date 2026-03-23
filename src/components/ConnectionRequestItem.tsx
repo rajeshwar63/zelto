@@ -3,7 +3,7 @@ import { dataStore } from '@/lib/data-store'
 import { emitDataChange } from '@/lib/data-events'
 import { consumePendingConnectionLabels } from '@/lib/pending-connection-labels'
 import { calculateCredibility, getBusinessActivityCounts, type CredibilityBreakdown } from '@/lib/credibility'
-import { CredibilityBadge } from '@/components/CredibilityBadge'
+import { TrustBadge } from '@/components/TrustBadge'
 import type { BusinessEntity, ConnectionRequest } from '@/lib/types'
 import { Button } from '@/components/ui/button'
 import { formatDistanceToNow } from 'date-fns'
@@ -136,7 +136,7 @@ export function ConnectionRequestItem({ request, currentBusinessId, onUpdate, on
             </div>
 
             {requesterCredibility && (
-              <CredibilityBadge level={requesterCredibility.level} />
+              <TrustBadge level={requesterCredibility.level} variant="dark" size="sm" />
             )}
           </div>
 

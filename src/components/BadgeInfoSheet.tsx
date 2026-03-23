@@ -1,5 +1,5 @@
 import { X } from '@phosphor-icons/react'
-import { CredibilityBadge } from './CredibilityBadge'
+import { TrustBadge } from './TrustBadge'
 import type { CredibilityBreakdown } from '@/lib/credibility'
 import type { TrustScoreBreakdown } from '@/lib/trust-score'
 
@@ -11,14 +11,13 @@ interface Props {
 }
 
 const TIERS: Array<{
-  level: Exclude<CredibilityBreakdown['level'], 'none'>
-  label: string
-  range: string
+  level: CredibilityBreakdown['level']
   description: string
 }> = [
-  { level: 'basic',    label: 'Basic',    range: '20–44', description: 'Profile set up, starting to trade' },
-  { level: 'verified', label: 'Verified', range: '45–69', description: 'Active with some trade history' },
-  { level: 'trusted',  label: 'Trusted',  range: '70–100', description: 'Strong behaviour across connections' },
+  { level: 'trusted',  description: 'Strong trade record across connections' },
+  { level: 'verified', description: 'Active with some trade history' },
+  { level: 'basic',    description: 'Profile set up, starting to trade' },
+  { level: 'none',     description: 'Just joined Zelto' },
 ]
 
 function getPillarBarColor(score: number, max: number): string {
@@ -92,7 +91,7 @@ export function BadgeInfoSheet({ currentLevel, trustScore, onClose, onCompletePr
                   border: isCurrent ? '1px solid #E0E7FF' : '1px solid transparent',
                 }}
               >
-                <CredibilityBadge level={level} />
+                <TrustBadge level={level} variant="dark" size="sm" />
                 <p style={{ flex: 1, fontSize: '13px', fontWeight: isCurrent ? 600 : 500, color: isCurrent ? '#111' : '#555' }}>
                   {description}
                 </p>
