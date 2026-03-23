@@ -9,7 +9,7 @@ import { getBlockedBusinessIds, blockBusiness, unblockBusiness } from '@/lib/blo
 import { ArrowLeft, MagnifyingGlass, X, Phone, Receipt, Briefcase, MapPin, UsersThree, Package, Medal, UserPlus } from '@phosphor-icons/react'
 import { Button } from '@/components/ui/button'
 import type { BusinessEntity, ConnectionRequest, Connection } from '@/lib/types'
-import { CredibilityBadge } from '@/components/CredibilityBadge'
+import { TrustBadge } from '@/components/TrustBadge'
 import { formatDistanceToNow } from 'date-fns'
 
 type Tab = 'sent' | 'received' | 'archived'
@@ -416,7 +416,7 @@ export function ManageConnectionsScreen({ currentBusinessId, onBack, onSuccess, 
                   {otherBusiness?.zeltoId}
                 </p>
               </div>
-              <CredibilityBadge level={level} />
+              <TrustBadge level={level} variant="dark" size="sm" />
             </div>
 
             {/* Details */}

@@ -7,7 +7,7 @@ import { ArrowLeft } from '@phosphor-icons/react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import type { BusinessEntity } from '@/lib/types'
-import { CredibilityBadge } from '@/components/CredibilityBadge'
+import { TrustBadge } from '@/components/TrustBadge'
 
 interface Props {
   currentBusinessId: string
@@ -192,7 +192,7 @@ export function AddConnectionScreen({ currentBusinessId, onBack, onSuccess, onNa
                   </div>
                 </div>
                 {foundCredibility && (
-                  <CredibilityBadge level={foundCredibility.level} />
+                  <TrustBadge level={foundCredibility.level} variant="dark" size="sm" />
                 )}
               </div>
 

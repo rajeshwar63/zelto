@@ -1,5 +1,5 @@
 import { ArrowDown, ArrowUp, CaretRight, CurrencyInr, Hourglass, NotePencil, Package, ShieldWarning, Truck, UsersThree } from '@phosphor-icons/react'
-import { CredibilityBadge } from '@/components/CredibilityBadge'
+import { TrustBadge } from '@/components/TrustBadge'
 import { BadgeInfoSheet } from '@/components/BadgeInfoSheet'
 import { ComplianceCard } from '@/components/ComplianceCard'
 import { useState, useEffect } from 'react'
@@ -86,7 +86,7 @@ export function DashboardScreen({ currentBusinessId, onNavigateToOrders, onNavig
           </div>
           {overview.credibility && overview.credibility.level !== 'none' && (
             <div className="flex items-center gap-1">
-              <CredibilityBadge level={overview.credibility.level} />
+              <TrustBadge level={overview.credibility.level} variant="dark" size="sm" />
               <button
                 onClick={() => setShowBadgeInfo(true)}
                 style={{

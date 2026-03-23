@@ -1,18 +1,4 @@
-/**
- * TrustBadge — badge-only display of business trust level.
- * Shows Trusted / Verified / Basic / New as a pill with no numeric score.
- * Replaces CredibilityBadge for all public-facing trust level displays.
- *
- * Design spec (section 10):
- *   Trusted:  bg rgba(34,181,115,0.2),  text #22B573, border rgba(34,181,115,0.3)
- *   Verified: bg rgba(74,108,247,0.2),  text #7B8FF7, border rgba(74,108,247,0.3)
- *   Basic:    bg rgba(255,176,32,0.2),  text #FFB020, border rgba(255,176,32,0.3)
- *   New:      bg rgba(255,255,255,0.1), text rgba(255,255,255,0.5), border rgba(255,255,255,0.15)
- *
- * Use `variant="light"` on dark backgrounds (default).
- * Use `variant="dark"` on white card backgrounds (inverts New badge colors).
- */
-
+import { SealCheck } from '@phosphor-icons/react'
 import type { CredibilityBreakdown } from '@/lib/credibility'
 
 type Level = CredibilityBreakdown['level']
@@ -24,64 +10,99 @@ interface Props {
   size?: 'sm' | 'md'
 }
 
-const BADGE_CONFIG: Record<Level, { label: string; bg: string; color: string; border: string; darkBg?: string; darkColor?: string; darkBorder?: string }> = {
+const BADGE_CONFIG: Record<Level, {
+  label: string
+  background: string
+  boxShadow: string
+  // Flat style overrides for dark variant (on white/card backgrounds)
+  flatBg: string
+  flatColor: string
+  flatBorder: string
+}> = {
   trusted: {
     label: 'Trusted',
-    bg: 'rgba(34,181,115,0.2)',
-    color: '#22B573',
-    border: '1px solid rgba(34,181,115,0.3)',
+    background: 'linear-gradient(135deg, #0D9488 0%, #059669 100%)',
+    boxShadow: '0 1px 6px rgba(13, 148, 136, 0.40), 0 0 0 1px rgba(13, 148, 136, 0.25)',
+    flatBg: 'rgba(34,181,115,0.15)',
+    flatColor: '#0D9488',
+    flatBorder: '1px solid rgba(34,181,115,0.3)',
   },
   verified: {
     label: 'Verified',
-    bg: 'rgba(74,108,247,0.2)',
-    color: '#7B8FF7',
-    border: '1px solid rgba(74,108,247,0.3)',
+    background: 'linear-gradient(135deg, #4A6CF7 0%, #3B5DE7 100%)',
+    boxShadow: '0 1px 6px rgba(74, 108, 247, 0.40), 0 0 0 1px rgba(74, 108, 247, 0.25)',
+    flatBg: 'rgba(74,108,247,0.15)',
+    flatColor: '#4A6CF7',
+    flatBorder: '1px solid rgba(74,108,247,0.3)',
   },
   basic: {
     label: 'Basic',
-    bg: 'rgba(255,176,32,0.2)',
-    color: '#FFB020',
-    border: '1px solid rgba(255,176,32,0.3)',
+    background: 'linear-gradient(135deg, #6B7280 0%, #4B5563 100%)',
+    boxShadow: '0 1px 6px rgba(107, 114, 128, 0.40), 0 0 0 1px rgba(107, 114, 128, 0.25)',
+    flatBg: 'rgba(107,114,128,0.12)',
+    flatColor: '#6B7280',
+    flatBorder: '1px solid rgba(107,114,128,0.25)',
   },
   none: {
     label: 'New',
-    bg: 'rgba(255,255,255,0.1)',
-    color: 'rgba(255,255,255,0.5)',
-    border: '1px solid rgba(255,255,255,0.15)',
-    // On white/card backgrounds use grey tones
-    darkBg: 'rgba(0,0,0,0.06)',
-    darkColor: '#8492A6',
-    darkBorder: '1px solid rgba(0,0,0,0.1)',
+    background: 'linear-gradient(135deg, #9CA3AF 0%, #6B7280 100%)',
+    boxShadow: '0 1px 6px rgba(156, 163, 175, 0.30), 0 0 0 1px rgba(156, 163, 175, 0.20)',
+    flatBg: 'rgba(0,0,0,0.06)',
+    flatColor: '#8492A6',
+    flatBorder: '1px solid rgba(0,0,0,0.1)',
   },
 }
 
 export function TrustBadge({ level, variant = 'light', size = 'sm' }: Props) {
   const cfg = BADGE_CONFIG[level]
-  const isOnDark = variant === 'light'
-
-  const bg = (!isOnDark && cfg.darkBg) ? cfg.darkBg : cfg.bg
-  const color = (!isOnDark && cfg.darkColor) ? cfg.darkColor : cfg.color
-  const border = (!isOnDark && cfg.darkBorder) ? cfg.darkBorder : cfg.border
+  const useGradient = variant === 'light' // gradient on dark backgrounds, flat on white
 
   const fontSize = size === 'md' ? '12px' : '11px'
-  const padding = size === 'md' ? '4px 10px' : '3px 8px'
 
+  if (useGradient) {
+    // Gradient style — white text on colored gradient, with icon
+    return (
+      <span
+        style={{
+          display: 'inline-flex',
+          alignItems: 'center',
+          gap: '4px',
+          padding: size === 'md' ? '4px 10px 4px 7px' : '3px 8px 3px 6px',
+          borderRadius: '999px',
+          background: cfg.background,
+          color: '#ffffff',
+          fontSize,
+          fontWeight: 700,
+          letterSpacing: '0.01em',
+          whiteSpace: 'nowrap',
+          boxShadow: cfg.boxShadow,
+        }}
+      >
+        <SealCheck size={size === 'md' ? 14 : 12} weight="fill" />
+        {cfg.label}
+      </span>
+    )
+  }
+
+  // Flat style — for white/card backgrounds
   return (
     <span
       style={{
         display: 'inline-flex',
         alignItems: 'center',
-        backgroundColor: bg,
-        color,
-        border,
-        borderRadius: '100px',
+        gap: '4px',
+        padding: size === 'md' ? '4px 10px 4px 7px' : '3px 8px 3px 6px',
+        borderRadius: '999px',
+        backgroundColor: cfg.flatBg,
+        color: cfg.flatColor,
+        border: cfg.flatBorder,
         fontSize,
         fontWeight: 600,
-        padding,
-        whiteSpace: 'nowrap',
         letterSpacing: '0.01em',
+        whiteSpace: 'nowrap',
       }}
     >
+      <SealCheck size={size === 'md' ? 14 : 12} weight="fill" />
       {cfg.label}
     </span>
   )
