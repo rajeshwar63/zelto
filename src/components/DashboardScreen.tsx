@@ -86,7 +86,7 @@ export function DashboardScreen({ currentBusinessId, onNavigateToOrders, onNavig
           </div>
           {overview.credibility && overview.credibility.level !== 'none' && (
             <div className="flex items-center gap-1">
-              <TrustBadge level={overview.credibility.level} variant="dark" size="sm" />
+              <TrustBadge level={overview.credibility.level} size="sm" />
               <button
                 onClick={() => setShowBadgeInfo(true)}
                 style={{

@@ -151,7 +151,7 @@ export function RequestCard({ request, currentBusinessId, onUpdate, onNavigateTo
             </div>
 
             {requesterCredibility && (
-              <TrustBadge level={requesterCredibility.level} variant="dark" size="sm" />
+              <TrustBadge level={requesterCredibility.level} size="sm" />
             )}
           </div>
 

@@ -318,7 +318,7 @@ export function ProfileScreen({
                 )}
                 {credibility && credibility.level !== 'none' && (
                   <div style={{ marginTop: '6px' }}>
-                    <TrustBadge level={credibility.level} variant="light" />
+                    <TrustBadge level={credibility.level} />
                   </div>
                 )}
               </div>

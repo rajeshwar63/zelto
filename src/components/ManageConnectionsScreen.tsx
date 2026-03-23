@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react'
 import { dataStore } from '@/lib/data-store'
 import { emitDataChange } from '@/lib/data-events'
 import { useDataListener } from '@/lib/data-events'
-import { scoreToLevel, getBusinessActivityCounts } from '@/lib/credibility'
+import { calculateCredibility, getBusinessActivityCounts, type CredibilityBreakdown } from '@/lib/credibility'
 import { consumePendingConnectionLabels } from '@/lib/pending-connection-labels'
 import { getArchivedConnectionIds, unarchiveConnection } from '@/lib/connection-archive-store'
 import { getBlockedBusinessIds, blockBusiness, unblockBusiness } from '@/lib/blocked-connections'
@@ -60,6 +60,7 @@ export function ManageConnectionsScreen({ currentBusinessId, onBack, onSuccess, 
 
   // Credibility data for received request senders
   const [receivedActivityMap, setReceivedActivityMap] = useState<Map<string, { connectionCount: number; orderCount: number }>>(new Map())
+  const [receivedCredibilityMap, setReceivedCredibilityMap] = useState<Map<string, CredibilityBreakdown>>(new Map())
 
   // Action state
   const [actionInProgress, setActionInProgress] = useState<string | null>(null)
@@ -96,11 +97,16 @@ export function ManageConnectionsScreen({ currentBusinessId, onBack, onSuccess, 
     const pending = requests.filter(r => r.receiverBusinessId === currentBusinessId && r.status === 'Pending')
     if (pending.length === 0) return
     void Promise.all(
-      pending.map(r =>
-        getBusinessActivityCounts(r.requesterBusinessId).then(counts => ({ id: r.requesterBusinessId, counts }))
-      )
+      pending.map(async r => {
+        const [counts, cred] = await Promise.all([
+          getBusinessActivityCounts(r.requesterBusinessId),
+          calculateCredibility(r.requesterBusinessId),
+        ])
+        return { id: r.requesterBusinessId, counts, cred }
+      })
     ).then(results => {
       setReceivedActivityMap(new Map(results.map(r => [r.id, r.counts])))
+      setReceivedCredibilityMap(new Map(results.map(r => [r.id, r.cred])))
     })
   }, [requests, currentBusinessId])
 
@@ -399,8 +405,8 @@ export function ManageConnectionsScreen({ currentBusinessId, onBack, onSuccess, 
     const showActions = isPending || isBlocked
 
     if (isPending) {
-      const score = otherBusiness?.credibilityScore ?? 0
-      const level = scoreToLevel(score)
+      const cred = receivedCredibilityMap.get(request.requesterBusinessId)
+      const level = cred?.level ?? 'none'
       const activity = receivedActivityMap.get(request.requesterBusinessId)
 
       return (
@@ -416,7 +422,7 @@ export function ManageConnectionsScreen({ currentBusinessId, onBack, onSuccess, 
                   {otherBusiness?.zeltoId}
                 </p>
               </div>
-              <TrustBadge level={level} variant="dark" size="sm" />
+              <TrustBadge level={level} size="sm" />
             </div>
 
             {/* Details */}
@@ -468,7 +474,7 @@ export function ManageConnectionsScreen({ currentBusinessId, onBack, onSuccess, 
                 <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '10px 8px', gap: '3px' }}>
                   <Medal size={16} weight="duotone" style={{ color: '#0D9488' }} />
                   <p style={{ fontSize: '17px', fontWeight: 600, margin: 0, lineHeight: 1.1, color: 'var(--text-primary)' }}>
-                    {score}<span style={{ fontSize: '11px', fontWeight: 400, color: 'var(--text-secondary)' }}>/100</span>
+                    {cred?.score ?? 0}<span style={{ fontSize: '11px', fontWeight: 400, color: 'var(--text-secondary)' }}>/100</span>
                   </p>
                   <p style={{ fontSize: '10px', color: 'var(--text-secondary)', margin: 0, textAlign: 'center', lineHeight: 1.3 }}>trust score</p>
                 </div>
@@ -476,7 +482,7 @@ export function ManageConnectionsScreen({ currentBusinessId, onBack, onSuccess, 
             )}
 
             {/* Low-trust warning */}
-            {score < 20 && (
+            {(cred?.score ?? 0) < 20 && (
               <div style={{ background: 'var(--color-background-warning)', borderLeft: '3px solid #EF9F27', borderRadius: '6px', padding: '8px 10px' }}>
                 <p style={{ fontSize: '12px', color: 'var(--color-text-warning)', margin: 0 }}>
                   This business hasn't built a history on Zelto yet. Verify before connecting.

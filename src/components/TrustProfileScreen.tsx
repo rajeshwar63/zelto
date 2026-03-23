@@ -369,7 +369,7 @@ export function TrustProfileScreen({
           <div style={{ flex: 1, minWidth: 0 }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap', marginBottom: '3px' }}>
               <span style={{ fontSize: '16px', fontWeight: 700, color: '#1A1F36' }}>{business.businessName}</span>
-              {credibility && <TrustBadge level={credibility.level} variant="dark" size="sm" />}
+              {credibility && <TrustBadge level={credibility.level} size="sm" />}
             </div>
             {(business.businessType || business.city) && (
               <p style={{ fontSize: '11px', color: '#8492A6', marginBottom: '4px' }}>
