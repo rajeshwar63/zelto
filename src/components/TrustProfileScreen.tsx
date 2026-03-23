@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react'
-import { ArrowLeft, Buildings, Note, Briefcase, MapPin, Link, User, Phone, PencilSimple } from '@phosphor-icons/react'
+import { ArrowLeft, Buildings, Note, Briefcase, MapPin, Link, User, Phone, PencilSimple, ShieldCheck, ChartLineUp, Handshake, CalendarBlank, Lock } from '@phosphor-icons/react'
 import { dataStore } from '@/lib/data-store'
 import { calculateCredibility, getBusinessActivityCounts, type CredibilityBreakdown } from '@/lib/credibility'
+import { computeTrustScore, generateBusinessInsights, type TrustScoreBreakdown, type BusinessInsight } from '@/lib/trust-score'
 import { TrustBadge } from './TrustBadge'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog'
@@ -26,7 +27,7 @@ interface Props {
   screenMode: TrustProfileScreenMode
   connectionRequestId?: string
   connectionId?: string
-  initialTab?: 'identity' | 'docs'
+  initialTab?: 'identity' | 'docs' | 'insights'
   onBack: () => void
   onNavigateToEditBusiness?: (scrollToDocuments?: boolean) => void
   onRequestSent?: () => void
@@ -85,7 +86,7 @@ export function TrustProfileScreen({
   const { action, audience } = screenMode
   const isConnectionReview = audience === 'connection-review'
   const isSelfProfileReady = audience === 'self-profile-ready'
-  const [activeTab, setActiveTab] = useState<'identity' | 'docs'>(initialTab ?? 'identity')
+  const [activeTab, setActiveTab] = useState<'identity' | 'docs' | 'insights'>(initialTab ?? 'identity')
 
   // Data
   const [business, setBusiness] = useState<BusinessEntity | null>(null)
@@ -93,11 +94,14 @@ export function TrustProfileScreen({
   const [documents, setDocuments] = useState<BusinessDocument[]>([])
   const [activityCounts, setActivityCounts] = useState<{ connectionCount: number; orderCount: number } | null>(null)
   const [connection, setConnection] = useState<Connection | null>(null)
+  const [trustScore, setTrustScore] = useState<TrustScoreBreakdown | null>(null)
+  const [insights, setInsights] = useState<BusinessInsight[]>([])
 
   // Loading
   const [loadingBusiness, setLoadingBusiness] = useState(true)
   const [loadingCred, setLoadingCred] = useState(true)
   const [loadingDocs, setLoadingDocs] = useState(true)
+  const [loadingInsights, setLoadingInsights] = useState(true)
 
   // Actions
   const [showRoleConfirm, setShowRoleConfirm] = useState(false)
@@ -143,10 +147,16 @@ export function TrustProfileScreen({
       setLoadingBusiness(false)
     }).catch(() => setLoadingBusiness(false))
 
-    calculateCredibility(targetBusinessId).then(cred => {
-      setCredibility(cred)
+    computeTrustScore(targetBusinessId).then(ts => {
+      setTrustScore(ts)
+      setCredibility({ score: ts.total, level: ts.level, completedItems: [], missingItems: [] })
       setLoadingCred(false)
     }).catch(() => setLoadingCred(false))
+
+    generateBusinessInsights(targetBusinessId).then(ins => {
+      setInsights(ins)
+      setLoadingInsights(false)
+    }).catch(() => setLoadingInsights(false))
 
     dataStore.getDocumentsByBusinessId(targetBusinessId).then(docs => {
       setDocuments(docs)
@@ -417,7 +427,7 @@ export function TrustProfileScreen({
 
       {/* Tab Strip — white, immediately below dark header */}
       <div style={{ backgroundColor: '#fff', borderBottom: '1px solid #E8ECF2', display: 'flex', flexShrink: 0 }}>
-        {(['identity', 'docs'] as const).map(tab => (
+        {(['identity', 'docs', 'insights'] as const).map(tab => (
           <button
             key={tab}
             onClick={() => setActiveTab(tab)}
@@ -433,7 +443,7 @@ export function TrustProfileScreen({
               cursor: 'pointer',
             }}
           >
-            {tab === 'identity' ? 'Identity' : 'Docs'}
+            {tab === 'identity' ? 'Identity' : tab === 'docs' ? 'Docs' : 'Insights'}
           </button>
         ))}
       </div>
@@ -679,6 +689,171 @@ export function TrustProfileScreen({
               )}
             </div>
 
+          </div>
+        )}
+
+        {/* === INSIGHTS TAB === */}
+        {activeTab === 'insights' && (
+          <div style={{ padding: '20px 16px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
+
+            {/* Visibility: non-connected businesses see locked state */}
+            {!isSelfProfileReady && !isConnectionReview && action === 'send-request' ? (
+              <div style={{ backgroundColor: '#fff', borderRadius: '12px', padding: '40px 24px', textAlign: 'center' }}>
+                <Lock size={32} color="#8492A6" style={{ marginBottom: '12px' }} />
+                <p style={{ fontSize: '14px', color: '#8492A6', fontWeight: 500 }}>
+                  Connect with this business to see their trade insights.
+                </p>
+              </div>
+            ) : (
+              <>
+                {/* Trust Score Breakdown Card */}
+                <div>
+                  <p style={{ fontSize: '11px', fontWeight: 600, color: '#8492A6', letterSpacing: '0.6px', marginBottom: '8px' }}>
+                    TRUST SCORE BREAKDOWN
+                  </p>
+                  <div style={{ backgroundColor: '#fff', borderRadius: '12px', overflow: 'hidden' }}>
+                    {trustScore ? (
+                      <>
+                        {([
+                          { name: 'Identity & Compliance', pillar: trustScore.identity, icon: ShieldCheck, iconBg: '#EEF0FF', insufficient: false },
+                          { name: 'Activity & Tenure', pillar: trustScore.activity, icon: ChartLineUp, iconBg: '#E8F8F0', insufficient: false },
+                          { name: 'Trade Record', pillar: trustScore.tradeRecord, icon: Handshake, iconBg: '#FFF4E0', insufficient: trustScore.tradeRecordInsufficient },
+                        ]).map(({ name, pillar, icon: Icon, iconBg, insufficient }, idx) => {
+                          const pct = pillar.max > 0 ? pillar.score / pillar.max : 0
+                          const barColor = pct >= 0.7 ? '#22B573' : pct >= 0.4 ? '#EF9F27' : '#E24B4A'
+                          return (
+                            <div key={name}>
+                              <div style={{ padding: '14px 16px' }}>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '8px' }}>
+                                  <div style={{
+                                    width: 24, height: 24, borderRadius: '6px',
+                                    backgroundColor: iconBg,
+                                    display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
+                                  }}>
+                                    <Icon size={14} color="#4A6CF7" />
+                                  </div>
+                                  <span style={{ flex: 1, fontSize: '13px', fontWeight: 600, color: '#1A1F36' }}>{name}</span>
+                                  <span style={{ fontSize: '13px', fontWeight: 600, color: '#1A1F36' }}>
+                                    {insufficient ? '—' : pillar.score}/{pillar.max}
+                                  </span>
+                                </div>
+                                <div style={{ height: 6, backgroundColor: '#E8ECF2', borderRadius: 99, overflow: 'hidden', marginBottom: '8px' }}>
+                                  <div style={{
+                                    height: '100%',
+                                    width: `${Math.min(100, pct * 100)}%`,
+                                    backgroundColor: barColor,
+                                    borderRadius: 99,
+                                    transition: 'width 0.4s ease',
+                                  }} />
+                                </div>
+                                {/* Tags */}
+                                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
+                                  {pillar.tags.map((tag, tIdx) => (
+                                    <span
+                                      key={tIdx}
+                                      style={{
+                                        fontSize: '11px',
+                                        fontWeight: 500,
+                                        padding: '3px 8px',
+                                        borderRadius: '100px',
+                                        backgroundColor:
+                                          tag.sentiment === 'positive' ? '#E8F8F0' :
+                                          tag.sentiment === 'warning' ? '#FFF4E0' : '#F2F4F8',
+                                        color:
+                                          tag.sentiment === 'positive' ? '#166534' :
+                                          tag.sentiment === 'warning' ? '#92600A' : '#4A5568',
+                                      }}
+                                    >
+                                      {tag.label}
+                                    </span>
+                                  ))}
+                                </div>
+                              </div>
+                              {idx < 2 && <div style={{ height: '1px', backgroundColor: '#F2F4F8' }} />}
+                            </div>
+                          )
+                        })}
+                      </>
+                    ) : (
+                      <div style={{ padding: '24px', textAlign: 'center' }}>
+                        <p style={{ fontSize: '13px', color: '#8492A6' }}>Loading score breakdown…</p>
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {/* Collective Insights */}
+                <div>
+                  <p style={{ fontSize: '11px', fontWeight: 600, color: '#8492A6', letterSpacing: '0.6px', marginBottom: '8px' }}>
+                    COLLECTIVE INSIGHTS
+                  </p>
+                  <div style={{ backgroundColor: '#fff', borderRadius: '12px', overflow: 'hidden' }}>
+                    {loadingInsights ? (
+                      <div style={{ padding: '24px', textAlign: 'center' }}>
+                        <p style={{ fontSize: '13px', color: '#8492A6' }}>Loading insights…</p>
+                      </div>
+                    ) : insights.length === 0 ? (
+                      <div style={{ padding: '24px', textAlign: 'center' }}>
+                        <p style={{ fontSize: '13px', color: '#8492A6' }}>No insights available yet.</p>
+                      </div>
+                    ) : (
+                      insights.map((insight, idx) => (
+                        <div key={idx}>
+                          <div style={{ display: 'flex', alignItems: 'flex-start', gap: '10px', padding: '12px 16px' }}>
+                            <div style={{
+                              width: 6, height: 6, borderRadius: '50%', flexShrink: 0, marginTop: '5px',
+                              backgroundColor: insight.sentiment === 'positive' ? '#22B573' :
+                                insight.sentiment === 'warning' ? '#EF9F27' : '#8492A6',
+                            }} />
+                            <div style={{ flex: 1 }}>
+                              <p style={{ fontSize: '13px', fontWeight: 500, color: '#1A1F36', margin: 0 }}>
+                                {insight.text}
+                              </p>
+                              <p style={{ fontSize: '11px', color: '#8492A6', margin: '2px 0 0' }}>
+                                {insight.category.charAt(0).toUpperCase() + insight.category.slice(1)}
+                                {insight.timeframe ? ` · ${insight.timeframe}` : ''}
+                              </p>
+                            </div>
+                          </div>
+                          {idx < insights.length - 1 && <div style={{ height: '1px', backgroundColor: '#F2F4F8', marginLeft: '32px' }} />}
+                        </div>
+                      ))
+                    )}
+                  </div>
+                </div>
+
+                {/* Tenure Card */}
+                {business && (
+                  <div style={{
+                    backgroundColor: '#fff',
+                    borderRadius: '12px',
+                    padding: '14px 16px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '12px',
+                  }}>
+                    <CalendarBlank size={20} color="#8492A6" />
+                    <div>
+                      <p style={{ fontSize: '13px', fontWeight: 600, color: '#1A1F36', margin: 0 }}>
+                        On Zelto since {new Date(business.createdAt).toLocaleDateString('en-IN', { month: 'long', year: 'numeric' })}
+                      </p>
+                      <p style={{ fontSize: '11px', color: '#8492A6', margin: '2px 0 0' }}>
+                        Building trust for {(() => {
+                          const months = Math.floor((Date.now() - business.createdAt) / (1000 * 60 * 60 * 24 * 30))
+                          if (months < 1) return 'less than a month'
+                          if (months === 1) return '1 month'
+                          if (months < 12) return `${months} months`
+                          const years = Math.floor(months / 12)
+                          const rem = months % 12
+                          if (rem === 0) return `${years} year${years > 1 ? 's' : ''}`
+                          return `${years} year${years > 1 ? 's' : ''}, ${rem} month${rem > 1 ? 's' : ''}`
+                        })()}
+                      </p>
+                    </div>
+                  </div>
+                )}
+              </>
+            )}
           </div>
         )}
       </div>

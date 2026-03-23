@@ -2,7 +2,8 @@ import { ArrowDown, ArrowUp, CaretRight, CurrencyInr, Hourglass, NotePencil, Pac
 import { CredibilityBadge } from '@/components/CredibilityBadge'
 import { BadgeInfoSheet } from '@/components/BadgeInfoSheet'
 import { ComplianceCard } from '@/components/ComplianceCard'
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
+import { computeTrustScore, type TrustScoreBreakdown } from '@/lib/trust-score'
 import { useBusinessOverviewData } from '@/hooks/data/use-business-data'
 import { OrderCard } from '@/components/order/OrderCard'
 
@@ -34,6 +35,13 @@ interface Props {
 
 export function DashboardScreen({ currentBusinessId, onNavigateToOrders, onNavigateToConnection, onNavigateToProfile, onNavigateToConnections, onNavigateToAttention, onNavigateToManageConnections, onNavigateToSupplierDocs, isActive = true }: Props) {
   const [showBadgeInfo, setShowBadgeInfo] = useState(false)
+  const [trustScoreData, setTrustScoreData] = useState<TrustScoreBreakdown | null>(null)
+
+  useEffect(() => {
+    if (showBadgeInfo && !trustScoreData) {
+      computeTrustScore(currentBusinessId).then(setTrustScoreData).catch(() => {})
+    }
+  }, [showBadgeInfo, currentBusinessId, trustScoreData])
 
   const { data: overview, isInitialLoading } = useBusinessOverviewData(currentBusinessId, isActive)
   const recentOrders = overview?.recentOrders ?? []
@@ -444,7 +452,7 @@ export function DashboardScreen({ currentBusinessId, onNavigateToOrders, onNavig
       {showBadgeInfo && overview.credibility && (
         <BadgeInfoSheet
           currentLevel={overview.credibility.level}
-          missingItems={overview.credibility.missingItems}
+          trustScore={trustScoreData}
           onClose={() => setShowBadgeInfo(false)}
           onCompleteProfile={() => {
             setShowBadgeInfo(false)

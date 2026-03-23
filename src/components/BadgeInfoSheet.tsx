@@ -1,30 +1,35 @@
 import { X } from '@phosphor-icons/react'
 import { CredibilityBadge } from './CredibilityBadge'
 import type { CredibilityBreakdown } from '@/lib/credibility'
+import type { TrustScoreBreakdown } from '@/lib/trust-score'
 
 interface Props {
   currentLevel: CredibilityBreakdown['level']
-  missingItems: string[]
+  trustScore: TrustScoreBreakdown | null
   onClose: () => void
   onCompleteProfile: () => void
 }
 
 const TIERS: Array<{
   level: Exclude<CredibilityBreakdown['level'], 'none'>
+  label: string
+  range: string
   description: string
 }> = [
-  { level: 'basic',    description: 'Profile created, getting started' },
-  { level: 'verified', description: 'Key business details added' },
-  { level: 'trusted',  description: 'Fully complete, actively trading' },
+  { level: 'basic',    label: 'Basic',    range: '20–44', description: 'Profile set up, starting to trade' },
+  { level: 'verified', label: 'Verified', range: '45–69', description: 'Active with some trade history' },
+  { level: 'trusted',  label: 'Trusted',  range: '70–100', description: 'Strong behaviour across connections' },
 ]
 
-export function BadgeInfoSheet({ currentLevel, missingItems, onClose, onCompleteProfile }: Props) {
+function getPillarBarColor(score: number, max: number): string {
+  const pct = max > 0 ? score / max : 0
+  if (pct >= 0.7) return '#22B573'
+  if (pct >= 0.4) return '#EF9F27'
+  return '#E24B4A'
+}
+
+export function BadgeInfoSheet({ currentLevel, trustScore, onClose, onCompleteProfile }: Props) {
   const isTrusted = currentLevel === 'trusted'
-  const nudgeText = isTrusted
-    ? null
-    : missingItems.length > 0
-      ? `Add ${missingItems.slice(0, 2).join(' and ')} to reach the next level`
-      : null
 
   return (
     <>
@@ -47,6 +52,8 @@ export function BadgeInfoSheet({ currentLevel, missingItems, onClose, onComplete
           padding: '20px 20px 40px',
           zIndex: 51,
           boxShadow: '0 -4px 20px rgba(0,0,0,0.08)',
+          maxHeight: '85vh',
+          overflowY: 'auto',
         }}
       >
         {/* Close button */}
@@ -64,10 +71,10 @@ export function BadgeInfoSheet({ currentLevel, missingItems, onClose, onComplete
 
         {/* Title */}
         <h2 style={{ fontSize: '17px', fontWeight: 700, color: '#111', marginBottom: '4px' }}>
-          What does your Zelto badge mean?
+          Your trust badge
         </h2>
         <p style={{ fontSize: '13px', color: '#888', marginBottom: '20px' }}>
-          Your badge shows other businesses how complete and active your profile is.
+          Your badge reflects how complete, active, and reliable your business is on Zelto.
         </p>
 
         {/* Tier rows */}
@@ -99,16 +106,67 @@ export function BadgeInfoSheet({ currentLevel, missingItems, onClose, onComplete
           })}
         </div>
 
-        {/* Nudge */}
-        {isTrusted ? (
-          <p style={{ fontSize: '13px', color: '#22C55E', fontWeight: 600, textAlign: 'center', marginBottom: '16px' }}>
-            You've reached the highest level 🎉
-          </p>
-        ) : nudgeText ? (
-          <p style={{ fontSize: '12px', color: '#888', marginBottom: '16px' }}>
-            {nudgeText}
-          </p>
-        ) : null}
+        {/* Divider */}
+        <div style={{ height: '1px', backgroundColor: '#E8ECF2', marginBottom: '20px' }} />
+
+        {/* Score Breakdown */}
+        {trustScore && (
+          <>
+            <p style={{ fontSize: '11px', fontWeight: 600, color: '#8492A6', letterSpacing: '0.6px', marginBottom: '12px' }}>
+              YOUR SCORE BREAKDOWN
+            </p>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', marginBottom: '20px' }}>
+              {([
+                { name: 'Identity & Compliance', pillar: trustScore.identity, insufficient: false },
+                { name: 'Activity & Tenure', pillar: trustScore.activity, insufficient: false },
+                { name: 'Trade Record', pillar: trustScore.tradeRecord, insufficient: trustScore.tradeRecordInsufficient },
+              ]).map(({ name, pillar, insufficient }) => {
+                const barColor = getPillarBarColor(pillar.score, pillar.max)
+                return (
+                  <div key={name}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
+                      <span style={{ fontSize: '13px', fontWeight: 600, color: '#1A1F36' }}>{name}</span>
+                      <span style={{ fontSize: '13px', fontWeight: 600, color: '#1A1F36' }}>
+                        {insufficient ? '—' : pillar.score}/{pillar.max}
+                      </span>
+                    </div>
+                    <div style={{ height: 6, backgroundColor: '#E8ECF2', borderRadius: 99, overflow: 'hidden' }}>
+                      <div
+                        style={{
+                          height: '100%',
+                          width: `${Math.min(100, (pillar.score / pillar.max) * 100)}%`,
+                          backgroundColor: barColor,
+                          borderRadius: 99,
+                          transition: 'width 0.4s ease',
+                        }}
+                      />
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+
+            {/* Nudge card */}
+            <div style={{
+              backgroundColor: '#FFF8E8',
+              border: '1px solid #FFE4A0',
+              borderRadius: '12px',
+              padding: '14px 16px',
+              marginBottom: '20px',
+            }}>
+              <p style={{ fontSize: '13px', color: '#92600A', fontWeight: 500, margin: 0 }}>
+                {trustScore.nudgeText}
+              </p>
+            </div>
+
+            {/* Total score */}
+            <div style={{ textAlign: 'center', marginBottom: '16px' }}>
+              <span style={{ fontSize: '36px', fontWeight: 800, color: '#1A1F36' }}>{trustScore.total}</span>
+              <span style={{ fontSize: '16px', fontWeight: 500, color: '#8492A6' }}>/100</span>
+            </div>
+          </>
+        )}
 
         {/* CTA */}
         {!isTrusted && (
@@ -128,6 +186,12 @@ export function BadgeInfoSheet({ currentLevel, missingItems, onClose, onComplete
           >
             Complete my profile
           </button>
+        )}
+
+        {isTrusted && (
+          <p style={{ fontSize: '13px', color: '#22C55E', fontWeight: 600, textAlign: 'center' }}>
+            You've reached the highest level
+          </p>
         )}
       </div>
     </>

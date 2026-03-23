@@ -4,6 +4,7 @@ import { CapacitorHttp } from '@capacitor/core'
 import { dataStore } from '@/lib/data-store'
 import { supabase } from '@/lib/supabase-client'
 import { calculateCredibility, type CredibilityBreakdown } from '@/lib/credibility'
+import { computeTrustScore, type TrustScoreBreakdown } from '@/lib/trust-score'
 import { toast } from 'sonner'
 
 const MOBILE_REGEX = /^(\+91|91|0)?[6-9]\d{9}$/
@@ -175,8 +176,8 @@ export function BusinessDetailsScreen({ currentBusinessId, onBack, onSave }: Pro
 
   useEffect(() => {
     async function loadCredibility() {
-      const result = await calculateCredibility(currentBusinessId)
-      setCredibility(result)
+      const result = await computeTrustScore(currentBusinessId)
+      setCredibility({ score: result.total, level: result.level, completedItems: [], missingItems: [] })
     }
     loadCredibility()
   }, [currentBusinessId])
@@ -274,8 +275,8 @@ export function BusinessDetailsScreen({ currentBusinessId, onBack, onSave }: Pro
         await dataStore.updateBusinessMapsUrl(currentBusinessId, urlToStore)
       }
 
-      const newCredibility = await calculateCredibility(currentBusinessId)
-      setCredibility(newCredibility)
+      const newTrust = await computeTrustScore(currentBusinessId)
+      setCredibility({ score: newTrust.total, level: newTrust.level, completedItems: [], missingItems: [] })
 
       toast.success('Saved')
       if (onSave) onSave()
@@ -289,7 +290,7 @@ export function BusinessDetailsScreen({ currentBusinessId, onBack, onSave }: Pro
   }
 
   const locationDisplay = parsedLocation || existingLocation
-  const credScore = credibility?.total ?? null
+  const credScore = credibility?.score ?? null
   const credMax = 100
 
   return (
@@ -346,7 +347,7 @@ export function BusinessDetailsScreen({ currentBusinessId, onBack, onSave }: Pro
               <span style={{ fontSize: '9px', color: '#8492A6', lineHeight: 1, marginTop: '1px' }}>/ {credMax}</span>
             </div>
             <div style={{ flex: 1 }}>
-              <p style={{ fontSize: '13px', fontWeight: 600, color: '#0F1320', margin: '0 0 6px' }}>Credibility Score</p>
+              <p style={{ fontSize: '13px', fontWeight: 600, color: '#0F1320', margin: '0 0 6px' }}>Trust Score</p>
               <div style={{ height: 6, backgroundColor: '#E8ECF2', borderRadius: 99, overflow: 'hidden' }}>
                 <div style={{ height: '100%', width: `${Math.min(100, (credScore / credMax) * 100)}%`, backgroundColor: '#4A6CF7', borderRadius: 99, transition: 'width 0.4s ease' }} />
               </div>
