@@ -1,8 +1,14 @@
 import { isToday } from 'date-fns'
 import { attentionEngine, type AttentionItem } from '@/lib/attention-engine'
 import { getAuthSession } from '@/lib/auth'
-import { calculateCredibility, getBusinessActivityCounts, type CredibilityBreakdown } from '@/lib/credibility'
+import { getBusinessActivityCounts, type CredibilityBreakdown } from '@/lib/credibility'
+import { computeTrustScore } from '@/lib/trust-score'
 import { dataStore } from '@/lib/data-store'
+
+async function fetchCredibility(businessId: string): Promise<CredibilityBreakdown> {
+  const ts = await computeTrustScore(businessId)
+  return { score: ts.total, level: ts.level, completedItems: [], missingItems: [] }
+}
 import type { BusinessEntity, Connection, ConnectionRequest, IssueSeverity, IssueStatus, OrderWithPaymentState, UserAccount } from '@/lib/types'
 import { useCachedQuery } from './cache'
 
@@ -145,7 +151,7 @@ export function useBusinessOverviewData(currentBusinessId: string, isActive = tr
         dataStore.getAllBusinessEntities(),
         attentionEngine.getAttentionItems(currentBusinessId),
         getAuthSession(),
-        calculateCredibility(currentBusinessId),
+        fetchCredibility(currentBusinessId),
         dataStore.getAllConnectionRequests(),
       ])
       const pendingReceivedRequests = allRequests.filter(
@@ -477,7 +483,7 @@ export function useProfileData(currentBusinessId: string) {
         dataStore.getBusinessEntityById(currentBusinessId),
         dataStore.getUserAccountByEmail(session.email),
         dataStore.getUnreadNotificationCountByBusinessId(currentBusinessId),
-        calculateCredibility(currentBusinessId),
+        fetchCredibility(currentBusinessId),
         getBusinessActivityCounts(currentBusinessId),
       ])
 

@@ -2,7 +2,8 @@ import { useState, useEffect } from 'react'
 import { dataStore } from '@/lib/data-store'
 import { emitDataChange } from '@/lib/data-events'
 import { useDataListener } from '@/lib/data-events'
-import { calculateCredibility, getBusinessActivityCounts, type CredibilityBreakdown } from '@/lib/credibility'
+import { getBusinessActivityCounts, type CredibilityBreakdown } from '@/lib/credibility'
+import { computeTrustScore } from '@/lib/trust-score'
 import { consumePendingConnectionLabels } from '@/lib/pending-connection-labels'
 import { getArchivedConnectionIds, unarchiveConnection } from '@/lib/connection-archive-store'
 import { getBlockedBusinessIds, blockBusiness, unblockBusiness } from '@/lib/blocked-connections'
@@ -98,10 +99,11 @@ export function ManageConnectionsScreen({ currentBusinessId, onBack, onSuccess, 
     if (pending.length === 0) return
     void Promise.all(
       pending.map(async r => {
-        const [counts, cred] = await Promise.all([
+        const [counts, ts] = await Promise.all([
           getBusinessActivityCounts(r.requesterBusinessId),
-          calculateCredibility(r.requesterBusinessId),
+          computeTrustScore(r.requesterBusinessId),
         ])
+        const cred: CredibilityBreakdown = { score: ts.total, level: ts.level, completedItems: [], missingItems: [] }
         return { id: r.requesterBusinessId, counts, cred }
       })
     ).then(results => {
