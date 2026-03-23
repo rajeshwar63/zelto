@@ -9,25 +9,10 @@ export interface CredibilityBreakdown {
 }
 
 /**
- * Calculate credibility score for a business entity.
+ * @deprecated Use `computeTrustScore()` from `trust-score.ts` instead.
+ * Kept for backward compatibility during migration.
  *
- * Profile completeness (max 60 points):
- *   - Business name: 10 (always present)
- *   - Phone number: 10
- *   - GST number: 10
- *   - Business address OR Google Maps location: 10
- *   - Google Maps location (with lat/lng): 10 bonus on top of address
- *   - Business type: 5
- *   - Website: 5
- *   - Business description: 5
- *
- * Activity signals (max 40 points):
- *   - Has at least 1 connection: 10
- *   - Has at least 3 connections: 10 (additional)
- *   - Has at least 1 order: 10
- *   - Has at least 10 orders: 10 (additional)
- *
- * Max possible score: 100
+ * Calculate credibility score for a business entity (legacy scoring).
  */
 export async function calculateCredibility(businessId: string): Promise<CredibilityBreakdown> {
   const entity = await dataStore.getBusinessEntityById(businessId)
@@ -148,12 +133,12 @@ export async function calculateCredibility(businessId: string): Promise<Credibil
 
 /**
  * Pure helper: derive credibility level from a numeric score.
- * Uses the same thresholds as calculateCredibility() — single source of truth.
+ * Updated thresholds for Trust Score V2.
  */
 export function scoreToLevel(score: number): CredibilityBreakdown['level'] {
   if (score >= 70) return 'trusted'
-  if (score >= 40) return 'verified'
-  if (score >= 15) return 'basic'
+  if (score >= 45) return 'verified'
+  if (score >= 20) return 'basic'
   return 'none'
 }
 
