@@ -1,9 +1,9 @@
-import { useEffect, useState, useRef } from 'react'
+import { useEffect, useState, useRef, useCallback } from 'react'
 import { dataStore } from '@/lib/data-store'
 import { insightEngine } from '@/lib/insight-engine'
 import type { Insight } from '@/lib/insight-engine'
 import { useDataListener } from '@/lib/data-events'
-import type { Connection, OrderWithPaymentState, BusinessEntity } from '@/lib/types'
+import type { Connection, OrderWithPaymentState, BusinessEntity, OpeningBalance } from '@/lib/types'
 import { CaretLeft, DownloadSimple, Phone, PencilSimple, MapPin } from '@phosphor-icons/react'
 import { toast } from 'sonner'
 import { getConnectionStateLabel, getConnectionStateColor } from '@/lib/connection-state-utils'
@@ -19,6 +19,8 @@ import { buildOrderTimeline, formatPaymentTerms, getLifecycleState } from '@/com
 import { ConnectionDetailOrderCard } from '@/components/order/ConnectionDetailOrderCard'
 import { LedgerDownloadSheet } from '@/components/LedgerDownloadSheet'
 import { OrderSearchPanel, type OrderFilters, type StatusChip, type RoleFilter } from '@/components/order/OrderSearchPanel'
+import { OpeningBalanceCard } from '@/components/OpeningBalanceCard'
+import { OpeningBalanceCreateSheet } from '@/components/OpeningBalanceCreateSheet'
 import { startOfDay } from 'date-fns'
 
 
@@ -59,6 +61,8 @@ export function ConnectionDetailScreen({ connectionId, currentBusinessId, onBack
   const [editBranch, setEditBranch] = useState('')
   const [editContact, setEditContact] = useState('')
   const [savingContact, setSavingContact] = useState(false)
+  const [openingBalance, setOpeningBalance] = useState<OpeningBalance | null>(null)
+  const [showCreateOBSheet, setShowCreateOBSheet] = useState(false)
 
   const loadHeaderData = async () => {
     try {
@@ -77,9 +81,16 @@ export function ConnectionDetailScreen({ connectionId, currentBusinessId, onBack
       } catch {
         // Insights are non-critical, don't block data refresh
       }
+      let ob: OpeningBalance | null = null
+      try {
+        ob = await dataStore.getOpeningBalanceByConnectionId(connectionId)
+      } catch {
+        // Non-critical
+      }
       setConnection(conn)
       setOtherBusiness(otherBiz || null)
       setInsights(connectionInsights)
+      setOpeningBalance(ob)
       setEditPhone(conn.contactPhone ?? '')
       setEditBranch(conn.branchLabel ?? '')
       setEditContact(conn.contactName ?? '')
@@ -120,7 +131,7 @@ export function ConnectionDetailScreen({ connectionId, currentBusinessId, onBack
   useEffect(() => { loadHeaderData(); loadOrders(); refreshArchivedIds() }, [connectionId, currentBusinessId])
 
   useDataListener(
-    ['connections:changed'],
+    ['connections:changed', 'opening-balances:changed'],
     () => { loadHeaderData() }
   )
 
@@ -410,6 +421,17 @@ export function ConnectionDetailScreen({ connectionId, currentBusinessId, onBack
           })()}
         </div>
 
+        {/* Opening Balance */}
+        <div className="px-4 pb-3">
+          <OpeningBalanceCard
+            openingBalance={openingBalance}
+            connection={connection}
+            currentBusinessId={currentBusinessId}
+            otherBusiness={otherBusiness}
+            onCreateOpeningBalance={() => setShowCreateOBSheet(true)}
+          />
+        </div>
+
         {/* Orders section header */}
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '8px 16px 6px' }}>
           <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-primary)' }}>
@@ -477,6 +499,15 @@ export function ConnectionDetailScreen({ connectionId, currentBusinessId, onBack
         connectionId={connectionId}
         connectionName={otherBusiness.businessName}
         currentBusinessId={currentBusinessId}
+      />
+
+      <OpeningBalanceCreateSheet
+        isOpen={showCreateOBSheet}
+        onClose={() => { setShowCreateOBSheet(false); loadHeaderData() }}
+        connection={connection}
+        currentBusinessId={currentBusinessId}
+        otherBusiness={otherBusiness}
+        existingBalance={openingBalance?.status === 'disputed' ? openingBalance : null}
       />
 
       {showContactEdit && (
