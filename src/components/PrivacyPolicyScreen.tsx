@@ -47,6 +47,7 @@ export function PrivacyPolicyScreen() {
             <li>Send notifications about orders and payment activity</li>
             <li>Authenticate your account securely</li>
             <li>Improve the reliability and features of the app</li>
+            <li>Compute your Zelto Trust Score based on profile completeness and trade activity</li>
           </ul>
         </Section>
 

@@ -314,7 +314,7 @@ export function BusinessDetailsScreen({ currentBusinessId, onBack, onSave }: Pro
         </button>
         <div>
           <h2 style={{ fontSize: '17px', fontWeight: 700, margin: 0, color: '#0F1320' }}>Business Details</h2>
-          <p style={{ fontSize: '12px', color: '#8492A6', margin: 0 }}>Complete your profile to build trust</p>
+          <p style={{ fontSize: '12px', color: '#8492A6', margin: 0 }}>Stronger profile = stronger trade protection</p>
         </div>
       </div>
 
@@ -347,12 +347,12 @@ export function BusinessDetailsScreen({ currentBusinessId, onBack, onSave }: Pro
               <span style={{ fontSize: '9px', color: '#8492A6', lineHeight: 1, marginTop: '1px' }}>/ {credMax}</span>
             </div>
             <div style={{ flex: 1 }}>
-              <p style={{ fontSize: '13px', fontWeight: 600, color: '#0F1320', margin: '0 0 6px' }}>Trust Score</p>
+              <p style={{ fontSize: '13px', fontWeight: 600, color: '#0F1320', margin: '0 0 6px' }}>Zelto Trust Score</p>
               <div style={{ height: 6, backgroundColor: '#E8ECF2', borderRadius: 99, overflow: 'hidden' }}>
                 <div style={{ height: '100%', width: `${Math.min(100, (credScore / credMax) * 100)}%`, backgroundColor: '#4A6CF7', borderRadius: 99, transition: 'width 0.4s ease' }} />
               </div>
               <p style={{ fontSize: '11px', color: '#8492A6', margin: '4px 0 0' }}>
-                {credScore < 50 ? 'Fill in more details to increase your score' : credScore < 80 ? 'Good progress — keep adding details' : 'Excellent profile!'}
+                {credScore < 50 ? 'Complete your profile to strengthen your trade protection' : credScore < 80 ? 'Your trade protection is building up' : 'Strong protection — your profile is fully verified'}
               </p>
             </div>
           </div>

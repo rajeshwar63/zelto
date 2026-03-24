@@ -301,7 +301,7 @@ export function ManageDocumentsScreen({ currentBusinessId, onBack }: Props) {
       {/* Scrollable content */}
       <div style={{ flex: 1, overflowY: 'auto', padding: '20px 16px' }}>
         <p style={{ fontSize: '13px', color: '#8492A6', marginBottom: '20px' }}>
-          Upload compliance documents to build credibility and let connections verify your business.
+          Upload compliance documents to build trade protection and let connections verify your business.
         </p>
 
         {loading ? (
