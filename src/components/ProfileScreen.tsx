@@ -176,12 +176,11 @@ export function ProfileScreen({
   }
 
   const handleShare = async () => {
-    const shareMessage = `${business.businessName} is on Zelto — view their Trust Profile: zeltoapp.com/trust/${business.zeltoId}`
-    const shareUrl = `https://zeltoapp.com/trust/${business.zeltoId}`
+    const shareMessage = `Connect with ${business.businessName} on Zelto — ID: ${business.zeltoId}`
 
     if (navigator.share) {
       try {
-        await navigator.share({ text: shareMessage, url: shareUrl })
+        await navigator.share({ text: shareMessage })
       } catch (err) {
         if ((err as Error).name !== 'AbortError') {
           console.error('Error sharing:', err)
