@@ -82,7 +82,7 @@ export function DashboardScreen({ currentBusinessId, onNavigateToOrders, onNavig
         <div className="px-4 flex items-start justify-between" style={{ paddingTop: '20px', paddingBottom: '16px' }}>
           <div>
             <h1 className="text-[20px] font-semibold" style={{ color: '#111' }}>{data.username ? `Welcome back, ${data.username}` : 'Welcome back'}</h1>
-            <p className="text-[13px] font-normal mt-1" style={{ color: '#8A8A8A' }}>{recentOrders.length > 0 ? 'Your trade is protected' : 'Your trade snapshot today'}</p>
+            <p className="text-[13px] font-normal mt-1" style={{ color: '#8A8A8A' }}>Your trade snapshot today</p>
           </div>
           {overview.credibility && overview.credibility.level !== 'none' && (
             <div className="flex items-center gap-1">

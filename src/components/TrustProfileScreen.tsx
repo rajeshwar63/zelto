@@ -392,7 +392,7 @@ export function TrustProfileScreen({
             { value: activityCounts?.orderCount ?? '—', label: 'orders placed' },
             {
               value: credibility ? `${credibility.score}/100` : '—',
-              label: 'protection score',
+              label: 'trust score',
             },
           ].map((stat, i, arr) => (
             <div

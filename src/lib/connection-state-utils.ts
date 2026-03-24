@@ -2,11 +2,11 @@ import type { ConnectionState } from './types'
 
 export function getConnectionStateLabel(state: ConnectionState | null | undefined): string {
   switch (state) {
-    case 'Active':          return 'Active — Protected'
-    case 'Stable':          return 'Stable — Protected'
-    case 'Friction Rising': return 'Friction Rising — Protection at Risk'
-    case 'Under Stress':    return 'Under Stress — Protection Weakened'
-    default:                return 'Stable — Protected'
+    case 'Active':          return 'Healthy'
+    case 'Stable':          return 'Stable'
+    case 'Friction Rising': return 'Needs Attention'
+    case 'Under Stress':    return 'At Risk'
+    default:                return 'Stable'
   }
 }
 

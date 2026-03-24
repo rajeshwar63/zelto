@@ -114,7 +114,7 @@ export async function createOrder(
       'OrderPlaced',
       newOrder.id,
       connectionId,
-      `New protected order from ${itemSummary}`
+      `New order: ${itemSummary}`
     )
   } catch (err) {
     console.error('Notification failed:', err)
@@ -298,7 +298,7 @@ export async function recordPayment(
       'PaymentRecorded',
       orderId,
       order.connectionId,
-      `Payment recorded on your protected trade record — ₹${amount.toLocaleString('en-IN')}`
+      `Payment of ₹${amount.toLocaleString('en-IN')} recorded`
     )
   } catch (err) {
     console.error('Notification failed:', err)

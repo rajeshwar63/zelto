@@ -192,7 +192,7 @@ export function ConnectionRequestItem({ request, currentBusinessId, onUpdate, on
               padding: '8px 10px'
             }}>
               <p style={{ fontSize: '12px', color: 'var(--color-text-warning)', margin: 0 }}>
-                This business has no trade protection history on Zelto yet. Verify before connecting.
+                This business hasn't built a history on Zelto yet. Verify before connecting.
               </p>
             </div>
           )}

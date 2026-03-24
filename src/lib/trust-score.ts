@@ -433,13 +433,13 @@ export async function computeTrustScore(
   // Nudge text
   let nudgeText: string
   if (tradeResult.insufficient && weakestPillar === 'tradeRecord') {
-    nudgeText = 'Build trade history by completing more orders to unlock stronger protection.'
+    nudgeText = 'Build trade history by completing more orders with your connections.'
   } else if (weakestPillar === 'identity') {
-    nudgeText = 'Complete your profile and upload compliance documents to unlock stronger protection.'
+    nudgeText = 'Complete your profile and upload compliance documents to improve your score.'
   } else if (weakestPillar === 'activity') {
-    nudgeText = 'Build more connections and stay active to unlock stronger protection.'
+    nudgeText = 'Build more connections and stay active on the platform.'
   } else {
-    nudgeText = 'Clear overdue payments and maintain on-time settlement to unlock stronger protection.'
+    nudgeText = 'Clear overdue payments and maintain on-time settlement to reach the next level.'
   }
 
   // Cache total score
