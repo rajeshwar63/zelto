@@ -241,7 +241,7 @@ export function AddConnectionScreen({ currentBusinessId, onBack, onSuccess, onNa
                       <span className="text-teal-600">{foundCredibility.score}</span>
                       <span className="text-[13px] text-muted-foreground">/100</span>
                     </p>
-                    <p className="text-[11px] text-muted-foreground mt-0.5">trust score</p>
+                    <p className="text-[11px] text-muted-foreground mt-0.5">protection score</p>
                   </div>
                 </div>
                 <div className="h-px bg-gray-100" />
@@ -258,7 +258,7 @@ export function AddConnectionScreen({ currentBusinessId, onBack, onSuccess, onNa
                 margin: '12px 16px 0'
               }}>
                 <p style={{ fontSize: '12px', color: 'var(--color-text-warning)', margin: 0 }}>
-                  This business hasn't built a history on Zelto yet. Verify before connecting.
+                  This business has no trade protection history on Zelto yet. Verify before connecting.
                 </p>
               </div>
             )}

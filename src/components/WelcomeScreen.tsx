@@ -101,7 +101,7 @@ export function WelcomeScreen({ onContinue, onLoginOnly }: WelcomeScreenProps) {
             Zelto
           </h1>
           <p style={{ fontSize: 13, fontWeight: 500, color: 'var(--text-secondary)', marginTop: 4 }}>
-            {isLoginMode ? 'Welcome back' : 'Built for Indian business'}
+            {isLoginMode ? 'Welcome back' : 'Protect your trade'}
           </p>
         </div>
 
@@ -114,9 +114,15 @@ export function WelcomeScreen({ onContinue, onLoginOnly }: WelcomeScreenProps) {
             padding: '24px 20px',
           }}
         >
-          <h2 style={{ fontSize: 20, fontWeight: 700, color: 'var(--text-primary)', marginBottom: 16, letterSpacing: '-0.02em' }}>
+          <h2 style={{ fontSize: 20, fontWeight: 700, color: 'var(--text-primary)', marginBottom: 4, letterSpacing: '-0.02em' }}>
             {isLoginMode ? 'Login' : 'Sign up'}
           </h2>
+          {!isLoginMode && (
+            <p style={{ fontSize: 13, fontWeight: 400, color: 'var(--text-secondary)', marginBottom: 16 }}>
+              Every order tracked. Every payment recorded. Your business, protected.
+            </p>
+          )}
+          {isLoginMode && <div style={{ marginBottom: 12 }} />}
           <form onSubmit={handleSubmit} className="space-y-4">
             {!isLoginMode && (
               <>
