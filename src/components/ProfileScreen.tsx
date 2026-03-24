@@ -160,7 +160,7 @@ export function ProfileScreen({
     }
   }, [isEditingUsername])
 
-  if (loading || !business || !userAccount) {
+  if (loading) {
     return (
       <div style={{ backgroundColor: '#F2F4F8', minHeight: '100vh' }}>
         <div className="sticky top-0 z-10" style={{ backgroundColor: '#0F1320', paddingTop: 'env(safe-area-inset-top)' }}>
@@ -170,6 +170,36 @@ export function ProfileScreen({
         </div>
         <div className="flex items-center justify-center py-16">
           <p style={{ fontSize: '14px', fontWeight: 500, color: '#8492A6' }}>Loading...</p>
+        </div>
+      </div>
+    )
+  }
+
+  if (!business || !userAccount) {
+    return (
+      <div style={{ backgroundColor: '#F2F4F8', minHeight: '100vh' }}>
+        <div className="sticky top-0 z-10" style={{ backgroundColor: '#0F1320', paddingTop: 'env(safe-area-inset-top)' }}>
+          <div className="h-11 flex items-center px-4">
+            <h1 style={{ fontSize: '22px', fontWeight: 700, color: '#FFFFFF', letterSpacing: '-0.02em' }}>Profile</h1>
+          </div>
+        </div>
+        <div className="flex flex-col items-center justify-center py-16 gap-3">
+          <p style={{ fontSize: '14px', fontWeight: 500, color: '#8492A6' }}>Could not load profile data.</p>
+          <button
+            onClick={() => refresh(true)}
+            style={{
+              padding: '8px 20px',
+              borderRadius: '8px',
+              backgroundColor: '#4A6CF7',
+              color: '#fff',
+              fontSize: '13px',
+              fontWeight: 600,
+              border: 'none',
+              cursor: 'pointer',
+            }}
+          >
+            Retry
+          </button>
         </div>
       </div>
     )

@@ -479,13 +479,37 @@ export function useProfileData(currentBusinessId: string) {
         }
       }
 
-      const [business, userAccount, unreadCount, credibility, activityCounts] = await Promise.all([
+      // Phase 1: Essential data only (3 fast DB calls)
+      const [business, userAccount, unreadCount] = await Promise.all([
         dataStore.getBusinessEntityById(currentBusinessId),
         dataStore.getUserAccountByEmail(session.email),
         dataStore.getUnreadNotificationCountByBusinessId(currentBusinessId),
-        fetchCredibility(currentBusinessId),
-        getBusinessActivityCounts(currentBusinessId),
       ])
+
+      // Phase 2: Expensive data with timeout — don't block profile render
+      let credibility: CredibilityBreakdown | null = null
+      let activityCounts: { connectionCount: number; orderCount: number } | null = null
+
+      try {
+        const SLOW_DATA_TIMEOUT = 5000 // 5 seconds max
+        const timeoutPromise = new Promise<never>((_, reject) =>
+          setTimeout(() => reject(new Error('timeout')), SLOW_DATA_TIMEOUT)
+        )
+
+        const [cred, activity] = await Promise.race([
+          Promise.all([
+            fetchCredibility(currentBusinessId),
+            getBusinessActivityCounts(currentBusinessId),
+          ]),
+          timeoutPromise.then(() => { throw new Error('timeout') }),
+        ]) as [CredibilityBreakdown, { connectionCount: number; orderCount: number }]
+
+        credibility = cred
+        activityCounts = activity
+      } catch {
+        // Trust score timed out or failed — profile still renders
+        console.warn('Trust score / activity counts timed out or failed — using defaults')
+      }
 
       return {
         business: business || null,

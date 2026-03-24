@@ -44,6 +44,7 @@ import { supabase } from '@/lib/supabase-client'
 import { setupBackButtonHandler } from '@/lib/capacitor'
 import { PushNotifications } from '@capacitor/push-notifications'
 import { Capacitor } from '@capacitor/core'
+import { App as CapacitorApp } from '@capacitor/app'
 import { attentionEngine } from '@/lib/attention-engine'
 import { dataStore } from '@/lib/data-store'
 import { updateTabLastSeen, updateConnectionLastSeen, hasAnyUnreadConnections, hasUnreadConnectionActivity } from '@/lib/unread-tracker'
@@ -248,6 +249,19 @@ function App() {
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
         if (event === 'SIGNED_OUT' || !session) {
+          // Don't immediately clear — attempt recovery first
+          console.warn('[Auth] Session lost, event:', event, '— attempting recovery...')
+          try {
+            const { data: { session: recovered } } = await supabase.auth.getSession()
+            if (recovered) {
+              console.log('[Auth] Session recovered successfully')
+              return // Token was refreshed, ignore the SIGNED_OUT event
+            }
+          } catch {
+            // Recovery failed
+          }
+          // Truly signed out — clear everything
+          console.warn('[Auth] Recovery failed — clearing session')
           await clearAuthSession()
           setCurrentBusinessId(null)
           setAuthScreen('welcome')
@@ -256,6 +270,33 @@ function App() {
     )
     return () => subscription.unsubscribe()
   }, [])
+
+  // Force session refresh when app resumes from background (Capacitor)
+  useEffect(() => {
+    if (!Capacitor.isNativePlatform()) return
+
+    let handle: Awaited<ReturnType<typeof CapacitorApp.addListener>> | null = null
+
+    CapacitorApp.addListener('appStateChange', async ({ isActive }) => {
+      if (isActive) {
+        // Force token refresh when app comes to foreground
+        try {
+          const { data: { session } } = await supabase.auth.getSession()
+          if (!session && currentBusinessId) {
+            // Session expired while backgrounded
+            console.warn('[Auth] Session expired during background — clearing')
+            await clearAuthSession()
+            setCurrentBusinessId(null)
+            setAuthScreen('welcome')
+          }
+        } catch {
+          console.error('[Auth] Failed to refresh session on resume')
+        }
+      }
+    }).then(h => { handle = h })
+
+    return () => { handle?.remove() }
+  }, [currentBusinessId])
 
   useEffect(() => {
     return setupBackButtonHandler(() => {
