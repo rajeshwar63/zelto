@@ -14,9 +14,9 @@ const TIERS: Array<{
   level: CredibilityBreakdown['level']
   description: string
 }> = [
-  { level: 'trusted',  description: 'Full protection — verified and actively trading' },
-  { level: 'verified', description: 'Verified protection — key details confirmed' },
-  { level: 'basic',    description: 'Basic protection — profile created' },
+  { level: 'trusted',  description: 'Strong trade record across connections' },
+  { level: 'verified', description: 'Active with some trade history' },
+  { level: 'basic',    description: 'Profile set up, starting to trade' },
   { level: 'none',     description: 'Just joined Zelto' },
 ]
 
@@ -70,10 +70,10 @@ export function BadgeInfoSheet({ currentLevel, trustScore, onClose, onCompletePr
 
         {/* Title */}
         <h2 style={{ fontSize: '17px', fontWeight: 700, color: '#111', marginBottom: '4px' }}>
-          Your Trade Protection Level
+          Your trust badge
         </h2>
         <p style={{ fontSize: '13px', color: '#888', marginBottom: '20px' }}>
-          Your level determines how protected your trade connections are.
+          Your badge reflects how complete, active, and reliable your business is on Zelto.
         </p>
 
         {/* Tier rows */}
@@ -183,7 +183,7 @@ export function BadgeInfoSheet({ currentLevel, trustScore, onClose, onCompletePr
               cursor: 'pointer',
             }}
           >
-            Strengthen my protection
+            Complete my profile
           </button>
         )}
 

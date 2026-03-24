@@ -387,7 +387,7 @@ export function ProfileScreen({
             {/* Text */}
             <div style={{ flex: 1, minWidth: 0 }}>
               <p style={{ fontSize: '13px', fontWeight: 700, color: '#0F1320' }}>
-                View your Trade Protection Profile
+                Your Trust Profile
               </p>
               <p style={{ fontSize: '11px', color: '#8492A6', marginTop: '1px' }}>
                 Identity · Compliance docs

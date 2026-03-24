@@ -100,10 +100,10 @@ async function getAccessToken(): Promise<string> {
 }
 
 const NOTIFICATION_TITLES: Record<string, string> = {
-  'OrderPlaced': 'New Protected Order',
+  'OrderPlaced': 'New Order',
   'OrderDispatched': 'Order Dispatched',
   'OrderDeclined': 'Order Declined',
-  'PaymentRecorded': 'Payment Recorded',
+  'PaymentRecorded': 'Payment Received',
   'PaymentDisputed': 'Payment Disputed',
   'IssueRaised': 'Issue Reported',
   'ConnectionAccepted': 'Connection Accepted',

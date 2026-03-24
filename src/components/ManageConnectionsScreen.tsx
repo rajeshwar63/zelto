@@ -478,7 +478,7 @@ export function ManageConnectionsScreen({ currentBusinessId, onBack, onSuccess, 
                   <p style={{ fontSize: '17px', fontWeight: 600, margin: 0, lineHeight: 1.1, color: 'var(--text-primary)' }}>
                     {cred?.score ?? 0}<span style={{ fontSize: '11px', fontWeight: 400, color: 'var(--text-secondary)' }}>/100</span>
                   </p>
-                  <p style={{ fontSize: '10px', color: 'var(--text-secondary)', margin: 0, textAlign: 'center', lineHeight: 1.3 }}>protection score</p>
+                  <p style={{ fontSize: '10px', color: 'var(--text-secondary)', margin: 0, textAlign: 'center', lineHeight: 1.3 }}>trust score</p>
                 </div>
               </div>
             )}
@@ -487,7 +487,7 @@ export function ManageConnectionsScreen({ currentBusinessId, onBack, onSuccess, 
             {(cred?.score ?? 0) < 20 && (
               <div style={{ background: 'var(--color-background-warning)', borderLeft: '3px solid #EF9F27', borderRadius: '6px', padding: '8px 10px' }}>
                 <p style={{ fontSize: '12px', color: 'var(--color-text-warning)', margin: 0 }}>
-                  This business has no trade protection history on Zelto yet. Verify before connecting.
+                  This business hasn't built a history on Zelto yet. Verify before connecting.
                 </p>
               </div>
             )}
