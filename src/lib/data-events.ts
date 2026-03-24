@@ -12,7 +12,6 @@ type EventType =
   | 'attachments:changed'
   | 'invoices:changed'
   | 'items:changed'
-  | 'opening-balances:changed'
 
 type Listener = () => void
 

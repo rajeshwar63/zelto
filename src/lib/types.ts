@@ -212,42 +212,6 @@ export interface RoleChangeRequest {
   resolvedAt: number | null
 }
 
-// ============ OPENING BALANCE TYPES ============
-
-export type OpeningBalanceStatus = 'proposed' | 'agreed' | 'disputed' | 'settled'
-
-export interface OpeningBalanceLineItem {
-  id: string
-  description: string
-  amount: number
-}
-
-export interface OpeningBalance {
-  id: string
-  connectionId: string
-  proposedByBusinessId: string
-  amount: number
-  lineItems: OpeningBalanceLineItem[]
-  status: OpeningBalanceStatus
-  counterAmount: number | null
-  agreedAmount: number | null
-  totalPaid: number
-  createdAt: number
-  agreedAt: number | null
-  settledAt: number | null
-  note: string | null
-}
-
-export interface OpeningBalancePayment {
-  id: string
-  openingBalanceId: string
-  amount: number
-  recordedByBusinessId: string
-  timestamp: number
-  disputed: boolean
-  disputedAt: number | null
-}
-
 export type NotificationType =
   | 'OrderPlaced'
   | 'OrderAccepted'
@@ -260,11 +224,6 @@ export type NotificationType =
   | 'IssueResolved'
   | 'ConnectionAccepted'
   | 'MemberJoined'
-  | 'OpeningBalanceProposed'
-  | 'OpeningBalanceAgreed'
-  | 'OpeningBalancePayment'
-  | 'OpeningBalanceDisputed'
-  | 'OpeningBalanceSettled'
 
 export interface Notification {
   id: string
