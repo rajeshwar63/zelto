@@ -18,10 +18,6 @@ import {
   ItemMaster,
   Notification,
   NotificationType,
-  OpeningBalance,
-  OpeningBalanceLineItem,
-  OpeningBalancePayment,
-  OpeningBalanceStatus,
   Order,
   OrderAttachment,
   OrderWithPaymentState,
@@ -43,11 +39,9 @@ const JSONB_COLUMNS = new Set([
   'payment_terms',
   'payment_term_snapshot',
   'behaviour_history',
-  'line_items',
   'paymentTerms',
   'paymentTermSnapshot',
   'behaviourHistory',
-  'lineItems',
 ])
 
 // Helper to convert snake_case DB columns to camelCase TypeScript
@@ -1895,189 +1889,6 @@ export class ZeltoDataStore {
     return data.signedUrl
   }
 
-  // ============ OPENING BALANCE ============
-
-  async createOpeningBalance(
-    connectionId: string,
-    proposedByBusinessId: string,
-    amount: number,
-    lineItems: OpeningBalanceLineItem[],
-    note: string | null
-  ): Promise<OpeningBalance> {
-    const { data, error } = await supabase
-      .from('opening_balances')
-      .insert([{
-        connection_id: connectionId,
-        proposed_by_business_id: proposedByBusinessId,
-        amount,
-        line_items: lineItems,
-        status: 'proposed',
-        total_paid: 0,
-        created_at: Date.now(),
-        note,
-      }])
-      .select()
-      .single()
-
-    if (error) throw error
-    return toCamelCase(data)
-  }
-
-  async getOpeningBalanceByConnectionId(
-    connectionId: string
-  ): Promise<OpeningBalance | null> {
-    const { data, error } = await supabase
-      .from('opening_balances')
-      .select('*')
-      .eq('connection_id', connectionId)
-      .maybeSingle()
-
-    if (error) throw error
-    return data ? toCamelCase(data) : null
-  }
-
-  async updateOpeningBalanceStatus(
-    id: string,
-    status: OpeningBalanceStatus,
-    agreedAmount?: number | null,
-    counterAmount?: number | null
-  ): Promise<OpeningBalance> {
-    const updates: Record<string, unknown> = { status }
-
-    if (agreedAmount !== undefined) updates.agreed_amount = agreedAmount
-    if (counterAmount !== undefined) updates.counter_amount = counterAmount
-    if (status === 'agreed') updates.agreed_at = Date.now()
-    if (status === 'settled') updates.settled_at = Date.now()
-
-    const { data, error } = await supabase
-      .from('opening_balances')
-      .update(updates)
-      .eq('id', id)
-      .select()
-      .single()
-
-    if (error) throw error
-    return toCamelCase(data)
-  }
-
-  async updateOpeningBalanceForReproposal(
-    id: string,
-    amount: number,
-    proposedByBusinessId: string,
-    lineItems: OpeningBalanceLineItem[],
-    note: string | null
-  ): Promise<OpeningBalance> {
-    const { data, error } = await supabase
-      .from('opening_balances')
-      .update({
-        amount,
-        proposed_by_business_id: proposedByBusinessId,
-        line_items: lineItems,
-        status: 'proposed',
-        counter_amount: null,
-        agreed_amount: null,
-        agreed_at: null,
-        note,
-      })
-      .eq('id', id)
-      .select()
-      .single()
-
-    if (error) throw error
-    return toCamelCase(data)
-  }
-
-  async createOpeningBalancePayment(
-    openingBalanceId: string,
-    amount: number,
-    recordedByBusinessId: string
-  ): Promise<OpeningBalancePayment> {
-    const { data, error } = await supabase
-      .from('opening_balance_payments')
-      .insert([{
-        opening_balance_id: openingBalanceId,
-        amount,
-        recorded_by_business_id: recordedByBusinessId,
-        timestamp: Date.now(),
-        disputed: false,
-      }])
-      .select()
-      .single()
-
-    if (error) throw error
-    return toCamelCase(data)
-  }
-
-  async getOpeningBalancePayments(
-    openingBalanceId: string
-  ): Promise<OpeningBalancePayment[]> {
-    const { data, error } = await supabase
-      .from('opening_balance_payments')
-      .select('*')
-      .eq('opening_balance_id', openingBalanceId)
-      .order('timestamp', { ascending: true })
-
-    if (error) throw error
-    return toCamelCase(data || [])
-  }
-
-  async updateOpeningBalanceTotalPaid(
-    openingBalanceId: string
-  ): Promise<void> {
-    const payments = await this.getOpeningBalancePayments(openingBalanceId)
-    const totalPaid = payments
-      .filter(p => !p.disputed)
-      .reduce((sum, p) => sum + p.amount, 0)
-
-    const ob = await this.getOpeningBalanceById(openingBalanceId)
-    if (!ob) throw new Error('Opening balance not found')
-
-    const updates: Record<string, unknown> = { total_paid: totalPaid }
-    if (ob.agreedAmount !== null && totalPaid >= ob.agreedAmount) {
-      updates.status = 'settled'
-      updates.settled_at = Date.now()
-    }
-
-    const { error } = await supabase
-      .from('opening_balances')
-      .update(updates)
-      .eq('id', openingBalanceId)
-
-    if (error) throw error
-  }
-
-  async getOpeningBalanceById(id: string): Promise<OpeningBalance | null> {
-    const { data, error } = await supabase
-      .from('opening_balances')
-      .select('*')
-      .eq('id', id)
-      .maybeSingle()
-
-    if (error) throw error
-    return data ? toCamelCase(data) : null
-  }
-
-  async getOpeningBalancesByBusinessId(
-    businessId: string
-  ): Promise<Array<OpeningBalance & { connection: Connection }>> {
-    const connections = await this.getConnectionsByBusinessId(businessId)
-    if (connections.length === 0) return []
-
-    const connectionIds = connections.map(c => c.id)
-    const { data, error } = await supabase
-      .from('opening_balances')
-      .select('*')
-      .in('connection_id', connectionIds)
-
-    if (error) throw error
-    const balances: OpeningBalance[] = toCamelCase(data || [])
-
-    const connMap = new Map(connections.map(c => [c.id, c]))
-    return balances
-      .filter(ob => connMap.has(ob.connectionId))
-      .map(ob => ({ ...ob, connection: connMap.get(ob.connectionId)! }))
-  }
-
   // ============ UTILITY ============
 
   async clearAllData(): Promise<void> {
@@ -2087,8 +1898,6 @@ export class ZeltoDataStore {
     // → connections → entity_flags → frozen_entities
     // → user_accounts → business_entities → admin_accounts
     await supabase.from('notifications').delete().neq('id', '00000000-0000-0000-0000-000000000000')
-    await supabase.from('opening_balance_payments').delete().neq('id', '00000000-0000-0000-0000-000000000000')
-    await supabase.from('opening_balances').delete().neq('id', '00000000-0000-0000-0000-000000000000')
     await supabase.from('order_attachments').delete().neq('id', '00000000-0000-0000-0000-000000000000')
     await supabase.from('payment_events').delete().neq('id', '00000000-0000-0000-0000-000000000000')
     await supabase.from('issue_reports').delete().neq('id', '00000000-0000-0000-0000-000000000000')

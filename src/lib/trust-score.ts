@@ -124,25 +124,6 @@ export async function aggregateBusinessBehaviourSignals(
     })
   )
 
-  // Count opening balance payments as on-time payments for buyers
-  await Promise.all(
-    connections.map(async (conn) => {
-      // Only count when this business is the buyer (paying down old dues)
-      if (conn.buyerBusinessId !== businessId) return
-
-      try {
-        const ob = await dataStore.getOpeningBalanceByConnectionId(conn.id)
-        if (!ob || (ob.status !== 'agreed' && ob.status !== 'settled')) return
-
-        const payments = await dataStore.getOpeningBalancePayments(ob.id)
-        const nonDisputedPayments = payments.filter(p => !p.disputed)
-        total_on_time_payments += nonDisputedPayments.length
-      } catch {
-        // Non-critical, skip silently
-      }
-    })
-  )
-
   // Derived values
   const completed_payments = total_on_time_payments + total_late_payments
   const on_time_rate =
