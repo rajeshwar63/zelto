@@ -18,4 +18,8 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
 })
 export { supabaseUrl }
 // Direct client — always bypasses the proxy, used for auth and functions.invoke
-export const supabaseDirect = createClient(supabaseDirectUrl, supabaseAnonKey)
+export const supabaseDirect = createClient(supabaseDirectUrl, supabaseAnonKey, {
+  auth: {
+    storageKey: 'sb-cncimuwunjjxrlsnjstm-auth-token',
+  }
+})
