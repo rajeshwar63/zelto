@@ -222,13 +222,12 @@ export function InvoiceCreateScreen({ orderId, connectionId, currentBusinessId, 
       if (status === 'generated') {
         // Call edge function to generate PDF
         try {
-          const { data: { session } } = await supabaseDirect.auth.getSession()
-          if (!session) {
+          const { data: { user }, error: userError } = await supabaseDirect.auth.getUser()
+          if (!user || userError) {
             toast.error('Invoice saved but please log in again to generate PDF')
           } else {
             const { error: fnError } = await supabaseDirect.functions.invoke('generate-invoice', {
               body: { invoice_id: invoice.id, businessId: currentBusinessId },
-              headers: { Authorization: `Bearer ${session.access_token}` },
             })
 
             if (fnError) {
