@@ -88,8 +88,16 @@ export function InvoiceViewScreen({ invoiceId, currentBusinessId, onBack }: Prop
   const handleGeneratePdf = async () => {
     setGeneratingPdf(true)
     try {
+      // Refresh session to ensure a valid token
+      const { data: { session } } = await supabaseDirect.auth.getSession()
+      if (!session) {
+        toast.error('Please log in again')
+        return
+      }
+
       const { error: fnError } = await supabaseDirect.functions.invoke('generate-invoice', {
         body: { invoice_id: invoiceId, businessId: currentBusinessId },
+        headers: { Authorization: `Bearer ${session.access_token}` },
       })
       if (fnError) throw fnError
 

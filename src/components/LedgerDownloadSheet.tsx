@@ -57,8 +57,16 @@ export function LedgerDownloadSheet({ isOpen, onClose, scope, connectionId, conn
         body.connectionId = connectionId
       }
 
+      // Refresh session to ensure a valid token
+      const { data: { session } } = await supabaseDirect.auth.getSession()
+      if (!session) {
+        setError('Please log in again')
+        return
+      }
+
       const { data: ledgerData, error: fnError } = await supabaseDirect.functions.invoke('generate-ledger', {
         body,
+        headers: { Authorization: `Bearer ${session.access_token}` },
       })
       if (fnError) throw new Error(fnError.message)
 
