@@ -25,6 +25,7 @@ export function InvoiceViewScreen({ invoiceId, currentBusinessId, onBack }: Prop
   const [loading, setLoading] = useState(true)
   const [pdfUrl, setPdfUrl] = useState<string | null>(null)
   const [generatingPdf, setGeneratingPdf] = useState(false)
+  const [downloading, setDownloading] = useState(false)
 
   const isSupplier = invoice?.supplierBusinessEntityId === currentBusinessId
 
@@ -80,9 +81,27 @@ export function InvoiceViewScreen({ invoiceId, currentBusinessId, onBack }: Prop
     }
   }
 
-  const handleDownload = () => {
+  const handleDownload = async () => {
     if (!pdfUrl) return
-    window.open(pdfUrl, '_blank')
+    setDownloading(true)
+    try {
+      const response = await fetch(pdfUrl)
+      if (!response.ok) throw new Error('Download failed')
+      const blob = await response.blob()
+      const objectUrl = URL.createObjectURL(blob)
+      const link = document.createElement('a')
+      link.href = objectUrl
+      link.download = `invoice-${invoice?.invoiceNumber || 'unknown'}.pdf`
+      document.body.appendChild(link)
+      link.click()
+      document.body.removeChild(link)
+      URL.revokeObjectURL(objectUrl)
+    } catch (err) {
+      console.error('Download failed:', err)
+      toast.error('Failed to download PDF')
+    } finally {
+      setDownloading(false)
+    }
   }
 
   const handleGeneratePdf = async () => {
@@ -381,7 +400,7 @@ export function InvoiceViewScreen({ invoiceId, currentBusinessId, onBack }: Prop
         </button>
         <button
           onClick={handleDownload}
-          disabled={!pdfUrl}
+          disabled={!pdfUrl || downloading}
           className="flex items-center justify-center gap-2"
           style={{
             flex: 1,
@@ -392,12 +411,12 @@ export function InvoiceViewScreen({ invoiceId, currentBusinessId, onBack }: Prop
             backgroundColor: '#4A6CF7',
             borderRadius: '14px',
             border: 'none',
-            cursor: !pdfUrl ? 'not-allowed' : 'pointer',
-            opacity: !pdfUrl ? 0.5 : 1,
+            cursor: (!pdfUrl || downloading) ? 'not-allowed' : 'pointer',
+            opacity: (!pdfUrl || downloading) ? 0.5 : 1,
           }}
         >
-          <DownloadSimple size={18} />
-          Download
+          {downloading ? <SpinnerGap size={18} className="animate-spin" /> : <DownloadSimple size={18} />}
+          {downloading ? 'Downloading...' : 'Download'}
         </button>
       </div>
     </div>
