@@ -1,7 +1,6 @@
 import * as Sentry from '@sentry/react'
 import React from 'react'
 import ReactDOM from 'react-dom/client'
-import "@github/spark/spark"
 
 import App from './App.tsx'
 import { initNativeFeatures } from './lib/capacitor'

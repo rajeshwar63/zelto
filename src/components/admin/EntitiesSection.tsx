@@ -82,10 +82,14 @@ function EntityRow({
   }, [entity.id])
 
   const loadFlags = async () => {
-    const bf = await dataStore.getCurrentFlagForEntity(entity.id, 'buyer')
-    const sf = await dataStore.getCurrentFlagForEntity(entity.id, 'supplier')
-    setBuyerFlag(bf)
-    setSupplierFlag(sf)
+    try {
+      const bf = await dataStore.getCurrentFlagForEntity(entity.id, 'buyer')
+      const sf = await dataStore.getCurrentFlagForEntity(entity.id, 'supplier')
+      setBuyerFlag(bf)
+      setSupplierFlag(sf)
+    } catch (err) {
+      console.error('Failed to load entity flags:', err)
+    }
   }
 
   const flagDisplay = () => {

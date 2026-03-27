@@ -1312,7 +1312,7 @@ export class ZeltoDataStore {
         flag_type: flagType,
         note,
         timestamp: Date.now(),
-        admin_username: adminUsername
+        created_by: adminUsername
       }])
       .select()
       .single()
@@ -1373,8 +1373,8 @@ export class ZeltoDataStore {
       .insert([{
         entity_id: entityId,
         frozen_at: Date.now(),
-        note,
-        admin_username: adminUsername
+        reason: note,
+        frozen_by: adminUsername
       }])
       .select()
       .single()
