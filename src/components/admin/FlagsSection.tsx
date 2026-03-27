@@ -47,9 +47,14 @@ export function FlagsSection({ adminUsername }: FlagsSectionProps) {
 
   const loadFlagHistory = async () => {
     if (!selectedEntityId) return
-    const flags = await dataStore.getEntityFlagsByEntityId(selectedEntityId)
-    const filtered = flags.filter((f) => f.roleContext === selectedRole)
-    setFlagHistory(filtered.sort((a, b) => b.timestamp - a.timestamp))
+    try {
+      const flags = await dataStore.getEntityFlagsByEntityId(selectedEntityId)
+      const filtered = flags.filter((f) => f.roleContext === selectedRole)
+      setFlagHistory(filtered.sort((a, b) => b.timestamp - a.timestamp))
+    } catch (err) {
+      console.error('Failed to load flag history:', err)
+      setFlagHistory([])
+    }
   }
 
   const handleSave = async () => {

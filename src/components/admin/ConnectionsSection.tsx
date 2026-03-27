@@ -2,7 +2,8 @@ import { useEffect, useState } from 'react'
 import { dataStore } from '@/lib/data-store'
 import { BusinessEntity, Connection, OrderWithPaymentState, IssueReport, PaymentTermType } from '@/lib/types'
 
-function formatPaymentTerms(terms: PaymentTermType): string {
+function formatPaymentTerms(terms: PaymentTermType | null): string {
+  if (!terms) return 'Not Set'
   switch (terms.type) {
     case 'Advance Required':
       return 'Advance Required'

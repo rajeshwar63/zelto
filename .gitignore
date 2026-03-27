@@ -31,5 +31,4 @@ pids
 .file-manifest
 .devcontainer/
 
-.spark-workbench-id
 .mcp.json
