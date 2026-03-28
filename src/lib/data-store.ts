@@ -1159,22 +1159,68 @@ export class ZeltoDataStore {
     receiverRole: 'buyer' | 'supplier',
     actorBusinessId: string
   ): Promise<AcceptConnectionRequestResult> {
-    const { data, error } = await supabase
-      .rpc('accept_connection_request', {
-        p_request_id: requestId,
-        p_receiver_role: receiverRole,
-        p_actor_business_id: actorBusinessId,
-      })
+    const { data: reqData, error: reqError } = await supabase
+      .from('connection_requests')
+      .select('*')
+      .eq('id', requestId)
+      .single()
+    if (reqError) throw reqError
+    const req = toCamelCase(reqData) as any
 
-    if (error) throw error
+    const buyerBusinessId = receiverRole === 'buyer' ? actorBusinessId : req.requesterBusinessId
+    const supplierBusinessId = receiverRole === 'supplier' ? actorBusinessId : req.requesterBusinessId
 
-    const row = Array.isArray(data) ? data[0] : data
+    const { data: existingConn } = await supabase
+      .from('connections')
+      .select('id')
+      .eq('buyer_business_id', buyerBusinessId)
+      .eq('supplier_business_id', supplierBusinessId)
+      .maybeSingle()
 
-    if (!row) {
-      throw new Error('Failed to accept connection request')
+    let connectionId: string
+    let alreadyExisted = false
+
+    if (existingConn) {
+      connectionId = existingConn.id
+      alreadyExisted = true
+    } else {
+      const { data: newConn, error: connError } = await supabase
+        .from('connections')
+        .insert([{
+          buyer_business_id: buyerBusinessId,
+          supplier_business_id: supplierBusinessId,
+          payment_terms: receiverRole === 'buyer' ? { type: 'Payment on Delivery' } : null,
+          connection_state: 'Stable',
+          behaviour_history: [],
+          created_at: Date.now(),
+        }])
+        .select('id')
+        .single()
+      if (connError) throw connError
+      connectionId = newConn.id
     }
 
-    return toCamelCase(row)
+    const { error: updateError } = await supabase
+      .from('connection_requests')
+      .update({ status: 'Accepted', resolved_at: Date.now(), receiver_role: receiverRole })
+      .eq('id', requestId)
+    if (updateError) throw updateError
+
+    let notificationStatus: 'sent' | 'failed' | 'skipped' = 'skipped'
+    try {
+      await this.createNotification(
+        req.requesterBusinessId,
+        'ConnectionAccepted',
+        connectionId,
+        connectionId,
+        'Your connection request has been accepted'
+      )
+      notificationStatus = 'sent'
+    } catch {
+      notificationStatus = 'failed'
+    }
+
+    return { connectionId, requestStatus: 'Accepted', notificationStatus, alreadyExisted }
   }
 
   async updateConnectionRequestStatus(

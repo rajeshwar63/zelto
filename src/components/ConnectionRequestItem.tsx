@@ -102,7 +102,8 @@ export function ConnectionRequestItem({ request, currentBusinessId, onUpdate, on
       onUpdate()
       onNavigateToConnections()
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to accept request')
+      const msg = err instanceof Error ? err.message : ((err as any)?.message ?? 'Failed to accept request')
+      setError(msg)
       setProcessing(false)
     }
   }
