@@ -210,9 +210,9 @@ export function ConnectionsScreen({ currentBusinessId, onSelectConnection, onAdd
   }
 
   return (
-    <div style={{ backgroundColor: 'var(--bg-screen)', minHeight: '100%' }}>
+    <div style={{ backgroundColor: 'var(--bg-screen)', height: '100%', display: 'flex', flexDirection: 'column' }}>
       {/* ── Header — rendered always, single source of truth ── */}
-      <div className="sticky top-0 z-10" style={{ backgroundColor: 'var(--bg-header)', paddingTop: 'env(safe-area-inset-top)' }}>
+      <div className="z-10" style={{ backgroundColor: 'var(--bg-header)', paddingTop: 'env(safe-area-inset-top)', flexShrink: 0 }}>
         <div className="h-11 flex items-center justify-between px-4">
           <h1 style={{ fontSize: '22px', fontWeight: 700, color: 'var(--text-primary)', letterSpacing: '-0.02em' }}>Connections</h1>
           <div className="flex items-center gap-1">
@@ -292,13 +292,13 @@ export function ConnectionsScreen({ currentBusinessId, onSelectConnection, onAdd
 
       {/* ── Body — conditional on state ── */}
       {isLoading ? (
-        <div style={{ padding: '16px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
+        <div style={{ flex: 1, padding: '16px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
           {[1, 2, 3].map(i => (
             <div key={i} className="animate-pulse" style={{ backgroundColor: 'var(--border-light)', borderRadius: 'var(--radius-card)', height: '80px' }} />
           ))}
         </div>
       ) : connections.length === 0 ? (
-        <div className="flex flex-col items-center justify-center px-6 text-center" style={{ minHeight: 'calc(100vh - 44px)' }}>
+        <div className="flex flex-col items-center justify-center px-6 text-center" style={{ flex: 1 }}>
           <p style={{ fontSize: '15px', fontWeight: 600, color: 'var(--text-primary)', marginBottom: '4px' }}>No connections yet</p>
           <p style={{ fontSize: '14px', fontWeight: 500, color: 'var(--text-secondary)', marginBottom: '16px' }}>
             Add your first buyer or supplier to get started
@@ -322,6 +322,7 @@ export function ConnectionsScreen({ currentBusinessId, onSelectConnection, onAdd
       <div
         ref={listContainerRef}
         className="px-4 pt-3 pb-24 overflow-y-auto"
+        style={{ flex: 1, minHeight: 0 }}
         onScroll={handleListScroll}
       >
         <p style={{ fontSize: '13px', fontWeight: 700, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '10px' }}>
