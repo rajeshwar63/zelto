@@ -5,7 +5,7 @@ import { behaviourEngine } from '@/lib/behaviour-engine'
 import { useDataListener } from '@/lib/data-events'
 import type { Connection, ConnectionState } from '@/lib/types'
 import { getConnectionStateLabel, getConnectionStateColor } from '@/lib/connection-state-utils'
-import { Users, UsersThree, PencilSimple, MagnifyingGlass, DownloadSimple } from '@phosphor-icons/react'
+import { Users, UsersThree, PencilSimple, MagnifyingGlass, DownloadSimple, X } from '@phosphor-icons/react'
 import { Phone, MapPin, User } from 'lucide-react'
 import { LedgerDownloadSheet } from '@/components/LedgerDownloadSheet'
 
@@ -93,6 +93,7 @@ export function ConnectionsScreen({ currentBusinessId, onSelectConnection, onAdd
   const [panelVisible, setPanelVisible] = useState(false)
   const listContainerRef = useRef<HTMLDivElement | null>(null)
   const lastScrollTop = useRef(0)
+  const searchInputRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
     console.debug('[ConnectionsScreen] mount', Date.now(), { currentBusinessId })
@@ -201,8 +202,11 @@ export function ConnectionsScreen({ currentBusinessId, onSelectConnection, onAdd
     if (!el) return
     const st = el.scrollTop
     lastScrollTop.current = st
-    if (st > 30) setPanelVisible(true)
-    else if (st <= 8) setPanelVisible(false)
+    if (st === 0 && !connectionSearch) {
+      setPanelVisible(false)
+    } else if (st > 0) {
+      setPanelVisible(true)
+    }
   }
 
   return (
@@ -248,6 +252,7 @@ export function ConnectionsScreen({ currentBusinessId, onSelectConnection, onAdd
                     style={{ position: 'absolute', left: '10px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-secondary)', pointerEvents: 'none' }}
                   />
                   <input
+                    ref={searchInputRef}
                     type="text"
                     value={connectionSearch}
                     onChange={(e) => setConnectionSearch(e.target.value)}
@@ -269,7 +274,10 @@ export function ConnectionsScreen({ currentBusinessId, onSelectConnection, onAdd
                   />
                   {connectionSearch && (
                     <button
-                      onClick={() => setConnectionSearch('')}
+                      onClick={() => {
+                        setConnectionSearch('')
+                        searchInputRef.current?.focus()
+                      }}
                       style={{ position: 'absolute', right: '8px', top: '50%', transform: 'translateY(-50%)', padding: '4px', color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', background: 'none', border: 'none', cursor: 'pointer' }}
                     >
                       <X size={14} weight="bold" />
