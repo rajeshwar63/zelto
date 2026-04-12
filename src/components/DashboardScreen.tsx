@@ -6,6 +6,11 @@ import { useState, useEffect } from 'react'
 import { computeTrustScore, type TrustScoreBreakdown } from '@/lib/trust-score'
 import { useBusinessOverviewData } from '@/hooks/data/use-business-data'
 import { OrderCard } from '@/components/order/OrderCard'
+import { intelligenceEngine } from '@/lib/intelligence-engine'
+import type { CashForecast, CollectionItem, ConcentrationRisk } from '@/lib/intelligence-engine'
+import { CashForecastCard } from './dashboard/CashForecastCard'
+import { CollectionPriorityCard } from './dashboard/CollectionPriorityCard'
+import { ConcentrationRiskCard } from './dashboard/ConcentrationRiskCard'
 
 function formatINR(amount: number): string {
   return amount.toLocaleString('en-IN', {
@@ -36,12 +41,32 @@ interface Props {
 export function DashboardScreen({ currentBusinessId, onNavigateToOrders, onNavigateToConnection, onNavigateToProfile, onNavigateToConnections, onNavigateToAttention, onNavigateToManageConnections, onNavigateToSupplierDocs, isActive = true }: Props) {
   const [showBadgeInfo, setShowBadgeInfo] = useState(false)
   const [trustScoreData, setTrustScoreData] = useState<TrustScoreBreakdown | null>(null)
+  const [cashForecast, setCashForecast] = useState<CashForecast | null>(null)
+  const [collectionItems, setCollectionItems] = useState<CollectionItem[]>([])
+  const [concentrationRisk, setConcentrationRisk] = useState<ConcentrationRisk | null>(null)
+  const [intelLoading, setIntelLoading] = useState(true)
 
   useEffect(() => {
     if (showBadgeInfo && !trustScoreData) {
       computeTrustScore(currentBusinessId).then(setTrustScoreData).catch(() => {})
     }
   }, [showBadgeInfo, currentBusinessId, trustScoreData])
+
+  useEffect(() => {
+    setIntelLoading(true)
+    Promise.all([
+      intelligenceEngine.getCashForecast(currentBusinessId),
+      intelligenceEngine.getCollectionPriority(currentBusinessId),
+      intelligenceEngine.getConcentrationRisk(currentBusinessId),
+    ])
+      .then(([forecast, items, risks]) => {
+        setCashForecast(forecast)
+        setCollectionItems(items)
+        setConcentrationRisk(risks.length > 0 ? risks[0] : null)
+      })
+      .catch(() => {})
+      .finally(() => setIntelLoading(false))
+  }, [currentBusinessId])
 
   const { data: overview, isInitialLoading } = useBusinessOverviewData(currentBusinessId, isActive)
   const recentOrders = overview?.recentOrders ?? []
@@ -243,6 +268,10 @@ export function DashboardScreen({ currentBusinessId, onNavigateToOrders, onNavig
             </p>
           </div>
         </div>
+
+        <CashForecastCard forecast={cashForecast} loading={intelLoading} />
+        <CollectionPriorityCard items={collectionItems} loading={intelLoading} onTapItem={(connId) => onNavigateToConnection(connId)} />
+        <ConcentrationRiskCard risk={concentrationRisk} loading={intelLoading} />
 
         <div>
           <h2 className="text-[10px] uppercase tracking-wide text-muted-foreground/60 mb-3">
