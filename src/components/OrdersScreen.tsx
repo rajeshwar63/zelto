@@ -108,7 +108,7 @@ export function OrdersScreen({ currentBusinessId, onSelectOrder, initialFilter, 
   const [filterPanelOpen, setFilterPanelOpen] = useState(false)
   const [popoverTab, setPopoverTab] = useState<RoleFilter | null>(null)
   const [showPinHint, setShowPinHint] = useState(false)
-  const [activeTab, setActiveTab] = useState<'intelligence' | null>('intelligence')
+  const [activeTab, setActiveTab] = useState<'intelligence' | null>(null)
 
   // Long-press timer refs
   const pressTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
@@ -361,126 +361,134 @@ export function OrdersScreen({ currentBusinessId, onSelectOrder, initialFilter, 
             Orders
           </h1>
 
-          {/* Compact pill toggle — All | Buying | Selling with long-press to pin */}
-          <div style={{
-            display: 'flex',
-            borderRadius: 999,
-            border: '0.5px solid var(--border-light)',
-            overflow: 'visible',
-            position: 'relative',
-          }}>
+          {/* Compact pill toggle — All | Buying | Selling + Insights */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            <div style={{
+              display: 'flex',
+              borderRadius: 999,
+              border: '0.5px solid var(--border-light)',
+              overflow: 'visible',
+              position: 'relative',
+              opacity: activeTab === 'intelligence' ? 0.4 : 1,
+              transition: 'opacity 150ms',
+            }}>
+              {(['all', 'buying', 'selling'] as const).map(role => {
+                const isPinned = pinnedTab === role
+                const isActive = activeTab === null && roleFilter === role
+                return (
+                  <div
+                    key={role}
+                    style={{ position: 'relative' }}
+                  >
+                    <button
+                      onClick={() => handleRoleChange(role)}
+                      onMouseDown={() => handlePressStart(role)}
+                      onMouseUp={handlePressEnd}
+                      onMouseLeave={handlePressEnd}
+                      onTouchStart={() => handlePressStart(role)}
+                      onTouchEnd={handlePressEnd}
+                      onContextMenu={(e) => { e.preventDefault(); setPopoverTab(role) }}
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: 3,
+                        padding: '5px 14px',
+                        fontSize: 12,
+                        fontWeight: isActive ? 600 : 400,
+                        border: 'none',
+                        cursor: 'pointer',
+                        background: isActive
+                          ? 'var(--text-primary)'
+                          : 'transparent',
+                        color: isActive
+                          ? 'var(--bg-card)'
+                          : 'var(--text-secondary)',
+                        transition: 'all 150ms',
+                        borderRadius: role === 'all' ? '999px 0 0 999px' : role === 'selling' ? '0 999px 999px 0' : '0',
+                        userSelect: 'none',
+                        WebkitUserSelect: 'none',
+                      }}
+                    >
+                      {isPinned && (
+                        <PinIcon color={isActive ? 'var(--bg-card)' : 'var(--text-secondary)'} />
+                      )}
+                      {role === 'all' ? 'All' : role === 'buying' ? 'Buying' : 'Selling'}
+                    </button>
+
+                    {/* Popover for this tab */}
+                    {popoverTab === role && (
+                      <div
+                        ref={popoverRef}
+                        style={{
+                          position: 'absolute',
+                          top: 'calc(100% + 6px)',
+                          right: role === 'selling' ? 0 : undefined,
+                          left: role === 'all' ? 0 : undefined,
+                          transform: role === 'buying' ? 'translateX(-25%)' : undefined,
+                          zIndex: 100,
+                          background: 'var(--bg-card)',
+                          borderRadius: 10,
+                          boxShadow: '0 4px 16px rgba(0,0,0,0.14)',
+                          border: '0.5px solid var(--border-light)',
+                          padding: '0',
+                          minWidth: 160,
+                          overflow: 'hidden',
+                        }}
+                      >
+                        <button
+                          onClick={() => isPinned ? handleRemoveDefault() : handleSetDefault(role)}
+                          style={{
+                            display: 'block',
+                            width: '100%',
+                            padding: '12px 16px',
+                            fontSize: 13,
+                            fontWeight: 500,
+                            color: 'var(--text-primary)',
+                            background: 'none',
+                            border: 'none',
+                            cursor: 'pointer',
+                            textAlign: 'left',
+                            whiteSpace: 'nowrap',
+                          }}
+                        >
+                          {isPinned ? 'Remove as default' : 'Set as default'}
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                )
+              })}
+            </div>
+
+            {/* Vertical divider */}
+            <div style={{
+              width: 1,
+              height: 20,
+              background: 'var(--color-border-tertiary)',
+              flexShrink: 0,
+            }} />
+
+            {/* Insights pill */}
             <button
-              onClick={() => { setActiveTab('intelligence'); setOrderFilters(EMPTY_FILTERS); setFilterPanelOpen(false) }}
+              onClick={() => { setActiveTab(activeTab === 'intelligence' ? null : 'intelligence'); setOrderFilters(EMPTY_FILTERS); setFilterPanelOpen(false) }}
               style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: 3,
-                padding: '5px 14px',
+                padding: '6px 12px',
                 fontSize: 12,
-                fontWeight: activeTab === 'intelligence' ? 600 : 400,
-                border: 'none',
+                fontWeight: 500,
+                borderRadius: 18,
+                border: activeTab === 'intelligence' ? 'none' : '0.5px solid #4A6CF7',
+                background: activeTab === 'intelligence' ? '#4A6CF7' : 'transparent',
+                color: activeTab === 'intelligence' ? '#FFFFFF' : '#4A6CF7',
                 cursor: 'pointer',
-                background: activeTab === 'intelligence'
-                  ? 'var(--text-primary)'
-                  : 'transparent',
-                color: activeTab === 'intelligence'
-                  ? 'var(--bg-card)'
-                  : 'var(--text-secondary)',
                 transition: 'all 150ms',
-                borderRadius: '999px 0 0 999px',
                 userSelect: 'none',
                 WebkitUserSelect: 'none',
                 whiteSpace: 'nowrap',
+                flexShrink: 0,
               }}
             >
-              Intelligence
+              Insights
             </button>
-            {(['all', 'buying', 'selling'] as const).map(role => {
-              const isPinned = pinnedTab === role
-              const isActive = activeTab === null && roleFilter === role
-              return (
-                <div
-                  key={role}
-                  style={{ position: 'relative' }}
-                >
-                  <button
-                    onClick={() => handleRoleChange(role)}
-                    onMouseDown={() => handlePressStart(role)}
-                    onMouseUp={handlePressEnd}
-                    onMouseLeave={handlePressEnd}
-                    onTouchStart={() => handlePressStart(role)}
-                    onTouchEnd={handlePressEnd}
-                    onContextMenu={(e) => { e.preventDefault(); setPopoverTab(role) }}
-                    style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: 3,
-                      padding: '5px 14px',
-                      fontSize: 12,
-                      fontWeight: isActive ? 600 : 400,
-                      border: 'none',
-                      cursor: 'pointer',
-                      background: isActive
-                        ? 'var(--text-primary)'
-                        : 'transparent',
-                      color: isActive
-                        ? 'var(--bg-card)'
-                        : 'var(--text-secondary)',
-                      transition: 'all 150ms',
-                      borderRadius: role === 'selling' ? '0 999px 999px 0' : '0',
-                      userSelect: 'none',
-                      WebkitUserSelect: 'none',
-                    }}
-                  >
-                    {isPinned && (
-                      <PinIcon color={isActive ? 'var(--bg-card)' : 'var(--text-secondary)'} />
-                    )}
-                    {role === 'all' ? 'All' : role === 'buying' ? 'Buying' : 'Selling'}
-                  </button>
-
-                  {/* Popover for this tab */}
-                  {popoverTab === role && (
-                    <div
-                      ref={popoverRef}
-                      style={{
-                        position: 'absolute',
-                        top: 'calc(100% + 6px)',
-                        right: role === 'selling' ? 0 : undefined,
-                        left: role === 'all' ? 0 : undefined,
-                        transform: role === 'buying' ? 'translateX(-25%)' : undefined,
-                        zIndex: 100,
-                        background: 'var(--bg-card)',
-                        borderRadius: 10,
-                        boxShadow: '0 4px 16px rgba(0,0,0,0.14)',
-                        border: '0.5px solid var(--border-light)',
-                        padding: '0',
-                        minWidth: 160,
-                        overflow: 'hidden',
-                      }}
-                    >
-                      <button
-                        onClick={() => isPinned ? handleRemoveDefault() : handleSetDefault(role)}
-                        style={{
-                          display: 'block',
-                          width: '100%',
-                          padding: '12px 16px',
-                          fontSize: 13,
-                          fontWeight: 500,
-                          color: 'var(--text-primary)',
-                          background: 'none',
-                          border: 'none',
-                          cursor: 'pointer',
-                          textAlign: 'left',
-                          whiteSpace: 'nowrap',
-                        }}
-                      >
-                        {isPinned ? 'Remove as default' : 'Set as default'}
-                      </button>
-                    </div>
-                  )}
-                </div>
-              )
-            })}
           </div>
         </div>
 
