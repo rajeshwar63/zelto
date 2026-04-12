@@ -211,6 +211,7 @@ export function ConnectionDetailScreen({ connectionId, currentBusinessId, onBack
             && order.calculatedDueDate < now
             && order.settlementState !== 'Paid'
         }
+        if (chip === 'dispute')    return openIssueOrderIds.has(order.id)
         return false
       })
       if (!matchChip) return false

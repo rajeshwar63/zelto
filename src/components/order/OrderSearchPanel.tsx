@@ -12,6 +12,7 @@ export type StatusChip =
   | 'delivered'
   | 'paid'
   | 'overdue'
+  | 'dispute'
 
 export interface OrderFilters {
   searchText: string
@@ -21,9 +22,9 @@ export interface OrderFilters {
 }
 
 export const CHIPS_BY_ROLE: Record<RoleFilter, StatusChip[]> = {
-  all:     ['placed', 'dispatched', 'delivered', 'paid', 'overdue'],
-  buying:  ['placed', 'dispatched', 'delivered', 'paid', 'overdue'],
-  selling: ['new', 'accepted', 'dispatched', 'delivered', 'paid', 'overdue'],
+  all:     ['placed', 'dispatched', 'delivered', 'paid', 'overdue', 'dispute'],
+  buying:  ['placed', 'dispatched', 'delivered', 'paid', 'overdue', 'dispute'],
+  selling: ['new', 'accepted', 'dispatched', 'delivered', 'paid', 'overdue', 'dispute'],
 }
 
 export const CHIP_LABELS: Record<StatusChip, string> = {
@@ -34,6 +35,7 @@ export const CHIP_LABELS: Record<StatusChip, string> = {
   delivered:  'Delivered',
   paid:       'Paid',
   overdue:    'Overdue',
+  dispute:    'Dispute',
 }
 
 export const CHIP_COLORS: Record<StatusChip, string> = {
@@ -44,6 +46,7 @@ export const CHIP_COLORS: Record<StatusChip, string> = {
   delivered:  'var(--status-delivered, #22B573)',
   paid:       'var(--status-success, #22B573)',
   overdue:    'var(--status-overdue, #FF6B6B)',
+  dispute:    'var(--status-dispute, #8B5CF6)',
 }
 
 const MONTH_NAMES = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December']

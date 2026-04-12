@@ -124,6 +124,8 @@ function getStatusChipBackground(status: StatusChip): string {
       return 'rgba(34, 181, 115, 0.1)'
     case 'overdue':
       return 'rgba(255, 107, 107, 0.1)'
+    case 'dispute':
+      return 'rgba(139, 92, 246, 0.08)'
     default:
       return 'var(--bg-screen)'
   }
@@ -143,6 +145,8 @@ function getStatusChipColor(status: StatusChip): string {
       return 'var(--status-success, #22B573)'
     case 'overdue':
       return 'var(--status-overdue, #FF6B6B)'
+    case 'dispute':
+      return '#8B5CF6'
     default:
       return 'var(--text-secondary)'
   }

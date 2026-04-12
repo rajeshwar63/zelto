@@ -47,7 +47,7 @@ const EMPTY_FILTERS: OrderFilters = {
 }
 
 function matchesChip(
-  order: { lifecycleState: string; settlementState: string; calculatedDueDate: number | null },
+  order: { lifecycleState: string; settlementState: string; calculatedDueDate: number | null; hasOpenIssue?: boolean },
   chip: StatusChip,
   role: RoleFilter
 ): boolean {
@@ -75,6 +75,8 @@ function matchesChip(
       return order.settlementState === 'Paid'
     case 'overdue':
       return isOverdue
+    case 'dispute':
+      return order.hasOpenIssue === true
   }
 }
 
