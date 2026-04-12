@@ -209,7 +209,7 @@ export function DispatchQueueView({ items, loading, onSelectOrder }: Props) {
         </span>
         <span style={{ fontSize: 12, color: '#78350f', lineHeight: 1.4 }}>
           <strong>{items.length} order{items.length !== 1 ? 's' : ''} ready to dispatch.</strong>
-          {' '}Timely dispatch improves your trust score and keeps buyers happy.
+          {' '}Timely dispatch improves your on-time dispatch rate and keeps buyers happy.
         </span>
       </div>
 
@@ -224,7 +224,7 @@ export function DispatchQueueView({ items, loading, onSelectOrder }: Props) {
             letterSpacing: '0.06em',
             margin: '0 0 10px',
           }}>
-            Dispatch now — trust score at risk
+            Dispatch now — buyers see slow response times on your profile
           </p>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
             {urgentAndHigh.map(item => (
