@@ -60,7 +60,7 @@ function buildNewOrdersInsights(orders: EnrichedOrder[], role: Role, totalOrderC
       const hours = roundHours(now - Math.min(...staleOrders.map(o => o.createdAt)))
       insights.push({
         icon: '⏱',
-        text: `${staleOrders.length} ${staleOrders.length === 1 ? 'order' : 'orders'} placed ${hours}h+ ago with no response — acceptance delay affects your trust score`,
+        text: `${staleOrders.length} ${staleOrders.length === 1 ? 'order' : 'orders'} placed ${hours}h+ ago with no response — acceptance delay affects how buyers evaluate your reliability`,
         priority: 1,
       })
     } else {
@@ -142,13 +142,13 @@ function buildAcceptedInsights(orders: EnrichedOrder[], role: Role, totalOrderCo
     if (past48h.length > 0) {
       insights.push({
         icon: '⏱',
-        text: `${past48h.length} past 48h dispatch window — trust score at risk`,
+        text: `${past48h.length} past 48h dispatch window — buyers see slow response times on your profile`,
         priority: 1,
       })
     } else if (approaching48h.length > 0) {
       insights.push({
         icon: '⏱',
-        text: `${approaching48h.length} approaching 48h threshold — dispatch soon to protect trust score`,
+        text: `${approaching48h.length} approaching 48h threshold — dispatch soon to maintain your response time average`,
         priority: 1,
       })
     }
