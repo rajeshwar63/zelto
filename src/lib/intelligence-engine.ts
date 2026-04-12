@@ -550,16 +550,181 @@ export class IntelligenceEngine {
     })
   }
 
-  async getDispatchIntelligence(_businessId: string): Promise<DispatchIntelItem[]> {
-    return []
+  async getDispatchIntelligence(businessId: string): Promise<DispatchIntelItem[]> {
+    const allConnections = await dataStore.getAllConnections()
+    const supplierConnections = allConnections.filter(
+      (c) => c.supplierBusinessId === businessId
+    )
+
+    const items: DispatchIntelItem[] = []
+
+    for (const connection of supplierConnections) {
+      const orders = await dataStore.getOrdersByConnectionId(connection.id)
+
+      // Filter to accepted but not yet dispatched orders
+      const acceptedOrders = orders.filter(
+        (o) => o.acceptedAt !== null && o.dispatchedAt === null && o.declinedAt === null
+      )
+
+      if (acceptedOrders.length === 0) continue
+
+      // Get signals once per connection
+      const [quality, operational] = await Promise.all([
+        behaviourEngine.computeQualitySignals(connection.id),
+        behaviourEngine.computeOperationalSignals(connection.id),
+      ])
+
+      // Get buyer name for display
+      const buyer = await dataStore.getBusinessEntityById(connection.buyerBusinessId)
+      const connectionName = buyer?.businessName ?? 'Unknown'
+
+      for (const order of acceptedOrders) {
+        const hoursSinceAcceptance = (Date.now() - order.acceptedAt!) / 3600000
+
+        const qualityWarning =
+          quality.buyer_raised_issue_count > 0 && quality.total_issues_30_days >= 2
+
+        let urgency: DispatchIntelItem['urgency']
+        if (hoursSinceAcceptance > 20) {
+          urgency = 'urgent'
+        } else if (hoursSinceAcceptance > 12 || qualityWarning) {
+          urgency = 'high'
+        } else {
+          urgency = 'normal'
+        }
+
+        const qualityDetail = qualityWarning
+          ? `${quality.buyer_raised_issue_count} quality issues in last 30 days from this buyer`
+          : null
+
+        let reason: string
+        if (urgency === 'urgent') {
+          reason = `Approaching 24h threshold. ${hoursSinceAcceptance.toFixed(0)}h since acceptance.`
+        } else if (urgency === 'high' && qualityWarning) {
+          reason = `This buyer raised quality issues recently. Prioritize QC before dispatch.`
+        } else if (urgency === 'high') {
+          reason = `${hoursSinceAcceptance.toFixed(0)}h since acceptance. Consider dispatching today.`
+        } else {
+          reason = `Within safe window. Dispatch by tomorrow maintains your avg.`
+        }
+
+        let trustScoreImpact: string | null = null
+        if (
+          operational.avg_dispatch_delay !== null &&
+          operational.avg_dispatch_delay < 24
+        ) {
+          trustScoreImpact = `Dispatching keeps avg at ${Math.round(operational.avg_dispatch_delay)}h`
+        }
+
+        items.push({
+          orderId: order.id,
+          connectionId: connection.id,
+          connectionName,
+          orderValue: order.orderValue,
+          itemSummary: order.itemSummary,
+          hoursSinceAcceptance,
+          urgency,
+          reason,
+          qualityWarning,
+          qualityDetail,
+          trustScoreImpact,
+        })
+      }
+    }
+
+    // Sort: urgent first, then high, then normal. Within each tier, sort by hoursSinceAcceptance DESC
+    const urgencyOrder: Record<DispatchIntelItem['urgency'], number> = {
+      urgent: 0,
+      high: 1,
+      normal: 2,
+    }
+
+    return items.sort((a, b) => {
+      if (urgencyOrder[a.urgency] !== urgencyOrder[b.urgency]) {
+        return urgencyOrder[a.urgency] - urgencyOrder[b.urgency]
+      }
+      return b.hoursSinceAcceptance - a.hoursSinceAcceptance
+    })
   }
 
   async getPaymentCalendar(_businessId: string): Promise<PaymentCalendarItem[]> {
     return []
   }
 
-  async getSupplierRankings(_businessId: string): Promise<SupplierRanking[]> {
-    return []
+  async getSupplierRankings(businessId: string): Promise<SupplierRanking[]> {
+    const allConnections = await dataStore.getAllConnections()
+    const buyerConnections = allConnections.filter(
+      (c) => c.buyerBusinessId === businessId
+    )
+
+    const rankings = await Promise.all(
+      buyerConnections.map(async (connection) => {
+        const [signals, supplier, orders] = await Promise.all([
+          behaviourEngine.computeAllSignals(connection.id),
+          dataStore.getBusinessEntityById(connection.supplierBusinessId),
+          dataStore.getOrdersByConnectionId(connection.id),
+        ])
+
+        const supplierName = supplier?.businessName ?? 'Unknown'
+        const totalOrders = orders.length
+        const deliveryConsistency = signals.operational.delivery_consistency
+        const avgAcceptanceHours = signals.operational.avg_acceptance_delay
+        const avgDispatchHours = signals.operational.avg_dispatch_delay
+        const issuesLast30Days = signals.quality.total_issues_30_days
+
+        // Scoring
+        const deliveryScore = deliveryConsistency ?? 50
+
+        let acceptScore: number
+        if (avgAcceptanceHours === null) {
+          acceptScore = 50
+        } else if (avgAcceptanceHours < 4) {
+          acceptScore = 100
+        } else if (avgAcceptanceHours < 24) {
+          acceptScore = 70
+        } else if (avgAcceptanceHours < 48) {
+          acceptScore = 40
+        } else {
+          acceptScore = 10
+        }
+
+        let dispatchScore: number
+        if (avgDispatchHours === null) {
+          dispatchScore = 50
+        } else if (avgDispatchHours < 24) {
+          dispatchScore = 100
+        } else if (avgDispatchHours < 48) {
+          dispatchScore = 70
+        } else if (avgDispatchHours < 72) {
+          dispatchScore = 40
+        } else {
+          dispatchScore = 10
+        }
+
+        const qualityScore =
+          issuesLast30Days === 0 ? 100 : issuesLast30Days <= 2 ? 60 : 20
+
+        const overallScore = Math.round(
+          deliveryScore * 0.4 +
+            acceptScore * 0.2 +
+            dispatchScore * 0.2 +
+            qualityScore * 0.2
+        )
+
+        return {
+          connectionId: connection.id,
+          supplierName,
+          deliveryConsistency,
+          avgAcceptanceHours,
+          avgDispatchHours,
+          issuesLast30Days,
+          totalOrders,
+          overallScore,
+        } satisfies SupplierRanking
+      })
+    )
+
+    return rankings.sort((a, b) => b.overallScore - a.overallScore)
   }
 
   async getReorderAlerts(_businessId: string): Promise<ReorderAlert[]> {
