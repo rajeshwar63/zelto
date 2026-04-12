@@ -246,12 +246,308 @@ export class IntelligenceEngine {
 
   // ─── Stub methods ───────────────────────────────────────────────
 
-  async getCashForecast(_businessId: string): Promise<CashForecast> {
-    return { inflows: [], outflows: [], netThisWeek: 0, netNextWeek: 0 }
+  async getCashForecast(businessId: string): Promise<CashForecast> {
+    const allConnections = await dataStore.getAllConnections()
+
+    const supplierConnections = allConnections.filter(
+      (c) => c.supplierBusinessId === businessId
+    )
+    const buyerConnections = allConnections.filter(
+      (c) => c.buyerBusinessId === businessId
+    )
+
+    const now = Date.now()
+
+    // Inflow accumulators
+    const inflowThisWeek = { amount: 0, count: 0 }
+    const inflowNextWeek = { amount: 0, count: 0 }
+    const inflowUncertain = { amount: 0, count: 0 }
+
+    // INFLOWS (business is supplier)
+    for (const connection of supplierConnections) {
+      const orders = await dataStore.getOrdersWithPaymentStateByConnectionId(connection.id)
+      const orderIds = orders.map((o) => o.id)
+      const allPayments = await dataStore.getPaymentEventsByOrderIds(orderIds)
+
+      // Get completed (Paid + Delivered) orders for historical patterns
+      const paidDeliveredOrders = orders.filter(
+        (o) => o.settlementState === 'Paid' && o.deliveredAt
+      )
+
+      // Calculate average payment lag from history
+      const paymentLags: number[] = []
+      for (const paidOrder of paidDeliveredOrders) {
+        const payments = allPayments.filter((p) => p.orderId === paidOrder.id)
+        if (payments.length > 0 && paidOrder.deliveredAt) {
+          const lastPaymentTime = Math.max(...payments.map((p) => p.timestamp))
+          const lagDays = (lastPaymentTime - paidOrder.deliveredAt) / 86400000
+          paymentLags.push(lagDays)
+        }
+      }
+
+      let avgPaymentLagDays: number | null = null
+      if (paymentLags.length > 0) {
+        avgPaymentLagDays =
+          paymentLags.reduce((sum, l) => sum + l, 0) / paymentLags.length
+      }
+
+      // Fallback to payment terms days
+      if (
+        avgPaymentLagDays === null &&
+        connection.paymentTerms?.type === 'Days After Delivery'
+      ) {
+        avgPaymentLagDays = connection.paymentTerms.days
+      }
+
+      // Calculate average delivery days from history
+      const deliveryDurations: number[] = []
+      for (const order of orders) {
+        if (order.deliveredAt && order.dispatchedAt) {
+          deliveryDurations.push(
+            (order.deliveredAt - order.dispatchedAt) / 86400000
+          )
+        }
+      }
+      const avgDeliveryDays =
+        deliveryDurations.length > 0
+          ? deliveryDurations.reduce((sum, d) => sum + d, 0) /
+            deliveryDurations.length
+          : 3
+
+      const hasEnoughHistory = paymentLags.length >= 2
+
+      // Process open orders (not Paid, not Declined)
+      const openOrders = orders.filter(
+        (o) => o.settlementState !== 'Paid' && !o.declinedAt
+      )
+
+      for (const order of openOrders) {
+        let expectedPayDate: number | null = null
+
+        if (order.deliveredAt) {
+          // Delivered order
+          const lagDays = avgPaymentLagDays ?? 30
+          expectedPayDate = order.deliveredAt + lagDays * 86400000
+        } else if (order.dispatchedAt || order.acceptedAt) {
+          // Dispatched or Accepted
+          const lagDays = avgPaymentLagDays ?? 30
+          expectedPayDate =
+            now + avgDeliveryDays * 86400000 + lagDays * 86400000
+        } else {
+          // Placed: skip (too uncertain)
+          continue
+        }
+
+        const daysFromNow = (expectedPayDate - now) / 86400000
+
+        if (!hasEnoughHistory || daysFromNow > 14) {
+          inflowUncertain.amount += order.pendingAmount
+          inflowUncertain.count++
+        } else if (daysFromNow <= 7) {
+          inflowThisWeek.amount += order.pendingAmount
+          inflowThisWeek.count++
+        } else {
+          inflowNextWeek.amount += order.pendingAmount
+          inflowNextWeek.count++
+        }
+      }
+    }
+
+    // Outflow accumulators
+    const outflowThisWeek = { amount: 0, count: 0 }
+    const outflowNextWeek = { amount: 0, count: 0 }
+
+    // OUTFLOWS (business is buyer)
+    for (const connection of buyerConnections) {
+      const orders = await dataStore.getOrdersWithPaymentStateByConnectionId(
+        connection.id
+      )
+      const openOrders = orders.filter(
+        (o) => o.settlementState !== 'Paid' && !o.declinedAt
+      )
+
+      for (const order of openOrders) {
+        if (order.calculatedDueDate === null) continue
+
+        const daysFromNow = (order.calculatedDueDate - now) / 86400000
+
+        if (daysFromNow <= 0) {
+          // Overdue → include in thisWeek
+          outflowThisWeek.amount += order.pendingAmount
+          outflowThisWeek.count++
+        } else if (daysFromNow <= 7) {
+          outflowThisWeek.amount += order.pendingAmount
+          outflowThisWeek.count++
+        } else if (daysFromNow <= 14) {
+          outflowNextWeek.amount += order.pendingAmount
+          outflowNextWeek.count++
+        }
+      }
+    }
+
+    // Build inflow buckets
+    const inflows: CashForecastBucket[] = []
+    if (inflowThisWeek.count > 0) {
+      inflows.push({
+        label: 'This Week',
+        amount: inflowThisWeek.amount,
+        orderCount: inflowThisWeek.count,
+        detail: `${inflowThisWeek.count} order${inflowThisWeek.count > 1 ? 's' : ''} expected this week`,
+      })
+    }
+    if (inflowNextWeek.count > 0) {
+      inflows.push({
+        label: 'Next Week',
+        amount: inflowNextWeek.amount,
+        orderCount: inflowNextWeek.count,
+        detail: `${inflowNextWeek.count} order${inflowNextWeek.count > 1 ? 's' : ''} expected next week`,
+      })
+    }
+    if (inflowUncertain.count > 0) {
+      inflows.push({
+        label: 'Uncertain',
+        amount: inflowUncertain.amount,
+        orderCount: inflowUncertain.count,
+        detail: `${inflowUncertain.count} order${inflowUncertain.count > 1 ? 's' : ''} with uncertain timing`,
+      })
+    }
+
+    // Build outflow buckets
+    const outflows: CashForecastBucket[] = []
+    if (outflowThisWeek.count > 0) {
+      outflows.push({
+        label: 'This Week',
+        amount: outflowThisWeek.amount,
+        orderCount: outflowThisWeek.count,
+        detail: `${outflowThisWeek.count} payment${outflowThisWeek.count > 1 ? 's' : ''} due this week`,
+      })
+    }
+    if (outflowNextWeek.count > 0) {
+      outflows.push({
+        label: 'Next Week',
+        amount: outflowNextWeek.amount,
+        orderCount: outflowNextWeek.count,
+        detail: `${outflowNextWeek.count} payment${outflowNextWeek.count > 1 ? 's' : ''} due next week`,
+      })
+    }
+
+    return {
+      inflows,
+      outflows,
+      netThisWeek: inflowThisWeek.amount - outflowThisWeek.amount,
+      netNextWeek: inflowNextWeek.amount - outflowNextWeek.amount,
+    }
   }
 
-  async getCreditRiskSignals(_businessId: string): Promise<CreditRiskSignal[]> {
-    return []
+  async getCreditRiskSignals(businessId: string): Promise<CreditRiskSignal[]> {
+    // Get all connections where business is supplier
+    const allConnections = await dataStore.getAllConnections()
+    const supplierConnections = allConnections.filter(
+      (c) => c.supplierBusinessId === businessId
+    )
+
+    const now = Date.now()
+    const THIRTY_DAYS_MS = 30 * 86400000
+    const NINETY_DAYS_MS = 90 * 86400000
+
+    const signals: CreditRiskSignal[] = []
+
+    for (const connection of supplierConnections) {
+      // Get all orders with payment state
+      const orders = await dataStore.getOrdersWithPaymentStateByConnectionId(
+        connection.id
+      )
+      const orderIds = orders.map((o) => o.id)
+      const allPayments = await dataStore.getPaymentEventsByOrderIds(orderIds)
+
+      // Filter to delivered + paid orders only (for calculating actual payment timing)
+      const deliveredPaidOrders = orders
+        .filter((o) => o.settlementState === 'Paid' && o.deliveredAt)
+        .sort((a, b) => (a.deliveredAt ?? 0) - (b.deliveredAt ?? 0))
+
+      // Split into "recent" (delivered in last 30 days) and "previous" (31-90 days ago)
+      const recentOrders = deliveredPaidOrders.filter(
+        (o) => o.deliveredAt! >= now - THIRTY_DAYS_MS
+      )
+      const previousOrders = deliveredPaidOrders.filter(
+        (o) =>
+          o.deliveredAt! >= now - NINETY_DAYS_MS &&
+          o.deliveredAt! < now - THIRTY_DAYS_MS
+      )
+
+      // Calculate average payment days for a group of orders
+      const calcAvgPayDays = (
+        groupOrders: OrderWithPaymentState[]
+      ): number | null => {
+        const payDaysList: number[] = []
+        for (const order of groupOrders) {
+          const payments = allPayments.filter((p) => p.orderId === order.id)
+          if (payments.length > 0 && order.deliveredAt) {
+            const lastPaymentTime = Math.max(
+              ...payments.map((p) => p.timestamp)
+            )
+            const payDays = (lastPaymentTime - order.deliveredAt) / 86400000
+            payDaysList.push(payDays)
+          }
+        }
+        if (payDaysList.length === 0) return null
+        return payDaysList.reduce((sum, d) => sum + d, 0) / payDaysList.length
+      }
+
+      const currentAvgPayDays = calcAvgPayDays(recentOrders)
+      const previousAvgPayDays = calcAvgPayDays(previousOrders)
+
+      // Determine trend
+      let trend: CreditRiskSignal['trend']
+      if (recentOrders.length < 2 || previousOrders.length < 2) {
+        trend = 'insufficient_data'
+      } else if (
+        currentAvgPayDays !== null &&
+        previousAvgPayDays !== null &&
+        currentAvgPayDays > previousAvgPayDays * 1.3
+      ) {
+        trend = 'worsening'
+      } else if (
+        currentAvgPayDays !== null &&
+        previousAvgPayDays !== null &&
+        currentAvgPayDays < previousAvgPayDays * 0.8
+      ) {
+        trend = 'improving'
+      } else {
+        trend = 'stable'
+      }
+
+      // Calculate currentOverdue from orders with settlementState 'Pending'
+      const currentOverdue = orders
+        .filter((o) => o.settlementState === 'Pending')
+        .reduce((sum, o) => sum + o.pendingAmount, 0)
+
+      // Only return connections where trend === 'worsening' OR currentOverdue > 0
+      if (trend !== 'worsening' && currentOverdue <= 0) continue
+
+      // Get buyer business name for display
+      const buyer = await dataStore.getBusinessEntityById(
+        connection.buyerBusinessId
+      )
+      const businessName = buyer?.businessName ?? 'Unknown'
+
+      signals.push({
+        connectionId: connection.id,
+        businessName,
+        currentAvgPayDays,
+        previousAvgPayDays,
+        trend,
+        currentOverdue,
+        totalOrders: orders.length,
+      })
+    }
+
+    // Sort: worsening first, then by currentOverdue DESC
+    return signals.sort((a, b) => {
+      if (a.trend === 'worsening' && b.trend !== 'worsening') return -1
+      if (a.trend !== 'worsening' && b.trend === 'worsening') return 1
+      return b.currentOverdue - a.currentOverdue
+    })
   }
 
   async getDispatchIntelligence(_businessId: string): Promise<DispatchIntelItem[]> {
