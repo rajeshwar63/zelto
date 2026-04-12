@@ -1,6 +1,7 @@
 import { dataStore } from './data-store'
 import { behaviourEngine } from './behaviour-engine'
 import { computeTrustScore } from './trust-score'
+import { scoreToLevel } from './credibility'
 import type { OrderWithPaymentState } from './types'
 
 // ─── Types ──────────────────────────────────────────────────────────
@@ -647,8 +648,74 @@ export class IntelligenceEngine {
     })
   }
 
-  async getPaymentCalendar(_businessId: string): Promise<PaymentCalendarItem[]> {
-    return []
+  async getPaymentCalendar(businessId: string): Promise<PaymentCalendarItem[]> {
+    const allConnections = await dataStore.getAllConnections()
+    const buyerConnections = allConnections.filter(
+      (c) => c.buyerBusinessId === businessId
+    )
+
+    // Compute trust score once for reuse across all items
+    let currentScore: { total: number } | null = null
+    try {
+      currentScore = await computeTrustScore(businessId)
+    } catch {
+      currentScore = null
+    }
+
+    const items: PaymentCalendarItem[] = []
+    const now = Date.now()
+
+    for (const connection of buyerConnections) {
+      const orders = await dataStore.getOrdersWithPaymentStateByConnectionId(connection.id)
+
+      // Filter to orders awaiting payment
+      const unpaidOrders = orders.filter(
+        (o) =>
+          o.settlementState === 'Awaiting Payment' ||
+          o.settlementState === 'Pending' ||
+          o.settlementState === 'Partial Payment'
+      )
+
+      if (unpaidOrders.length === 0) continue
+
+      const supplier = await dataStore.getBusinessEntityById(connection.supplierBusinessId)
+      const supplierName = supplier?.businessName ?? 'Unknown'
+
+      for (const order of unpaidOrders) {
+        const dueDate = order.calculatedDueDate
+        if (dueDate === null) continue
+
+        const daysUntilDue = Math.round((dueDate - now) / 86400000)
+
+        let trustScoreIfOnTime: number | null = null
+        let trustScoreIfLate: number | null = null
+        let badgeIfOnTime: string | null = null
+        let badgeIfLate: string | null = null
+
+        if (currentScore) {
+          trustScoreIfOnTime = currentScore.total
+          trustScoreIfLate = Math.max(0, currentScore.total - 3)
+          badgeIfOnTime = scoreToLevel(trustScoreIfOnTime)
+          badgeIfLate = scoreToLevel(trustScoreIfLate)
+        }
+
+        items.push({
+          orderId: order.id,
+          connectionId: connection.id,
+          supplierName,
+          amount: order.pendingAmount,
+          dueDate,
+          daysUntilDue,
+          trustScoreIfOnTime,
+          trustScoreIfLate,
+          badgeIfOnTime,
+          badgeIfLate,
+        })
+      }
+    }
+
+    // Sort by daysUntilDue ASC (most urgent/overdue first)
+    return items.sort((a, b) => a.daysUntilDue - b.daysUntilDue)
   }
 
   async getSupplierRankings(businessId: string): Promise<SupplierRanking[]> {
@@ -727,12 +794,163 @@ export class IntelligenceEngine {
     return rankings.sort((a, b) => b.overallScore - a.overallScore)
   }
 
-  async getReorderAlerts(_businessId: string): Promise<ReorderAlert[]> {
-    return []
+  async getReorderAlerts(businessId: string): Promise<ReorderAlert[]> {
+    const allConnections = await dataStore.getAllConnections()
+    const buyerConnections = allConnections.filter(
+      (c) => c.buyerBusinessId === businessId
+    )
+
+    const alerts: ReorderAlert[] = []
+
+    for (const connection of buyerConnections) {
+      const orders = await dataStore.getOrdersByConnectionId(connection.id)
+
+      // Sort by createdAt ASC
+      const sorted = [...orders].sort((a, b) => a.createdAt - b.createdAt)
+
+      // Need minimum 3 orders for cycle detection
+      if (sorted.length < 3) continue
+
+      // Calculate intervals between consecutive orders
+      const intervals: number[] = []
+      for (let i = 1; i < sorted.length; i++) {
+        const interval = (sorted[i].createdAt - sorted[i - 1].createdAt) / 86400000
+        intervals.push(interval)
+      }
+
+      // Sort intervals and take median
+      const sortedIntervals = [...intervals].sort((a, b) => a - b)
+      const medianCycleDays = sortedIntervals[Math.floor(sortedIntervals.length / 2)]
+
+      const daysSinceLastOrder =
+        (Date.now() - sorted[sorted.length - 1].createdAt) / 86400000
+
+      const isOverdue = daysSinceLastOrder > medianCycleDays * 1.3
+
+      if (!isOverdue) continue
+
+      const avgOrderValue =
+        sorted.reduce((s, o) => s + o.orderValue, 0) / sorted.length
+
+      const supplier = await dataStore.getBusinessEntityById(connection.supplierBusinessId)
+      const supplierName = supplier?.businessName ?? 'Unknown'
+
+      alerts.push({
+        connectionId: connection.id,
+        supplierName,
+        medianCycleDays,
+        daysSinceLastOrder,
+        isOverdue,
+        avgOrderValue,
+        lastOrderDate: sorted[sorted.length - 1].createdAt,
+      })
+    }
+
+    // Sort by (daysSinceLastOrder / medianCycleDays) DESC
+    return alerts.sort(
+      (a, b) =>
+        b.daysSinceLastOrder / b.medianCycleDays -
+        a.daysSinceLastOrder / a.medianCycleDays
+    )
   }
 
-  async getConcentrationRisk(_businessId: string): Promise<ConcentrationRisk[]> {
-    return []
+  async getConcentrationRisk(businessId: string): Promise<ConcentrationRisk[]> {
+    const allConnections = await dataStore.getAllConnections()
+    const results: ConcentrationRisk[] = []
+
+    // RECEIVABLE side (business is supplier)
+    const supplierConnections = allConnections.filter(
+      (c) => c.supplierBusinessId === businessId
+    )
+
+    if (supplierConnections.length > 0) {
+      const receivableByConnection: Array<{
+        connectionId: string
+        otherBusinessId: string
+        unpaid: number
+      }> = []
+
+      for (const connection of supplierConnections) {
+        const orders = await dataStore.getOrdersWithPaymentStateByConnectionId(connection.id)
+        const unpaid = orders
+          .filter((o) => o.settlementState !== 'Paid')
+          .reduce((sum, o) => sum + o.pendingAmount, 0)
+        receivableByConnection.push({
+          connectionId: connection.id,
+          otherBusinessId: connection.buyerBusinessId,
+          unpaid,
+        })
+      }
+
+      const totalReceivable = receivableByConnection.reduce((sum, c) => sum + c.unpaid, 0)
+
+      if (totalReceivable > 0) {
+        const top = receivableByConnection.reduce((max, c) =>
+          c.unpaid > max.unpaid ? c : max
+        )
+        const percentage = Math.round((top.unpaid / totalReceivable) * 100)
+
+        if (percentage > 50) {
+          const topBusiness = await dataStore.getBusinessEntityById(top.otherBusinessId)
+          results.push({
+            type: 'receivable',
+            topConnectionId: top.connectionId,
+            topBusinessName: topBusiness?.businessName ?? 'Unknown',
+            percentage,
+            totalValue: totalReceivable,
+            topValue: top.unpaid,
+          })
+        }
+      }
+    }
+
+    // PAYABLE side (business is buyer)
+    const buyerConnections = allConnections.filter(
+      (c) => c.buyerBusinessId === businessId
+    )
+
+    if (buyerConnections.length > 0) {
+      const payableByConnection: Array<{
+        connectionId: string
+        otherBusinessId: string
+        unpaid: number
+      }> = []
+
+      for (const connection of buyerConnections) {
+        const orders = await dataStore.getOrdersWithPaymentStateByConnectionId(connection.id)
+        const unpaid = orders
+          .filter((o) => o.settlementState !== 'Paid')
+          .reduce((sum, o) => sum + o.pendingAmount, 0)
+        payableByConnection.push({
+          connectionId: connection.id,
+          otherBusinessId: connection.supplierBusinessId,
+          unpaid,
+        })
+      }
+
+      const totalPayable = payableByConnection.reduce((sum, c) => sum + c.unpaid, 0)
+
+      if (totalPayable > 0) {
+        const top = payableByConnection.reduce((max, c) =>
+          c.unpaid > max.unpaid ? c : max
+        )
+        const percentage = Math.round((top.unpaid / totalPayable) * 100)
+
+        if (percentage > 50) {
+          const topBusiness = await dataStore.getBusinessEntityById(top.otherBusinessId)
+          results.push({
+            type: 'payable',
+            topConnectionId: top.connectionId,
+            topBusinessName: topBusiness?.businessName ?? 'Unknown',
+            percentage,
+            totalValue: totalPayable,
+            topValue: top.unpaid,
+          })
+        }
+      }
+    }
+
+    return results
   }
 
   async getTrustScoreCoach(_businessId: string): Promise<TrustScoreCoach> {
