@@ -212,7 +212,7 @@ export function ProfileScreen({
   }
 
   const handleShare = async () => {
-    const shareMessage = `Connect with ${business.businessName} on Zelto — ID: ${business.zeltoId}`
+    const shareMessage = business.zeltoId
 
     if (navigator.share) {
       try {
@@ -224,7 +224,7 @@ export function ProfileScreen({
       }
     } else {
       await navigator.clipboard.writeText(shareMessage)
-      toast.success('Link copied to clipboard')
+      toast.success('Zelto ID copied')
     }
   }
 
