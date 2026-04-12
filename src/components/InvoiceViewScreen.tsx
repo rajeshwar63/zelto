@@ -1,5 +1,8 @@
 import { useState, useEffect } from 'react'
 import { ArrowLeft, DownloadSimple, ShareNetwork, Receipt, CheckCircle, Info, SpinnerGap } from '@phosphor-icons/react'
+import { Capacitor } from '@capacitor/core'
+import { Filesystem, Directory } from '@capacitor/filesystem'
+import { Share } from '@capacitor/share'
 import { dataStore } from '@/lib/data-store'
 import { supabaseDirect } from '@/lib/supabase-client'
 import { toast } from 'sonner'
@@ -26,6 +29,7 @@ export function InvoiceViewScreen({ invoiceId, currentBusinessId, onBack }: Prop
   const [pdfUrl, setPdfUrl] = useState<string | null>(null)
   const [generatingPdf, setGeneratingPdf] = useState(false)
   const [downloading, setDownloading] = useState(false)
+  const [sharing, setSharing] = useState(false)
 
   const isSupplier = invoice?.supplierBusinessEntityId === currentBusinessId
 
@@ -63,21 +67,76 @@ export function InvoiceViewScreen({ invoiceId, currentBusinessId, onBack }: Prop
   }, [invoiceId])
 
   const handleShare = async () => {
-    if (!pdfUrl) return
-    if (navigator.share) {
-      try {
-        await navigator.share({
-          title: `Invoice ${invoice?.invoiceNumber}`,
-          text: `Invoice ${invoice?.invoiceNumber} from ${supplierBusiness?.businessName}`,
-          url: pdfUrl,
+    if (!pdfUrl || !invoice) return
+    setSharing(true)
+
+    const fileName = `invoice-${invoice.invoiceNumber || 'unknown'}.pdf`
+
+    try {
+      if (Capacitor.isNativePlatform()) {
+        // NATIVE: fetch blob → write to temp file → share via native sheet
+        const response = await fetch(pdfUrl)
+        if (!response.ok) throw new Error('Failed to fetch PDF')
+        const blob = await response.blob()
+
+        // Convert blob to base64
+        const base64 = await new Promise<string>((resolve, reject) => {
+          const reader = new FileReader()
+          reader.onloadend = () => {
+            const result = reader.result as string
+            // Remove data:application/pdf;base64, prefix
+            resolve(result.split(',')[1])
+          }
+          reader.onerror = reject
+          reader.readAsDataURL(blob)
         })
-      } catch (err) {
-        if ((err as Error).name !== 'AbortError') {
-          console.error('Share error:', err)
+
+        // Write to temp cache directory
+        const fileResult = await Filesystem.writeFile({
+          path: fileName,
+          data: base64,
+          directory: Directory.Cache,
+        })
+
+        // Share the actual file
+        await Share.share({
+          title: `Invoice ${invoice.invoiceNumber}`,
+          text: `Invoice ${invoice.invoiceNumber} from ${supplierBusiness?.businessName || 'Supplier'} — ₹${invoice.totalAmount.toLocaleString('en-IN')}`,
+          url: fileResult.uri,
+          dialogTitle: 'Share invoice',
+        })
+
+      } else {
+        // WEB: try sharing as file first, fall back to URL copy
+        try {
+          const response = await fetch(pdfUrl)
+          if (!response.ok) throw new Error('fetch failed')
+          const blob = await response.blob()
+          const file = new File([blob], fileName, { type: 'application/pdf' })
+
+          if (navigator.canShare && navigator.canShare({ files: [file] })) {
+            await navigator.share({
+              title: `Invoice ${invoice.invoiceNumber}`,
+              files: [file],
+            })
+          } else {
+            // Fallback: copy signed URL to clipboard
+            await navigator.clipboard.writeText(pdfUrl)
+            toast.success('Invoice link copied to clipboard')
+          }
+        } catch (webErr) {
+          if ((webErr as Error).name === 'AbortError') return // User cancelled
+          // Final fallback
+          await navigator.clipboard.writeText(pdfUrl)
+          toast.success('Invoice link copied to clipboard')
         }
       }
-    } else {
-      await navigator.clipboard.writeText(pdfUrl)
+    } catch (err) {
+      if ((err as Error).name === 'AbortError') return // User cancelled share sheet
+      console.error('Share error:', err)
+      toast.error('Failed to share invoice')
+    } finally {
+      setSharing(false)
     }
   }
 
@@ -380,7 +439,7 @@ export function InvoiceViewScreen({ invoiceId, currentBusinessId, onBack }: Prop
         )}
         <button
           onClick={handleShare}
-          disabled={!pdfUrl}
+          disabled={!pdfUrl || sharing}
           className="flex items-center justify-center gap-2"
           style={{
             flex: 1,
@@ -391,12 +450,12 @@ export function InvoiceViewScreen({ invoiceId, currentBusinessId, onBack }: Prop
             backgroundColor: 'rgba(74,108,247,0.06)',
             borderRadius: '14px',
             border: '1px solid rgba(74,108,247,0.2)',
-            cursor: !pdfUrl ? 'not-allowed' : 'pointer',
-            opacity: !pdfUrl ? 0.5 : 1,
+            cursor: (!pdfUrl || sharing) ? 'not-allowed' : 'pointer',
+            opacity: (!pdfUrl || sharing) ? 0.5 : 1,
           }}
         >
-          <ShareNetwork size={18} />
-          Share
+          {sharing ? <SpinnerGap size={18} className="animate-spin" /> : <ShareNetwork size={18} />}
+          {sharing ? 'Sharing...' : 'Share'}
         </button>
         <button
           onClick={handleDownload}
