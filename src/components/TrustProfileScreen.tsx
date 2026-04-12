@@ -12,6 +12,8 @@ import { emitDataChange } from '@/lib/data-events'
 import { consumePendingConnectionLabels } from '@/lib/pending-connection-labels'
 import { toast } from 'sonner'
 import type { BusinessEntity, BusinessDocument, Connection } from '@/lib/types'
+import { TrustCoachTab } from './trust-profile/TrustCoachTab'
+import { TrustBenchmarkTab } from './trust-profile/TrustBenchmarkTab'
 
 export type TrustProfileActionMode = 'send-request' | 'accept-request' | 'view-connection'
 export type TrustProfileAudience = 'connection-review' | 'self-profile-ready'
@@ -27,7 +29,7 @@ interface Props {
   screenMode: TrustProfileScreenMode
   connectionRequestId?: string
   connectionId?: string
-  initialTab?: 'identity' | 'docs' | 'insights'
+  initialTab?: 'identity' | 'docs' | 'insights' | 'coach' | 'benchmark'
   onBack: () => void
   onNavigateToEditBusiness?: (scrollToDocuments?: boolean) => void
   onRequestSent?: () => void
@@ -86,7 +88,7 @@ export function TrustProfileScreen({
   const { action, audience } = screenMode
   const isConnectionReview = audience === 'connection-review'
   const isSelfProfileReady = audience === 'self-profile-ready'
-  const [activeTab, setActiveTab] = useState<'identity' | 'docs' | 'insights'>(initialTab ?? 'identity')
+  const [activeTab, setActiveTab] = useState<'identity' | 'docs' | 'insights' | 'coach' | 'benchmark'>(initialTab ?? 'identity')
 
   // Data
   const [business, setBusiness] = useState<BusinessEntity | null>(null)
@@ -426,8 +428,8 @@ export function TrustProfileScreen({
       </div>
 
       {/* Tab Strip — white, immediately below dark header */}
-      <div style={{ backgroundColor: '#fff', borderBottom: '1px solid #E8ECF2', display: 'flex', flexShrink: 0 }}>
-        {(['identity', 'docs', 'insights'] as const).map(tab => (
+      <div style={{ backgroundColor: '#fff', borderBottom: '1px solid #E8ECF2', display: 'flex', flexShrink: 0, overflowX: 'auto', whiteSpace: 'nowrap' }}>
+        {(['identity', 'docs', 'insights', 'coach', 'benchmark'] as const).map(tab => (
           <button
             key={tab}
             onClick={() => setActiveTab(tab)}
@@ -441,9 +443,10 @@ export function TrustProfileScreen({
               border: 'none',
               borderBottom: activeTab === tab ? '2px solid #4A6CF7' : '2px solid transparent',
               cursor: 'pointer',
+              minWidth: 0,
             }}
           >
-            {tab === 'identity' ? 'Identity' : tab === 'docs' ? 'Docs' : 'Insights'}
+            {tab === 'identity' ? 'Identity' : tab === 'docs' ? 'Docs' : tab === 'insights' ? 'Insights' : tab === 'coach' ? 'Coach' : 'Benchmark'}
           </button>
         ))}
       </div>
@@ -856,6 +859,12 @@ export function TrustProfileScreen({
             )}
           </div>
         )}
+
+        {/* === COACH TAB === */}
+        {activeTab === 'coach' && <TrustCoachTab businessId={targetBusinessId} />}
+
+        {/* === BENCHMARK TAB === */}
+        {activeTab === 'benchmark' && <TrustBenchmarkTab businessId={targetBusinessId} />}
       </div>
 
       {/* Fixed Bottom CTA — send-request mode */}
