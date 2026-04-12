@@ -204,7 +204,7 @@ function buildAcceptedInsights(orders: EnrichedOrder[], role: Role, totalOrderCo
       const top = slowSuppliers.sort((a, b) => b[1].maxHours - a[1].maxHours)[0]
       insights.push({
         icon: '⏱',
-        text: `${top[0]} has held ${top[1].count} ${top[1].count === 1 ? 'order' : 'orders'} for ${Math.round(top[1].maxHours)}h without dispatch`,
+        text: `${top[1].count} ${top[1].count === 1 ? 'order' : 'orders'} awaiting dispatch from ${top[0]} for ${Math.round(top[1].maxHours)}h`,
         priority: 1,
       })
     } else if (totalOrderCount >= 5) {
@@ -245,7 +245,7 @@ function buildDispatchedInsights(orders: EnrichedOrder[], role: Role, totalOrder
     // Cash impact
     insights.push({
       icon: '💰',
-      text: `Once delivered, ${formatInrCurrency(totalValue)} becomes collectible`,
+      text: `Once delivered, ${formatInrCurrency(totalValue)} becomes payable`,
       priority: 3,
     })
   } else {
@@ -257,6 +257,12 @@ function buildDispatchedInsights(orders: EnrichedOrder[], role: Role, totalOrder
       icon: '🚚',
       text: `${formatInrCurrency(totalValue)} in transit to ${buyerCounts.size} ${buyerCounts.size === 1 ? 'buyer' : 'buyers'}`,
       priority: 3,
+    })
+
+    insights.push({
+      icon: '💰',
+      text: `Once delivered, ${formatInrCurrency(totalValue)} becomes collectible`,
+      priority: 4,
     })
   }
 
@@ -368,41 +374,67 @@ function buildOverdueInsights(orders: EnrichedOrder[], role: Role, hasOpenIssues
   const now = Date.now()
   const totalOverdue = orders.reduce((sum, o) => sum + o.pendingAmount, 0)
 
-  // Concentration
-  if (orders.length > 1) {
-    const overdueByCo = new Map<string, number>()
-    orders.forEach(o => {
-      overdueByCo.set(o.connectionName, (overdueByCo.get(o.connectionName) || 0) + o.pendingAmount)
-    })
-    const topOverdue = [...overdueByCo.entries()].sort((a, b) => b[1] - a[1])[0]
-    const pct = Math.round((topOverdue[1] / totalOverdue) * 100)
-    if (pct > 50) {
-      insights.push({
-        icon: '📊',
-        text: `${topOverdue[0]} owes ${pct}% of total overdue — concentration risk is high`,
-        priority: 1,
-      })
-    }
-  }
-
-  // Average delay
+  // Average delay (shared calculation, role-specific language)
   const avgDelayDays = Math.round(
     orders.reduce((sum, o) => sum + (now - (o.calculatedDueDate || now)), 0) / orders.length / 86400000
   )
-  insights.push({
-    icon: '📈',
-    text: `Average delay: ${avgDelayDays} ${avgDelayDays === 1 ? 'day' : 'days'}`,
-    priority: 2,
-  })
 
-  // Disputes blocking
-  const overdueWithIssues = orders.filter(o => o.hasOpenIssue)
-  if (overdueWithIssues.length > 0) {
+  if (role === 'selling') {
+    // Concentration: which buyer owes the most
+    if (orders.length > 1) {
+      const overdueByCo = new Map<string, number>()
+      orders.forEach(o => {
+        overdueByCo.set(o.connectionName, (overdueByCo.get(o.connectionName) || 0) + o.pendingAmount)
+      })
+      const topOverdue = [...overdueByCo.entries()].sort((a, b) => b[1] - a[1])[0]
+      const pct = Math.round((topOverdue[1] / totalOverdue) * 100)
+      if (pct > 50) {
+        insights.push({
+          icon: '📊',
+          text: `${formatInrCurrency(topOverdue[1])} awaiting collection from buyer ${topOverdue[0]} — ${pct}% of total overdue`,
+          priority: 1,
+        })
+      }
+    }
+
     insights.push({
-      icon: '⚖️',
-      text: `${overdueWithIssues.length} of ${orders.length} have open disputes — payment likely blocked until resolved`,
+      icon: '📈',
+      text: `Average collection delay: ${avgDelayDays} ${avgDelayDays === 1 ? 'day' : 'days'} past terms`,
+      priority: 2,
+    })
+
+    // Disputes blocking collection
+    const overdueWithIssues = orders.filter(o => o.hasOpenIssue)
+    if (overdueWithIssues.length > 0) {
+      insights.push({
+        icon: '⚖️',
+        text: `${overdueWithIssues.length} of ${orders.length} have open disputes — collection likely blocked until resolved`,
+        priority: 1,
+      })
+    }
+  } else {
+    // Buying view
+    insights.push({
+      icon: '⚠️',
+      text: `${orders.length} ${orders.length === 1 ? 'payment' : 'payments'} overdue totalling ${formatInrCurrency(totalOverdue)} — your payments overdue`,
       priority: 1,
     })
+
+    insights.push({
+      icon: '📈',
+      text: `Average delay: ${avgDelayDays} ${avgDelayDays === 1 ? 'day' : 'days'} — longer delays affect your reliability score`,
+      priority: 2,
+    })
+
+    // Disputes blocking
+    const overdueWithIssues = orders.filter(o => o.hasOpenIssue)
+    if (overdueWithIssues.length > 0) {
+      insights.push({
+        icon: '⚖️',
+        text: `${overdueWithIssues.length} of ${orders.length} have open disputes — resolve to clear your overdue status`,
+        priority: 1,
+      })
+    }
   }
 
   return insights
