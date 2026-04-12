@@ -1,6 +1,6 @@
 import { dataStore } from './data-store'
 import { behaviourEngine } from './behaviour-engine'
-import { computeTrustScore } from './trust-score'
+import { computeTrustScore, aggregateBusinessBehaviourSignals } from './trust-score'
 import { scoreToLevel } from './credibility'
 import type { OrderWithPaymentState } from './types'
 
@@ -953,19 +953,198 @@ export class IntelligenceEngine {
     return results
   }
 
-  async getTrustScoreCoach(_businessId: string): Promise<TrustScoreCoach> {
+  async getTrustScoreCoach(businessId: string): Promise<TrustScoreCoach> {
+    const breakdown = await computeTrustScore(businessId)
+
+    // Determine next badge
+    let nextBadgeThreshold: number
+    let nextBadge: string
+    if (breakdown.total < 20) {
+      nextBadgeThreshold = 20
+      nextBadge = 'basic'
+    } else if (breakdown.total < 45) {
+      nextBadgeThreshold = 45
+      nextBadge = 'verified'
+    } else if (breakdown.total < 70) {
+      nextBadgeThreshold = 70
+      nextBadge = 'trusted'
+    } else {
+      nextBadgeThreshold = 100
+      nextBadge = '(already trusted)'
+    }
+
+    const pointsToNextBadge = nextBadgeThreshold - breakdown.total
+    const actions: CoachAction[] = []
+    const now = Date.now()
+
+    // ── IDENTITY PILLAR (max 30) ──────────────────────────────────
+    const business = await dataStore.getBusinessEntityById(businessId)
+    if (business) {
+      if (!business.phone) {
+        actions.push({ action: 'Add phone number', estimatedPoints: 2, pillar: 'identity', subCategory: 'profile', difficulty: 'easy' })
+      }
+      if (!business.gstNumber) {
+        actions.push({ action: 'Add GST number', estimatedPoints: 3, pillar: 'identity', subCategory: 'profile', difficulty: 'easy' })
+      }
+      if (!business.businessAddress) {
+        actions.push({ action: 'Add business address', estimatedPoints: 2, pillar: 'identity', subCategory: 'profile', difficulty: 'easy' })
+      }
+      if (!business.businessType) {
+        actions.push({ action: 'Set business type', estimatedPoints: 2, pillar: 'identity', subCategory: 'profile', difficulty: 'easy' })
+      }
+      if (!business.website) {
+        actions.push({ action: 'Add website', estimatedPoints: 1, pillar: 'identity', subCategory: 'profile', difficulty: 'easy' })
+      }
+      if (!business.description) {
+        actions.push({ action: 'Add business description', estimatedPoints: 1, pillar: 'identity', subCategory: 'profile', difficulty: 'easy' })
+      }
+    }
+
+    // Documents
+    const docs = await dataStore.getDocumentsByBusinessId(businessId)
+    if (docs.length === 0) {
+      actions.push({ action: 'Upload your first document', estimatedPoints: 5, pillar: 'identity', subCategory: 'document health', difficulty: 'medium' })
+    } else if (docs.length < 3) {
+      actions.push({ action: 'Upload more compliance documents', estimatedPoints: 3, pillar: 'identity', subCategory: 'document health', difficulty: 'medium' })
+    }
+    const hasExpiredDocs = docs.some((d) => d.expiresAt && d.expiresAt < now)
+    if (hasExpiredDocs) {
+      actions.push({ action: 'Renew expired documents', estimatedPoints: 5, pillar: 'identity', subCategory: 'document health', difficulty: 'medium' })
+    }
+
+    // ── ACTIVITY PILLAR (max 20) ──────────────────────────────────
+    const connections = await dataStore.getConnectionsByBusinessId(businessId)
+    if (connections.length < 3) {
+      actions.push({ action: `Add more connections (have ${connections.length}, need 3+)`, estimatedPoints: 2, pillar: 'activity', subCategory: 'connections', difficulty: 'medium' })
+    } else if (connections.length < 5) {
+      actions.push({ action: 'Grow to 5+ connections', estimatedPoints: 2, pillar: 'activity', subCategory: 'connections', difficulty: 'medium' })
+    }
+
+    // Check recent orders (last 7 days)
+    const sevenDaysAgo = now - 7 * 24 * 60 * 60 * 1000
+    let hasRecentOrder = false
+    for (const conn of connections) {
+      const orders = await dataStore.getOrdersByConnectionId(conn.id)
+      if (orders.some((o) => o.createdAt >= sevenDaysAgo)) {
+        hasRecentOrder = true
+        break
+      }
+    }
+    if (!hasRecentOrder) {
+      actions.push({ action: 'Place or accept an order this week', estimatedPoints: 3, pillar: 'activity', subCategory: 'recency', difficulty: 'easy' })
+    }
+
+    // ── TRADE RECORD PILLAR (max 50) ──────────────────────────────
+    const signals = await aggregateBusinessBehaviourSignals(businessId)
+    if (signals.total_overdue > 0) {
+      actions.push({ action: 'Clear overdue payments', estimatedPoints: 4, pillar: 'tradeRecord', subCategory: 'settlement', difficulty: 'hard' })
+    }
+    if (signals.weighted_avg_dispatch_delay !== null && signals.weighted_avg_dispatch_delay > 24) {
+      actions.push({ action: `Improve dispatch speed (currently ${Math.round(signals.weighted_avg_dispatch_delay)}h avg)`, estimatedPoints: 2, pillar: 'tradeRecord', subCategory: 'operational', difficulty: 'medium' })
+    }
+    if (signals.total_open_issues > 0) {
+      actions.push({ action: 'Resolve open quality issues', estimatedPoints: 2, pillar: 'tradeRecord', subCategory: 'quality', difficulty: 'medium' })
+    }
+
+    // Sort by estimatedPoints DESC
+    actions.sort((a, b) => b.estimatedPoints - a.estimatedPoints)
+
     return {
-      currentScore: 0,
-      currentBadge: 'none',
-      nextBadgeThreshold: 20,
-      pointsToNextBadge: 20,
-      actions: [],
+      currentScore: breakdown.total,
+      currentBadge: breakdown.level,
+      nextBadgeThreshold,
+      pointsToNextBadge,
+      actions,
       percentile: null,
     }
   }
 
-  async getBusinessBenchmark(_businessId: string): Promise<BusinessBenchmark> {
-    return { metrics: [], gaps: [] }
+  async getBusinessBenchmark(businessId: string): Promise<BusinessBenchmark> {
+    const signals = await aggregateBusinessBehaviourSignals(businessId)
+    const docs = await dataStore.getDocumentsByBusinessId(businessId)
+    const docCount = docs.length
+
+    const networkAvgs = {
+      onTimePaymentRate: 71,
+      avgDispatchHours: 31,
+      avgAcceptanceHours: 6.8,
+      issueRatePercent: 5,
+      activeConnections: 4,
+      documentsUploaded: 3,
+    }
+
+    // Build metrics
+    const onTimePaymentRate = signals.on_time_rate
+      ? Math.round(signals.on_time_rate * 100)
+      : 0
+    const avgDispatchTime = Math.round(signals.weighted_avg_dispatch_delay ?? 0)
+    const avgAcceptanceTime = Math.round(signals.weighted_avg_acceptance_delay ?? 0)
+    const issueRate =
+      signals.total_orders_evaluated > 0
+        ? Math.round(
+            (signals.total_issues_30_days / signals.total_orders_evaluated) * 100
+          )
+        : 0
+
+    const rawMetrics: Array<{
+      label: string
+      yourValue: number
+      networkAvg: number
+      unit: string
+      lowerIsBetter: boolean
+    }> = [
+      { label: 'On-time payment rate', yourValue: onTimePaymentRate, networkAvg: networkAvgs.onTimePaymentRate, unit: '%', lowerIsBetter: false },
+      { label: 'Avg dispatch time', yourValue: avgDispatchTime, networkAvg: networkAvgs.avgDispatchHours, unit: 'h', lowerIsBetter: true },
+      { label: 'Avg acceptance time', yourValue: avgAcceptanceTime, networkAvg: networkAvgs.avgAcceptanceHours, unit: 'h', lowerIsBetter: true },
+      { label: 'Issue rate (30 days)', yourValue: issueRate, networkAvg: networkAvgs.issueRatePercent, unit: '%', lowerIsBetter: true },
+      { label: 'Active connections', yourValue: signals.connections_evaluated, networkAvg: networkAvgs.activeConnections, unit: '', lowerIsBetter: false },
+      { label: 'Documents uploaded', yourValue: docCount, networkAvg: networkAvgs.documentsUploaded, unit: '', lowerIsBetter: false },
+    ]
+
+    // Compute sentiment for each metric
+    const metrics: BenchmarkMetric[] = rawMetrics.map((m) => {
+      const ratio = m.networkAvg !== 0 ? m.yourValue / m.networkAvg : 1
+      let sentiment: BenchmarkMetric['sentiment']
+
+      if (m.lowerIsBetter) {
+        if (ratio < 0.9) sentiment = 'better'
+        else if (ratio > 1.1) sentiment = 'worse'
+        else sentiment = 'same'
+      } else {
+        if (ratio > 1.1) sentiment = 'better'
+        else if (ratio < 0.9) sentiment = 'worse'
+        else sentiment = 'same'
+      }
+
+      return {
+        label: m.label,
+        yourValue: m.yourValue,
+        networkAvg: m.networkAvg,
+        unit: m.unit,
+        sentiment,
+      }
+    })
+
+    // Build gaps from metrics where sentiment is 'worse'
+    const suggestionMap: Record<string, string> = {
+      'Documents uploaded': 'Upload GST and trade license to close the gap',
+      'Issue rate (30 days)': 'Resolve open issues and improve QC processes',
+      'Avg dispatch time': 'Dispatch orders within 24h of acceptance',
+      'Avg acceptance time': 'Accept orders within 4h to match top performers',
+      'On-time payment rate': 'Clear overdue payments and pay future invoices on time',
+      'Active connections': 'Build more buyer-supplier relationships on Zelto',
+    }
+
+    const gaps = metrics
+      .filter((m) => m.sentiment === 'worse')
+      .map((m) => ({
+        metric: m.label,
+        yourValue: m.yourValue,
+        avgValue: m.networkAvg,
+        suggestion: suggestionMap[m.label] ?? '',
+      }))
+
+    return { metrics, gaps }
   }
 }
 
