@@ -20,6 +20,7 @@ export interface EnrichedOrder extends OrderWithPaymentState {
   contactName?: string | null
   isBuyer: boolean
   hasOpenIssue: boolean
+  openIssueSummary?: string | null
 }
 
 interface AttentionCounts {
@@ -114,6 +115,14 @@ export function useOrdersData(currentBusinessId: string, isActive = true) {
           .filter(issue => issue.status === 'Open' || issue.status === 'Acknowledged')
           .map(issue => issue.orderId)
       )
+      const openIssueSummaryMap = new Map<string, string>()
+      allIssues
+        .filter(issue => issue.status === 'Open' || issue.status === 'Acknowledged')
+        .forEach(issue => {
+          if (!openIssueSummaryMap.has(issue.orderId)) {
+            openIssueSummaryMap.set(issue.orderId, issue.issueType)
+          }
+        })
 
       return allOrders
         .map(order => {
@@ -132,6 +141,7 @@ export function useOrdersData(currentBusinessId: string, isActive = true) {
             contactName: conn?.contactName,
             isBuyer: conn?.buyerBusinessId === currentBusinessId,
             hasOpenIssue: openIssueOrderIds.has(order.id),
+            openIssueSummary: openIssueSummaryMap.get(order.id) ?? null,
           }
         })
         .sort((a, b) => b.latestActivity - a.latestActivity)
@@ -159,9 +169,28 @@ export function useBusinessOverviewData(currentBusinessId: string, isActive = tr
       ).length
 
       const orderIds = orders.map(order => order.id)
-      const paymentEvents = orderIds.length > 0
-        ? await dataStore.getPaymentEventsByOrderIds(orderIds)
-        : []
+      const [paymentEvents, allIssues] = await Promise.all([
+        orderIds.length > 0
+          ? dataStore.getPaymentEventsByOrderIds(orderIds)
+          : Promise.resolve([]),
+        orderIds.length > 0
+          ? dataStore.getIssueReportsByOrderIds(orderIds)
+          : Promise.resolve([]),
+      ])
+
+      const overviewOpenIssueOrderIds = new Set(
+        allIssues
+          .filter(issue => issue.status === 'Open' || issue.status === 'Acknowledged')
+          .map(issue => issue.orderId)
+      )
+      const overviewOpenIssueSummaryMap = new Map<string, string>()
+      allIssues
+        .filter(issue => issue.status === 'Open' || issue.status === 'Acknowledged')
+        .forEach(issue => {
+          if (!overviewOpenIssueSummaryMap.has(issue.orderId)) {
+            overviewOpenIssueSummaryMap.set(issue.orderId, issue.issueType)
+          }
+        })
 
       const userAccount = session?.email
         ? await dataStore.getUserAccountByEmail(session.email)
@@ -332,6 +361,8 @@ export function useBusinessOverviewData(currentBusinessId: string, isActive = tr
             isBuyer: connection?.buyerBusinessId === currentBusinessId,
             branchLabel: connection?.branchLabel,
             contactName: connection?.contactName,
+            hasOpenIssue: overviewOpenIssueOrderIds.has(order.id),
+            openIssueSummary: overviewOpenIssueSummaryMap.get(order.id) ?? null,
           }
         })
         .sort((a, b) => b.latestActivity - a.latestActivity)

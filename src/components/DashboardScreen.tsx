@@ -478,6 +478,8 @@ export function DashboardScreen({ currentBusinessId, onNavigateToOrders, onNavig
                   deliveredAt={order.deliveredAt}
                   latestActivity={order.latestActivity}
                   isBuyer={order.isBuyer}
+                  hasOpenDispute={order.hasOpenIssue}
+                  disputeSummary={order.openIssueSummary}
                   onClick={() => onNavigateToConnection(order.connectionId, order.id)}
                 />
               ))}

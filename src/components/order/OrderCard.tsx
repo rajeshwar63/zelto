@@ -16,6 +16,8 @@ export interface OrderCardProps {
   isBuyer: boolean
   // true = money going OUT (red ↑), false = money coming IN (green ↓)
   onClick: () => void
+  hasOpenDispute?: boolean
+  disputeSummary?: string | null
 }
 
 // ─── Delivery pill colors (green ramp) ──────────────────────────────────────
@@ -154,6 +156,8 @@ export function OrderCard({
   latestActivity,
   isBuyer,
   onClick,
+  hasOpenDispute = false,
+  disputeSummary,
 }: OrderCardProps) {
   // ── Amount display ──────────────────────────────────────────────────────────
   const isPaid = settlementState === 'Paid'
@@ -181,7 +185,8 @@ export function OrderCard({
       style={{
         backgroundColor: 'var(--bg-card)',
         border: '1px solid var(--border-light)',
-        borderRadius: 'var(--radius-card)',
+        borderLeft: hasOpenDispute ? '3px solid #8B5CF6' : '1px solid var(--border-light)',
+        borderRadius: hasOpenDispute ? '0 var(--radius-card) var(--radius-card) 0' : 'var(--radius-card)',
         padding: '10px 14px',
         display: 'block',
       }}
@@ -263,6 +268,37 @@ export function OrderCard({
             </span>{' '}
             {dueInfo.suffix.split(' ').slice(1).join(' ')}
           </span>
+        </div>
+      )}
+
+      {/* Dispute strip */}
+      {hasOpenDispute && (
+        <div style={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: '6px',
+          marginTop: '8px',
+          padding: '7px 10px',
+          backgroundColor: 'rgba(139, 92, 246, 0.05)',
+          borderRadius: '8px',
+          border: '0.5px solid rgba(139, 92, 246, 0.12)',
+        }}>
+          <div style={{
+            width: '6px',
+            height: '6px',
+            borderRadius: '50%',
+            backgroundColor: '#8B5CF6',
+            flexShrink: 0,
+          }} />
+          <span style={{
+            fontSize: '11px',
+            fontWeight: 500,
+            color: '#6D28D9',
+            flex: 1,
+          }}>
+            Dispute open{disputeSummary ? ` · ${disputeSummary}` : ''}
+          </span>
+          <span style={{ fontSize: '12px', color: '#8B5CF6' }}>›</span>
         </div>
       )}
     </button>
