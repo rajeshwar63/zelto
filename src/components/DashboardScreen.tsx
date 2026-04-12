@@ -439,13 +439,18 @@ export function DashboardScreen({ currentBusinessId, onNavigateToOrders, onNavig
           </div>
         </div>
 
-        <MoneyCard
-          forecast={cashForecast}
-          collectionItems={collectionItems}
-          concentrationRisk={concentrationRisk}
-          loading={intelLoading}
-          onTapCollectionItem={(connId) => onNavigateToConnection(connId)}
-        />
+        <div>
+          <h2 className="text-[10px] uppercase tracking-wide text-muted-foreground/60 mb-3">
+            Trade Intelligence
+          </h2>
+          <MoneyCard
+            forecast={cashForecast}
+            collectionItems={collectionItems}
+            concentrationRisk={concentrationRisk}
+            loading={intelLoading}
+            onTapCollectionItem={(connId) => onNavigateToConnection(connId)}
+          />
+        </div>
 
         {onNavigateToSupplierDocs && (
           <ComplianceCard
