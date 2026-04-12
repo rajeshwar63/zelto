@@ -76,9 +76,9 @@ export async function verifyEmailOTP(email: string, token: string): Promise<void
 
 // NEW: Replaces getAuthSession() — detects the desync state
 export async function getAuthState(): Promise<AuthState> {
-  const cachedSession = getLocalAuthSessionSync()
-  if (cachedSession?.email?.endsWith('@zelto.test')) {
-    return { status: 'authenticated', session: cachedSession }
+  const demoCheck = getLocalAuthSessionSync()
+  if (demoCheck?.email?.endsWith('@zelto.test')) {
+    return { status: 'authenticated', session: demoCheck }
   }
 
   const { data: { session } } = await supabaseDirect.auth.getSession()
