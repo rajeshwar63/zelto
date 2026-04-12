@@ -4,13 +4,13 @@ import { insightEngine } from '@/lib/insight-engine'
 import type { Insight } from '@/lib/insight-engine'
 import { useDataListener } from '@/lib/data-events'
 import type { Connection, OrderWithPaymentState, BusinessEntity } from '@/lib/types'
-import { CaretLeft, DownloadSimple, Phone, PencilSimple, MapPin } from '@phosphor-icons/react'
+import { CaretLeft, DownloadSimple, PencilSimple } from '@phosphor-icons/react'
 import { toast } from 'sonner'
 import { getConnectionStateLabel, getConnectionStateColor } from '@/lib/connection-state-utils'
 import { motion, AnimatePresence, useMotionValue, useTransform, animate, PanInfo } from 'framer-motion'
 import { getArchivedOrderIds, archiveOrder as doArchiveOrder, unarchiveOrder as doUnarchiveOrder } from '@/lib/archive-store'
 import { markOrderSeen, isOrderNew } from '@/lib/unread-tracker'
-import { buildConnectionSubtitle, formatInrCurrency } from '@/lib/utils'
+import { formatInrCurrency } from '@/lib/utils'
 import { OrderStatusHeader } from '@/components/order/OrderStatusHeader'
 import { OrderPaymentSummary } from '@/components/order/OrderPaymentSummary'
 import { OrderTimeline } from '@/components/order/OrderTimeline'
@@ -251,9 +251,16 @@ export function ConnectionDetailScreen({ connectionId, currentBusinessId, onBack
           <button onClick={onBack} className="flex items-center" style={{ color: 'var(--text-primary)', minWidth: '44px', minHeight: '44px' }}>
             <CaretLeft size={20} weight="regular" />
           </button>
-          <div className="flex-1">
+          <div className="flex-1 min-w-0">
             <h1 style={{ fontSize: '17px', fontWeight: 700, color: 'var(--text-primary)' }}>{otherBusiness.businessName}</h1>
           </div>
+          {(connection.branchLabel || connection.contactName) && (
+            <span
+              onClick={() => setShowContactEdit(true)}
+              style={{ fontSize: '11px', color: 'var(--text-secondary)', flexShrink: 0, maxWidth: '120px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', cursor: 'pointer' }}>
+              {[connection.branchLabel, connection.contactName].filter(Boolean).join(' · ')}
+            </span>
+          )}
           <button
             onClick={() => setShowLedgerSheet(true)}
             className="flex items-center gap-1"
@@ -289,156 +296,126 @@ export function ConnectionDetailScreen({ connectionId, currentBusinessId, onBack
         onScroll={handleListScroll}
         className="flex-1 overflow-y-auto"
       >
-        {/* Unified Contact Row — single line */}
-        <div className="flex items-center gap-3 px-4 py-3" style={{ borderBottom: '1px solid var(--border-light)' }}>
-          <div className="flex items-center justify-center" style={{ width: '36px', height: '36px', backgroundColor: 'var(--brand-primary-bg)', borderRadius: '50%', flexShrink: 0 }}>
-            <Phone size={18} weight="regular" style={{ color: 'var(--brand-primary)' }} />
+
+        {/* Stats Row — no card wrapper */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '10px 16px' }}>
+          <div style={{ flex: 1 }}>
+            <p style={{ fontSize: '10px', color: 'var(--text-secondary)', margin: 0, textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+              {isSupplier ? 'Receivable' : 'Payable'}
+            </p>
+            <p style={{ fontSize: '18px', fontWeight: 700, color: isSupplier ? 'var(--status-delivered)' : 'var(--status-overdue)', margin: '1px 0 0' }}>
+              {formatInrCurrency(outstandingBalance)}
+            </p>
           </div>
-          <div className="flex-1 min-w-0 flex items-center gap-1.5 flex-wrap">
-            {buildConnectionSubtitle(connection.branchLabel, connection.contactName) && (
-              <>
-                <MapPin size={11} weight="regular" style={{ color: 'var(--text-secondary)', flexShrink: 0 }} />
-                <span style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>
-                  {buildConnectionSubtitle(connection.branchLabel, connection.contactName)}
-                </span>
-                <span style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>·</span>
-              </>
-            )}
-            <span style={{ fontSize: '14px', fontWeight: 600, color: connection.contactPhone ? 'var(--text-primary)' : 'var(--text-secondary)' }}>
-              {connection.contactPhone
-                ? `+91 ${connection.contactPhone.replace(/(\d{5})(\d{5})/, '$1 $2')}`
-                : 'Add contact number'}
+          <div style={{ width: '0.5px', height: '28px', backgroundColor: 'var(--border-light)' }} />
+          <div style={{ flex: 1, textAlign: 'center' }}>
+            <p style={{ fontSize: '10px', color: 'var(--text-secondary)', margin: 0, textTransform: 'uppercase', letterSpacing: '0.04em' }}>Traded</p>
+            <p style={{ fontSize: '18px', fontWeight: 700, color: 'var(--text-primary)', margin: '1px 0 0' }}>
+              {formatInrCurrency(totalValue)}
+            </p>
+          </div>
+          <div style={{ width: '0.5px', height: '28px', backgroundColor: 'var(--border-light)' }} />
+          <div style={{ flex: 1, textAlign: 'right' }}>
+            <p style={{ fontSize: '10px', color: 'var(--text-secondary)', margin: 0, textTransform: 'uppercase', letterSpacing: '0.04em' }}>Orders</p>
+            <p style={{ fontSize: '18px', fontWeight: 700, color: 'var(--status-new)', margin: '1px 0 0' }}>
+              {totalOrders}
+            </p>
+          </div>
+        </div>
+
+        {/* Risk + Terms + Trust — single line */}
+        <div style={{
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          padding: '7px 16px',
+          borderTop: '0.5px solid var(--border-light)',
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flex: 1, minWidth: 0 }}>
+            {connection.connectionState && connection.connectionState !== 'Stable' && connection.connectionState !== 'Active' && (() => {
+              const stateColor = getConnectionStateColor(connection.connectionState)
+              const stateLabel = getConnectionStateLabel(connection.connectionState)
+              return (
+                <>
+                  <div style={{ width: '6px', height: '6px', borderRadius: '50%', backgroundColor: stateColor, flexShrink: 0 }} />
+                  <span style={{ fontSize: '11px', fontWeight: 500, color: stateColor }}>{stateLabel}</span>
+                  <span style={{ fontSize: '11px', color: 'var(--text-secondary)' }}>·</span>
+                </>
+              )
+            })()}
+            <span style={{ fontSize: '11px', color: 'var(--text-secondary)' }}>
+              {formatPaymentTerms(connection.paymentTerms)}
+            </span>
+            <span
+              onClick={() => onNavigateToPaymentTermsSetup(connectionId, otherBusiness.businessName)}
+              style={{ fontSize: '11px', color: 'var(--brand-primary)', fontWeight: 500, cursor: 'pointer' }}
+            >
+              Edit
             </span>
           </div>
-          <button onClick={() => setShowContactEdit(true)} style={{ padding: '4px', minWidth: '32px', minHeight: '32px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-            <PencilSimple size={16} weight="regular" style={{ color: 'var(--text-secondary)' }} />
-          </button>
-        </div>
-
-        {/* Trust Profile button */}
-        {onNavigateToTrustProfile && otherBusiness && (
-          <div style={{ paddingLeft: '16px', paddingRight: '16px', paddingBottom: '8px', paddingTop: '4px', borderBottom: '1px solid var(--border-light)' }}>
-            <button
-              onClick={() => onNavigateToTrustProfile(otherBusiness.id, connectionId)}
-              style={{
-                fontSize: '13px',
-                fontWeight: 600,
-                color: 'var(--brand-primary)',
-                background: 'none',
-                border: 'none',
-                cursor: 'pointer',
-                padding: '4px 0',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '4px',
-              }}
+          {onNavigateToTrustProfile && (
+            <span
+              onClick={() => onNavigateToTrustProfile(
+                connection.buyerBusinessId === currentBusinessId ? connection.supplierBusinessId : connection.buyerBusinessId,
+                connectionId
+              )}
+              style={{ fontSize: '11px', color: 'var(--brand-primary)', fontWeight: 500, cursor: 'pointer', flexShrink: 0 }}
             >
-              Trust Profile →
-            </button>
-          </div>
-        )}
-
-        {/* Relationship Summary Card */}
-        <div className="px-4 py-3">
-          {(() => {
-            const isRisky = connection.connectionState !== 'Stable' && connection.connectionState !== 'Active'
-            const stateColor = isRisky ? getConnectionStateColor(connection.connectionState) : 'var(--brand-primary)'
-            return (
-              <div style={{ display: 'flex', backgroundColor: 'var(--bg-card)', borderRadius: '14px', overflow: 'hidden', marginBottom: '12px' }}>
-                {/* Left accent border */}
-                <div style={{ width: 5, flexShrink: 0, backgroundColor: stateColor }} />
-
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  {/* Row 1 — 3-col stats */}
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', borderBottom: '0.5px solid rgba(0,0,0,0.08)' }}>
-                    <div style={{ padding: '10px 12px', borderRight: '0.5px solid rgba(0,0,0,0.08)' }}>
-                      <p style={{ fontSize: 11, color: 'var(--text-secondary)', marginBottom: 3 }}>{isSupplier ? 'To Receive' : 'To Pay'}</p>
-                      <p style={{ fontSize: 17, fontWeight: 700, color: isSupplier ? 'var(--status-delivered)' : 'var(--status-overdue)' }}>
-                        {formatInrCurrency(outstandingBalance)}
-                      </p>
-                    </div>
-                    <div style={{ padding: '10px 12px', borderRight: '0.5px solid rgba(0,0,0,0.08)' }}>
-                      <p style={{ fontSize: 11, color: 'var(--text-secondary)', marginBottom: 3 }}>Total Traded</p>
-                      <p style={{ fontSize: 17, fontWeight: 700, color: 'var(--text-primary)' }}>
-                        {formatInrCurrency(totalValue)}
-                      </p>
-                    </div>
-                    <div style={{ padding: '10px 12px' }}>
-                      <p style={{ fontSize: 11, color: 'var(--text-secondary)', marginBottom: 3 }}>Orders</p>
-                      <p style={{ fontSize: 17, fontWeight: 700, color: 'var(--text-primary)' }}>
-                        {totalOrders}
-                      </p>
-                    </div>
-                  </div>
-
-                  {/* Row 2 — Risk badge + Payment Terms + Edit */}
-                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, padding: '10px 12px', fontSize: 12 }}>
-                    {isRisky ? (
-                      <div style={{ display: 'inline-flex', alignItems: 'center', gap: 4, backgroundColor: stateColor, color: '#FFFFFF', borderRadius: 999, padding: '4px 10px', fontWeight: 700, fontSize: 10.5 }}>
-                        {getConnectionStateLabel(connection.connectionState)}
-                      </div>
-                    ) : (
-                      <div />
-                    )}
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
-                      <span style={{ color: 'var(--text-primary)', fontWeight: 500, fontSize: 13 }}>{formatPaymentTerms(connection.paymentTerms)}</span>
-                      {isSupplier && (
-                        <span
-                          onClick={() => onNavigateToPaymentTermsSetup(connectionId, otherBusiness.businessName)}
-                          style={{ color: 'var(--accent-blue)', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 3, fontSize: 13 }}
-                        >
-                          <PencilSimple size={12} weight="regular" />
-                          Edit
-                        </span>
-                      )}
-                    </div>
-                  </div>
-
-                  {/* Row 3 — Insights */}
-                  {insights.length > 0 && (
-                    <div style={{ padding: '12px 14px 14px', borderTop: '0.5px solid rgba(0,0,0,0.08)' }}>
-                      <p style={{ fontSize: 13, fontWeight: 700, color: 'var(--text-primary)', marginBottom: 8 }}>Insights</p>
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                        {insights.map((insight, idx) => {
-                          const dotColor = insight.sentiment === 'negative' ? '#D85A30' : insight.sentiment === 'positive' ? '#1D9E75' : '#888780'
-                          const textColor = insight.sentiment === 'negative' ? 'var(--text-primary)' : insight.sentiment === 'positive' ? '#0F6E56' : 'var(--text-secondary)'
-                          return (
-                            <div key={idx} style={{ display: 'flex', alignItems: 'flex-start', gap: 8 }}>
-                              <span style={{ color: dotColor, fontSize: 16, lineHeight: '20px', flexShrink: 0 }}>•</span>
-                              <span style={{ fontSize: 13, color: textColor }}>{insight.text}</span>
-                            </div>
-                          )
-                        })}
-                      </div>
-                    </div>
-                  )}
-                </div>
-              </div>
-            )
-          })()}
+              Trust →
+            </span>
+          )}
         </div>
 
-        {/* Tab Pills */}
-        <div style={{ display: 'flex', gap: 8, padding: '0 16px', marginBottom: 12 }}>
-          {(['intelligence', 'orders'] as const).map((tab) => {
+        {/* Segmented Tab Control */}
+        <div style={{
+          display: 'flex',
+          backgroundColor: '#F2F4F8',
+          borderRadius: '10px',
+          padding: '3px',
+          margin: '8px 14px 10px',
+        }}>
+          {(['orders', 'intelligence'] as const).map((tab) => {
             const isActive = activeConnectionTab === tab
+            const label = tab === 'orders' ? 'Orders' : 'Intelligence'
+            const count = tab === 'orders' ? totalOrders : insights.length
             return (
               <button
                 key={tab}
                 onClick={() => setActiveConnectionTab(tab)}
                 style={{
-                  fontSize: 12,
-                  padding: '5px 12px',
-                  borderRadius: 999,
-                  border: isActive ? 'none' : '1px solid var(--border-light)',
-                  backgroundColor: isActive ? 'var(--text-primary)' : 'transparent',
-                  color: isActive ? 'var(--bg-card)' : 'var(--text-secondary)',
+                  flex: 1,
+                  textAlign: 'center',
+                  padding: '7px 0',
+                  borderRadius: '8px',
+                  fontSize: '12px',
                   fontWeight: isActive ? 600 : 400,
+                  color: isActive ? 'var(--text-primary)' : 'var(--text-secondary)',
+                  backgroundColor: isActive ? '#FFFFFF' : 'transparent',
+                  border: isActive ? '0.5px solid var(--border-light)' : '0.5px solid transparent',
+                  boxShadow: isActive ? '0 1px 3px rgba(0,0,0,0.04)' : 'none',
                   cursor: 'pointer',
-                  transition: 'all 150ms',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '4px',
                 }}
               >
-                {tab === 'intelligence' ? 'Intelligence' : 'Orders'}
+                {label}
+                {count > 0 && (
+                  <span style={{
+                    fontSize: '10px',
+                    fontWeight: 700,
+                    color: '#FFFFFF',
+                    backgroundColor: isActive
+                      ? (tab === 'intelligence' && insights.some(i => i.sentiment === 'negative') ? '#E24B4A' : '#4A6CF7')
+                      : '#8492A6',
+                    borderRadius: '4px',
+                    padding: '1px 5px',
+                    lineHeight: '14px',
+                  }}>
+                    {count}
+                  </span>
+                )}
               </button>
             )
           })}
@@ -451,6 +428,7 @@ export function ConnectionDetailScreen({ connectionId, currentBusinessId, onBack
             isBuyer={isBuyer}
             otherBusinessName={otherBusiness.businessName}
             otherBusinessId={otherBusiness.id}
+            connectionInsights={insights}
           />
         )}
 
