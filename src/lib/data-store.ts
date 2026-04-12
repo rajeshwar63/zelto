@@ -1910,6 +1910,87 @@ export class ZeltoDataStore {
     await supabase.from('user_accounts').delete().neq('id', '00000000-0000-0000-0000-000000000000')
     await supabase.from('business_entities').delete().neq('id', '00000000-0000-0000-0000-000000000000')
   }
+
+  // ============ INTELLIGENCE LAYER HELPERS ============
+
+  async getConnectionsAsSupplier(businessId: string): Promise<Connection[]> {
+    const { data: connectionsData, error } = await supabase
+      .from('connections')
+      .select('*')
+      .eq('supplier_business_id', businessId)
+
+    if (error) throw error
+    if (!connectionsData || connectionsData.length === 0) return []
+
+    const connectionIds = connectionsData.map(c => c.id)
+
+    const { data: contactsData } = await supabase
+      .from('connection_contacts')
+      .select('*')
+      .eq('business_id', businessId)
+      .in('connection_id', connectionIds)
+
+    const contactMap = new Map((contactsData || []).map(c => [c.connection_id, c]))
+
+    return connectionsData.map(conn => {
+      const contact = contactMap.get(conn.id)
+      return toCamelCase({
+        ...conn,
+        contact_phone: contact?.contact_phone ?? null,
+        branch_label: contact?.branch_label ?? null,
+        contact_name: contact?.contact_name ?? null,
+      })
+    })
+  }
+
+  async getConnectionsAsBuyer(businessId: string): Promise<Connection[]> {
+    const { data: connectionsData, error } = await supabase
+      .from('connections')
+      .select('*')
+      .eq('buyer_business_id', businessId)
+
+    if (error) throw error
+    if (!connectionsData || connectionsData.length === 0) return []
+
+    const connectionIds = connectionsData.map(c => c.id)
+
+    const { data: contactsData } = await supabase
+      .from('connection_contacts')
+      .select('*')
+      .eq('business_id', businessId)
+      .in('connection_id', connectionIds)
+
+    const contactMap = new Map((contactsData || []).map(c => [c.connection_id, c]))
+
+    return connectionsData.map(conn => {
+      const contact = contactMap.get(conn.id)
+      return toCamelCase({
+        ...conn,
+        contact_phone: contact?.contact_phone ?? null,
+        branch_label: contact?.branch_label ?? null,
+        contact_name: contact?.contact_name ?? null,
+      })
+    })
+  }
+
+  async getBusinessEntityCount(): Promise<number> {
+    const { count, error } = await supabase
+      .from('business_entities')
+      .select('id', { count: 'exact', head: true })
+
+    if (error) throw error
+    return count ?? 0
+  }
+
+  async getDocumentCountByBusinessId(businessId: string): Promise<number> {
+    const { count, error } = await supabase
+      .from('business_documents')
+      .select('id', { count: 'exact', head: true })
+      .eq('business_entity_id', businessId)
+
+    if (error) throw error
+    return count ?? 0
+  }
 }
 
 export const dataStore = new ZeltoDataStore()
