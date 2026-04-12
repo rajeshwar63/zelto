@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { CaretDown, CaretRight, Warning, Clock, FileX } from '@phosphor-icons/react'
+import { CaretRight, Warning, Clock, FileX } from '@phosphor-icons/react'
 import { dataStore } from '@/lib/data-store'
 import type { ComplianceAlert } from '@/lib/types'
 
@@ -55,12 +55,9 @@ function expiryLabel(alert: ComplianceAlert): string {
 export function ComplianceCard({ currentBusinessId, onNavigateToSupplierDocs }: Props) {
   const [alerts, setAlerts] = useState<ComplianceAlert[]>([])
   const [loaded, setLoaded] = useState(false)
-  const [complianceExpanded, setComplianceExpanded] = useState(false)
-
   useEffect(() => {
     dataStore.getComplianceAlerts(currentBusinessId).then(data => {
       setAlerts(data)
-      setComplianceExpanded(data.length > 0)
       setLoaded(true)
     }).catch(() => setLoaded(true))
   }, [currentBusinessId])
@@ -71,39 +68,16 @@ export function ComplianceCard({ currentBusinessId, onNavigateToSupplierDocs }: 
 
   return (
     <div>
-      {/* Collapsible section header */}
-      <button
-        onClick={() => setComplianceExpanded(prev => !prev)}
-        className="w-full flex items-center justify-between"
-        style={{ paddingTop: '10px', paddingBottom: '10px' }}
-      >
-        <div className="flex items-center gap-1.5">
-          <span className="text-[11px] font-semibold tracking-wide uppercase" style={{ color: 'var(--text-secondary, #8A8A8A)' }}>
-            Supplier Compliance
-          </span>
-          {alerts.length > 0 && (
-            <span
-              className="text-[11px] font-semibold px-1.5 py-0.5 rounded-full"
-              style={{ backgroundColor: 'var(--status-warning-bg, #FEF3C7)', color: 'var(--status-warning, #D97706)' }}
-            >
-              {alerts.length}
-            </span>
-          )}
-          {alerts.length === 0 && (
-            <span className="text-[11px]" style={{ color: 'var(--status-delivered)' }}>
-              All clear
-            </span>
-          )}
-        </div>
-        <CaretDown
-          size={14}
-          color="var(--text-secondary, #8A8A8A)"
-          style={{ transform: `rotate(${complianceExpanded ? '180deg' : '0deg'})`, transition: 'transform 0.2s' }}
-        />
-      </button>
+      <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '10px' }}>
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#D97706" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
+        </svg>
+        <span style={{ fontSize: '12px', fontWeight: 600, color: 'var(--text-primary, #0F1320)' }}>
+          Compliance
+        </span>
+      </div>
 
-      {/* Compliance card — only shown when expanded and issues exist */}
-      {complianceExpanded && alerts.length > 0 && (
+      {alerts.length > 0 && (
         <div
           className="rounded-2xl border bg-card overflow-hidden mb-1"
           style={{ borderColor: '#F59E0B' }}
