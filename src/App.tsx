@@ -21,7 +21,7 @@ import { NotificationSettingsScreen } from '@/components/NotificationSettingsScr
 import { AccountScreen } from '@/components/AccountScreen'
 import { HelpSupportScreen } from '@/components/HelpSupportScreen'
 import { ReportIssueScreen } from '@/components/ReportIssueScreen'
-import { House, Users, Package, User, Bell } from '@phosphor-icons/react'
+import { House, Users, Package, Buildings, Bell } from '@phosphor-icons/react'
 import { AttentionScreen } from '@/components/AttentionScreen'
 import { IncomingRequestsScreen } from '@/components/IncomingRequestsScreen'
 import { getAuthState, getLocalAuthSessionSync, logout, clearAuthSession } from '@/lib/auth'
@@ -1041,7 +1041,7 @@ function TabShell({
           />
           <TabButton
             label="Business"
-            icon={<User weight="regular" size={22} />}
+            icon={<Buildings weight="regular" size={22} />}
             active={activeTabScreen.tab === 'profile'}
             onClick={() => onNavigateToTab('profile')}
           />
