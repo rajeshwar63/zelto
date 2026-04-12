@@ -86,6 +86,8 @@ export function DashboardScreen({ currentBusinessId, onNavigateToOrders, onNavig
   const trimmedUsername = (overview.username ?? '').trim()
   const firstName = trimmedUsername ? trimmedUsername.split(/\s+/)[0] : ''
 
+  const totalAttention = attentionCounts.accept + attentionCounts.dispatch + attentionCounts.awaitingPayment + attentionCounts.disputes + attentionCounts.awaitingDispatch
+
   const data = {
     username: firstName,
     ordersToday: overview.ordersToday ?? 0,
@@ -268,9 +270,21 @@ export function DashboardScreen({ currentBusinessId, onNavigateToOrders, onNavig
         </div>
 
         <div>
-          <h2 className="text-[10px] uppercase tracking-wide text-muted-foreground/60 mb-3">
-            Needs Attention
-          </h2>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '10px' }}>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#E24B4A" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <circle cx="12" cy="12" r="10" />
+              <line x1="12" y1="8" x2="12" y2="12" />
+              <line x1="12" y1="16" x2="12.01" y2="16" />
+            </svg>
+            <span style={{ fontSize: '12px', fontWeight: 600, color: '#E24B4A' }}>
+              Needs attention
+            </span>
+            {totalAttention > 0 && (
+              <span style={{ fontSize: '11px', fontWeight: 600, color: 'var(--text-secondary)', marginLeft: 'auto' }}>
+                {totalAttention}
+              </span>
+            )}
+          </div>
           <div className="space-y-3">
             {attentionCounts.awaitingPayment > 0 && (
               <button
@@ -440,9 +454,16 @@ export function DashboardScreen({ currentBusinessId, onNavigateToOrders, onNavig
         </div>
 
         <div>
-          <h2 className="text-[10px] uppercase tracking-wide text-muted-foreground/60 mb-3">
-            Trade Intelligence
-          </h2>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '10px' }}>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#4A6CF7" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M12 20V10" />
+              <path d="M18 20V4" />
+              <path d="M6 20v-4" />
+            </svg>
+            <span style={{ fontSize: '12px', fontWeight: 600, color: 'var(--text-primary, #0F1320)' }}>
+              Trade intelligence
+            </span>
+          </div>
           <MoneyCard
             forecast={cashForecast}
             collectionItems={collectionItems}
@@ -461,7 +482,14 @@ export function DashboardScreen({ currentBusinessId, onNavigateToOrders, onNavig
 
         {recentOrders.length > 0 && (
           <div>
-            <h2 className="text-[10px] uppercase tracking-wide text-muted-foreground/60 mb-3">Recent Activity</h2>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '10px' }}>
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#8492A6" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <polyline points="22 12 18 12 15 21 9 3 6 12 2 12" />
+              </svg>
+              <span style={{ fontSize: '12px', fontWeight: 600, color: 'var(--text-secondary, #8492A6)' }}>
+                Recent activity
+              </span>
+            </div>
             <div className="space-y-2">
               {recentOrders.map(order => (
                 <OrderCard
