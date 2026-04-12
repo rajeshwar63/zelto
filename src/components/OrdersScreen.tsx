@@ -2,6 +2,9 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { useOrdersData } from '@/hooks/data/use-business-data'
 import { PencilSimple, MagnifyingGlass, Faders } from '@phosphor-icons/react'
 import { OrderCard } from '@/components/order/OrderCard'
+import { intelligenceEngine } from '@/lib/intelligence-engine'
+import type { DispatchIntelItem } from '@/lib/intelligence-engine'
+import { DispatchQueueView } from './orders/DispatchQueueView'
 import { InlineRefreshSpinner, ScreenRefreshIndicator, useScreenLoadState } from '@/components/ScreenLoadState'
 import {
   type OrderFilters,
@@ -107,6 +110,10 @@ export function OrdersScreen({ currentBusinessId, onSelectOrder, initialFilter, 
   const [filterPanelOpen, setFilterPanelOpen] = useState(false)
   const [popoverTab, setPopoverTab] = useState<RoleFilter | null>(null)
   const [showPinHint, setShowPinHint] = useState(false)
+  const [dispatchItems, setDispatchItems] = useState<DispatchIntelItem[]>([])
+  const [dispatchLoading, setDispatchLoading] = useState(false)
+  const [showDispatchTab, setShowDispatchTab] = useState(false)
+  const [activeTab, setActiveTab] = useState<'dispatch' | null>(null)
 
   // Long-press timer refs
   const pressTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
@@ -153,6 +160,31 @@ export function OrdersScreen({ currentBusinessId, onSelectOrder, initialFilter, 
     return () => document.removeEventListener('mousedown', handler)
   }, [popoverTab])
 
+  // Check if dispatch tab should show (any order where user is supplier and state is Accepted)
+  useEffect(() => {
+    const hasAcceptedSupplierOrder = orders.some(o => !o.isBuyer && o.lifecycleState === 'Accepted')
+    setShowDispatchTab(hasAcceptedSupplierOrder)
+  }, [orders])
+
+  // Load dispatch data when dispatch tab is active
+  useEffect(() => {
+    if (activeTab !== 'dispatch') return
+    let cancelled = false
+    setDispatchLoading(true)
+    intelligenceEngine.getDispatchIntelligence(currentBusinessId).then(items => {
+      if (!cancelled) {
+        setDispatchItems(items)
+        setDispatchLoading(false)
+      }
+    }).catch(() => {
+      if (!cancelled) {
+        setDispatchItems([])
+        setDispatchLoading(false)
+      }
+    })
+    return () => { cancelled = true }
+  }, [activeTab, currentBusinessId])
+
   // Handle legacy initialFilter (old string-based filter)
   useEffect(() => {
     if (!initialFilter) return
@@ -196,6 +228,7 @@ export function OrdersScreen({ currentBusinessId, onSelectOrder, initialFilter, 
 
   const handleRoleChange = (newRole: RoleFilter) => {
     setRoleFilter(newRole)
+    setActiveTab(null)
     // Reset filters when switching tabs to avoid confusion
     setOrderFilters(EMPTY_FILTERS)
     setFilterPanelOpen(false)
@@ -365,9 +398,37 @@ export function OrdersScreen({ currentBusinessId, onSelectOrder, initialFilter, 
             overflow: 'visible',
             position: 'relative',
           }}>
+            {showDispatchTab && (
+              <button
+                onClick={() => { setActiveTab('dispatch'); setOrderFilters(EMPTY_FILTERS); setFilterPanelOpen(false) }}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 3,
+                  padding: '5px 14px',
+                  fontSize: 12,
+                  fontWeight: activeTab === 'dispatch' ? 600 : 400,
+                  border: 'none',
+                  cursor: 'pointer',
+                  background: activeTab === 'dispatch'
+                    ? 'var(--text-primary)'
+                    : 'transparent',
+                  color: activeTab === 'dispatch'
+                    ? 'var(--bg-card)'
+                    : 'var(--text-secondary)',
+                  transition: 'all 150ms',
+                  borderRadius: '999px 0 0 999px',
+                  userSelect: 'none',
+                  WebkitUserSelect: 'none',
+                  whiteSpace: 'nowrap',
+                }}
+              >
+                Dispatch
+              </button>
+            )}
             {(['all', 'buying', 'selling'] as const).map(role => {
               const isPinned = pinnedTab === role
-              const isActive = roleFilter === role
+              const isActive = activeTab === null && roleFilter === role
               return (
                 <div
                   key={role}
@@ -397,7 +458,7 @@ export function OrdersScreen({ currentBusinessId, onSelectOrder, initialFilter, 
                         ? 'var(--bg-card)'
                         : 'var(--text-secondary)',
                       transition: 'all 150ms',
-                      borderRadius: role === 'all' ? '999px 0 0 999px' : role === 'selling' ? '0 999px 999px 0' : '0',
+                      borderRadius: role === 'all' && !showDispatchTab ? '999px 0 0 999px' : role === 'selling' ? '0 999px 999px 0' : '0',
                       userSelect: 'none',
                       WebkitUserSelect: 'none',
                     }}
@@ -689,6 +750,13 @@ export function OrdersScreen({ currentBusinessId, onSelectOrder, initialFilter, 
 
       {/* Order List */}
       <div className="flex-1 overflow-y-auto px-4 pt-3 pb-24">
+        {activeTab === 'dispatch' ? (
+          <DispatchQueueView
+            items={dispatchItems}
+            loading={dispatchLoading}
+            onSelectOrder={onSelectOrder}
+          />
+        ) : <>
         {!hasActiveFilters && (
           <div className="flex items-center justify-between mb-[10px]">
             <div />
@@ -735,6 +803,7 @@ onClick={() => onSelectOrder(order.id, order.connectionId)}
             ))}
           </div>
         )}
+        </>}
       </div>
 
       {/* FAB */}
