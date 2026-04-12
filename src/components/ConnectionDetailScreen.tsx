@@ -19,6 +19,7 @@ import { buildOrderTimeline, formatPaymentTerms, getLifecycleState } from '@/com
 import { ConnectionDetailOrderCard } from '@/components/order/ConnectionDetailOrderCard'
 import { LedgerDownloadSheet } from '@/components/LedgerDownloadSheet'
 import { OrderSearchPanel, type OrderFilters, type StatusChip, type RoleFilter } from '@/components/order/OrderSearchPanel'
+import { ConnectionIntelligenceTab } from '@/components/connection/ConnectionIntelligenceTab'
 import { startOfDay } from 'date-fns'
 
 
@@ -54,6 +55,7 @@ export function ConnectionDetailScreen({ connectionId, currentBusinessId, onBack
   const [archivedIds, setArchivedIds] = useState<Set<string>>(new Set())
   const [attachmentCounts, setAttachmentCounts] = useState<Record<string, number>>({})
   const [showLedgerSheet, setShowLedgerSheet] = useState(false)
+  const [activeConnectionTab, setActiveConnectionTab] = useState<'intelligence' | 'orders'>('orders')
   const [showContactEdit, setShowContactEdit] = useState(false)
   const [editPhone, setEditPhone] = useState('')
   const [editBranch, setEditBranch] = useState('')
@@ -410,64 +412,104 @@ export function ConnectionDetailScreen({ connectionId, currentBusinessId, onBack
           })()}
         </div>
 
-        {/* Orders section header */}
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '8px 16px 6px' }}>
-          <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-primary)' }}>
-            Orders ({filteredOrders.length})
-          </span>
-          {filteredOrders.length !== allActiveOrders.length && !showArchived && (
-            <span style={{ fontSize: 12, color: 'var(--text-secondary)' }}>
-              {filteredOrders.length} of {allActiveOrders.length}
-            </span>
-          )}
+        {/* Tab Pills */}
+        <div style={{ display: 'flex', gap: 8, padding: '0 16px', marginBottom: 12 }}>
+          {(['intelligence', 'orders'] as const).map((tab) => {
+            const isActive = activeConnectionTab === tab
+            return (
+              <button
+                key={tab}
+                onClick={() => setActiveConnectionTab(tab)}
+                style={{
+                  fontSize: 12,
+                  padding: '5px 12px',
+                  borderRadius: 999,
+                  border: isActive ? 'none' : '1px solid var(--border-light)',
+                  backgroundColor: isActive ? 'var(--text-primary)' : 'transparent',
+                  color: isActive ? 'var(--bg-card)' : 'var(--text-secondary)',
+                  fontWeight: isActive ? 600 : 400,
+                  cursor: 'pointer',
+                  transition: 'all 150ms',
+                }}
+              >
+                {tab === 'intelligence' ? 'Intelligence' : 'Orders'}
+              </button>
+            )
+          })}
         </div>
 
-        <div className="px-3 pb-4 space-y-3">
-          {filteredOrders.length === 0 ? (
-            <div className="px-4 py-8 text-center">
-              <p className="text-[13px] text-muted-foreground">
-                {showArchived
-                  ? 'No archived orders'
-                  : (searchText.trim() || activeChips.size > 0 || fromDate || toDate)
-                  ? 'No orders match your filters'
-                  : 'No orders in this connection'}
-              </p>
+        {activeConnectionTab === 'intelligence' && (
+          <ConnectionIntelligenceTab
+            connectionId={connectionId}
+            currentBusinessId={currentBusinessId}
+            isBuyer={isBuyer}
+            otherBusinessName={otherBusiness.businessName}
+            otherBusinessId={otherBusiness.id}
+          />
+        )}
+
+        {activeConnectionTab === 'orders' && (
+          <>
+            {/* Orders section header */}
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '8px 16px 6px' }}>
+              <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-primary)' }}>
+                Orders ({filteredOrders.length})
+              </span>
+              {filteredOrders.length !== allActiveOrders.length && !showArchived && (
+                <span style={{ fontSize: 12, color: 'var(--text-secondary)' }}>
+                  {filteredOrders.length} of {allActiveOrders.length}
+                </span>
+              )}
             </div>
-          ) : (
-            filteredOrders.map(order => {
-              const lifecycleState = getLifecycleState(order)
-              const latestActivity = Math.max(order.deliveredAt || 0, order.dispatchedAt || 0, order.acceptedAt || 0, order.createdAt)
-              const isNew = isOrderNew(currentBusinessId, order.id, latestActivity)
-              const isOld = order.settlementState === 'Paid'
-              return (
-                <SwipeableOrderRow
-                  key={order.id}
-                  actionLabel={showArchived ? 'Unarchive' : 'Archive'}
-                  onAction={() => showArchived ? handleUnarchiveOrder(order.id) : handleArchiveOrder(order.id)}
-                >
-                  <ConnectionDetailOrderCard
-                    itemSummary={order.itemSummary}
-                    orderValue={order.orderValue}
-                    pendingAmount={order.pendingAmount}
-                    settlementState={order.settlementState}
-                    lifecycleState={lifecycleState}
-                    createdAt={order.createdAt}
-                    deliveredAt={order.deliveredAt}
-                    calculatedDueDate={order.calculatedDueDate}
-                    latestActivity={latestActivity}
-                    isBuyer={isBuyer}
-                    isNew={isNew}
-                    isOld={isOld}
-                    onClick={() => {
-                      markOrderSeen(currentBusinessId, order.id)
-                      onOpenOrderDetail(order.id, connection.id)
-                    }}
-                  />
-                </SwipeableOrderRow>
-              )
-            })
-          )}
-        </div>
+
+            <div className="px-3 pb-4 space-y-3">
+              {filteredOrders.length === 0 ? (
+                <div className="px-4 py-8 text-center">
+                  <p className="text-[13px] text-muted-foreground">
+                    {showArchived
+                      ? 'No archived orders'
+                      : (searchText.trim() || activeChips.size > 0 || fromDate || toDate)
+                      ? 'No orders match your filters'
+                      : 'No orders in this connection'}
+                  </p>
+                </div>
+              ) : (
+                filteredOrders.map(order => {
+                  const lifecycleState = getLifecycleState(order)
+                  const latestActivity = Math.max(order.deliveredAt || 0, order.dispatchedAt || 0, order.acceptedAt || 0, order.createdAt)
+                  const isNew = isOrderNew(currentBusinessId, order.id, latestActivity)
+                  const isOld = order.settlementState === 'Paid'
+                  return (
+                    <SwipeableOrderRow
+                      key={order.id}
+                      actionLabel={showArchived ? 'Unarchive' : 'Archive'}
+                      onAction={() => showArchived ? handleUnarchiveOrder(order.id) : handleArchiveOrder(order.id)}
+                    >
+                      <ConnectionDetailOrderCard
+                        itemSummary={order.itemSummary}
+                        orderValue={order.orderValue}
+                        pendingAmount={order.pendingAmount}
+                        settlementState={order.settlementState}
+                        lifecycleState={lifecycleState}
+                        createdAt={order.createdAt}
+                        deliveredAt={order.deliveredAt}
+                        calculatedDueDate={order.calculatedDueDate}
+                        latestActivity={latestActivity}
+                        isBuyer={isBuyer}
+                        isNew={isNew}
+                        isOld={isOld}
+                        onClick={() => {
+                          markOrderSeen(currentBusinessId, order.id)
+                          onOpenOrderDetail(order.id, connection.id)
+                        }}
+                      />
+                    </SwipeableOrderRow>
+                  )
+                })
+              )}
+            </div>
+          </>
+        )}
       </div>
 
       <LedgerDownloadSheet
