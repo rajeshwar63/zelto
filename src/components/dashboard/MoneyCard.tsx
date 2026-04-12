@@ -67,9 +67,9 @@ export function MoneyCard({ forecast, collectionItems, concentrationRisk, loadin
   }
 
   const tabs: Array<{ id: 'collect' | 'forecast' | 'risk'; label: string; count?: number }> = [
-    { id: 'collect', label: 'Collect', count: collectCount > 0 ? Math.min(collectCount, 3) : undefined },
-    { id: 'forecast', label: 'Forecast' },
-    { id: 'risk', label: 'Risk' },
+    { id: 'collect', label: 'Priority', count: collectCount > 0 ? Math.min(collectCount, 3) : undefined },
+    { id: 'forecast', label: 'Cash Forecast' },
+    { id: 'risk', label: 'Exposure' },
   ]
 
   return (
@@ -159,7 +159,7 @@ export function MoneyCard({ forecast, collectionItems, concentrationRisk, loadin
                           {item.businessName}
                         </p>
                         <p style={{ fontSize: '11px', color: '#8492A6', margin: '1px 0 0' }}>
-                          {item.onTimeCount} on-time, {item.lateCount} late in 30d
+                          {item.patternDetail}
                         </p>
                       </div>
                       <div style={{ textAlign: 'right', flexShrink: 0 }}>
@@ -167,7 +167,7 @@ export function MoneyCard({ forecast, collectionItems, concentrationRisk, loadin
                           fontSize: '14px', fontWeight: 600, margin: 0,
                           color: isOverdue ? '#E24B4A' : '#D97706',
                         }}>
-                          {formatInrCurrency(item.amount)}
+                          {formatInrCurrency(item.overdueAmount)}
                         </p>
                         <p style={{
                           fontSize: '11px', margin: '1px 0 0',
@@ -193,7 +193,7 @@ export function MoneyCard({ forecast, collectionItems, concentrationRisk, loadin
                       {formatInrCurrency(
                         collectionItems
                           .filter(item => item.daysOverdue > 0)
-                          .reduce((sum, item) => sum + item.amount, 0)
+                          .reduce((sum, item) => sum + item.overdueAmount, 0)
                       )}
                     </span>
                   </div>
