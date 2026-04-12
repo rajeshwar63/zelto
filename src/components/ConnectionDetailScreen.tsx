@@ -45,6 +45,7 @@ export function ConnectionDetailScreen({ connectionId, currentBusinessId, onBack
   const [otherBusiness, setOtherBusiness] = useState<BusinessEntity | null>(null)
   const [orders, setOrders] = useState<OrderWithPaymentState[]>([])
   const [openIssueOrderIds, setOpenIssueOrderIds] = useState<Set<string>>(new Set())
+  const [openIssueSummaryMap, setOpenIssueSummaryMap] = useState<Map<string, string>>(new Map())
   const [insights, setInsights] = useState<Insight[]>([])
   const [orderFilters, setOrderFilters] = useState<OrderFilters>(EMPTY_FILTERS)
   const [panelVisible, setPanelVisible] = useState(false)
@@ -104,11 +105,15 @@ export function ConnectionDetailScreen({ connectionId, currentBusinessId, onBack
           dataStore.getIssueReportsByOrderIds(orderIds),
         ])
         setAttachmentCounts(counts)
-        setOpenIssueOrderIds(new Set(
-          issues
-            .filter(issue => issue.status === 'Open' || issue.status === 'Acknowledged')
-            .map(issue => issue.orderId)
-        ))
+        const openIssues = issues.filter(issue => issue.status === 'Open' || issue.status === 'Acknowledged')
+        setOpenIssueOrderIds(new Set(openIssues.map(issue => issue.orderId)))
+        const summaryMap = new Map<string, string>()
+        openIssues.forEach(issue => {
+          if (!summaryMap.has(issue.orderId)) {
+            summaryMap.set(issue.orderId, issue.issueType)
+          }
+        })
+        setOpenIssueSummaryMap(summaryMap)
       }
     } catch (err) {
       console.error('Failed to load orders:', err)
@@ -498,6 +503,8 @@ export function ConnectionDetailScreen({ connectionId, currentBusinessId, onBack
                         isBuyer={isBuyer}
                         isNew={isNew}
                         isOld={isOld}
+                        hasOpenDispute={openIssueOrderIds.has(order.id)}
+                        disputeSummary={openIssueSummaryMap.get(order.id) ?? null}
                         onClick={() => {
                           markOrderSeen(currentBusinessId, order.id)
                           onOpenOrderDetail(order.id, connection.id)

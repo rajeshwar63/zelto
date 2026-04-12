@@ -781,7 +781,9 @@ export function OrdersScreen({ currentBusinessId, onSelectOrder, initialFilter, 
                 deliveredAt={order.deliveredAt}
                 latestActivity={order.latestActivity}
                 isBuyer={order.isBuyer}
-onClick={() => onSelectOrder(order.id, order.connectionId)}
+                hasOpenDispute={order.hasOpenIssue}
+                disputeSummary={order.openIssueSummary}
+                onClick={() => onSelectOrder(order.id, order.connectionId)}
               />
             ))}
           </div>
