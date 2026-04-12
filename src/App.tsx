@@ -892,6 +892,7 @@ function App() {
             onNavigateToSupplierDocs={navigateToSupplierDocs}
             onNavigateToPlaceOrder={navigateToPlaceOrder}
             onNavigateToInvoiceSettings={navigateToInvoiceSettings}
+            onNavigateToItemMaster={navigateToItemMaster}
           />
         ) : (
           <div className="h-full flex flex-col">{renderDetailScreen(screen)}</div>
@@ -927,6 +928,7 @@ function TabShell({
   onNavigateToSupplierDocs,
   onNavigateToPlaceOrder,
   onNavigateToInvoiceSettings,
+  onNavigateToItemMaster,
 }: {
   currentBusinessId: string
   activeTabScreen: TabShellScreen
@@ -952,6 +954,7 @@ function TabShell({
   onNavigateToSupplierDocs?: (targetBusinessId: string, connectionId: string) => void
   onNavigateToPlaceOrder: (prefilledConnectionId?: string | null) => void
   onNavigateToInvoiceSettings?: () => void
+  onNavigateToItemMaster?: () => void
 }) {
   return (
     <>
@@ -1010,6 +1013,7 @@ function TabShell({
                 : undefined
             }
             onNavigateToInvoiceSettings={onNavigateToInvoiceSettings}
+            onNavigateToItemMaster={onNavigateToItemMaster}
           />
         )}
       </div>
@@ -1023,6 +1027,12 @@ function TabShell({
             onClick={() => onNavigateToTab('dashboard')}
           />
           <TabButton
+            label="Orders"
+            icon={<Package weight="regular" size={22} />}
+            active={activeTabScreen.tab === 'orders'}
+            onClick={() => onNavigateToTab('orders')}
+          />
+          <TabButton
             label="Connections"
             icon={<Users weight="regular" size={22} />}
             active={activeTabScreen.tab === 'connections'}
@@ -1030,19 +1040,7 @@ function TabShell({
             hasUnread={hasUnreadConnections}
           />
           <TabButton
-            label="Orders"
-            icon={<Package weight="regular" size={22} />}
-            active={activeTabScreen.tab === 'orders'}
-            onClick={() => onNavigateToTab('orders')}
-          />
-          <TabButton
-            label="Disputes"
-            icon={<Bell weight="regular" size={22} />}
-            active={activeTabScreen.tab === 'attention'}
-            onClick={() => onNavigateToTab('attention')}
-          />
-          <TabButton
-            label="Profile"
+            label="Business"
             icon={<User weight="regular" size={22} />}
             active={activeTabScreen.tab === 'profile'}
             onClick={() => onNavigateToTab('profile')}
