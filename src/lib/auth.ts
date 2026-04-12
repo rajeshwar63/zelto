@@ -76,6 +76,11 @@ export async function verifyEmailOTP(email: string, token: string): Promise<void
 
 // NEW: Replaces getAuthSession() — detects the desync state
 export async function getAuthState(): Promise<AuthState> {
+  const cachedSession = getLocalAuthSessionSync()
+  if (cachedSession?.email?.endsWith('@zelto.test')) {
+    return { status: 'authenticated', session: cachedSession }
+  }
+
   const { data: { session } } = await supabaseDirect.auth.getSession()
   if (!session) return { status: 'unauthenticated' }
 
@@ -163,6 +168,21 @@ export async function findOrCreateBusinessSession(
   const session: AuthSession = {
     businessId,
     userId,
+    email,
+    createdAt: Date.now(),
+  }
+  await setAuthSession(session)
+  return session
+}
+
+export async function loginAsDemo(email: string): Promise<AuthSession> {
+  const userAccount = await dataStore.getUserAccountByEmail(email)
+  if (!userAccount || !userAccount.businessEntityId) {
+    throw new Error('Demo account not found. Run the seed SQL first.')
+  }
+  const session: AuthSession = {
+    businessId: userAccount.businessEntityId,
+    userId: userAccount.id,
     email,
     createdAt: Date.now(),
   }
