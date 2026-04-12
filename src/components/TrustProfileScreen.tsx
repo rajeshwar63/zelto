@@ -88,7 +88,13 @@ export function TrustProfileScreen({
   const { action, audience } = screenMode
   const isConnectionReview = audience === 'connection-review'
   const isSelfProfileReady = audience === 'self-profile-ready'
-  const [activeTab, setActiveTab] = useState<'identity' | 'docs' | 'insights' | 'coach' | 'benchmark'>(initialTab ?? 'identity')
+  const isOwnProfile = targetBusinessId === currentBusinessId
+  const [activeTab, setActiveTab] = useState<'identity' | 'docs' | 'insights' | 'coach' | 'benchmark'>(() => {
+    const tab = initialTab ?? 'identity'
+    if (tab === 'coach' && targetBusinessId !== currentBusinessId) return 'identity'
+    if (tab === 'insights' && audience !== 'self-profile-ready' && audience !== 'connection-review') return 'identity'
+    return tab
+  })
 
   // Data
   const [business, setBusiness] = useState<BusinessEntity | null>(null)
@@ -429,7 +435,11 @@ export function TrustProfileScreen({
 
       {/* Tab Strip — white, immediately below dark header */}
       <div style={{ backgroundColor: '#fff', borderBottom: '1px solid #E8ECF2', display: 'flex', flexShrink: 0, overflowX: 'auto', whiteSpace: 'nowrap' }}>
-        {(['identity', 'docs', 'insights', 'coach', 'benchmark'] as const).map(tab => (
+        {(['identity', 'docs', 'insights', 'coach', 'benchmark'] as const).filter(tab => {
+          if (tab === 'coach') return isOwnProfile
+          if (tab === 'insights') return isSelfProfileReady || isConnectionReview
+          return true
+        }).map(tab => (
           <button
             key={tab}
             onClick={() => setActiveTab(tab)}
