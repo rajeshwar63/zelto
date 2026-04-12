@@ -6,6 +6,7 @@ import type {
   ReorderAlert,
   PaymentCalendarItem,
 } from '@/lib/intelligence-engine'
+import type { Insight } from '@/lib/insight-engine'
 import { MetricGrid } from '@/components/shared/MetricGrid'
 import { formatInrCurrency } from '@/lib/utils'
 
@@ -15,6 +16,7 @@ interface Props {
   isBuyer: boolean
   otherBusinessName: string
   otherBusinessId: string
+  connectionInsights?: Insight[]
 }
 
 // ─── Warning icon SVG ───────────────────────────────────────────────
@@ -376,9 +378,49 @@ export function ConnectionIntelligenceTab({
   connectionId,
   currentBusinessId,
   isBuyer,
+  connectionInsights,
 }: Props) {
   return (
     <div className="px-4 py-3">
+      {connectionInsights && connectionInsights.length > 0 && (
+        <div style={{ marginBottom: '16px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '8px' }}>
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#E24B4A" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <circle cx="12" cy="12" r="10" />
+              <line x1="12" y1="8" x2="12" y2="12" />
+              <line x1="12" y1="16" x2="12.01" y2="16" />
+            </svg>
+            <span style={{ fontSize: '12px', fontWeight: 600, color: 'var(--text-primary)' }}>Connection insights</span>
+          </div>
+          <div style={{ backgroundColor: 'var(--bg-card)', borderRadius: '12px', overflow: 'hidden' }}>
+            {connectionInsights.map((insight, idx) => {
+              const borderColor = insight.sentiment === 'negative' ? '#D85A30'
+                : insight.sentiment === 'positive' ? '#1D9E75'
+                : '#888780'
+              const bgColor = insight.sentiment === 'negative' ? 'rgba(216,90,48,0.03)'
+                : insight.sentiment === 'positive' ? 'rgba(29,158,117,0.03)'
+                : 'transparent'
+              return (
+                <div key={idx} style={{
+                  padding: '10px 12px',
+                  borderLeft: `3px solid ${borderColor}`,
+                  borderBottom: idx < connectionInsights.length - 1 ? '0.5px solid var(--border-light)' : 'none',
+                  backgroundColor: bgColor,
+                  borderRadius: 0,
+                }}>
+                  <p style={{ fontSize: '12px', color: 'var(--text-primary)', margin: 0, lineHeight: 1.4 }}>
+                    {insight.text}
+                  </p>
+                  <p style={{ fontSize: '10px', color: 'var(--text-secondary)', margin: '2px 0 0' }}>
+                    {insight.category ? (insight.category.charAt(0).toUpperCase() + insight.category.slice(1)) : 'General'}
+                    {' · Current'}
+                  </p>
+                </div>
+              )
+            })}
+          </div>
+        </div>
+      )}
       {isBuyer ? (
         <BuyerView connectionId={connectionId} currentBusinessId={currentBusinessId} />
       ) : (
