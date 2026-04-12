@@ -19,10 +19,11 @@
 
 import { useEffect, useState, useRef } from 'react'
 import { dataStore } from '@/lib/data-store'
-import { Bell, PencilSimple, Check, X, CaretRight, ShareNetwork, ShieldCheck, Users, Warning, Receipt } from '@phosphor-icons/react'
+import { Bell, PencilSimple, Check, X, CaretRight, ShareNetwork, ShieldCheck, Users, Receipt } from '@phosphor-icons/react'
 import { TrustBadge } from './TrustBadge'
 import { toast } from 'sonner'
 import { useProfileData } from '@/hooks/data/use-business-data'
+import { computeTrustScore } from '@/lib/trust-score'
 import type { UserAccount } from '@/lib/types'
 
 interface Props {
@@ -129,12 +130,15 @@ export function ProfileScreen({
   const userAccount = data?.userAccount ?? null
   const unreadCount = data?.unreadCount ?? 0
   const credibility = data?.credibility ?? null
+  const activityCounts = data?.activityCounts ?? null
 
   const [members, setMembers] = useState<UserAccount[]>([])
   const [isEditingUsername, setIsEditingUsername] = useState(false)
   const [editedUsername, setEditedUsername] = useState('')
   const [isSavingUsername, setIsSavingUsername] = useState(false)
   const usernameInputRef = useRef<HTMLInputElement>(null)
+  const [trustNudgeText, setTrustNudgeText] = useState('View your trust profile')
+  const [trustScorePotential, setTrustScorePotential] = useState(0)
 
   useEffect(() => {
     dataStore.getUserAccountsByBusinessId(currentBusinessId)
@@ -160,13 +164,40 @@ export function ProfileScreen({
     }
   }, [isEditingUsername])
 
+  useEffect(() => {
+    if (!currentBusinessId) return
+    let cancelled = false
+
+    computeTrustScore(currentBusinessId).then(breakdown => {
+      if (cancelled) return
+      setTrustNudgeText(breakdown.nudgeText)
+      const current = breakdown.total
+      let target = 100
+      if (current < 20) target = 20
+      else if (current < 45) target = 45
+      else if (current < 70) target = 70
+
+      setTrustScorePotential(Math.min(target - current, 50))
+    }).catch(() => {
+      // Silently fail — CTA still renders with default text
+    })
+
+    return () => { cancelled = true }
+  }, [currentBusinessId])
+
   if (loading || !business || !userAccount) {
     return (
       <div style={{ backgroundColor: '#F2F4F8', minHeight: '100vh' }}>
-        <div className="sticky top-0 z-10" style={{ backgroundColor: '#0F1320', paddingTop: 'env(safe-area-inset-top)' }}>
-          <div className="h-11 flex items-center px-4">
-            <h1 style={{ fontSize: '22px', fontWeight: 700, color: '#FFFFFF', letterSpacing: '-0.02em' }}>Profile</h1>
-          </div>
+        <div style={{
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          padding: '16px 20px 12px',
+          paddingTop: 'max(16px, env(safe-area-inset-top))',
+        }}>
+          <span style={{ color: '#0F1320', fontSize: '22px', fontWeight: 700, letterSpacing: '-0.3px' }}>
+            Profile
+          </span>
         </div>
         <div className="flex items-center justify-center py-16">
           <p style={{ fontSize: '14px', fontWeight: 500, color: '#8492A6' }}>Loading...</p>
@@ -231,108 +262,124 @@ export function ProfileScreen({
     else if (e.key === 'Escape') { handleCancelEditUsername() }
   }
 
-  // Doc alert logic
-  const now = Date.now()
-  const thirtyDays = 30 * 24 * 60 * 60 * 1000
-
-  // Compute expiring/expired doc count from credibility missing items as a proxy
-  // (actual doc expiry will come from business_documents once that table is live)
-  const hasDocWarning = false // placeholder — will be driven by business_documents query
-  const docWarningText = '' // placeholder
-
   const businessTypeAndCity = [business.businessType, business.city].filter(Boolean).join(' · ')
 
   return (
     <div style={{ backgroundColor: '#F2F4F8', minHeight: '100%', paddingBottom: 'env(safe-area-inset-bottom)' }}>
 
-      {/* ── HEADER ── */}
-      <div style={{ backgroundColor: '#FFFFFF', borderBottom: '1px solid rgba(0,0,0,0.06)', paddingTop: 'env(safe-area-inset-top)' }}>
+      {/* ── LIGHT TOP BAR ── */}
+      <div style={{
+        display: 'flex',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        padding: '16px 20px 12px',
+        paddingTop: 'max(16px, env(safe-area-inset-top))',
+      }}>
+        <span style={{ color: '#0F1320', fontSize: '22px', fontWeight: 700, letterSpacing: '-0.3px' }}>
+          Profile
+        </span>
+        <button
+          onClick={onNavigateToNotifications}
+          style={{
+            width: '38px',
+            height: '38px',
+            borderRadius: '12px',
+            backgroundColor: '#FFFFFF',
+            border: '1px solid rgba(0,0,0,0.06)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            cursor: 'pointer',
+            position: 'relative',
+          }}
+        >
+          <Bell size={18} color="#0F1320" weight="bold" />
+          {unreadCount > 0 && (
+            <div style={{
+              position: 'absolute',
+              top: '5px',
+              right: '5px',
+              width: '8px',
+              height: '8px',
+              borderRadius: '4px',
+              backgroundColor: '#E53535',
+              border: '2px solid #FFFFFF',
+            }} />
+          )}
+        </button>
+      </div>
 
-        {/* Title bar */}
-        <div className="flex items-center px-4" style={{ height: '44px' }}>
-          <h1 style={{ fontSize: '22px', fontWeight: 700, color: '#0F1320', letterSpacing: '-0.02em', flex: 1 }}>
-            Profile
-          </h1>
-          <button
-            onClick={onNavigateToNotifications}
-            className="relative flex items-center justify-center"
-            style={{ color: '#0F1320', minWidth: '44px', minHeight: '44px' }}
-          >
-            <Bell size={22} weight="regular" />
-            {unreadCount > 0 && (
-              <div
-                className="absolute flex items-center justify-center"
-                style={{
-                  top: '2px',
-                  right: '2px',
-                  minWidth: '16px',
-                  height: '16px',
-                  borderRadius: '100px',
-                  backgroundColor: '#E53535',
-                  color: '#FFFFFF',
-                  fontSize: '10px',
-                  fontWeight: 700,
-                  padding: '0 3px',
-                }}
-              >
-                {unreadCount > 99 ? '99+' : unreadCount}
-              </div>
-            )}
-          </button>
-        </div>
-
-        {/* ── HERO CARD ── */}
-        <div className="px-4 pb-3">
+      {/* ── DARK BUSINESS CARD ── */}
+      <div style={{ padding: '0 14px 16px' }}>
+        <div style={{
+          background: 'linear-gradient(135deg, #0F1320 0%, #1A2140 100%)',
+          borderRadius: '20px',
+          padding: '20px 18px 16px',
+          position: 'relative',
+          overflow: 'hidden',
+        }}>
+          {/* Subtle dot pattern */}
           <div style={{
-            backgroundColor: '#F7F8FA',
-            border: '1px solid rgba(0,0,0,0.07)',
-            borderRadius: '18px',
-            padding: '14px',
-          }}>
-            {/* Avatar + business info */}
-            <div className="flex items-start gap-3 mb-3">
+            position: 'absolute',
+            inset: 0,
+            opacity: 0.03,
+            backgroundImage: 'radial-gradient(circle at 2px 2px, #fff 1px, transparent 0)',
+            backgroundSize: '24px 24px',
+          }} />
+
+          <div style={{ position: 'relative' }}>
+            {/* Business name + badge */}
+            <div className="flex items-start gap-3.5 mb-3.5">
               <div style={{
                 width: '52px',
                 height: '52px',
-                borderRadius: '14px',
+                borderRadius: '15px',
                 background: 'linear-gradient(135deg, #4A6CF7, #6B8AFF)',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
-                flexShrink: 0,
-                color: '#FFFFFF',
                 fontSize: '18px',
                 fontWeight: 700,
+                color: '#FFFFFF',
+                flexShrink: 0,
+                boxShadow: '0 4px 16px rgba(74,108,247,0.3)',
               }}>
                 {getInitials(business.businessName)}
               </div>
               <div style={{ flex: 1, minWidth: 0 }}>
-                <p style={{ fontSize: '16px', fontWeight: 700, color: '#0F1320', lineHeight: '1.2' }}>
-                  {business.businessName}
-                </p>
+                <div className="flex items-center gap-2 flex-wrap">
+                  <span style={{ color: '#FFFFFF', fontSize: '17px', fontWeight: 600 }}>
+                    {business.businessName}
+                  </span>
+                  {credibility && credibility.level !== 'none' && (
+                    <TrustBadge level={credibility.level} size="sm" />
+                  )}
+                </div>
                 {businessTypeAndCity && (
-                  <p style={{ fontSize: '12px', color: '#8492A6', marginTop: '2px' }}>
+                  <p style={{ color: 'rgba(255,255,255,0.5)', fontSize: '12px', marginTop: '3px' }}>
                     {businessTypeAndCity}
                   </p>
-                )}
-                {credibility && credibility.level !== 'none' && (
-                  <div style={{ marginTop: '6px' }}>
-                    <TrustBadge level={credibility.level} />
-                  </div>
                 )}
               </div>
             </div>
 
-            {/* Divider */}
-            <div style={{ height: '1px', backgroundColor: 'rgba(0,0,0,0.07)', marginBottom: '12px' }} />
-
-            {/* Zelto code + share */}
-            <div className="flex items-center justify-between">
+            {/* Zelto ID — Prominent Identity Row */}
+            <div style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              background: 'rgba(74,108,247,0.1)',
+              border: '1px solid rgba(74,108,247,0.18)',
+              borderRadius: '10px',
+              padding: '9px 12px',
+              marginBottom: '14px',
+            }}>
               <span style={{
-                fontFamily: '"DM Mono", monospace',
-                fontSize: '11px',
-                color: '#B0BAC9',
-                letterSpacing: '0.05em',
+                fontFamily: '"DM Mono", "JetBrains Mono", "SF Mono", monospace',
+                fontSize: '14px',
+                fontWeight: 600,
+                color: '#FFFFFF',
+                letterSpacing: '0.1em',
               }}>
                 {business.zeltoId}
               </span>
@@ -340,78 +387,146 @@ export function ProfileScreen({
                 onClick={handleShare}
                 className="flex items-center gap-1.5"
                 style={{
-                  fontSize: '12px',
-                  fontWeight: 600,
-                  color: '#4A6CF7',
-                  padding: '6px 10px',
-                  borderRadius: '8px',
-                  backgroundColor: 'rgba(74,108,247,0.08)',
-                  border: '1px solid rgba(74,108,247,0.2)',
-                  minHeight: '32px',
+                  background: 'rgba(255,255,255,0.1)',
+                  border: '1px solid rgba(255,255,255,0.12)',
+                  borderRadius: '7px',
+                  padding: '5px 12px',
+                  color: '#FFFFFF',
+                  fontSize: '11px',
+                  fontWeight: 500,
+                  cursor: 'pointer',
                 }}
               >
-                <ShareNetwork size={14} />
+                <ShareNetwork size={12} />
                 Share
               </button>
             </div>
+
+            {/* Stats Row */}
+            <div style={{
+              display: 'flex',
+              background: 'rgba(255,255,255,0.04)',
+              borderRadius: '12px',
+              border: '1px solid rgba(255,255,255,0.06)',
+            }}>
+              {[
+                { val: activityCounts?.connectionCount ?? 0, label: 'connections' },
+                { val: activityCounts?.orderCount ?? 0, label: 'orders' },
+                { val: credibility?.score ?? 0, label: 'trust score', sub: '/100', highlight: true },
+              ].map((s, i) => (
+                <div key={s.label} style={{
+                  flex: 1,
+                  textAlign: 'center',
+                  padding: '10px 0',
+                  borderRight: i < 2 ? '1px solid rgba(255,255,255,0.06)' : 'none',
+                }}>
+                  <p style={{
+                    color: s.highlight ? '#6B8AFF' : '#FFFFFF',
+                    fontSize: '18px',
+                    fontWeight: 600,
+                    margin: 0,
+                    lineHeight: 1,
+                  }}>
+                    {s.val}
+                    {s.sub && (
+                      <span style={{ fontSize: '11px', fontWeight: 400, color: 'rgba(255,255,255,0.35)' }}>
+                        {s.sub}
+                      </span>
+                    )}
+                  </p>
+                  <p style={{
+                    color: 'rgba(255,255,255,0.4)',
+                    fontSize: '10px',
+                    margin: '3px 0 0',
+                    letterSpacing: '0.02em',
+                  }}>
+                    {s.label}
+                  </p>
+                </div>
+              ))}
+            </div>
           </div>
         </div>
+      </div>
 
-        {/* ── TRUST PROFILE CTA ── */}
-        <div className="px-4 pb-4">
-          <button
-            onClick={onNavigateToSelfTrustProfile}
-            className="w-full flex items-center gap-3 text-left"
-            style={{
-              backgroundColor: 'rgba(74,108,247,0.06)',
-              border: '1px solid rgba(74,108,247,0.2)',
-              borderRadius: '14px',
-              padding: '12px 14px',
-              minHeight: '60px',
-            }}
-          >
-            {/* Shield icon */}
+      {/* ── TRUST SCORE CTA ── */}
+      <div className="px-4 pb-4">
+        <button
+          onClick={onNavigateToSelfTrustProfile}
+          className="w-full text-left"
+          style={{
+            backgroundColor: '#FFFFFF',
+            borderRadius: '16px',
+            border: '1.5px solid rgba(74,108,247,0.15)',
+            padding: '16px',
+            cursor: 'pointer',
+            position: 'relative',
+            overflow: 'hidden',
+          }}
+        >
+          {/* Subtle radial glow */}
+          <div style={{
+            position: 'absolute',
+            top: 0,
+            right: 0,
+            width: '120px',
+            height: '120px',
+            background: 'radial-gradient(circle at 100% 0%, rgba(74,108,247,0.06) 0%, transparent 70%)',
+          }} />
+
+          <div className="flex items-center gap-3 mb-2.5">
             <div style={{
-              width: '36px',
-              height: '36px',
-              borderRadius: '10px',
-              backgroundColor: 'rgba(74,108,247,0.25)',
+              width: '40px',
+              height: '40px',
+              borderRadius: '12px',
+              background: 'linear-gradient(135deg, rgba(74,108,247,0.12), rgba(74,108,247,0.04))',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
               flexShrink: 0,
             }}>
-              <ShieldCheck size={18} color="#7B8FF7" weight="fill" />
+              <ShieldCheck size={20} color="#4A6CF7" weight="fill" />
             </div>
-
-            {/* Text */}
             <div style={{ flex: 1, minWidth: 0 }}>
-              <p style={{ fontSize: '13px', fontWeight: 700, color: '#0F1320' }}>
-                Your Trust Profile
+              <p style={{ fontSize: '14px', fontWeight: 600, color: '#0F1320', margin: 0, lineHeight: 1.2 }}>
+                Improve your trust score
               </p>
-              <p style={{ fontSize: '11px', color: '#8492A6', marginTop: '1px' }}>
-                Identity · Compliance docs
+              <p style={{ fontSize: '12px', color: '#8492A6', margin: '2px 0 0' }}>
+                {trustNudgeText}
               </p>
-              {hasDocWarning && (
-                <div className="flex items-center gap-1 mt-1.5">
-                  <Warning size={12} color="#E67E00" />
-                  <span style={{
-                    fontSize: '11px',
-                    fontWeight: 600,
-                    color: '#E67E00',
-                    backgroundColor: 'rgba(230,126,0,0.2)',
-                    padding: '1px 6px',
-                    borderRadius: '4px',
-                  }}>
-                    {docWarningText}
-                  </span>
-                </div>
-              )}
             </div>
+            {trustScorePotential > 0 && (
+              <div style={{
+                background: 'rgba(34,181,115,0.08)',
+                border: '1px solid rgba(34,181,115,0.15)',
+                borderRadius: '8px',
+                padding: '4px 10px',
+                fontSize: '12px',
+                fontWeight: 600,
+                color: '#22B573',
+                flexShrink: 0,
+              }}>
+                +{trustScorePotential} pts
+              </div>
+            )}
+          </div>
 
-            <CaretRight size={16} color="#B0BAC9" />
-          </button>
-        </div>
+          {/* Mini progress bar */}
+          <div className="flex items-center gap-2">
+            <div style={{ flex: 1, height: '4px', borderRadius: '2px', backgroundColor: '#F2F4F8', overflow: 'hidden' }}>
+              <div style={{
+                width: `${credibility?.score ?? 0}%`,
+                height: '100%',
+                borderRadius: '2px',
+                background: 'linear-gradient(90deg, #4A6CF7, #6B8AFF)',
+              }} />
+            </div>
+            <span style={{ fontSize: '11px', fontWeight: 600, color: '#4A6CF7' }}>
+              {credibility?.score ?? 0}
+            </span>
+            <span style={{ fontSize: '11px', color: '#8492A6' }}>/100</span>
+          </div>
+        </button>
       </div>
 
       {/* ── GREY BACKGROUND CONTENT ── */}
