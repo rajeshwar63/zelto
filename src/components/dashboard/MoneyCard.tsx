@@ -180,24 +180,6 @@ export function MoneyCard({ forecast, collectionItems, concentrationRisk, loadin
                     </button>
                   )
                 })}
-
-                {/* Total overdue row */}
-                {collectionItems.some(item => item.daysOverdue > 0) && (
-                  <div style={{
-                    marginTop: '8px', paddingTop: '8px',
-                    borderTop: '1px solid rgba(0,0,0,0.04)',
-                    display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-                  }}>
-                    <span style={{ fontSize: '12px', fontWeight: 600, color: '#0F1320' }}>Total overdue</span>
-                    <span style={{ fontSize: '14px', fontWeight: 700, color: '#E24B4A' }}>
-                      {formatInrCurrency(
-                        collectionItems
-                          .filter(item => item.daysOverdue > 0)
-                          .reduce((sum, item) => sum + item.overdueAmount, 0)
-                      )}
-                    </span>
-                  </div>
-                )}
               </>
             )}
           </div>
@@ -254,25 +236,6 @@ export function MoneyCard({ forecast, collectionItems, concentrationRisk, loadin
                     </p>
                   </div>
                 ))}
-
-                {/* Net position */}
-                {forecast!.netThisWeek !== 0 && (
-                  <div style={{
-                    marginTop: '10px', padding: '10px 12px',
-                    backgroundColor: forecast!.netThisWeek > 0 ? 'rgba(34,181,115,0.04)' : 'rgba(226,75,74,0.04)',
-                    borderRadius: '10px',
-                    border: `1px solid ${forecast!.netThisWeek > 0 ? 'rgba(34,181,115,0.08)' : 'rgba(226,75,74,0.08)'}`,
-                    display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-                  }}>
-                    <span style={{ fontSize: '12px', fontWeight: 500, color: '#0F1320' }}>Net inflow this week</span>
-                    <span style={{
-                      fontSize: '16px', fontWeight: 700,
-                      color: forecast!.netThisWeek > 0 ? '#22B573' : '#E24B4A',
-                    }}>
-                      {forecast!.netThisWeek > 0 ? '+' : ''}{formatInrCurrency(forecast!.netThisWeek)}
-                    </span>
-                  </div>
-                )}
               </>
             )}
           </div>
