@@ -8,9 +8,7 @@ import { useBusinessOverviewData } from '@/hooks/data/use-business-data'
 import { OrderCard } from '@/components/order/OrderCard'
 import { intelligenceEngine } from '@/lib/intelligence-engine'
 import type { CashForecast, CollectionItem, ConcentrationRisk } from '@/lib/intelligence-engine'
-import { CashForecastCard } from './dashboard/CashForecastCard'
-import { CollectionPriorityCard } from './dashboard/CollectionPriorityCard'
-import { ConcentrationRiskCard } from './dashboard/ConcentrationRiskCard'
+import { MoneyCard } from './dashboard/MoneyCard'
 
 function formatINR(amount: number): string {
   return amount.toLocaleString('en-IN', {
@@ -441,9 +439,13 @@ export function DashboardScreen({ currentBusinessId, onNavigateToOrders, onNavig
           </div>
         </div>
 
-        <CashForecastCard forecast={cashForecast} loading={intelLoading} />
-        <CollectionPriorityCard items={collectionItems} loading={intelLoading} onTapItem={(connId) => onNavigateToConnection(connId)} />
-        <ConcentrationRiskCard risk={concentrationRisk} loading={intelLoading} />
+        <MoneyCard
+          forecast={cashForecast}
+          collectionItems={collectionItems}
+          concentrationRisk={concentrationRisk}
+          loading={intelLoading}
+          onTapCollectionItem={(connId) => onNavigateToConnection(connId)}
+        />
 
         {onNavigateToSupplierDocs && (
           <ComplianceCard
