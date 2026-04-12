@@ -269,10 +269,6 @@ export function DashboardScreen({ currentBusinessId, onNavigateToOrders, onNavig
           </div>
         </div>
 
-        <CashForecastCard forecast={cashForecast} loading={intelLoading} />
-        <CollectionPriorityCard items={collectionItems} loading={intelLoading} onTapItem={(connId) => onNavigateToConnection(connId)} />
-        <ConcentrationRiskCard risk={concentrationRisk} loading={intelLoading} />
-
         <div>
           <h2 className="text-[10px] uppercase tracking-wide text-muted-foreground/60 mb-3">
             Needs Attention
@@ -444,6 +440,10 @@ export function DashboardScreen({ currentBusinessId, onNavigateToOrders, onNavig
               )}
           </div>
         </div>
+
+        <CashForecastCard forecast={cashForecast} loading={intelLoading} />
+        <CollectionPriorityCard items={collectionItems} loading={intelLoading} onTapItem={(connId) => onNavigateToConnection(connId)} />
+        <ConcentrationRiskCard risk={concentrationRisk} loading={intelLoading} />
 
         {onNavigateToSupplierDocs && (
           <ComplianceCard
