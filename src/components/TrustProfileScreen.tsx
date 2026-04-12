@@ -746,7 +746,11 @@ export function TrustProfileScreen({
                                     <Icon size={14} color="#4A6CF7" />
                                   </div>
                                   <span style={{ flex: 1, fontSize: '13px', fontWeight: 600, color: '#1A1F36' }}>{name}</span>
-                                  <span style={{ fontSize: '13px', fontWeight: 600, color: '#1A1F36' }}>
+                                  <span style={{
+                                    fontSize: '13px',
+                                    fontWeight: 600,
+                                    color: insufficient ? '#8492A6' : pct < 0.4 ? '#E24B4A' : pct < 0.7 ? '#EF9F27' : '#1A1F36',
+                                  }}>
                                     {insufficient ? '—' : pillar.score}/{pillar.max}
                                   </span>
                                 </div>
@@ -810,27 +814,35 @@ export function TrustProfileScreen({
                         <p style={{ fontSize: '13px', color: '#8492A6' }}>No insights available yet.</p>
                       </div>
                     ) : (
-                      insights.map((insight, idx) => (
-                        <div key={idx}>
-                          <div style={{ display: 'flex', alignItems: 'flex-start', gap: '10px', padding: '12px 16px' }}>
-                            <div style={{
-                              width: 6, height: 6, borderRadius: '50%', flexShrink: 0, marginTop: '5px',
-                              backgroundColor: insight.sentiment === 'positive' ? '#22B573' :
-                                insight.sentiment === 'warning' ? '#EF9F27' : '#8492A6',
-                            }} />
-                            <div style={{ flex: 1 }}>
-                              <p style={{ fontSize: '13px', fontWeight: 500, color: '#1A1F36', margin: 0 }}>
+                      insights.map((insight, idx) => {
+                        const sentimentColor =
+                          insight.sentiment === 'positive' ? '#22B573' :
+                          insight.sentiment === 'warning' ? '#EF9F27' : '#8492A6'
+                        const sentimentBg =
+                          insight.sentiment === 'positive' ? 'rgba(34,181,115,0.03)' :
+                          insight.sentiment === 'warning' ? 'rgba(239,159,39,0.03)' : 'transparent'
+
+                        return (
+                          <div key={idx} style={{
+                            display: 'flex',
+                            alignItems: 'flex-start',
+                            padding: '14px 14px 14px 16px',
+                            borderBottom: idx < insights.length - 1 ? '1px solid #F2F4F8' : 'none',
+                            borderLeft: `3px solid ${sentimentColor}`,
+                            backgroundColor: sentimentBg,
+                          }}>
+                            <div style={{ flex: 1, minWidth: 0 }}>
+                              <p style={{ fontSize: '13px', fontWeight: 500, color: '#1A1F36', margin: 0, lineHeight: 1.35 }}>
                                 {insight.text}
                               </p>
-                              <p style={{ fontSize: '11px', color: '#8492A6', margin: '2px 0 0' }}>
+                              <p style={{ fontSize: '11px', color: '#8492A6', margin: '3px 0 0' }}>
                                 {insight.category.charAt(0).toUpperCase() + insight.category.slice(1)}
                                 {insight.timeframe ? ` · ${insight.timeframe}` : ''}
                               </p>
                             </div>
                           </div>
-                          {idx < insights.length - 1 && <div style={{ height: '1px', backgroundColor: '#F2F4F8', marginLeft: '32px' }} />}
-                        </div>
-                      ))
+                        )
+                      })
                     )}
                   </div>
                 </div>
