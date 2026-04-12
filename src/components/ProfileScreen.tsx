@@ -19,7 +19,7 @@
 
 import { useEffect, useState, useRef } from 'react'
 import { dataStore } from '@/lib/data-store'
-import { Bell, PencilSimple, Check, X, CaretRight, ShareNetwork, ShieldCheck, Users, Receipt } from '@phosphor-icons/react'
+import { Bell, PencilSimple, Check, X, CaretRight, ShareNetwork, ShieldCheck, Users, Receipt, Package } from '@phosphor-icons/react'
 import { TrustBadge } from './TrustBadge'
 import { toast } from 'sonner'
 import { useProfileData } from '@/hooks/data/use-business-data'
@@ -38,6 +38,7 @@ interface Props {
   onNavigateToMembers?: () => void
   onNavigateToTeam?: () => void
   onNavigateToInvoiceSettings?: () => void
+  onNavigateToItemMaster?: () => void
 }
 
 function getInitials(name: string): string {
@@ -124,6 +125,7 @@ export function ProfileScreen({
   onNavigateToMembers,
   onNavigateToTeam,
   onNavigateToInvoiceSettings,
+  onNavigateToItemMaster,
 }: Props) {
   const { data, isInitialLoading: loading, refresh } = useProfileData(currentBusinessId)
   const business = data?.business ?? null
@@ -195,9 +197,12 @@ export function ProfileScreen({
           padding: '16px 20px 12px',
           paddingTop: 'max(16px, env(safe-area-inset-top))',
         }}>
-          <span style={{ color: '#0F1320', fontSize: '22px', fontWeight: 700, letterSpacing: '-0.3px' }}>
-            Profile
-          </span>
+          <div>
+            <p style={{ fontSize: '11px', color: 'rgba(132,146,166,0.8)', fontWeight: 500 }}>Business</p>
+            <span style={{ color: '#0F1320', fontSize: '22px', fontWeight: 700, letterSpacing: '-0.3px' }}>
+              Your business
+            </span>
+          </div>
         </div>
         <div className="flex items-center justify-center py-16">
           <p style={{ fontSize: '14px', fontWeight: 500, color: '#8492A6' }}>Loading...</p>
@@ -275,9 +280,12 @@ export function ProfileScreen({
         padding: '16px 20px 12px',
         paddingTop: 'max(16px, env(safe-area-inset-top))',
       }}>
-        <span style={{ color: '#0F1320', fontSize: '22px', fontWeight: 700, letterSpacing: '-0.3px' }}>
-          Profile
-        </span>
+        <div>
+          <p style={{ fontSize: '11px', color: 'rgba(132,146,166,0.8)', fontWeight: 500 }}>Business</p>
+          <span style={{ color: '#0F1320', fontSize: '22px', fontWeight: 700, letterSpacing: '-0.3px' }}>
+            Your business
+          </span>
+        </div>
         <button
           onClick={onNavigateToNotifications}
           style={{
@@ -615,6 +623,26 @@ export function ProfileScreen({
           </div>
         </div>
 
+        {/* CATALOG & INVOICING section */}
+        <SectionLabel>CATALOG & INVOICING</SectionLabel>
+        <div style={{ backgroundColor: '#FFFFFF', borderRadius: '14px', overflow: 'hidden', marginBottom: '20px' }}>
+          <MenuRow
+            icon={<Package size={18} color="#4A6CF7" weight="bold" />}
+            iconBg="#EEF0FF"
+            title="Item catalog"
+            subtitle="Manage your products & services"
+            onPress={onNavigateToItemMaster}
+          />
+          <MenuRow
+            icon={<Receipt size={18} color="#22C55E" weight="bold" />}
+            iconBg="#ECFDF5"
+            title="Invoice settings"
+            subtitle="Bank details, numbering, terms"
+            onPress={onNavigateToInvoiceSettings}
+            showDivider={false}
+          />
+        </div>
+
         {/* BUSINESS section */}
         <SectionLabel>BUSINESS</SectionLabel>
         <div style={{ backgroundColor: '#FFFFFF', borderRadius: '14px', overflow: 'hidden', marginBottom: '20px' }}>
@@ -630,13 +658,6 @@ export function ProfileScreen({
                   : `${members.length} members`
             }
             onPress={onNavigateToTeam}
-          />
-          <MenuRow
-            icon={<Receipt size={18} color="#22C55E" weight="bold" />}
-            iconBg="#ECFDF5"
-            title="Invoice settings"
-            subtitle="Items, bank details, numbering"
-            onPress={onNavigateToInvoiceSettings}
             showDivider={false}
           />
         </div>
