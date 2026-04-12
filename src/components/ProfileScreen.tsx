@@ -317,23 +317,16 @@ export function ProfileScreen({
         </button>
       </div>
 
-      {/* ── DARK BUSINESS CARD ── */}
+      {/* ── BUSINESS CARD ── */}
       <div style={{ padding: '0 14px 16px' }}>
         <div style={{
-          background: 'linear-gradient(135deg, #0F1320 0%, #1A2140 100%)',
+          backgroundColor: '#FFFFFF',
+          border: '1px solid rgba(0,0,0,0.08)',
           borderRadius: '20px',
           padding: '20px 18px 16px',
           position: 'relative',
           overflow: 'hidden',
         }}>
-          {/* Subtle dot pattern */}
-          <div style={{
-            position: 'absolute',
-            inset: 0,
-            opacity: 0.03,
-            backgroundImage: 'radial-gradient(circle at 2px 2px, #fff 1px, transparent 0)',
-            backgroundSize: '24px 24px',
-          }} />
 
           <div style={{ position: 'relative' }}>
             {/* Business name + badge */}
@@ -356,7 +349,7 @@ export function ProfileScreen({
               </div>
               <div style={{ flex: 1, minWidth: 0 }}>
                 <div className="flex items-center gap-2 flex-wrap">
-                  <span style={{ color: '#FFFFFF', fontSize: '17px', fontWeight: 600 }}>
+                  <span style={{ color: '#1A1F2E', fontSize: '17px', fontWeight: 600 }}>
                     {business.businessName}
                   </span>
                   {credibility && credibility.level !== 'none' && (
@@ -364,7 +357,7 @@ export function ProfileScreen({
                   )}
                 </div>
                 {businessTypeAndCity && (
-                  <p style={{ color: 'rgba(255,255,255,0.5)', fontSize: '12px', marginTop: '3px' }}>
+                  <p style={{ color: '#8492A6', fontSize: '12px', marginTop: '3px' }}>
                     {businessTypeAndCity}
                   </p>
                 )}
@@ -376,8 +369,7 @@ export function ProfileScreen({
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'space-between',
-              background: 'rgba(74,108,247,0.1)',
-              border: '1px solid rgba(74,108,247,0.18)',
+              backgroundColor: '#F2F4F8',
               borderRadius: '10px',
               padding: '9px 12px',
               marginBottom: '14px',
@@ -386,7 +378,7 @@ export function ProfileScreen({
                 fontFamily: '"DM Mono", "JetBrains Mono", "SF Mono", monospace',
                 fontSize: '14px',
                 fontWeight: 600,
-                color: '#FFFFFF',
+                color: '#1A1F2E',
                 letterSpacing: '0.1em',
               }}>
                 {business.zeltoId}
@@ -395,11 +387,11 @@ export function ProfileScreen({
                 onClick={handleShare}
                 className="flex items-center gap-1.5"
                 style={{
-                  background: 'rgba(255,255,255,0.1)',
-                  border: '1px solid rgba(255,255,255,0.12)',
+                  background: 'none',
+                  border: 'none',
                   borderRadius: '7px',
                   padding: '5px 12px',
-                  color: '#FFFFFF',
+                  color: '#4A6CF7',
                   fontSize: '11px',
                   fontWeight: 500,
                   cursor: 'pointer',
@@ -413,9 +405,9 @@ export function ProfileScreen({
             {/* Stats Row */}
             <div style={{
               display: 'flex',
-              background: 'rgba(255,255,255,0.04)',
+              backgroundColor: '#F7F8FA',
               borderRadius: '12px',
-              border: '1px solid rgba(255,255,255,0.06)',
+              border: '1px solid rgba(0,0,0,0.08)',
             }}>
               {[
                 { val: activityCounts?.connectionCount ?? 0, label: 'connections' },
@@ -426,10 +418,10 @@ export function ProfileScreen({
                   flex: 1,
                   textAlign: 'center',
                   padding: '10px 0',
-                  borderRight: i < 2 ? '1px solid rgba(255,255,255,0.06)' : 'none',
+                  borderRight: i < 2 ? '1px solid rgba(0,0,0,0.08)' : 'none',
                 }}>
                   <p style={{
-                    color: s.highlight ? '#6B8AFF' : '#FFFFFF',
+                    color: s.highlight ? '#4A6CF7' : '#1A1F2E',
                     fontSize: '18px',
                     fontWeight: 600,
                     margin: 0,
@@ -437,13 +429,13 @@ export function ProfileScreen({
                   }}>
                     {s.val}
                     {s.sub && (
-                      <span style={{ fontSize: '11px', fontWeight: 400, color: 'rgba(255,255,255,0.35)' }}>
+                      <span style={{ fontSize: '11px', fontWeight: 400, color: '#8492A6' }}>
                         {s.sub}
                       </span>
                     )}
                   </p>
                   <p style={{
-                    color: 'rgba(255,255,255,0.4)',
+                    color: '#8492A6',
                     fontSize: '10px',
                     margin: '3px 0 0',
                     letterSpacing: '0.02em',
