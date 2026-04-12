@@ -44,7 +44,7 @@ export function ConcentrationRiskCard({ risk, loading }: Props) {
           </p>
         </div>
         <p className="text-[11px] text-muted-foreground m-0 mt-1">
-          {risk.percentage}% of your {typeLabel} from 1 {connectionCount}
+          {risk.percentage}% of your {typeLabel} to 1 {connectionCount}
         </p>
         <div
           className="mt-3 rounded-full overflow-hidden"
