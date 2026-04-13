@@ -38,7 +38,7 @@ export function CashForecastCard({ forecast, loading }: Props) {
       label: `Inflow — ${bucket.label}`,
       sublabel: bucket.detail,
       amount: bucket.amount,
-      colorType: bucket.label === 'Uncertain' ? 'amber' : 'green',
+      colorType: 'green',
     })),
     ...forecast.outflows.map((bucket) => ({
       label: `Outflow — ${bucket.label}`,
