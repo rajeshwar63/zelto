@@ -1,5 +1,6 @@
 import type { CSSProperties } from 'react'
 import { formatInrCurrency } from '@/lib/utils'
+import { WarningCircle, CaretRight } from '@phosphor-icons/react'
 
 export interface OrderCardProps {
   itemSummary: string
@@ -92,7 +93,7 @@ function getDueDateText(
   calculatedDueDate: number | null,
   deliveredAt: number | null,
   latestActivity: number
-): { label: string; color: string; suffix: string; suffixColor: string } | null {
+): { label: string; color: string; suffix: string; suffixColor: string; hasOverdueIcon?: boolean } | null {
   const now = Date.now()
   const isPaid = settlementState === 'Paid'
 
@@ -117,7 +118,8 @@ function getDueDateText(
   if (isOverdue) {
     const days = Math.ceil((now - calculatedDueDate) / msPerDay)
     return {
-      label: `⚠ Overdue by ${days} day${days > 1 ? 's' : ''}`,
+      label: `Overdue by ${days} day${days > 1 ? 's' : ''}`,
+      hasOverdueIcon: true,
       color: '#E05555',
       suffix: `Due ${dateStr}`,
       suffixColor: '#8492A6',
@@ -259,7 +261,8 @@ export function OrderCard({
       {/* Row 4: Due label + due date */}
       {dueInfo && (
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <span style={{ fontSize: '13px', fontWeight: 600, color: dueInfo.color }}>
+          <span style={{ fontSize: '13px', fontWeight: 600, color: dueInfo.color, display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+            {dueInfo.hasOverdueIcon && <WarningCircle size={14} weight="fill" />}
             {dueInfo.label}
           </span>
           <span style={{ fontSize: '13px', color: dueInfo.suffixColor }}>
@@ -298,7 +301,7 @@ export function OrderCard({
           }}>
             Dispute open{disputeSummary ? ` · ${disputeSummary}` : ''}
           </span>
-          <span style={{ fontSize: '12px', color: '#8B5CF6' }}>›</span>
+          <CaretRight size={14} color="#8B5CF6" />
         </div>
       )}
     </button>

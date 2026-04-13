@@ -1,6 +1,7 @@
 import type { CSSProperties } from 'react'
 import { format } from 'date-fns'
 import { formatInrCurrency } from '@/lib/utils'
+import { WarningCircle, CaretRight } from '@phosphor-icons/react'
 
 export interface ConnectionDetailOrderCardProps {
   itemSummary: string
@@ -118,7 +119,7 @@ export function ConnectionDetailOrderCard({
     dateLabel = `Paid ${format(latestActivity, 'd MMM')}`
   } else if (isOverdue && calculatedDueDate != null) {
     const days = Math.ceil((now - calculatedDueDate) / 86400000)
-    statusLabel = `⚠ Overdue by ${days} day${days === 1 ? '' : 's'}`
+    statusLabel = `Overdue by ${days} day${days === 1 ? '' : 's'}`
     statusColor = '#E05555'
     dateLabel = `Due ${format(calculatedDueDate, 'd MMM')}`
   } else if (calculatedDueDate != null) {
@@ -203,7 +204,8 @@ export function ConnectionDetailOrderCard({
       {/* Row 3: Overdue/settled label (left) + due/settled date (right) */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '8px' }}>
         {statusLabel && (
-          <p style={{ fontSize: '13px', fontWeight: 600, color: statusColor }}>
+          <p style={{ fontSize: '13px', fontWeight: 600, color: statusColor, display: 'flex', alignItems: 'center', gap: '4px' }}>
+            {statusColor === '#E05555' && <WarningCircle size={14} weight="fill" />}
             {statusLabel}
           </p>
         )}
@@ -244,7 +246,7 @@ export function ConnectionDetailOrderCard({
           }}>
             Dispute open{disputeSummary ? ` · ${disputeSummary}` : ''}
           </span>
-          <span style={{ fontSize: '12px', color: '#8B5CF6' }}>›</span>
+          <CaretRight size={14} color="#8B5CF6" />
         </div>
       )}
     </button>

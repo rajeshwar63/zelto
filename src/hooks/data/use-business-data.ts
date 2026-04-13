@@ -52,6 +52,9 @@ interface BusinessOverviewData {
   recentOrders: EnrichedOrder[]
   attentionCounts: AttentionCounts
   credibility: CredibilityBreakdown | null
+  connectionCount: number
+  totalOrderCount: number
+  accountCreatedAt: number
 }
 
 interface AttentionItemWithConnection extends AttentionItem {
@@ -417,6 +420,9 @@ export function useBusinessOverviewData(currentBusinessId: string, isActive = tr
           pendingReceivedRequests,
         },
         credibility,
+        connectionCount: connections.length,
+        totalOrderCount: orders.length,
+        accountCreatedAt: entityMap.get(currentBusinessId)?.createdAt ?? Date.now(),
       }
     },
   })
