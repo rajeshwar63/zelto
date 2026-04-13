@@ -113,8 +113,11 @@ export function OrdersScreen({ currentBusinessId, onSelectOrder, initialFilter, 
   const [showPinHint, setShowPinHint] = useState(false)
   const [activeTab, setActiveTab] = useState<'intelligence' | null>(null)
   const [searchOpen, setSearchOpen] = useState(false)
+  const [stripVisible, setStripVisible] = useState(true)
   const searchInputRef = useRef<HTMLInputElement>(null)
   const stripRef = useRef<HTMLDivElement>(null)
+  const scrollListRef = useRef<HTMLDivElement>(null)
+  const lastScrollTop = useRef(0)
 
   // Long-press timer refs
   const pressTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
@@ -218,6 +221,23 @@ export function OrdersScreen({ currentBusinessId, onSelectOrder, initialFilter, 
       }, 100)
     }
   }, [initialParams, initialFilter])
+
+  // Hide search + pills on scroll down, reveal on scroll up
+  useEffect(() => {
+    const el = scrollListRef.current
+    if (!el) return
+    const handleScroll = () => {
+      const currentScrollTop = el.scrollTop
+      if (currentScrollTop > lastScrollTop.current && currentScrollTop > 10) {
+        setStripVisible(false)
+      } else if (currentScrollTop < lastScrollTop.current) {
+        setStripVisible(true)
+      }
+      lastScrollTop.current = currentScrollTop
+    }
+    el.addEventListener('scroll', handleScroll, { passive: true })
+    return () => el.removeEventListener('scroll', handleScroll)
+  }, [activeTab])
 
   const handleRoleChange = (newRole: RoleFilter) => {
     setRoleFilter(newRole)
@@ -536,8 +556,14 @@ export function OrdersScreen({ currentBusinessId, onSelectOrder, initialFilter, 
           </div>
         )}
 
-        {/* Unified Search + Filter Strip (hidden on Intelligence tab) */}
+        {/* Unified Search + Filter Strip (hidden on Intelligence tab, collapses on scroll down) */}
         {activeTab !== 'intelligence' && (
+          <div style={{
+            maxHeight: stripVisible ? 60 : 0,
+            opacity: stripVisible ? 1 : 0,
+            overflow: 'hidden',
+            transition: 'max-height 300ms ease, opacity 200ms ease',
+          }}>
           <div
             ref={stripRef}
             className="orders-strip"
@@ -660,6 +686,7 @@ export function OrdersScreen({ currentBusinessId, onSelectOrder, initialFilter, 
               )
             })}
           </div>
+          </div>
         )}
 
         {/* Divider */}
@@ -692,7 +719,7 @@ export function OrdersScreen({ currentBusinessId, onSelectOrder, initialFilter, 
       </div>
 
       {/* Order List */}
-      <div className={activeTab === 'intelligence' ? 'flex-1 overflow-y-auto pt-3 pb-24' : 'flex-1 overflow-y-auto px-4 pt-3 pb-24'}>
+      <div ref={scrollListRef} className={activeTab === 'intelligence' ? 'flex-1 overflow-y-auto pt-3 pb-24' : 'flex-1 overflow-y-auto px-4 pt-3 pb-24'}>
         {activeTab === 'intelligence' ? (
           <OrdersIntelligenceTab
             orders={orders}
