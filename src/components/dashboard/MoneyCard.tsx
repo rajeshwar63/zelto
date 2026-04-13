@@ -1,13 +1,15 @@
 import { useState } from 'react'
-import type { CashForecast, CollectionItem, ConcentrationRisk } from '@/lib/intelligence-engine'
+import type { CashForecast, CollectionItem, ConcentrationRisk, PaymentCalendarItem } from '@/lib/intelligence-engine'
 import { formatInrCurrency } from '@/lib/utils'
 
 interface Props {
   forecast: CashForecast | null
   collectionItems: CollectionItem[]
   concentrationRisk: ConcentrationRisk | null
+  paymentCalendar?: PaymentCalendarItem[]
   loading: boolean
   onTapCollectionItem: (connectionId: string) => void
+  onTapPaymentItem?: (connectionId: string) => void
   onTapForecastRow?: (type: 'inflow' | 'outflow', label: string) => void
 }
 
@@ -17,7 +19,7 @@ const RANK_STYLES: Record<number, { bg: string; text: string }> = {
   3: { bg: '#EFF6FF', text: '#1D4ED8' },
 }
 
-export function MoneyCard({ forecast, collectionItems, concentrationRisk, loading, onTapCollectionItem, onTapForecastRow }: Props) {
+export function MoneyCard({ forecast, collectionItems, concentrationRisk, paymentCalendar, loading, onTapCollectionItem, onTapPaymentItem, onTapForecastRow }: Props) {
   const [activeTab, setActiveTab] = useState<'collect' | 'forecast' | 'risk'>('collect')
 
   // Compute if tabs have data (for badge counts and empty states)
@@ -25,8 +27,14 @@ export function MoneyCard({ forecast, collectionItems, concentrationRisk, loadin
   const hasForecasts = forecast !== null && (forecast.inflows.length > 0 || forecast.outflows.length > 0)
   const hasRisk = concentrationRisk !== null && concentrationRisk.percentage > 50
 
+  // Determine which priority view to show
+  const showBuyerPriority = collectionItems.length === 0 && (paymentCalendar?.length ?? 0) > 0
+  const priorityCount = showBuyerPriority
+    ? Math.min(paymentCalendar?.length ?? 0, 3)
+    : (collectionItems.length > 0 ? Math.min(collectionItems.length, 3) : 0)
+
   // If nothing to show at all and not loading, don't render
-  if (!loading && collectCount === 0 && !hasForecasts && !hasRisk) return null
+  if (!loading && collectCount === 0 && (paymentCalendar?.length ?? 0) === 0 && !hasForecasts && !hasRisk) return null
 
   // Loading skeleton
   if (loading) {
@@ -68,7 +76,7 @@ export function MoneyCard({ forecast, collectionItems, concentrationRisk, loadin
   }
 
   const tabs: Array<{ id: 'collect' | 'forecast' | 'risk'; label: string; count?: number }> = [
-    { id: 'collect', label: 'Priority', count: collectCount > 0 ? Math.min(collectCount, 3) : undefined },
+    { id: 'collect', label: 'Priority', count: priorityCount > 0 ? priorityCount : undefined },
     { id: 'forecast', label: 'Cash Forecast' },
     { id: 'risk', label: 'Exposure' },
   ]
@@ -122,11 +130,75 @@ export function MoneyCard({ forecast, collectionItems, concentrationRisk, loadin
         {/* Collect Tab */}
         {activeTab === 'collect' && (
           <div style={{ padding: '12px 16px' }}>
-            {collectionItems.length === 0 ? (
+            {showBuyerPriority ? (
+              /* Buyer Priority: Payment Calendar */
+              <>
+                {paymentCalendar!.slice(0, 3).map((item, i, arr) => {
+                  const isOverdue = item.daysUntilDue < 0
+                  const isDueSoon = item.daysUntilDue >= 0 && item.daysUntilDue <= 3
+                  const rank = i + 1
+                  const rankStyle = RANK_STYLES[rank] ?? RANK_STYLES[3]
+
+                  return (
+                    <button
+                      key={item.orderId}
+                      onClick={() => onTapPaymentItem?.(item.connectionId)}
+                      style={{
+                        width: '100%', display: 'flex', alignItems: 'flex-start', gap: '10px',
+                        padding: '10px 0', textAlign: 'left',
+                        background: 'none', border: 'none', cursor: 'pointer',
+                        borderBottom: i < arr.length - 1 ? '1px solid rgba(0,0,0,0.04)' : 'none',
+                      }}
+                    >
+                      <div style={{
+                        width: '22px', height: '22px', borderRadius: '7px',
+                        backgroundColor: rankStyle.bg,
+                        display: 'flex', alignItems: 'center', justifyContent: 'center',
+                        fontSize: '11px', fontWeight: 700, color: rankStyle.text,
+                        flexShrink: 0, marginTop: '1px',
+                      }}>
+                        {rank}
+                      </div>
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <p style={{ fontSize: '13px', fontWeight: 600, color: '#0F1320', margin: 0 }}>
+                          {item.supplierName}
+                        </p>
+                        <p style={{ fontSize: '11px', color: '#8492A6', margin: '1px 0 0' }}>
+                          {isOverdue
+                            ? `${Math.abs(item.daysUntilDue)}d overdue`
+                            : isDueSoon
+                            ? `Due in ${item.daysUntilDue}d`
+                            : `Due in ${item.daysUntilDue} days`}
+                          {item.trustScoreIfLate !== null && item.trustScoreIfOnTime !== null && item.trustScoreIfLate < item.trustScoreIfOnTime
+                            ? ' · Late payment affects trust score'
+                            : ''}
+                        </p>
+                      </div>
+                      <div style={{ textAlign: 'right', flexShrink: 0 }}>
+                        <p style={{
+                          fontSize: '14px', fontWeight: 600, margin: 0,
+                          color: isOverdue ? '#E24B4A' : isDueSoon ? '#D97706' : '#0F1320',
+                        }}>
+                          {formatInrCurrency(item.amount)}
+                        </p>
+                        <p style={{
+                          fontSize: '11px', margin: '1px 0 0',
+                          color: isOverdue ? '#E24B4A' : '#8492A6',
+                          opacity: 0.8,
+                        }}>
+                          {isOverdue ? 'overdue' : `Due ${new Date(item.dueDate).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}`}
+                        </p>
+                      </div>
+                    </button>
+                  )
+                })}
+              </>
+            ) : collectionItems.length === 0 ? (
               <div style={{ padding: '16px 0', textAlign: 'center' }}>
-                <p style={{ fontSize: '13px', color: '#8492A6', margin: 0 }}>No pending collections</p>
+                <p style={{ fontSize: '13px', color: '#8492A6', margin: 0 }}>No pending priorities</p>
               </div>
             ) : (
+              /* Supplier Priority: Collection Items */
               <>
                 {collectionItems.slice(0, 3).map((item, i, arr) => {
                   const rank = i + 1
@@ -166,7 +238,7 @@ export function MoneyCard({ forecast, collectionItems, concentrationRisk, loadin
                       <div style={{ textAlign: 'right', flexShrink: 0 }}>
                         <p style={{
                           fontSize: '14px', fontWeight: 600, margin: 0,
-                          color: isOverdue ? '#E24B4A' : '#D97706',
+                          color: '#22B573',
                         }}>
                           {formatInrCurrency(item.overdueAmount)}
                         </p>

@@ -89,7 +89,7 @@ export function CollectionPriorityCard({ items, loading, onTapItem }: Props) {
               <div className="text-right flex-shrink-0">
                 <p
                   className="text-[14px] font-medium m-0"
-                  style={{ color: isOverdue ? '#E05555' : '#D97706' }}
+                  style={{ color: '#22B573' }}
                 >
                   {formatInrCurrency(item.overdueAmount)}
                 </p>
