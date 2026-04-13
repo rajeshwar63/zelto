@@ -56,7 +56,7 @@ export const TabIcons = {
   Home: House,
   Orders: ClipboardText,
   Connections: Handshake,
-  Profile: UserCircle,
+  Business: Buildings,
 } as const
 
 // Dashboard — Business Pulse icons
