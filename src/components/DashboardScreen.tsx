@@ -7,7 +7,7 @@ import { computeTrustScore, type TrustScoreBreakdown } from '@/lib/trust-score'
 import { useBusinessOverviewData } from '@/hooks/data/use-business-data'
 import { OrderCard } from '@/components/order/OrderCard'
 import { intelligenceEngine } from '@/lib/intelligence-engine'
-import type { CashForecast, CollectionItem, ConcentrationRisk } from '@/lib/intelligence-engine'
+import type { CashForecast, CollectionItem, ConcentrationRisk, PaymentCalendarItem } from '@/lib/intelligence-engine'
 import { MoneyCard } from './dashboard/MoneyCard'
 
 function formatINR(amount: number): string {
@@ -42,6 +42,7 @@ export function DashboardScreen({ currentBusinessId, onNavigateToOrders, onNavig
   const [cashForecast, setCashForecast] = useState<CashForecast | null>(null)
   const [collectionItems, setCollectionItems] = useState<CollectionItem[]>([])
   const [concentrationRisk, setConcentrationRisk] = useState<ConcentrationRisk | null>(null)
+  const [paymentCalendar, setPaymentCalendar] = useState<PaymentCalendarItem[]>([])
   const [intelLoading, setIntelLoading] = useState(true)
 
   useEffect(() => {
@@ -56,11 +57,13 @@ export function DashboardScreen({ currentBusinessId, onNavigateToOrders, onNavig
       intelligenceEngine.getCashForecast(currentBusinessId),
       intelligenceEngine.getCollectionPriority(currentBusinessId),
       intelligenceEngine.getConcentrationRisk(currentBusinessId),
+      intelligenceEngine.getPaymentCalendar(currentBusinessId),
     ])
-      .then(([forecast, items, risks]) => {
+      .then(([forecast, items, risks, calendar]) => {
         setCashForecast(forecast)
         setCollectionItems(items)
         setConcentrationRisk(risks.length > 0 ? risks[0] : null)
+        setPaymentCalendar(calendar)
       })
       .catch(() => {})
       .finally(() => setIntelLoading(false))
@@ -468,8 +471,10 @@ export function DashboardScreen({ currentBusinessId, onNavigateToOrders, onNavig
             forecast={cashForecast}
             collectionItems={collectionItems}
             concentrationRisk={concentrationRisk}
+            paymentCalendar={paymentCalendar}
             loading={intelLoading}
             onTapCollectionItem={(connId) => onNavigateToConnection(connId)}
+            onTapPaymentItem={(connId) => onNavigateToConnection(connId)}
             onTapForecastRow={(type, label) => {
               if (type === 'inflow') {
                 onNavigateToOrders(undefined, { role: 'selling', chip: 'delivered' })
