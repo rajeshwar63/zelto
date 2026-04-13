@@ -707,7 +707,7 @@ export function OrdersScreen({ currentBusinessId, onSelectOrder, initialFilter, 
               const hasSearch = orderFilters.searchText.trim().length > 0
               const hasChips = hasActiveFilters
               if (!hasSearch && !hasChips) {
-                return `${totalOrders} orders`
+                return null
               }
               if (hasSearch && hasChips) {
                 const chipLabels = activeStatusFilters.map(c => CHIP_LABELS[c]).join(' + ')
