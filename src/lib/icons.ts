@@ -33,7 +33,6 @@ import {
   Circle,
   Buildings,
   ShareNetwork,
-  Crown,
   FileText,
   ShieldCheck,
   SignOut,
@@ -91,7 +90,6 @@ export const StatusIcons = {
 export const ProfileIcons = {
   businessDetails: Buildings,
   shareZeltoId: ShareNetwork,
-  subscription: Crown,
   termsOfService: FileText,
   privacyPolicy: ShieldCheck,
   logout: SignOut,
@@ -147,7 +145,6 @@ export {
   Circle,
   Buildings,
   ShareNetwork,
-  Crown,
   FileText,
   ShieldCheck,
   SignOut,
