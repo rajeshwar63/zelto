@@ -1027,17 +1027,17 @@ function TabShell({
             onClick={() => onNavigateToTab('dashboard')}
           />
           <TabButton
-            label="Orders"
-            icon={<Package weight="regular" size={22} />}
-            active={activeTabScreen.tab === 'orders'}
-            onClick={() => onNavigateToTab('orders')}
-          />
-          <TabButton
             label="Connections"
             icon={<Users weight="regular" size={22} />}
             active={activeTabScreen.tab === 'connections'}
             onClick={() => onNavigateToTab('connections')}
             hasUnread={hasUnreadConnections}
+          />
+          <TabButton
+            label="Orders"
+            icon={<Package weight="regular" size={22} />}
+            active={activeTabScreen.tab === 'orders'}
+            onClick={() => onNavigateToTab('orders')}
           />
           <TabButton
             label="Business"
