@@ -139,14 +139,7 @@ export function ConnectionsScreen({ currentBusinessId, onSelectConnection, onAdd
 
     console.debug('[ConnectionsScreen] fetch end', Date.now(), { currentBusinessId })
 
-    connectionsWithState.sort((a, b) => {
-      if (a.outstandingBalance !== b.outstandingBalance) return b.outstandingBalance - a.outstandingBalance
-      const riskOrder: Record<ConnectionState, number> = { 'Under Stress': 3, 'Friction Rising': 2, 'Active': 1, 'Stable': 0 }
-      const riskA = riskOrder[a.computedState] ?? 0
-      const riskB = riskOrder[b.computedState] ?? 0
-      if (riskA !== riskB) return riskB - riskA
-      return b.createdAt - a.createdAt
-    })
+    connectionsWithState.sort((a, b) => b.createdAt - a.createdAt)
 
     if (!cachedConns || !isSameConnections(cachedConns, connectionsWithState)) {
       if (!cachedConnectionsByBusiness.has(currentBusinessId) && cachedConnectionsByBusiness.size >= MAX_CACHED_BUSINESSES) {
