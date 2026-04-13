@@ -113,7 +113,7 @@ export function OrdersScreen({ currentBusinessId, onSelectOrder, initialFilter, 
   const [showPinHint, setShowPinHint] = useState(false)
   const [activeTab, setActiveTab] = useState<'intelligence' | null>(null)
   const [searchOpen, setSearchOpen] = useState(false)
-  const [stripVisible, setStripVisible] = useState(true)
+  const [stripVisible, setStripVisible] = useState(false)
   const searchInputRef = useRef<HTMLInputElement>(null)
   const stripRef = useRef<HTMLDivElement>(null)
   const scrollListRef = useRef<HTMLDivElement>(null)
@@ -178,6 +178,7 @@ export function OrdersScreen({ currentBusinessId, onSelectOrder, initialFilter, 
     if (mapped) {
       setRoleFilter(mapped.role)
       setOrderFilters(prev => ({ ...prev, activeChips: new Set([mapped.chip]) }))
+      setStripVisible(true)
     }
   }, [initialFilter])
 
@@ -204,6 +205,11 @@ export function OrdersScreen({ currentBusinessId, onSelectOrder, initialFilter, 
         toDate: startOfDay(today),
       }))
     }
+
+    // Show strip when arriving via deep-link with pre-selected filters
+    if (initialParams.chip || initialParams.dateToday) {
+      setStripVisible(true)
+    }
   }, [initialParams])
 
   // Auto-scroll strip to show pre-selected pill on deep link
@@ -223,21 +229,17 @@ export function OrdersScreen({ currentBusinessId, onSelectOrder, initialFilter, 
   }, [initialParams, initialFilter])
 
   // Hide search + pills on scroll down, reveal on scroll up
-  useEffect(() => {
+  const handleListScroll = () => {
     const el = scrollListRef.current
     if (!el) return
-    const handleScroll = () => {
-      const currentScrollTop = el.scrollTop
-      if (currentScrollTop > lastScrollTop.current && currentScrollTop > 10) {
-        setStripVisible(false)
-      } else if (currentScrollTop < lastScrollTop.current) {
-        setStripVisible(true)
-      }
-      lastScrollTop.current = currentScrollTop
+    const currentScrollTop = el.scrollTop
+    if (currentScrollTop > lastScrollTop.current && currentScrollTop > 10) {
+      setStripVisible(false)
+    } else if (currentScrollTop < lastScrollTop.current) {
+      setStripVisible(true)
     }
-    el.addEventListener('scroll', handleScroll, { passive: true })
-    return () => el.removeEventListener('scroll', handleScroll)
-  }, [activeTab])
+    lastScrollTop.current = currentScrollTop
+  }
 
   const handleRoleChange = (newRole: RoleFilter) => {
     setRoleFilter(newRole)
@@ -245,6 +247,8 @@ export function OrdersScreen({ currentBusinessId, onSelectOrder, initialFilter, 
     // Reset filters when switching tabs to avoid confusion
     setOrderFilters(EMPTY_FILTERS)
     setSearchOpen(false)
+    setStripVisible(false)
+    lastScrollTop.current = 0
   }
 
   // Long-press handlers
@@ -719,7 +723,7 @@ export function OrdersScreen({ currentBusinessId, onSelectOrder, initialFilter, 
       </div>
 
       {/* Order List */}
-      <div ref={scrollListRef} className={activeTab === 'intelligence' ? 'flex-1 overflow-y-auto pt-3 pb-24' : 'flex-1 overflow-y-auto px-4 pt-3 pb-24'}>
+      <div ref={scrollListRef} onScroll={handleListScroll} className={activeTab === 'intelligence' ? 'flex-1 overflow-y-auto pt-3 pb-24' : 'flex-1 overflow-y-auto px-4 pt-3 pb-24'}>
         {activeTab === 'intelligence' ? (
           <OrdersIntelligenceTab
             orders={orders}
