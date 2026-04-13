@@ -251,20 +251,52 @@ export function ConnectionDetailScreen({ connectionId, currentBusinessId, onBack
           <button onClick={onBack} className="flex items-center" style={{ color: 'var(--text-primary)', minWidth: '44px', minHeight: '44px' }}>
             <CaretLeft size={20} weight="regular" />
           </button>
-          <div className="flex-1 min-w-0">
-            <h1 style={{ fontSize: '17px', fontWeight: 700, color: 'var(--text-primary)' }}>{otherBusiness.businessName}</h1>
+          <div className="flex-1 min-w-0" style={{ display: 'flex', alignItems: 'baseline', gap: '6px' }}>
+            <h1 style={{ fontSize: '17px', fontWeight: 700, color: 'var(--text-primary)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+              {otherBusiness.businessName}
+            </h1>
+            {(connection.branchLabel || connection.contactName) ? (
+              <span
+                onClick={() => setShowContactEdit(true)}
+                style={{
+                  fontSize: '11px',
+                  color: 'var(--text-secondary)',
+                  flexShrink: 0,
+                  maxWidth: '120px',
+                  overflow: 'hidden',
+                  textOverflow: 'ellipsis',
+                  whiteSpace: 'nowrap',
+                  cursor: 'pointer',
+                }}
+              >
+                {[connection.branchLabel, connection.contactName].filter(Boolean).join(' · ')}
+              </span>
+            ) : (
+              <span
+                onClick={() => setShowContactEdit(true)}
+                style={{
+                  fontSize: '11px',
+                  color: 'var(--brand-primary)',
+                  fontWeight: 500,
+                  cursor: 'pointer',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '3px',
+                  flexShrink: 0,
+                }}
+              >
+                <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="var(--brand-primary)" strokeWidth="2.5" strokeLinecap="round">
+                  <line x1="12" y1="5" x2="12" y2="19" />
+                  <line x1="5" y1="12" x2="19" y2="12" />
+                </svg>
+                Add info
+              </span>
+            )}
           </div>
-          {(connection.branchLabel || connection.contactName) && (
-            <span
-              onClick={() => setShowContactEdit(true)}
-              style={{ fontSize: '11px', color: 'var(--text-secondary)', flexShrink: 0, maxWidth: '120px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', cursor: 'pointer' }}>
-              {[connection.branchLabel, connection.contactName].filter(Boolean).join(' · ')}
-            </span>
-          )}
           <button
             onClick={() => setShowLedgerSheet(true)}
             className="flex items-center gap-1"
-            style={{ color: 'var(--brand-primary)', minWidth: '44px', minHeight: '44px', paddingLeft: '4px', paddingRight: '8px' }}
+            style={{ color: 'var(--brand-primary)', minHeight: '44px', paddingLeft: '4px', paddingRight: '0' }}
           >
             <DownloadSimple size={17} weight="bold" />
             <span style={{ fontSize: '13px', fontWeight: 600 }}>Ledger</span>
@@ -297,82 +329,108 @@ export function ConnectionDetailScreen({ connectionId, currentBusinessId, onBack
         className="flex-1 overflow-y-auto"
       >
 
-        {/* Stats Row — no card wrapper */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '10px 16px' }}>
-          <div style={{ flex: 1 }}>
-            <p style={{ fontSize: '10px', color: 'var(--text-secondary)', margin: 0, textTransform: 'uppercase', letterSpacing: '0.04em' }}>
-              {isSupplier ? 'Receivable' : 'Payable'}
-            </p>
-            <p style={{ fontSize: '18px', fontWeight: 700, color: isSupplier ? 'var(--status-delivered)' : 'var(--status-overdue)', margin: '1px 0 0' }}>
-              {formatInrCurrency(outstandingBalance)}
-            </p>
-          </div>
-          <div style={{ width: '0.5px', height: '28px', backgroundColor: 'var(--border-light)' }} />
-          <div style={{ flex: 1, textAlign: 'center' }}>
-            <p style={{ fontSize: '10px', color: 'var(--text-secondary)', margin: 0, textTransform: 'uppercase', letterSpacing: '0.04em' }}>Traded</p>
-            <p style={{ fontSize: '18px', fontWeight: 700, color: 'var(--text-primary)', margin: '1px 0 0' }}>
-              {formatInrCurrency(totalValue)}
-            </p>
-          </div>
-          <div style={{ width: '0.5px', height: '28px', backgroundColor: 'var(--border-light)' }} />
-          <div style={{ flex: 1, textAlign: 'right' }}>
-            <p style={{ fontSize: '10px', color: 'var(--text-secondary)', margin: 0, textTransform: 'uppercase', letterSpacing: '0.04em' }}>Orders</p>
-            <p style={{ fontSize: '18px', fontWeight: 700, color: 'var(--status-new)', margin: '1px 0 0' }}>
-              {totalOrders}
-            </p>
-          </div>
-        </div>
+        {/* Summary Card */}
+        <div style={{ margin: '12px 12px 0' }}>
+          <div style={{
+            backgroundColor: 'var(--bg-card)',
+            borderRadius: '14px',
+            border: '1px solid var(--border-light)',
+            overflow: 'hidden',
+          }}>
+            {/* Stats row — hero receivable + secondary metrics */}
+            <div style={{ display: 'flex', padding: '14px 16px 12px' }}>
+              <div style={{ flex: 1 }}>
+                <p style={{
+                  fontSize: '22px',
+                  fontWeight: 700,
+                  color: isSupplier ? 'var(--status-delivered)' : 'var(--status-overdue)',
+                  margin: 0,
+                  lineHeight: 1,
+                }}>
+                  {formatInrCurrency(outstandingBalance)}
+                </p>
+                <p style={{ fontSize: '11px', color: 'var(--text-secondary)', margin: '4px 0 0' }}>
+                  {isSupplier ? 'receivable' : 'payable'}
+                </p>
+              </div>
+              <div style={{ display: 'flex', gap: '16px', alignItems: 'flex-end' }}>
+                <div style={{ textAlign: 'right' }}>
+                  <p style={{ fontSize: '14px', fontWeight: 600, color: 'var(--text-primary)', margin: 0, lineHeight: 1 }}>
+                    {formatInrCurrency(totalValue)}
+                  </p>
+                  <p style={{ fontSize: '10px', color: 'var(--text-secondary)', margin: '3px 0 0' }}>traded</p>
+                </div>
+                <div style={{ textAlign: 'right' }}>
+                  <p style={{ fontSize: '14px', fontWeight: 600, color: 'var(--status-new)', margin: 0, lineHeight: 1 }}>
+                    {totalOrders}
+                  </p>
+                  <p style={{ fontSize: '10px', color: 'var(--text-secondary)', margin: '3px 0 0' }}>orders</p>
+                </div>
+              </div>
+            </div>
 
-        {/* Risk + Terms + Trust — single line */}
-        <div style={{
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          padding: '7px 16px',
-          borderTop: '0.5px solid var(--border-light)',
-        }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flex: 1, minWidth: 0 }}>
-            {connection.connectionState && connection.connectionState !== 'Stable' && connection.connectionState !== 'Active' && (() => {
-              const stateColor = getConnectionStateColor(connection.connectionState)
-              const stateLabel = getConnectionStateLabel(connection.connectionState)
+            {/* Risk + Terms + Edit + Trust row */}
+            {(() => {
+              const showRisk = connection.connectionState
+                && connection.connectionState !== 'Stable'
+                && connection.connectionState !== 'Active'
+              const stateColor = showRisk ? getConnectionStateColor(connection.connectionState) : null
+              const stateLabel = showRisk ? getConnectionStateLabel(connection.connectionState) : null
+
               return (
-                <>
-                  <div style={{ width: '6px', height: '6px', borderRadius: '50%', backgroundColor: stateColor, flexShrink: 0 }} />
-                  <span style={{ fontSize: '11px', fontWeight: 500, color: stateColor }}>{stateLabel}</span>
-                  <span style={{ fontSize: '11px', color: 'var(--text-secondary)' }}>·</span>
-                </>
+                <div style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  padding: '8px 16px',
+                  borderTop: '0.5px solid var(--border-light)',
+                  backgroundColor: showRisk ? `${stateColor}08` : 'transparent',
+                }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flex: 1, minWidth: 0 }}>
+                    {showRisk && (
+                      <>
+                        <div style={{ width: '6px', height: '6px', borderRadius: '50%', backgroundColor: stateColor!, flexShrink: 0 }} />
+                        <span style={{ fontSize: '11px', fontWeight: 500, color: stateColor! }}>{stateLabel}</span>
+                        <span style={{ fontSize: '11px', color: 'var(--text-secondary)' }}>·</span>
+                      </>
+                    )}
+                    <span style={{ fontSize: '11px', color: 'var(--text-secondary)' }}>
+                      {formatPaymentTerms(connection.paymentTerms)}
+                    </span>
+                    <span
+                      onClick={() => onNavigateToPaymentTermsSetup(connectionId, otherBusiness.businessName)}
+                      style={{ fontSize: '11px', color: 'var(--brand-primary)', fontWeight: 500, cursor: 'pointer' }}
+                    >
+                      Edit
+                    </span>
+                  </div>
+                  {onNavigateToTrustProfile && (
+                    <span
+                      onClick={() => onNavigateToTrustProfile(
+                        connection.buyerBusinessId === currentBusinessId
+                          ? connection.supplierBusinessId
+                          : connection.buyerBusinessId,
+                        connectionId
+                      )}
+                      style={{ fontSize: '11px', color: 'var(--brand-primary)', fontWeight: 500, cursor: 'pointer', flexShrink: 0 }}
+                    >
+                      Trust →
+                    </span>
+                  )}
+                </div>
               )
             })()}
-            <span style={{ fontSize: '11px', color: 'var(--text-secondary)' }}>
-              {formatPaymentTerms(connection.paymentTerms)}
-            </span>
-            <span
-              onClick={() => onNavigateToPaymentTermsSetup(connectionId, otherBusiness.businessName)}
-              style={{ fontSize: '11px', color: 'var(--brand-primary)', fontWeight: 500, cursor: 'pointer' }}
-            >
-              Edit
-            </span>
           </div>
-          {onNavigateToTrustProfile && (
-            <span
-              onClick={() => onNavigateToTrustProfile(
-                connection.buyerBusinessId === currentBusinessId ? connection.supplierBusinessId : connection.buyerBusinessId,
-                connectionId
-              )}
-              style={{ fontSize: '11px', color: 'var(--brand-primary)', fontWeight: 500, cursor: 'pointer', flexShrink: 0 }}
-            >
-              Trust →
-            </span>
-          )}
         </div>
 
         {/* Segmented Tab Control */}
         <div style={{
           display: 'flex',
-          backgroundColor: '#F2F4F8',
+          backgroundColor: 'var(--bg-card)',
           borderRadius: '10px',
           padding: '3px',
-          margin: '8px 14px 10px',
+          margin: '10px 12px 10px',
+          border: '1px solid var(--border-light)',
         }}>
           {(['orders', 'intelligence'] as const).map((tab) => {
             const isActive = activeConnectionTab === tab
@@ -385,19 +443,19 @@ export function ConnectionDetailScreen({ connectionId, currentBusinessId, onBack
                 style={{
                   flex: 1,
                   textAlign: 'center',
-                  padding: '7px 0',
+                  padding: '8px 0',
                   borderRadius: '8px',
                   fontSize: '12px',
                   fontWeight: isActive ? 600 : 400,
-                  color: isActive ? 'var(--text-primary)' : 'var(--text-secondary)',
-                  backgroundColor: isActive ? '#FFFFFF' : 'transparent',
-                  border: isActive ? '0.5px solid var(--border-light)' : '0.5px solid transparent',
-                  boxShadow: isActive ? '0 1px 3px rgba(0,0,0,0.04)' : 'none',
+                  color: isActive ? '#FFFFFF' : 'var(--text-secondary)',
+                  backgroundColor: isActive ? 'var(--brand-primary)' : 'transparent',
+                  border: 'none',
                   cursor: 'pointer',
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
                   gap: '4px',
+                  transition: 'all 150ms',
                 }}
               >
                 {label}
@@ -407,9 +465,9 @@ export function ConnectionDetailScreen({ connectionId, currentBusinessId, onBack
                     fontWeight: 700,
                     color: '#FFFFFF',
                     backgroundColor: isActive
-                      ? (tab === 'intelligence' && insights.some(i => i.sentiment === 'negative') ? '#E24B4A' : '#4A6CF7')
-                      : '#8492A6',
-                    borderRadius: '4px',
+                      ? 'rgba(255,255,255,0.25)'
+                      : 'var(--text-secondary)',
+                    borderRadius: '3px',
                     padding: '1px 5px',
                     lineHeight: '14px',
                   }}>
