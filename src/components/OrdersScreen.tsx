@@ -228,15 +228,15 @@ export function OrdersScreen({ currentBusinessId, onSelectOrder, initialFilter, 
     }
   }, [initialParams, initialFilter])
 
-  // Hide search + pills on scroll down, reveal on scroll up
+  // Show search + pills on scroll down, hide on scroll up
   const handleListScroll = () => {
     const el = scrollListRef.current
     if (!el) return
     const currentScrollTop = el.scrollTop
     if (currentScrollTop > lastScrollTop.current && currentScrollTop > 10) {
-      setStripVisible(false)
-    } else if (currentScrollTop < lastScrollTop.current) {
       setStripVisible(true)
+    } else if (currentScrollTop < lastScrollTop.current) {
+      setStripVisible(false)
     }
     lastScrollTop.current = currentScrollTop
   }
