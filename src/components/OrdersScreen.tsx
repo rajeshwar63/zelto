@@ -1,6 +1,8 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useOrdersData } from '@/hooks/data/use-business-data'
-import { PencilSimple, MagnifyingGlass, Faders } from '@phosphor-icons/react'
+import { PencilSimple, MagnifyingGlass, Faders, ClipboardText, Funnel } from '@phosphor-icons/react'
+import { EmptyState } from '@/components/EmptyState'
+import { AnimatedListItem } from '@/components/AnimatedListItem'
 import { OrderCard } from '@/components/order/OrderCard'
 import { OrdersIntelligenceTab } from './OrdersIntelligenceTab'
 import { InlineRefreshSpinner, ScreenRefreshIndicator, useScreenLoadState } from '@/components/ScreenLoadState'
@@ -751,42 +753,43 @@ export function OrdersScreen({ currentBusinessId, onSelectOrder, initialFilter, 
           </div>
         )}
         {filteredOrders.length === 0 ? (
-          <div className="flex items-center justify-center py-16">
-            <p style={{ fontSize: '13px', color: 'var(--text-secondary)' }}>
-              {orderFilters.activeChips.has('overdue')
-                ? 'No overdue orders.'
-                : roleFilter === 'all' && !hasActiveFilters && !orderFilters.searchText.trim()
-                ? 'No orders yet.'
-                : roleFilter === 'buying' && !hasActiveFilters && !orderFilters.searchText.trim()
-                ? 'No orders as buyer yet.'
-                : roleFilter === 'selling' && !hasActiveFilters && !orderFilters.searchText.trim()
-                ? 'No orders as supplier yet.'
-                : hasActiveFilters || orderFilters.searchText.trim()
-                ? 'No orders match your filters'
-                : 'No orders found'}
-            </p>
-          </div>
+          hasActiveFilters || orderFilters.searchText.trim() ? (
+            <EmptyState
+              icon={Funnel}
+              title="No orders match this filter"
+              description="Try adjusting the filter or clearing it to see all orders."
+              actionLabel="Clear filters"
+              onAction={() => { setOrderFilters(EMPTY_FILTERS); setRoleFilter('all') }}
+            />
+          ) : (
+            <EmptyState
+              icon={ClipboardText}
+              title={roleFilter === 'buying' ? 'No orders as buyer yet' : roleFilter === 'selling' ? 'No orders as supplier yet' : 'No orders to show'}
+              description="Orders you create or receive from connections will appear here."
+            />
+          )
         ) : (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--sp-md)' }}>
-            {filteredOrders.map(order => (
-              <OrderCard
-                key={order.id}
-                itemSummary={order.itemSummary}
-                connectionName={order.connectionName}
-                branchLabel={order.branchLabel}
-                contactName={order.contactName}
-                orderValue={order.orderValue}
-                pendingAmount={order.pendingAmount ?? Math.max(order.orderValue - order.totalPaid, 0)}
-                settlementState={order.settlementState}
-                lifecycleState={order.lifecycleState}
-                calculatedDueDate={order.calculatedDueDate}
-                deliveredAt={order.deliveredAt}
-                latestActivity={order.latestActivity}
-                isBuyer={order.isBuyer}
-                hasOpenDispute={order.hasOpenIssue}
-                disputeSummary={order.openIssueSummary}
-                onClick={() => onSelectOrder(order.id, order.connectionId)}
-              />
+            {filteredOrders.map((order, index) => (
+              <AnimatedListItem key={order.id} index={index}>
+                <OrderCard
+                  itemSummary={order.itemSummary}
+                  connectionName={order.connectionName}
+                  branchLabel={order.branchLabel}
+                  contactName={order.contactName}
+                  orderValue={order.orderValue}
+                  pendingAmount={order.pendingAmount ?? Math.max(order.orderValue - order.totalPaid, 0)}
+                  settlementState={order.settlementState}
+                  lifecycleState={order.lifecycleState}
+                  calculatedDueDate={order.calculatedDueDate}
+                  deliveredAt={order.deliveredAt}
+                  latestActivity={order.latestActivity}
+                  isBuyer={order.isBuyer}
+                  hasOpenDispute={order.hasOpenIssue}
+                  disputeSummary={order.openIssueSummary}
+                  onClick={() => onSelectOrder(order.id, order.connectionId)}
+                />
+              </AnimatedListItem>
             ))}
           </div>
         )}

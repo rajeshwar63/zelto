@@ -1,9 +1,41 @@
 import { useMemo } from 'react'
 import type { EnrichedOrder } from '@/hooks/data/use-business-data'
-import type { IntelligenceSegment, SegmentType } from '@/lib/orders-intelligence'
+import type { IntelligenceSegment, SegmentType, InsightIconName } from '@/lib/orders-intelligence'
 import { computeIntelligenceSegments } from '@/lib/orders-intelligence'
 import { formatInrCurrency } from '@/lib/utils'
 import type { StatusChip } from '@/components/order/OrderSearchPanel'
+import { CheckCircle, Package, Truck, WarningCircle, Scales, ChartBar, Clock, CurrencyCircleDollar, MapPin, LinkSimple, TrendUp, Star } from '@phosphor-icons/react'
+import { EmptyState } from '@/components/EmptyState'
+
+const INSIGHT_ICON_MAP: Record<InsightIconName, typeof CheckCircle> = {
+  check: CheckCircle,
+  package: Package,
+  truck: Truck,
+  warning: WarningCircle,
+  scales: Scales,
+  chart: ChartBar,
+  clock: Clock,
+  money: CurrencyCircleDollar,
+  pin: MapPin,
+  link: LinkSimple,
+  trend: TrendUp,
+  star: Star,
+}
+
+const INSIGHT_ICON_COLOR: Record<InsightIconName, string> = {
+  check: 'var(--status-delivered, #22B573)',
+  package: 'var(--status-new, #4A6CF7)',
+  truck: 'var(--status-dispatched, #FF8C42)',
+  warning: 'var(--status-overdue, #FF6B6B)',
+  scales: 'var(--status-dispute, #8B5CF6)',
+  chart: 'var(--brand-primary, #4A6CF7)',
+  clock: 'var(--status-dispatched, #FF8C42)',
+  money: 'var(--status-delivered, #22B573)',
+  pin: 'var(--text-secondary, #8492A6)',
+  link: 'var(--brand-primary, #4A6CF7)',
+  trend: 'var(--brand-primary, #4A6CF7)',
+  star: '#FFD700',
+}
 
 // ─── Segment color mapping ────────────────────────────────────────
 
@@ -105,8 +137,8 @@ function IntelligenceCard({ segment, onTap }: IntelligenceCardProps) {
             gap: 8,
             alignItems: 'flex-start',
           }}>
-            <span style={{ fontSize: 16, lineHeight: '1.5', flexShrink: 0 }}>
-              {insight.icon}
+            <span style={{ flexShrink: 0, display: 'flex', alignItems: 'center', paddingTop: '2px' }}>
+              {(() => { const Icon = INSIGHT_ICON_MAP[insight.icon]; return <Icon size={16} weight="duotone" color={INSIGHT_ICON_COLOR[insight.icon]} /> })()}
             </span>
             <span style={{
               fontSize: 13,
@@ -143,21 +175,11 @@ export function OrdersIntelligenceTab({ orders, role, onNavigateToTab }: OrdersI
   if (totalOrderCount === 0) {
     return (
       <div style={{ padding: 16 }}>
-        <div style={{
-          background: 'var(--bg-card)',
-          borderRadius: 14,
-          padding: 24,
-          textAlign: 'center',
-        }}>
-          <p style={{
-            fontSize: 14,
-            color: 'var(--text-secondary)',
-            margin: 0,
-            lineHeight: 1.6,
-          }}>
-            No orders yet. Place your first order to start seeing intelligence.
-          </p>
-        </div>
+        <EmptyState
+          icon={Package}
+          title="No intelligence yet"
+          description="Place your first order to start seeing intelligence and insights."
+        />
       </div>
     )
   }
@@ -166,21 +188,11 @@ export function OrdersIntelligenceTab({ orders, role, onNavigateToTab }: OrdersI
   if (segments.length === 0) {
     return (
       <div style={{ padding: 16 }}>
-        <div style={{
-          background: 'var(--bg-card)',
-          borderRadius: 14,
-          padding: 24,
-          textAlign: 'center',
-        }}>
-          <p style={{
-            fontSize: 14,
-            color: 'var(--text-secondary)',
-            margin: 0,
-            lineHeight: 1.6,
-          }}>
-            No active orders in this view.
-          </p>
-        </div>
+        <EmptyState
+          icon={Package}
+          title="No active orders"
+          description="No active orders in this view."
+        />
       </div>
     )
   }

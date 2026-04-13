@@ -5,8 +5,10 @@ import { formatInrCurrency } from './utils'
 
 export type SegmentType = 'new' | 'accepted' | 'dispatched' | 'delivered' | 'overdue' | 'paid'
 
+export type InsightIconName = 'check' | 'package' | 'truck' | 'warning' | 'scales' | 'chart' | 'clock' | 'money' | 'pin' | 'link' | 'trend' | 'star'
+
 export interface InsightLine {
-  icon: string
+  icon: InsightIconName
   text: string
   priority: number // lower = higher priority
 }
@@ -47,7 +49,7 @@ function buildNewOrdersInsights(orders: EnrichedOrder[], role: Role, totalOrderC
       const pct = Math.round((topBuyer[1] / orders.length) * 100)
       if (pct > 50) {
         insights.push({
-          icon: '📊',
+          icon: 'chart',
           text: `${topBuyer[1]} of ${orders.length} are from ${topBuyer[0]} — ${pct}% of your new order volume is from 1 buyer`,
           priority: 2,
         })
@@ -59,7 +61,7 @@ function buildNewOrdersInsights(orders: EnrichedOrder[], role: Role, totalOrderC
     if (staleOrders.length > 0) {
       const hours = roundHours(now - Math.min(...staleOrders.map(o => o.createdAt)))
       insights.push({
-        icon: '⏱',
+        icon: 'clock',
         text: `${staleOrders.length} ${staleOrders.length === 1 ? 'order' : 'orders'} placed ${hours}h+ ago with no response — acceptance delay affects how buyers evaluate your reliability`,
         priority: 1,
       })
@@ -67,7 +69,7 @@ function buildNewOrdersInsights(orders: EnrichedOrder[], role: Role, totalOrderC
       const allFresh = orders.every(o => now - o.createdAt < 24 * 3600000)
       if (allFresh && orders.length > 0 && totalOrderCount >= 5) {
         insights.push({
-          icon: '✅',
+          icon: 'check',
           text: 'All orders received within 24h. You\'re responding fast.',
           priority: 4,
         })
@@ -85,7 +87,7 @@ function buildNewOrdersInsights(orders: EnrichedOrder[], role: Role, totalOrderC
       if (topItems.length > 0 && topItems[0][1] > 1) {
         const itemStr = topItems.map(([name, count]) => `${name} (${count})`).join(', ')
         insights.push({
-          icon: '📦',
+          icon: 'package',
           text: `Top items this week: ${itemStr}. Check stock levels.`,
           priority: 3,
         })
@@ -96,7 +98,7 @@ function buildNewOrdersInsights(orders: EnrichedOrder[], role: Role, totalOrderC
     const staleOrders = orders.filter(o => now - o.createdAt > 48 * 3600000)
     if (staleOrders.length > 0) {
       insights.push({
-        icon: '⏱',
+        icon: 'clock',
         text: `${staleOrders.length} ${staleOrders.length === 1 ? 'order' : 'orders'} still awaiting supplier acceptance after 48h`,
         priority: 1,
       })
@@ -108,7 +110,7 @@ function buildNewOrdersInsights(orders: EnrichedOrder[], role: Role, totalOrderC
     if (supplierCounts.size > 1) {
       const topSupplier = [...supplierCounts.entries()].sort((a, b) => b[1] - a[1])[0]
       insights.push({
-        icon: '📊',
+        icon: 'chart',
         text: `Orders spread across ${supplierCounts.size} suppliers — ${topSupplier[0]} has ${topSupplier[1]} pending`,
         priority: 3,
       })
@@ -116,7 +118,7 @@ function buildNewOrdersInsights(orders: EnrichedOrder[], role: Role, totalOrderC
 
     if (staleOrders.length === 0 && orders.length > 0 && totalOrderCount >= 5) {
       insights.push({
-        icon: '✅',
+        icon: 'check',
         text: 'All recent orders accepted promptly — your suppliers are responsive',
         priority: 4,
       })
@@ -141,13 +143,13 @@ function buildAcceptedInsights(orders: EnrichedOrder[], role: Role, totalOrderCo
 
     if (past48h.length > 0) {
       insights.push({
-        icon: '⏱',
+        icon: 'clock',
         text: `${past48h.length} past 48h dispatch window — buyers see slow response times on your profile`,
         priority: 1,
       })
     } else if (approaching48h.length > 0) {
       insights.push({
-        icon: '⏱',
+        icon: 'clock',
         text: `${approaching48h.length} approaching 48h threshold — dispatch soon to maintain your response time average`,
         priority: 1,
       })
@@ -164,7 +166,7 @@ function buildAcceptedInsights(orders: EnrichedOrder[], role: Role, totalOrderCo
     if (bundleable.length > 0) {
       const top = bundleable.sort((a, b) => b[1].length - a[1].length)[0]
       insights.push({
-        icon: '🚚',
+        icon: 'truck',
         text: `${top[1].length} orders share the same item (${top[0]}) — consider bundling dispatch`,
         priority: 3,
       })
@@ -176,7 +178,7 @@ function buildAcceptedInsights(orders: EnrichedOrder[], role: Role, totalOrderCo
         orders.reduce((sum, o) => sum + (now - o.acceptedAt!), 0) / orders.length / 3600000
       )
       insights.push({
-        icon: '📊',
+        icon: 'chart',
         text: `Average time in accepted: ${avgHours}h`,
         priority: 3,
       })
@@ -184,7 +186,7 @@ function buildAcceptedInsights(orders: EnrichedOrder[], role: Role, totalOrderCo
 
     // Pipeline value
     insights.push({
-      icon: '💰',
+      icon: 'money',
       text: `Once dispatched, ${formatInrCurrency(totalValue)} moves to in-transit pipeline`,
       priority: 4,
     })
@@ -203,13 +205,13 @@ function buildAcceptedInsights(orders: EnrichedOrder[], role: Role, totalOrderCo
     if (slowSuppliers.length > 0) {
       const top = slowSuppliers.sort((a, b) => b[1].maxHours - a[1].maxHours)[0]
       insights.push({
-        icon: '⏱',
+        icon: 'clock',
         text: `${top[1].count} ${top[1].count === 1 ? 'order' : 'orders'} awaiting dispatch from ${top[0]} for ${Math.round(top[1].maxHours)}h`,
         priority: 1,
       })
     } else if (totalOrderCount >= 5) {
       insights.push({
-        icon: '✅',
+        icon: 'check',
         text: 'All accepted orders within normal dispatch window',
         priority: 4,
       })
@@ -230,13 +232,13 @@ function buildDispatchedInsights(orders: EnrichedOrder[], role: Role, totalOrder
     if (longTransit.length > 0) {
       const avgDays = Math.round(longTransit.reduce((sum, o) => sum + (now - o.dispatchedAt!), 0) / longTransit.length / 86400000)
       insights.push({
-        icon: '📍',
+        icon: 'pin',
         text: `${longTransit.length} ${longTransit.length === 1 ? 'order' : 'orders'} in transit for ${avgDays}+ days`,
         priority: 2,
       })
     } else if (totalOrderCount >= 5) {
       insights.push({
-        icon: '✅',
+        icon: 'check',
         text: 'All shipments within normal delivery window',
         priority: 4,
       })
@@ -244,7 +246,7 @@ function buildDispatchedInsights(orders: EnrichedOrder[], role: Role, totalOrder
 
     // Cash impact
     insights.push({
-      icon: '💰',
+      icon: 'money',
       text: `Once delivered, ${formatInrCurrency(totalValue)} becomes payable`,
       priority: 3,
     })
@@ -254,13 +256,13 @@ function buildDispatchedInsights(orders: EnrichedOrder[], role: Role, totalOrder
     orders.forEach(o => buyerCounts.set(o.connectionName, (buyerCounts.get(o.connectionName) || 0) + 1))
 
     insights.push({
-      icon: '🚚',
+      icon: 'truck',
       text: `${formatInrCurrency(totalValue)} in transit to ${buyerCounts.size} ${buyerCounts.size === 1 ? 'buyer' : 'buyers'}`,
       priority: 3,
     })
 
     insights.push({
-      icon: '💰',
+      icon: 'money',
       text: `Once delivered, ${formatInrCurrency(totalValue)} becomes collectible`,
       priority: 4,
     })
@@ -290,13 +292,13 @@ function buildDeliveredInsights(orders: EnrichedOrder[], role: Role, totalOrderC
       const dueAmount = dueThisWeek.reduce((sum, o) => sum + o.pendingAmount, 0)
       if (dueThisWeek.length > 0) {
         insights.push({
-          icon: '💰',
+          icon: 'money',
           text: `${withinTerms.length} of ${orders.length} within payment terms. ${formatInrCurrency(dueAmount)} due this week`,
           priority: 3,
         })
       } else {
         insights.push({
-          icon: '💰',
+          icon: 'money',
           text: `${withinTerms.length} of ${orders.length} within payment terms`,
           priority: 3,
         })
@@ -307,7 +309,7 @@ function buildDeliveredInsights(orders: EnrichedOrder[], role: Role, totalOrderC
       // Count unique buyers past terms
       const pastTermBuyers = new Set(pastTerms.map(o => o.connectionName))
       insights.push({
-        icon: '⚠️',
+        icon: 'warning',
         text: `${pastTermBuyers.size} ${pastTermBuyers.size === 1 ? 'buyer has' : 'buyers have'} crossed payment term window — follow up today`,
         priority: 1,
       })
@@ -325,7 +327,7 @@ function buildDeliveredInsights(orders: EnrichedOrder[], role: Role, totalOrderC
       const largestPending = [...buyerPending.entries()].sort((a, b) => b[1].amount - a[1].amount)[0]
       if (largestPending && largestPending[1].count > 1) {
         insights.push({
-          icon: '🔗',
+          icon: 'link',
           text: `Largest pending: ${largestPending[0]} ${formatInrCurrency(largestPending[1].amount)} across ${largestPending[1].count} orders`,
           priority: 2,
         })
@@ -342,7 +344,7 @@ function buildDeliveredInsights(orders: EnrichedOrder[], role: Role, totalOrderC
 
     if (pastDue.length > 0) {
       insights.push({
-        icon: '⚠️',
+        icon: 'warning',
         text: `${pastDue.length} ${pastDue.length === 1 ? 'payment' : 'payments'} overdue — your payment reliability score is affected`,
         priority: 1,
       })
@@ -351,7 +353,7 @@ function buildDeliveredInsights(orders: EnrichedOrder[], role: Role, totalOrderC
     if (dueThisWeek.length > 0) {
       const dueAmount = dueThisWeek.reduce((sum, o) => sum + o.pendingAmount, 0)
       insights.push({
-        icon: '💰',
+        icon: 'money',
         text: `${dueThisWeek.length} ${dueThisWeek.length === 1 ? 'payment' : 'payments'} due this week totalling ${formatInrCurrency(dueAmount)}`,
         priority: 2,
       })
@@ -359,7 +361,7 @@ function buildDeliveredInsights(orders: EnrichedOrder[], role: Role, totalOrderC
 
     if (pastDue.length === 0 && dueThisWeek.length === 0 && totalOrderCount >= 5) {
       insights.push({
-        icon: '✅',
+        icon: 'check',
         text: 'All recent deliveries paid within terms',
         priority: 4,
       })
@@ -390,7 +392,7 @@ function buildOverdueInsights(orders: EnrichedOrder[], role: Role, hasOpenIssues
       const pct = Math.round((topOverdue[1] / totalOverdue) * 100)
       if (pct > 50) {
         insights.push({
-          icon: '📊',
+          icon: 'chart',
           text: `${formatInrCurrency(topOverdue[1])} awaiting collection from buyer ${topOverdue[0]} — ${pct}% of total overdue`,
           priority: 1,
         })
@@ -398,7 +400,7 @@ function buildOverdueInsights(orders: EnrichedOrder[], role: Role, hasOpenIssues
     }
 
     insights.push({
-      icon: '📈',
+      icon: 'trend',
       text: `Average collection delay: ${avgDelayDays} ${avgDelayDays === 1 ? 'day' : 'days'} past terms`,
       priority: 2,
     })
@@ -407,7 +409,7 @@ function buildOverdueInsights(orders: EnrichedOrder[], role: Role, hasOpenIssues
     const overdueWithIssues = orders.filter(o => o.hasOpenIssue)
     if (overdueWithIssues.length > 0) {
       insights.push({
-        icon: '⚖️',
+        icon: 'scales',
         text: `${overdueWithIssues.length} of ${orders.length} have open disputes — collection likely blocked until resolved`,
         priority: 1,
       })
@@ -415,13 +417,13 @@ function buildOverdueInsights(orders: EnrichedOrder[], role: Role, hasOpenIssues
   } else {
     // Buying view
     insights.push({
-      icon: '⚠️',
+      icon: 'warning',
       text: `${orders.length} ${orders.length === 1 ? 'payment' : 'payments'} overdue totalling ${formatInrCurrency(totalOverdue)} — your payments overdue`,
       priority: 1,
     })
 
     insights.push({
-      icon: '📈',
+      icon: 'trend',
       text: `Average delay: ${avgDelayDays} ${avgDelayDays === 1 ? 'day' : 'days'} — longer delays affect your reliability score`,
       priority: 2,
     })
@@ -430,7 +432,7 @@ function buildOverdueInsights(orders: EnrichedOrder[], role: Role, hasOpenIssues
     const overdueWithIssues = orders.filter(o => o.hasOpenIssue)
     if (overdueWithIssues.length > 0) {
       insights.push({
-        icon: '⚖️',
+        icon: 'scales',
         text: `${overdueWithIssues.length} of ${orders.length} have open disputes — resolve to clear your overdue status`,
         priority: 1,
       })
@@ -457,7 +459,7 @@ function buildPaidInsights(orders: EnrichedOrder[], role: Role, totalOrderCount:
         .sort((a, b) => b[1].length - a[1].length)[0]
       if (bestBuyer) {
         insights.push({
-          icon: '⭐',
+          icon: 'star',
           text: `Most reliable: ${bestBuyer[0]} — paid all ${bestBuyer[1].length} orders`,
           priority: 4,
         })
@@ -465,7 +467,7 @@ function buildPaidInsights(orders: EnrichedOrder[], role: Role, totalOrderCount:
     }
 
     insights.push({
-      icon: '📈',
+      icon: 'trend',
       text: `${formatInrCurrency(totalCollected)} collected this month`,
       priority: 3,
     })
@@ -473,7 +475,7 @@ function buildPaidInsights(orders: EnrichedOrder[], role: Role, totalOrderCount:
     // Buying view
     const supplierCount = new Set(orders.map(o => o.connectionName)).size
     insights.push({
-      icon: '💰',
+      icon: 'money',
       text: `${formatInrCurrency(totalCollected)} settled this month across ${supplierCount} ${supplierCount === 1 ? 'supplier' : 'suppliers'}`,
       priority: 3,
     })

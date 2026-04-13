@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { CaretLeft, X } from '@phosphor-icons/react'
+import { CaretLeft, X, CaretRight } from '@phosphor-icons/react'
 import { deleteAccount } from '@/lib/auth'
 import { toast } from 'sonner'
 
@@ -44,7 +44,7 @@ export function AccountScreen({ onBack, onLogout, onDeleteAccount }: Props) {
           className="w-full flex items-center justify-between py-3 border-b border-border hover:bg-muted/30 transition-colors"
         >
           <p className="text-[14px] text-foreground">Change Email</p>
-          <span className="text-muted-foreground text-[14px]">›</span>
+          <CaretRight size={16} color="var(--text-muted)" />
         </button>
       </div>
 
@@ -64,7 +64,7 @@ export function AccountScreen({ onBack, onLogout, onDeleteAccount }: Props) {
           className="w-full flex items-center justify-between py-3 hover:bg-muted/30 transition-colors"
         >
           <p className="text-[14px]" style={{ color: 'var(--status-overdue)' }}>Delete Account</p>
-          <span className="text-muted-foreground text-[14px]">›</span>
+          <CaretRight size={16} color="var(--text-muted)" />
         </button>
       </div>
 

@@ -5,8 +5,9 @@ import { behaviourEngine } from '@/lib/behaviour-engine'
 import { useDataListener } from '@/lib/data-events'
 import type { Connection, ConnectionState } from '@/lib/types'
 import { getConnectionStateLabel, getConnectionStateColor } from '@/lib/connection-state-utils'
-import { Users, UsersThree, PencilSimple, MagnifyingGlass, DownloadSimple, X } from '@phosphor-icons/react'
-import { Phone, MapPin, User } from 'lucide-react'
+import { Users, UsersThree, PencilSimple, MagnifyingGlass, DownloadSimple, X, Phone, MapPin, User } from '@phosphor-icons/react'
+import { EmptyState } from '@/components/EmptyState'
+import { AnimatedListItem } from '@/components/AnimatedListItem'
 import { LedgerDownloadSheet } from '@/components/LedgerDownloadSheet'
 
 interface ConnectionWithState extends Connection {
@@ -298,25 +299,14 @@ export function ConnectionsScreen({ currentBusinessId, onSelectConnection, onAdd
           ))}
         </div>
       ) : connections.length === 0 ? (
-        <div className="flex flex-col items-center justify-center px-6 text-center" style={{ flex: 1 }}>
-          <p style={{ fontSize: '15px', fontWeight: 600, color: 'var(--text-primary)', marginBottom: '4px' }}>No connections yet</p>
-          <p style={{ fontSize: '14px', fontWeight: 500, color: 'var(--text-secondary)', marginBottom: '16px' }}>
-            Add your first buyer or supplier to get started
-          </p>
-          <button
-            onClick={onAddConnection}
-            style={{
-              backgroundColor: 'var(--brand-primary)',
-              color: '#FFFFFF',
-              borderRadius: 'var(--radius-button)',
-              padding: '10px 20px',
-              fontSize: '14px',
-              fontWeight: 600,
-              minHeight: '44px',
-            }}
-          >
-            Add Connection
-          </button>
+        <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <EmptyState
+            icon={UsersThree}
+            title="No connections yet"
+            description="Share your Zelto ID with buyers and suppliers, or add them by their Zelto ID."
+            actionLabel="Add connection"
+            onAction={onAddConnection}
+          />
         </div>
       ) : (
       <div

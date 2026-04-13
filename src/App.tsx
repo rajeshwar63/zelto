@@ -21,7 +21,7 @@ import { NotificationSettingsScreen } from '@/components/NotificationSettingsScr
 import { AccountScreen } from '@/components/AccountScreen'
 import { HelpSupportScreen } from '@/components/HelpSupportScreen'
 import { ReportIssueScreen } from '@/components/ReportIssueScreen'
-import { House, Users, Package, Buildings, Bell } from '@phosphor-icons/react'
+import { House, ClipboardText, Handshake, UserCircle } from '@phosphor-icons/react'
 import { AttentionScreen } from '@/components/AttentionScreen'
 import { IncomingRequestsScreen } from '@/components/IncomingRequestsScreen'
 import { getAuthState, getLocalAuthSessionSync, logout, clearAuthSession } from '@/lib/auth'
@@ -1022,26 +1022,26 @@ function TabShell({
         <div className="flex items-center justify-around" style={{ height: '80px', paddingTop: '10px' }}>
           <TabButton
             label="Home"
-            icon={<House weight="regular" size={22} />}
+            Icon={House}
             active={activeTabScreen.tab === 'dashboard'}
             onClick={() => onNavigateToTab('dashboard')}
           />
           <TabButton
             label="Connections"
-            icon={<Users weight="regular" size={22} />}
+            Icon={Handshake}
             active={activeTabScreen.tab === 'connections'}
             onClick={() => onNavigateToTab('connections')}
             hasUnread={hasUnreadConnections}
           />
           <TabButton
             label="Orders"
-            icon={<Package weight="regular" size={22} />}
+            Icon={ClipboardText}
             active={activeTabScreen.tab === 'orders'}
             onClick={() => onNavigateToTab('orders')}
           />
           <TabButton
-            label="Business"
-            icon={<Buildings weight="regular" size={22} />}
+            label="Profile"
+            Icon={UserCircle}
             active={activeTabScreen.tab === 'profile'}
             onClick={() => onNavigateToTab('profile')}
           />
@@ -1053,13 +1053,13 @@ function TabShell({
 
 function TabButton({
   label,
-  icon,
+  Icon,
   active,
   onClick,
   hasUnread,
 }: {
   label: string
-  icon: React.ReactNode
+  Icon: React.ComponentType<{ size?: number; weight?: 'thin' | 'light' | 'regular' | 'bold' | 'fill' | 'duotone'; color?: string }>
   active: boolean
   onClick: () => void
   hasUnread?: boolean
@@ -1070,8 +1070,8 @@ function TabButton({
       className="flex flex-col items-center justify-center gap-0.5 py-1 px-3 relative"
       style={{ minWidth: '70px', minHeight: '44px' }}
     >
-      <span className="relative" style={{ color: active ? 'var(--brand-primary)' : 'var(--text-secondary)', filter: active ? 'none' : 'grayscale(1)', opacity: active ? 1 : 0.5 }}>
-        {icon}
+      <span className="relative" style={{ color: active ? 'var(--brand-primary)' : 'var(--text-secondary)', opacity: active ? 1 : 0.6 }}>
+        <Icon size={24} weight={active ? 'fill' : 'regular'} />
         {hasUnread && !active && (
           <span
             className="absolute rounded-full"

@@ -373,22 +373,56 @@ Use this formatter everywhere amounts are displayed. Never format amounts manual
 
 ## Iconography
 
-Zelto uses **emoji icons** for simplicity and cross-platform consistency. No icon library dependency needed.
+Zelto uses **Phosphor Icons** (`@phosphor-icons/react`) for all structural icons.
+Phosphor provides 6 weights: thin, light, regular, bold, fill, duotone.
 
-| Context           | Icon | Notes                           |
-|-------------------|------|---------------------------------|
-| To Pay            | ↑    | Upward arrow (money going out)  |
-| To Receive        | ↓    | Downward arrow (money coming in)|
-| Orders Today      | 📦   | Package                         |
-| Overdue           | ⚠    | Warning                         |
-| New Orders        | 🆕   | New badge                       |
-| Dispatched        | 🚚   | Delivery truck                  |
-| Delivered         | ✅   | Checkmark                       |
-| Issues            | ⚡   | Lightning (attention)           |
-| Disputes          | ⚖    | Balance/scales                  |
-| Payment           | 💳   | Card                            |
+### Weight Rules
 
-If the app moves to a custom icon set in the future, replace emojis with SVG icons following the same color rules — icon color matches the status color of its context.
+| Context               | Weight    | Size  |
+|-----------------------|-----------|-------|
+| Tab bar — active      | fill      | 24px  |
+| Tab bar — inactive    | regular   | 24px  |
+| Status in cards       | duotone   | 18px  |
+| Status chip inline    | bold      | 12px  |
+| Action buttons        | bold      | 20px  |
+| Settings rows         | regular   | 20px  |
+| Empty state (large)   | thin      | 48-64px |
+
+### Icon Mapping
+
+| Context           | Icon Component   | Import                    |
+|-------------------|------------------|---------------------------|
+| Home tab          | `House`          | `@phosphor-icons/react`   |
+| Orders tab        | `ClipboardText`  | `@phosphor-icons/react`   |
+| Connections tab   | `Handshake`      | `@phosphor-icons/react`   |
+| Profile tab       | `UserCircle`     | `@phosphor-icons/react`   |
+| To Pay            | `ArrowUp`        | bold weight               |
+| To Receive        | `ArrowDown`      | bold weight               |
+| Overdue           | `WarningCircle`  | fill weight               |
+| Dispatched        | `Truck`          | duotone weight            |
+| Delivered         | `CheckCircle`    | duotone weight            |
+| Disputes          | `Scales`         | duotone weight            |
+| Payment           | `CreditCard`     | duotone weight            |
+| New Orders        | `Sparkle`        | duotone weight            |
+| Search            | `MagnifyingGlass`| regular weight            |
+| Filter            | `Funnel`         | regular weight            |
+| Chevron right     | `CaretRight`     | size 16, text-muted color |
+
+### Color Rules
+
+- Icon color ALWAYS comes from design system tokens
+- Status icons use the matching `--status-*` color
+- Inactive/muted icons use `var(--text-secondary)` with opacity 0.6
+- Never use raw hex on icons — always reference a CSS variable
+- Icon color must match its context's status color (same icon in different contexts may have different colors)
+
+### Never Do
+
+- Never use emoji as structural UI icons
+- Never use PNG/JPG raster icons
+- Never mix icon libraries (Phosphor only)
+- Never use `fill` weight for non-active-tab contexts
+- Never make icon-only buttons without aria-label
 
 ---
 

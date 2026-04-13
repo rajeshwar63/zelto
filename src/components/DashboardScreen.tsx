@@ -1,5 +1,8 @@
-import { ArrowDown, ArrowUp, CaretRight, CurrencyInr, Hourglass, NotePencil, Package, ShieldWarning, Truck, UsersThree } from '@phosphor-icons/react'
+import { ArrowDown, ArrowUp, CaretRight, CurrencyInr, Hourglass, NotePencil, Package, ShieldWarning, Truck, UsersThree, WarningCircle, ChartLineUp, Pulse, Handshake } from '@phosphor-icons/react'
 import { TrustBadge } from '@/components/TrustBadge'
+import { AnimatedListItem } from '@/components/AnimatedListItem'
+import { EmptyState } from '@/components/EmptyState'
+import { OnboardingChecklist } from '@/components/OnboardingChecklist'
 import { BadgeInfoSheet } from '@/components/BadgeInfoSheet'
 import { ComplianceCard } from '@/components/ComplianceCard'
 import { useState, useEffect } from 'react'
@@ -143,6 +146,31 @@ export function DashboardScreen({ currentBusinessId, onNavigateToOrders, onNavig
       </div>
 
       <div className="flex-1 overflow-y-auto px-4 py-3 space-y-6 pb-24" style={{ backgroundColor: 'var(--bg-screen)' }}>
+        {/* Onboarding Checklist */}
+        {overview.connectionCount !== undefined && (
+          <OnboardingChecklist
+            connectionCount={overview.connectionCount}
+            orderCount={overview.totalOrderCount}
+            accountCreatedAt={new Date(overview.accountCreatedAt)}
+            onNavigate={(target) => {
+              if (target === 'profile') onNavigateToProfile()
+              else if (target === 'add-connection') onNavigateToConnections()
+              else if (target === 'create-order') onNavigateToConnections()
+            }}
+          />
+        )}
+
+        {/* Full-screen empty state when no connections */}
+        {overview.connectionCount === 0 ? (
+          <EmptyState
+            icon={Handshake}
+            title="Connect with your first business partner"
+            description="Add a buyer or supplier to start tracking orders, payments, and balances together."
+            actionLabel="Add connection"
+            onAction={() => onNavigateToConnections()}
+          />
+        ) : (
+        <>
         {/* Trade Position — To Receive / To Pay */}
         <div className="grid grid-cols-2 gap-[10px]">
           {/* To Receive */}
@@ -274,11 +302,7 @@ export function DashboardScreen({ currentBusinessId, onNavigateToOrders, onNavig
 
         <div>
           <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '10px' }}>
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#E24B4A" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <circle cx="12" cy="12" r="10" />
-              <line x1="12" y1="8" x2="12" y2="12" />
-              <line x1="12" y1="16" x2="12.01" y2="16" />
-            </svg>
+            <WarningCircle size={14} weight="fill" color="#E24B4A" />
             <span style={{ fontSize: '12px', fontWeight: 600, color: '#E24B4A' }}>
               Needs attention
             </span>
@@ -458,11 +482,7 @@ export function DashboardScreen({ currentBusinessId, onNavigateToOrders, onNavig
 
         <div>
           <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '10px' }}>
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#4A6CF7" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M12 20V10" />
-              <path d="M18 20V4" />
-              <path d="M6 20v-4" />
-            </svg>
+            <ChartLineUp size={14} weight="bold" color="#4A6CF7" />
             <span style={{ fontSize: '12px', fontWeight: 600, color: 'var(--text-primary, #0F1320)' }}>
               Trade intelligence
             </span>
@@ -496,39 +516,50 @@ export function DashboardScreen({ currentBusinessId, onNavigateToOrders, onNavig
           />
         )}
 
-        {recentOrders.length > 0 && (
-          <div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '10px' }}>
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#8492A6" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <polyline points="22 12 18 12 15 21 9 3 6 12 2 12" />
-              </svg>
-              <span style={{ fontSize: '12px', fontWeight: 600, color: 'var(--text-secondary, #8492A6)' }}>
-                Recent activity
-              </span>
-            </div>
+        <div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '10px' }}>
+            <Pulse size={14} weight="bold" color="#8492A6" />
+            <span style={{ fontSize: '12px', fontWeight: 600, color: 'var(--text-secondary, #8492A6)' }}>
+              Recent activity
+            </span>
+          </div>
+        {recentOrders.length > 0 ? (
             <div className="space-y-2">
-              {recentOrders.map(order => (
-                <OrderCard
-                  key={order.id}
-                  itemSummary={order.itemSummary}
-                  connectionName={order.connectionName}
-                  branchLabel={order.branchLabel}
-                  contactName={order.contactName}
-                  orderValue={order.orderValue}
-                  pendingAmount={order.pendingAmount}
-                  settlementState={order.settlementState}
-                  lifecycleState={order.lifecycleState}
-                  calculatedDueDate={order.calculatedDueDate}
-                  deliveredAt={order.deliveredAt}
-                  latestActivity={order.latestActivity}
-                  isBuyer={order.isBuyer}
-                  hasOpenDispute={order.hasOpenIssue}
-                  disputeSummary={order.openIssueSummary}
-                  onClick={() => onNavigateToConnection(order.connectionId, order.id)}
-                />
+              {recentOrders.map((order, index) => (
+                <AnimatedListItem key={order.id} index={index}>
+                  <OrderCard
+                    itemSummary={order.itemSummary}
+                    connectionName={order.connectionName}
+                    branchLabel={order.branchLabel}
+                    contactName={order.contactName}
+                    orderValue={order.orderValue}
+                    pendingAmount={order.pendingAmount}
+                    settlementState={order.settlementState}
+                    lifecycleState={order.lifecycleState}
+                    calculatedDueDate={order.calculatedDueDate}
+                    deliveredAt={order.deliveredAt}
+                    latestActivity={order.latestActivity}
+                    isBuyer={order.isBuyer}
+                    hasOpenDispute={order.hasOpenIssue}
+                    disputeSummary={order.openIssueSummary}
+                    onClick={() => onNavigateToConnection(order.connectionId, order.id)}
+                  />
+                </AnimatedListItem>
               ))}
             </div>
-          </div>
+        ) : (
+          <EmptyState
+            icon={Package}
+            title="No orders yet"
+            description={overview.connectionCount > 0
+              ? "Once you or your connections create orders, they'll appear here with live status updates."
+              : "Add a connection to start creating orders."}
+            actionLabel={overview.connectionCount > 0 ? "Create your first order" : undefined}
+            onAction={overview.connectionCount > 0 ? () => onNavigateToConnections() : undefined}
+          />
+        )}
+        </div>
+        </>
         )}
       </div>
       {showBadgeInfo && overview.credibility && (

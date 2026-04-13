@@ -4,7 +4,9 @@ import { insightEngine } from '@/lib/insight-engine'
 import type { Insight } from '@/lib/insight-engine'
 import { useDataListener } from '@/lib/data-events'
 import type { Connection, OrderWithPaymentState, BusinessEntity } from '@/lib/types'
-import { CaretLeft, DownloadSimple, PencilSimple } from '@phosphor-icons/react'
+import { CaretLeft, DownloadSimple, PencilSimple, Plus, Package, Funnel } from '@phosphor-icons/react'
+import { EmptyState } from '@/components/EmptyState'
+import { AnimatedListItem } from '@/components/AnimatedListItem'
 import { toast } from 'sonner'
 import { getConnectionStateLabel, getConnectionStateColor } from '@/lib/connection-state-utils'
 import { motion, AnimatePresence, useMotionValue, useTransform, animate, PanInfo } from 'framer-motion'
@@ -285,10 +287,7 @@ export function ConnectionDetailScreen({ connectionId, currentBusinessId, onBack
                   flexShrink: 0,
                 }}
               >
-                <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="var(--brand-primary)" strokeWidth="2.5" strokeLinecap="round">
-                  <line x1="12" y1="5" x2="12" y2="19" />
-                  <line x1="5" y1="12" x2="19" y2="12" />
-                </svg>
+                <Plus size={10} weight="bold" color="var(--brand-primary)" />
                 Add info
               </span>
             )}
@@ -506,14 +505,30 @@ export function ConnectionDetailScreen({ connectionId, currentBusinessId, onBack
 
             <div className="px-3 pb-4 space-y-3">
               {filteredOrders.length === 0 ? (
-                <div className="px-4 py-8 text-center">
-                  <p className="text-[13px] text-muted-foreground">
-                    {showArchived
-                      ? 'No archived orders'
-                      : (searchText.trim() || activeChips.size > 0 || fromDate || toDate)
-                      ? 'No orders match your filters'
-                      : 'No orders in this connection'}
-                  </p>
+                <div className="px-4">
+                  {showArchived ? (
+                    <EmptyState
+                      icon={Package}
+                      title="No archived orders"
+                      description="Orders you archive will appear here."
+                    />
+                  ) : (searchText.trim() || activeChips.size > 0 || fromDate || toDate) ? (
+                    <EmptyState
+                      icon={Funnel}
+                      title="No orders match this filter"
+                      description="Try adjusting the filter or clearing it to see all orders."
+                      actionLabel="Clear filters"
+                      onAction={() => setOrderFilters(EMPTY_FILTERS)}
+                    />
+                  ) : (
+                    <EmptyState
+                      icon={Package}
+                      title={`No orders with ${otherBusiness.businessName}`}
+                      description="Create your first order to start tracking deliveries and payments."
+                      actionLabel="Create order"
+                      onAction={() => onNavigateToPlaceOrder(connectionId)}
+                    />
+                  )}
                 </div>
               ) : (
                 filteredOrders.map(order => {

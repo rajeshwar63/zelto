@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { ArrowLeft, Buildings, Note, Briefcase, MapPin, Link, User, Phone, PencilSimple, ShieldCheck, ChartLineUp, Handshake, CalendarBlank, Lock } from '@phosphor-icons/react'
+import { ArrowLeft, Buildings, Note, Briefcase, MapPin, Link, User, Phone, PencilSimple, ShieldCheck, ChartLineUp, Handshake, CalendarBlank, Lock, CaretRight } from '@phosphor-icons/react'
 import { dataStore } from '@/lib/data-store'
 import { calculateCredibility, getBusinessActivityCounts, type CredibilityBreakdown } from '@/lib/credibility'
 import { computeTrustScore, generateBusinessInsights, type TrustScoreBreakdown, type BusinessInsight } from '@/lib/trust-score'
@@ -576,7 +576,7 @@ export function TrustProfileScreen({
                     Upload GST, FSSAI, PAN and other certificates
                   </p>
                 </div>
-                <span style={{ fontSize: '18px', color: 'var(--text-secondary, #8492A6)' }}>›</span>
+                <CaretRight size={18} color="var(--text-secondary, #8492A6)" />
               </button>
             )}
 

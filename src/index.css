@@ -177,3 +177,91 @@ html, body, #root {
 .bottom-nav {
   padding-bottom: var(--sab, 0px);
 }
+
+/* ── Micro-interaction animations ────────────────────────────────── */
+
+@media (prefers-reduced-motion: no-preference) {
+  /* Card entrance — staggered slide-up + fade */
+  @keyframes slideUp {
+    from { transform: translateY(12px); opacity: 0; }
+    to { transform: translateY(0); opacity: 1; }
+  }
+
+  /* Status chip icon enter */
+  @keyframes iconIn {
+    from { transform: scale(0); opacity: 0; }
+    to { transform: scale(1); opacity: 1; }
+  }
+
+  /* Celebration checkmark stroke draw */
+  @keyframes strokeDraw {
+    from { stroke-dashoffset: 100; }
+    to { stroke-dashoffset: 0; }
+  }
+
+  /* Celebration checkmark scale bounce */
+  @keyframes scaleBounce {
+    0% { transform: scale(0.5); opacity: 0; }
+    60% { transform: scale(1.1); opacity: 1; }
+    100% { transform: scale(1); opacity: 1; }
+  }
+
+  /* Confetti particle arc */
+  @keyframes confettiArc {
+    0% { transform: translate(0, 0) rotate(0deg); opacity: 1; }
+    70% { opacity: 1; }
+    100% { transform: translate(var(--confetti-x), var(--confetti-y)) rotate(var(--confetti-r)); opacity: 0; }
+  }
+
+  /* MorphButton success circle */
+  @keyframes morphToCircle {
+    from { width: 100%; border-radius: var(--radius-button); }
+    to { width: 48px; border-radius: 24px; }
+  }
+
+  /* Celebration overlay fade in/out */
+  @keyframes celebrationFadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+  }
+
+  @keyframes celebrationFadeOut {
+    from { opacity: 1; }
+    to { opacity: 0; }
+  }
+
+  /* Pull-to-refresh spin */
+  @keyframes spin {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
+  }
+
+  /* Progress bar fill */
+  @keyframes progressFill {
+    from { width: 0; }
+  }
+
+  /* Step complete bounce */
+  @keyframes stepCompleteBounce {
+    0% { transform: scale(1); }
+    50% { transform: scale(1.2); }
+    100% { transform: scale(1); }
+  }
+}
+
+/* Fallback: no animation when reduced motion preferred */
+@media (prefers-reduced-motion: reduce) {
+  @keyframes slideUp {
+    from { opacity: 1; }
+    to { opacity: 1; }
+  }
+}
+
+/* Status chip transition */
+.status-chip {
+  transition: background-color 250ms ease-out, color 250ms ease-out;
+}
+
+.status-chip-icon {
+  transition: transform 200ms ease-out, opacity 150ms ease-out;
+}

@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import type { CashForecast, CollectionItem, ConcentrationRisk, PaymentCalendarItem } from '@/lib/intelligence-engine'
 import { formatInrCurrency } from '@/lib/utils'
+import { CaretRight } from '@phosphor-icons/react'
 
 interface Props {
   forecast: CashForecast | null
@@ -294,7 +295,7 @@ export function MoneyCard({ forecast, collectionItems, concentrationRisk, paymen
                         {formatInrCurrency(bucket.amount)}
                       </p>
                       {onTapForecastRow && (
-                        <span style={{ fontSize: '14px', color: '#8492A6' }}>›</span>
+                        <CaretRight size={14} color="#8492A6" />
                       )}
                     </div>
                   </div>
@@ -324,7 +325,7 @@ export function MoneyCard({ forecast, collectionItems, concentrationRisk, paymen
                         {formatInrCurrency(bucket.amount)}
                       </p>
                       {onTapForecastRow && (
-                        <span style={{ fontSize: '14px', color: '#8492A6' }}>›</span>
+                        <CaretRight size={14} color="#8492A6" />
                       )}
                     </div>
                   </div>
