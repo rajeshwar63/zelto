@@ -288,7 +288,7 @@ export function ConnectionDetailScreen({ connectionId, currentBusinessId, onBack
                 }}
               >
                 <Plus size={10} weight="bold" color="var(--brand-primary)" />
-                Add info
+                Add Contact
               </span>
             )}
           </div>
@@ -413,7 +413,7 @@ export function ConnectionDetailScreen({ connectionId, currentBusinessId, onBack
                       )}
                       style={{ fontSize: '11px', color: 'var(--brand-primary)', fontWeight: 500, cursor: 'pointer', flexShrink: 0 }}
                     >
-                      Trust →
+                      Trust Profile →
                     </span>
                   )}
                 </div>
