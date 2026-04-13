@@ -32,6 +32,8 @@ const HALF_PILL_BASE: CSSProperties = {
   color: '#FFFFFF',
   display: 'inline-block',
   whiteSpace: 'nowrap',
+  minWidth: '80px',
+  textAlign: 'center',
 }
 
 function getDeliveryPillStyle(lifecycleState: string): CSSProperties {
