@@ -470,6 +470,21 @@ export function DashboardScreen({ currentBusinessId, onNavigateToOrders, onNavig
             concentrationRisk={concentrationRisk}
             loading={intelLoading}
             onTapCollectionItem={(connId) => onNavigateToConnection(connId)}
+            onTapForecastRow={(type, label) => {
+              if (type === 'inflow') {
+                if (label === 'Uncertain') {
+                  onNavigateToOrders(undefined, { role: 'selling', chip: 'dispatched' })
+                } else {
+                  onNavigateToOrders(undefined, { role: 'selling', chip: 'delivered' })
+                }
+              } else {
+                if (label === 'This Week') {
+                  onNavigateToOrders(undefined, { role: 'buying', chip: 'overdue' })
+                } else {
+                  onNavigateToOrders(undefined, { role: 'buying', chip: 'delivered' })
+                }
+              }
+            }}
           />
         </div>
 
