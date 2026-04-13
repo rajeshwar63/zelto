@@ -195,38 +195,41 @@ export function MoneyCard({ forecast, collectionItems, concentrationRisk, loadin
               </div>
             ) : (
               <>
-                {forecast!.inflows.map((bucket, i, arr) => (
-                  <div
-                    key={`in-${i}`}
-                    onClick={() => onTapForecastRow?.('inflow', bucket.label)}
-                    style={{
-                      display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-                      padding: '11px 0',
-                      borderBottom: (i < arr.length - 1 || forecast!.outflows.length > 0) ? '1px solid rgba(0,0,0,0.04)' : 'none',
-                      cursor: onTapForecastRow ? 'pointer' : 'default',
-                    }}
-                  >
-                    <div style={{ flex: 1 }}>
-                      <p style={{ fontSize: '13px', fontWeight: 500, color: '#0F1320', margin: 0 }}>
-                        Inflow — {bucket.label}
-                      </p>
-                      <p style={{ fontSize: '11px', color: '#8492A6', margin: '2px 0 0' }}>
-                        {bucket.detail}
-                      </p>
+                {forecast!.inflows.map((bucket, i, arr) => {
+                  const isTappable = onTapForecastRow && bucket.label !== 'Uncertain'
+                  return (
+                    <div
+                      key={`in-${i}`}
+                      onClick={() => isTappable && onTapForecastRow('inflow', bucket.label)}
+                      style={{
+                        display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+                        padding: '11px 0',
+                        borderBottom: (i < arr.length - 1 || forecast!.outflows.length > 0) ? '1px solid rgba(0,0,0,0.04)' : 'none',
+                        cursor: isTappable ? 'pointer' : 'default',
+                      }}
+                    >
+                      <div style={{ flex: 1 }}>
+                        <p style={{ fontSize: '13px', fontWeight: 500, color: '#0F1320', margin: 0 }}>
+                          Inflow — {bucket.label}
+                        </p>
+                        <p style={{ fontSize: '11px', color: '#8492A6', margin: '2px 0 0' }}>
+                          {bucket.detail}
+                        </p>
+                      </div>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                        <p style={{
+                          fontSize: '14px', fontWeight: 600, margin: 0,
+                          color: bucket.label === 'Uncertain' ? '#D97706' : '#22B573',
+                        }}>
+                          {formatInrCurrency(bucket.amount)}
+                        </p>
+                        {isTappable && (
+                          <span style={{ fontSize: '14px', color: '#8492A6' }}>›</span>
+                        )}
+                      </div>
                     </div>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                      <p style={{
-                        fontSize: '14px', fontWeight: 600, margin: 0,
-                        color: bucket.label === 'Uncertain' ? '#D97706' : '#22B573',
-                      }}>
-                        {formatInrCurrency(bucket.amount)}
-                      </p>
-                      {onTapForecastRow && (
-                        <span style={{ fontSize: '14px', color: '#8492A6' }}>›</span>
-                      )}
-                    </div>
-                  </div>
-                ))}
+                  )
+                })}
 
                 {forecast!.outflows.map((bucket, i) => (
                   <div
