@@ -262,7 +262,7 @@ export class IntelligenceEngine {
     // Inflow accumulators
     const inflowThisWeek = { amount: 0, count: 0 }
     const inflowNextWeek = { amount: 0, count: 0 }
-    const inflowUncertain = { amount: 0, count: 0 }
+
 
     // INFLOWS (business is supplier)
     for (const connection of supplierConnections) {
@@ -342,8 +342,8 @@ export class IntelligenceEngine {
         const daysFromNow = (expectedPayDate - now) / 86400000
 
         if (!hasEnoughHistory || daysFromNow > 14) {
-          inflowUncertain.amount += order.pendingAmount
-          inflowUncertain.count++
+          // Skip — not enough data to predict, or too far out
+          continue
         } else if (daysFromNow <= 7) {
           inflowThisWeek.amount += order.pendingAmount
           inflowThisWeek.count++
@@ -404,14 +404,7 @@ export class IntelligenceEngine {
         detail: `${inflowNextWeek.count} order${inflowNextWeek.count > 1 ? 's' : ''} expected next week`,
       })
     }
-    if (inflowUncertain.count > 0) {
-      inflows.push({
-        label: 'Uncertain',
-        amount: inflowUncertain.amount,
-        orderCount: inflowUncertain.count,
-        detail: `${inflowUncertain.count} order${inflowUncertain.count > 1 ? 's' : ''} with uncertain timing`,
-      })
-    }
+
 
     // Build outflow buckets
     const outflows: CashForecastBucket[] = []

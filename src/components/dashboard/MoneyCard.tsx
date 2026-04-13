@@ -217,7 +217,7 @@ export function MoneyCard({ forecast, collectionItems, concentrationRisk, loadin
                     <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                       <p style={{
                         fontSize: '14px', fontWeight: 600, margin: 0,
-                        color: bucket.label === 'Uncertain' ? '#D97706' : '#22B573',
+                        color: '#22B573',
                       }}>
                         {formatInrCurrency(bucket.amount)}
                       </p>
