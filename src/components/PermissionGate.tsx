@@ -1,13 +1,12 @@
 import { useTeamRoleContext } from '@/contexts/TeamRoleContext'
 import { ShieldWarning } from '@phosphor-icons/react'
 
-type GateAction = 'business_settings' | 'manage_connections' | 'manage_team' | 'manage_subscription'
+type GateAction = 'business_settings' | 'manage_connections' | 'manage_team'
 
 const GATE_MESSAGES: Record<GateAction, string> = {
   business_settings: 'Only Admins can edit business settings.',
   manage_connections: 'Only Admins can add or manage connections.',
   manage_team: 'Only Admins can manage team members.',
-  manage_subscription: 'Only Admins can manage subscription.',
 }
 
 const GATE_SUFFIX = 'Ask an Admin to make changes or promote you.'
