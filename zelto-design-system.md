@@ -291,13 +291,13 @@ Zelto uses a **flat design with subtle depth** — no heavy shadows, no gradient
 
 ```
 ┌─────────────────────────────────────┐
-│  ⌂        📋        🤝        👤   │
-│ Home    Orders  Connections Profile  │
+│  ⌂        📋        🤝        🏢   │
+│ Home    Orders  Connections Business │
 └─────────────────────────────────────┘
 ```
 
-- Height: 80px (includes safe area padding for notched phones)
-- Top padding: 10px
+- Height: auto (content-driven, ~48px + safe area)
+- Top padding: 6px
 - Background: `--bg-card`
 - Top border: 1px solid `--border-light`
 - Icon size: 22px
@@ -395,7 +395,7 @@ Phosphor provides 6 weights: thin, light, regular, bold, fill, duotone.
 | Home tab          | `House`          | `@phosphor-icons/react`   |
 | Orders tab        | `ClipboardText`  | `@phosphor-icons/react`   |
 | Connections tab   | `Handshake`      | `@phosphor-icons/react`   |
-| Profile tab       | `UserCircle`     | `@phosphor-icons/react`   |
+| Business tab      | `Buildings`      | `@phosphor-icons/react`   |
 | To Pay            | `ArrowUp`        | bold weight               |
 | To Receive        | `ArrowDown`      | bold weight               |
 | Overdue           | `WarningCircle`  | fill weight               |
@@ -448,7 +448,7 @@ Phosphor provides 6 weights: thin, light, regular, bold, fill, duotone.
 - Action buttons: `--brand-primary` background, white text, 12px radius, full width
 - Timeline/activity log: left-bordered list items using status colors for each event type
 
-### Profile Screen
+### Business Screen (formerly Profile)
 
 - Avatar uses the branded gradient with shadow (as defined in Surfaces)
 - Settings rows follow the **Attention Row** pattern (icon + label + chevron)

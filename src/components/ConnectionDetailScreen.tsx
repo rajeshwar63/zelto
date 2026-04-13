@@ -531,14 +531,14 @@ export function ConnectionDetailScreen({ connectionId, currentBusinessId, onBack
                   )}
                 </div>
               ) : (
-                filteredOrders.map(order => {
+                filteredOrders.map((order, index) => {
                   const lifecycleState = getLifecycleState(order)
                   const latestActivity = Math.max(order.deliveredAt || 0, order.dispatchedAt || 0, order.acceptedAt || 0, order.createdAt)
                   const isNew = isOrderNew(currentBusinessId, order.id, latestActivity)
                   const isOld = order.settlementState === 'Paid'
                   return (
+                    <AnimatedListItem key={order.id} index={index}>
                     <SwipeableOrderRow
-                      key={order.id}
                       actionLabel={showArchived ? 'Unarchive' : 'Archive'}
                       onAction={() => showArchived ? handleUnarchiveOrder(order.id) : handleArchiveOrder(order.id)}
                     >
@@ -563,6 +563,7 @@ export function ConnectionDetailScreen({ connectionId, currentBusinessId, onBack
                         }}
                       />
                     </SwipeableOrderRow>
+                    </AnimatedListItem>
                   )
                 })
               )}

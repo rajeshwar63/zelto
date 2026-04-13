@@ -21,7 +21,7 @@ import { NotificationSettingsScreen } from '@/components/NotificationSettingsScr
 import { AccountScreen } from '@/components/AccountScreen'
 import { HelpSupportScreen } from '@/components/HelpSupportScreen'
 import { ReportIssueScreen } from '@/components/ReportIssueScreen'
-import { House, ClipboardText, Handshake, UserCircle } from '@phosphor-icons/react'
+import { House, ClipboardText, Handshake, Buildings } from '@phosphor-icons/react'
 import { AttentionScreen } from '@/components/AttentionScreen'
 import { IncomingRequestsScreen } from '@/components/IncomingRequestsScreen'
 import { getAuthState, getLocalAuthSessionSync, logout, clearAuthSession } from '@/lib/auth'
@@ -1019,7 +1019,7 @@ function TabShell({
       </div>
 
       <div className="bottom-nav fixed bottom-0 left-0 right-0" style={{ backgroundColor: 'var(--bg-card)', borderTop: '1px solid var(--border-light)' }}>
-        <div className="flex items-center justify-around" style={{ height: '80px', paddingTop: '10px' }}>
+        <div className="flex items-center justify-around" style={{ paddingTop: '6px', paddingBottom: '4px' }}>
           <TabButton
             label="Home"
             Icon={House}
@@ -1040,8 +1040,8 @@ function TabShell({
             onClick={() => onNavigateToTab('orders')}
           />
           <TabButton
-            label="Profile"
-            Icon={UserCircle}
+            label="Business"
+            Icon={Buildings}
             active={activeTabScreen.tab === 'profile'}
             onClick={() => onNavigateToTab('profile')}
           />
@@ -1067,8 +1067,8 @@ function TabButton({
   return (
     <button
       onClick={onClick}
-      className="flex flex-col items-center justify-center gap-0.5 py-1 px-3 relative"
-      style={{ minWidth: '70px', minHeight: '44px' }}
+      className="flex flex-col items-center justify-center px-3 relative"
+      style={{ minWidth: '70px', minHeight: '44px', gap: '2px' }}
     >
       <span className="relative" style={{ color: active ? 'var(--brand-primary)' : 'var(--text-secondary)', opacity: active ? 1 : 0.6 }}>
         <Icon size={24} weight={active ? 'fill' : 'regular'} />

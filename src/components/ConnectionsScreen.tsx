@@ -324,7 +324,7 @@ export function ConnectionsScreen({ currentBusinessId, onSelectConnection, onAdd
               No connections found
             </p>
           )}
-          {visibleConnections.map((conn) => {
+          {visibleConnections.map((conn, index) => {
             const formattedTerms = formatPaymentTerms(conn.paymentTerms)
             const isSupplier = conn.supplierBusinessId === currentBusinessId
             const isUnread = unreadConnectionIds?.has(conn.id)
@@ -343,8 +343,8 @@ export function ConnectionsScreen({ currentBusinessId, onSelectConnection, onAdd
             const subtitleParts = [conn.otherBusinessType].filter(Boolean)
 
             return (
+              <AnimatedListItem key={conn.id} index={index}>
               <div
-                key={conn.id}
                 role="button"
                 tabIndex={0}
                 onClick={() => onSelectConnection(conn.id)}
@@ -487,6 +487,7 @@ export function ConnectionsScreen({ currentBusinessId, onSelectConnection, onAdd
                   )}
                 </div>
               </div>
+              </AnimatedListItem>
             )
           })}
         </div>

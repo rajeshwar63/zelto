@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useOrdersData } from '@/hooks/data/use-business-data'
-import { PencilSimple, MagnifyingGlass, Faders, ClipboardText, Funnel } from '@phosphor-icons/react'
+import { PencilSimple, MagnifyingGlass, X, ClipboardText, Funnel } from '@phosphor-icons/react'
 import { EmptyState } from '@/components/EmptyState'
 import { AnimatedListItem } from '@/components/AnimatedListItem'
 import { OrderCard } from '@/components/order/OrderCard'
@@ -11,9 +11,9 @@ import {
   type StatusChip,
   type RoleFilter,
   CHIP_LABELS,
+  CHIP_COLORS,
   CHIPS_BY_ROLE,
 } from '@/components/order/OrderSearchPanel'
-import { getStatusChipBackground, getStatusChipColor } from '@/components/order/FilterSheet'
 import { startOfDay } from 'date-fns'
 import {
   type OrdersDefaultTab,
@@ -109,10 +109,12 @@ export function OrdersScreen({ currentBusinessId, onSelectOrder, initialFilter, 
   const [roleFilter, setRoleFilter] = useState<RoleFilter>(() => getOrdersDefaultTab())
   const [pinnedTab, setPinnedTab] = useState<OrdersDefaultTab>(() => getOrdersDefaultTab())
   const [orderFilters, setOrderFilters] = useState<OrderFilters>(EMPTY_FILTERS)
-  const [filterPanelOpen, setFilterPanelOpen] = useState(false)
   const [popoverTab, setPopoverTab] = useState<RoleFilter | null>(null)
   const [showPinHint, setShowPinHint] = useState(false)
   const [activeTab, setActiveTab] = useState<'intelligence' | null>(null)
+  const [searchOpen, setSearchOpen] = useState(false)
+  const searchInputRef = useRef<HTMLInputElement>(null)
+  const stripRef = useRef<HTMLDivElement>(null)
 
   // Long-press timer refs
   const pressTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
@@ -201,12 +203,28 @@ export function OrdersScreen({ currentBusinessId, onSelectOrder, initialFilter, 
     }
   }, [initialParams])
 
+  // Auto-scroll strip to show pre-selected pill on deep link
+  useEffect(() => {
+    if (orderFilters.activeChips.size === 0 || !stripRef.current) return
+    const chip = [...orderFilters.activeChips][0]
+    const pillIndex = visibleChips.indexOf(chip)
+    if (pillIndex < 0) return
+    // +2 accounts for search element and "All" pill before status pills
+    const children = stripRef.current.children
+    const target = children[pillIndex + 2] as HTMLElement | undefined
+    if (target) {
+      setTimeout(() => {
+        target.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' })
+      }, 100)
+    }
+  }, [initialParams, initialFilter])
+
   const handleRoleChange = (newRole: RoleFilter) => {
     setRoleFilter(newRole)
     setActiveTab(null)
     // Reset filters when switching tabs to avoid confusion
     setOrderFilters(EMPTY_FILTERS)
-    setFilterPanelOpen(false)
+    setSearchOpen(false)
   }
 
   // Long-press handlers
@@ -252,17 +270,6 @@ export function OrdersScreen({ currentBusinessId, onSelectOrder, initialFilter, 
     })
   }
 
-  const removeStatusFilter = (chip: StatusChip) => {
-    setOrderFilters(prev => {
-      const next = new Set(prev.activeChips)
-      next.delete(chip)
-      return { ...prev, activeChips: next }
-    })
-  }
-
-  const clearAllFilters = () => {
-    setOrderFilters(prev => ({ ...prev, activeChips: new Set() }))
-  }
 
   const filteredOrders = useMemo(() => {
     const { searchText, activeChips, fromDate, toDate } = orderFilters
@@ -474,7 +481,7 @@ export function OrdersScreen({ currentBusinessId, onSelectOrder, initialFilter, 
 
             {/* Insights pill */}
             <button
-              onClick={() => { setActiveTab(activeTab === 'intelligence' ? null : 'intelligence'); setOrderFilters(EMPTY_FILTERS); setFilterPanelOpen(false) }}
+              onClick={() => { setActiveTab(activeTab === 'intelligence' ? null : 'intelligence'); setOrderFilters(EMPTY_FILTERS); setSearchOpen(false) }}
               style={{
                 padding: '6px 12px',
                 fontSize: 12,
@@ -529,199 +536,131 @@ export function OrdersScreen({ currentBusinessId, onSelectOrder, initialFilter, 
           </div>
         )}
 
-        {/* Row 2 — Search Bar + Filter Button (hidden on Intelligence tab) */}
-        {activeTab !== 'intelligence' && <div style={{
-          display: 'flex',
-          gap: 8,
-          alignItems: 'center',
-          padding: '0 16px 8px',
-        }}>
-          {/* Search input */}
-          <div style={{
-            flex: 1,
-            display: 'flex',
-            alignItems: 'center',
-            gap: 8,
-            border: '0.5px solid var(--border-light)',
-            borderRadius: 'var(--radius-input)',
-            padding: '8px 12px',
-          }}>
-            <MagnifyingGlass size={16} color="var(--text-secondary)" />
-            <input
-              type="text"
-              placeholder="Search orders..."
-              value={orderFilters.searchText}
-              onChange={e => setOrderFilters(prev => ({ ...prev, searchText: e.target.value }))}
-              style={{
-                flex: 1,
-                border: 'none',
-                outline: 'none',
-                background: 'transparent',
-                fontSize: 13,
-                color: 'var(--text-primary)',
-                fontFamily: 'inherit',
-              }}
-            />
-          </div>
-
-          {/* Filter button — toggles inline panel */}
-          <button
-            onClick={() => setFilterPanelOpen(prev => !prev)}
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: 4,
-              border: '0.5px solid var(--border-light)',
-              borderRadius: 'var(--radius-input)',
-              padding: '8px 10px',
-              background: hasActiveFilters
-                ? 'rgba(74, 108, 247, 0.08)'
-                : 'transparent',
-              cursor: 'pointer',
-              fontSize: 12,
-              color: hasActiveFilters
-                ? 'var(--brand-primary)'
-                : 'var(--text-secondary)',
-              transition: 'all 150ms',
-              position: 'relative',
-            }}
+        {/* Unified Search + Filter Strip (hidden on Intelligence tab) */}
+        {activeTab !== 'intelligence' && (
+          <div
+            ref={stripRef}
+            className="orders-strip"
+            style={{ padding: '0 16px' }}
           >
-            <Faders size={16} />
-            Filter
-            {hasActiveFilters && !filterPanelOpen && (
-              <span style={{
-                background: 'var(--brand-primary)',
-                color: 'white',
-                borderRadius: 999,
-                fontSize: 10,
-                fontWeight: 600,
-                width: 16,
-                height: 16,
+            {/* Search element — first item in strip */}
+            <div
+              style={{
+                width: searchOpen ? 160 : 34,
+                height: 34,
+                borderRadius: 10,
+                background: 'var(--bg-screen)',
                 display: 'flex',
                 alignItems: 'center',
-                justifyContent: 'center',
-              }}>
-                {activeStatusFilters.length}
-              </span>
-            )}
-          </button>
-        </div>}
-
-        {activeTab !== 'intelligence' && <>
-        {/* Inline Filter Panel — expands below search bar */}
-        <div style={{
-          maxHeight: filterPanelOpen ? '200px' : '0px',
-          overflow: 'hidden',
-          transition: 'max-height 200ms ease',
-        }}>
-          <div style={{
-            padding: '8px 16px 12px',
-            background: 'var(--bg-card)',
-            borderBottom: '0.5px solid var(--border-light)',
-          }}>
-            {/* Header row */}
-            <div style={{
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'space-between',
-              marginBottom: '10px',
-            }}>
-              <p style={{
-                fontSize: '11px',
-                fontWeight: 600,
-                color: 'var(--text-secondary)',
-                textTransform: 'uppercase',
-                letterSpacing: '0.06em',
-                margin: 0,
-              }}>
-                Status
-              </p>
-              {hasActiveFilters && (
-                <button
-                  onClick={clearAllFilters}
-                  style={{
-                    fontSize: '13px',
-                    color: 'var(--brand-primary)',
-                    background: 'none',
-                    border: 'none',
-                    cursor: 'pointer',
-                    fontWeight: 500,
-                    padding: 0,
-                  }}
-                >
-                  Clear all
-                </button>
-              )}
-            </div>
-            {/* Status chips */}
-            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
-              {visibleChips.map(chip => {
-                const isChipActive = orderFilters.activeChips.has(chip)
-                return (
-                  <button
-                    key={chip}
-                    onClick={() => toggleStatusFilter(chip)}
+                gap: 6,
+                padding: searchOpen ? '0 8px 0 10px' : '0',
+                justifyContent: searchOpen ? 'flex-start' : 'center',
+                flexShrink: 0,
+                transition: 'width 200ms ease-out',
+                cursor: 'pointer',
+                overflow: 'hidden',
+              }}
+              onClick={() => {
+                if (!searchOpen) {
+                  setSearchOpen(true)
+                  setTimeout(() => searchInputRef.current?.focus(), 50)
+                }
+              }}
+            >
+              <MagnifyingGlass size={16} weight="regular" color="var(--text-secondary)" style={{ flexShrink: 0 }} />
+              {searchOpen && (
+                <>
+                  <input
+                    ref={searchInputRef}
+                    value={orderFilters.searchText}
+                    onChange={e => setOrderFilters(prev => ({ ...prev, searchText: e.target.value }))}
+                    placeholder="Search..."
                     style={{
-                      fontSize: '13px',
-                      padding: '6px 14px',
-                      borderRadius: 999,
-                      border: isChipActive ? 'none' : '0.5px solid var(--border-light)',
-                      background: isChipActive ? getStatusChipBackground(chip) : 'transparent',
-                      color: isChipActive ? getStatusChipColor(chip) : 'var(--text-secondary)',
-                      fontWeight: isChipActive ? 500 : 400,
+                      border: 'none',
+                      outline: 'none',
+                      background: 'transparent',
+                      fontSize: 12,
+                      color: 'var(--text-primary)',
+                      fontFamily: 'inherit',
+                      width: '100%',
+                      minWidth: 0,
+                    }}
+                  />
+                  <div
+                    onClick={e => {
+                      e.stopPropagation()
+                      setOrderFilters(prev => ({ ...prev, searchText: '' }))
+                      setSearchOpen(false)
+                    }}
+                    style={{
+                      width: 18,
+                      height: 18,
+                      borderRadius: '50%',
+                      background: 'rgba(0,0,0,0.08)',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      flexShrink: 0,
                       cursor: 'pointer',
                     }}
                   >
-                    {CHIP_LABELS[chip]}
-                  </button>
-                )
-              })}
+                    <X size={8} weight="bold" color="var(--text-secondary)" />
+                  </div>
+                </>
+              )}
             </div>
-          </div>
-        </div>
 
-        {/* Row 3 — Active Filter Chips (conditional) */}
-        {hasActiveFilters && (
-          <div style={{
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            padding: '8px 16px 10px',
-          }}>
-            <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-              {activeStatusFilters.map(chip => (
-                <span
+            {/* "All" pill */}
+            <button
+              onClick={() => {
+                setOrderFilters(prev => ({ ...prev, activeChips: new Set() }))
+              }}
+              style={{
+                fontSize: 12,
+                padding: '6px 14px',
+                borderRadius: 20,
+                whiteSpace: 'nowrap',
+                flexShrink: 0,
+                fontFamily: 'inherit',
+                cursor: 'pointer',
+                transition: 'background 150ms ease-out, color 150ms ease-out',
+                border: 'none',
+                background: !hasActiveFilters ? 'var(--brand-primary)' : 'var(--bg-screen)',
+                color: !hasActiveFilters ? '#FFFFFF' : 'var(--text-secondary)',
+                fontWeight: !hasActiveFilters ? 500 : 400,
+              }}
+            >
+              All
+            </button>
+
+            {/* Status pills */}
+            {visibleChips.map(chip => {
+              const isChipActive = orderFilters.activeChips.has(chip)
+              return (
+                <button
                   key={chip}
+                  onClick={() => toggleStatusFilter(chip)}
                   style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: 4,
                     fontSize: 12,
-                    padding: '4px 10px',
-                    borderRadius: 999,
-                    background: getStatusChipBackground(chip),
-                    color: getStatusChipColor(chip),
-                    fontWeight: 500,
+                    padding: '6px 14px',
+                    borderRadius: 20,
+                    whiteSpace: 'nowrap',
+                    flexShrink: 0,
+                    fontFamily: 'inherit',
                     cursor: 'pointer',
+                    transition: 'background 150ms ease-out, color 150ms ease-out',
+                    border: 'none',
+                    background: isChipActive ? CHIP_COLORS[chip] : 'var(--bg-screen)',
+                    color: isChipActive ? '#FFFFFF' : 'var(--text-secondary)',
+                    fontWeight: isChipActive ? 500 : 400,
                   }}
-                  onClick={() => removeStatusFilter(chip)}
                 >
                   {CHIP_LABELS[chip]}
-                  <span style={{ fontSize: 10, opacity: 0.7 }}>✕</span>
-                </span>
-              ))}
-            </div>
-            <span style={{
-              fontSize: 12,
-              color: 'var(--text-secondary)',
-              whiteSpace: 'nowrap',
-              marginLeft: 8,
-            }}>
-              {totalOrders} orders · {filteredOrders.length} match
-            </span>
+                </button>
+              )
+            })}
           </div>
         )}
-        </>}
 
         {/* Divider */}
         <div style={{
@@ -729,6 +668,27 @@ export function OrdersScreen({ currentBusinessId, onSelectOrder, initialFilter, 
           background: 'var(--border-light)',
           margin: '0 16px',
         }} />
+
+        {/* Count row */}
+        {activeTab !== 'intelligence' && (
+          <div style={{ padding: '8px 16px 4px', fontSize: 11, color: 'var(--text-secondary)' }}>
+            {(() => {
+              const hasSearch = orderFilters.searchText.trim().length > 0
+              const hasChips = hasActiveFilters
+              if (!hasSearch && !hasChips) {
+                return `${totalOrders} orders`
+              }
+              if (hasSearch && hasChips) {
+                const chipLabels = activeStatusFilters.map(c => CHIP_LABELS[c]).join(' + ')
+                return `${filteredOrders.length} match · ${chipLabels} + "${orderFilters.searchText.trim()}"`
+              }
+              if (hasSearch) {
+                return `${filteredOrders.length} match "${orderFilters.searchText.trim()}"`
+              }
+              return `${totalOrders} orders · ${filteredOrders.length} match`
+            })()}
+          </div>
+        )}
       </div>
 
       {/* Order List */}

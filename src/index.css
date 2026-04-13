@@ -97,53 +97,6 @@ html, body, #root {
   --radius-modal: 20px;
 }
 
-/* Orders Filter Bar */
-.filter-bar {
-  display: flex;
-  gap: 3px;
-  background: white;
-  border: 0.5px solid rgba(0,0,0,0.12);
-  border-radius: 12px;
-  padding: 3px;
-  margin-bottom: 12px;
-}
-
-.filter-group {
-  display: flex;
-  gap: 2px;
-  flex: 1;
-}
-
-.filter-divider {
-  width: 2px;
-  background: linear-gradient(to bottom, rgba(24,95,165,0.35), rgba(29,158,117,0.35));
-  margin: 3px 3px;
-  flex-shrink: 0;
-  border-radius: 2px;
-}
-
-.filter-tab {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 1px;
-  padding: 4px 4px 3px;
-  border-radius: 7px;
-  cursor: pointer;
-}
-
-.filter-tab .icon  { font-size: 18px; line-height: 1; }
-.filter-tab .label { font-size: 10px; color: #888; font-weight: 400; }
-
-.filter-tab.active-delivery               { background: #185FA5; }
-.filter-tab.active-delivery .icon         { color: white; }
-.filter-tab.active-delivery .label        { color: #B5D4F4; }
-
-.filter-tab.active-payment                { background: #1D9E75; }
-.filter-tab.active-payment .icon          { color: white; }
-.filter-tab.active-payment .label         { color: #9FE1CB; }
 
 @theme {
   --color-background: var(--background);
@@ -174,8 +127,22 @@ html, body, #root {
   --radius-full: 9999px;
 }
 
+/* Orders — unified horizontal search + filter strip */
+.orders-strip {
+  display: flex;
+  gap: 6px;
+  overflow-x: auto;
+  padding-bottom: 10px;
+  align-items: center;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+.orders-strip::-webkit-scrollbar {
+  display: none;
+}
+
 .bottom-nav {
-  padding-bottom: var(--sab, 0px);
+  padding-bottom: calc(4px + env(safe-area-inset-bottom));
 }
 
 /* ── Micro-interaction animations ────────────────────────────────── */
