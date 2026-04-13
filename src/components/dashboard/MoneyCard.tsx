@@ -8,6 +8,7 @@ interface Props {
   concentrationRisk: ConcentrationRisk | null
   loading: boolean
   onTapCollectionItem: (connectionId: string) => void
+  onTapForecastRow?: (type: 'inflow' | 'outflow', label: string) => void
 }
 
 const RANK_STYLES: Record<number, { bg: string; text: string }> = {
@@ -16,7 +17,7 @@ const RANK_STYLES: Record<number, { bg: string; text: string }> = {
   3: { bg: '#EFF6FF', text: '#1D4ED8' },
 }
 
-export function MoneyCard({ forecast, collectionItems, concentrationRisk, loading, onTapCollectionItem }: Props) {
+export function MoneyCard({ forecast, collectionItems, concentrationRisk, loading, onTapCollectionItem, onTapForecastRow }: Props) {
   const [activeTab, setActiveTab] = useState<'collect' | 'forecast' | 'risk'>('collect')
 
   // Compute if tabs have data (for badge counts and empty states)
@@ -195,12 +196,17 @@ export function MoneyCard({ forecast, collectionItems, concentrationRisk, loadin
             ) : (
               <>
                 {forecast!.inflows.map((bucket, i, arr) => (
-                  <div key={`in-${i}`} style={{
-                    display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-                    padding: '11px 0',
-                    borderBottom: (i < arr.length - 1 || forecast!.outflows.length > 0) ? '1px solid rgba(0,0,0,0.04)' : 'none',
-                  }}>
-                    <div>
+                  <div
+                    key={`in-${i}`}
+                    onClick={() => onTapForecastRow?.('inflow', bucket.label)}
+                    style={{
+                      display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+                      padding: '11px 0',
+                      borderBottom: (i < arr.length - 1 || forecast!.outflows.length > 0) ? '1px solid rgba(0,0,0,0.04)' : 'none',
+                      cursor: onTapForecastRow ? 'pointer' : 'default',
+                    }}
+                  >
+                    <div style={{ flex: 1 }}>
                       <p style={{ fontSize: '13px', fontWeight: 500, color: '#0F1320', margin: 0 }}>
                         Inflow — {bucket.label}
                       </p>
@@ -208,22 +214,32 @@ export function MoneyCard({ forecast, collectionItems, concentrationRisk, loadin
                         {bucket.detail}
                       </p>
                     </div>
-                    <p style={{
-                      fontSize: '14px', fontWeight: 600, margin: 0,
-                      color: bucket.label === 'Uncertain' ? '#D97706' : '#22B573',
-                    }}>
-                      {formatInrCurrency(bucket.amount)}
-                    </p>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                      <p style={{
+                        fontSize: '14px', fontWeight: 600, margin: 0,
+                        color: bucket.label === 'Uncertain' ? '#D97706' : '#22B573',
+                      }}>
+                        {formatInrCurrency(bucket.amount)}
+                      </p>
+                      {onTapForecastRow && (
+                        <span style={{ fontSize: '14px', color: '#8492A6' }}>›</span>
+                      )}
+                    </div>
                   </div>
                 ))}
 
                 {forecast!.outflows.map((bucket, i) => (
-                  <div key={`out-${i}`} style={{
-                    display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-                    padding: '11px 0',
-                    borderBottom: i < forecast!.outflows.length - 1 ? '1px solid rgba(0,0,0,0.04)' : 'none',
-                  }}>
-                    <div>
+                  <div
+                    key={`out-${i}`}
+                    onClick={() => onTapForecastRow?.('outflow', bucket.label)}
+                    style={{
+                      display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+                      padding: '11px 0',
+                      borderBottom: i < forecast!.outflows.length - 1 ? '1px solid rgba(0,0,0,0.04)' : 'none',
+                      cursor: onTapForecastRow ? 'pointer' : 'default',
+                    }}
+                  >
+                    <div style={{ flex: 1 }}>
                       <p style={{ fontSize: '13px', fontWeight: 500, color: '#0F1320', margin: 0 }}>
                         Outflow — {bucket.label}
                       </p>
@@ -231,9 +247,14 @@ export function MoneyCard({ forecast, collectionItems, concentrationRisk, loadin
                         {bucket.detail}
                       </p>
                     </div>
-                    <p style={{ fontSize: '14px', fontWeight: 600, color: '#E24B4A', margin: 0 }}>
-                      {formatInrCurrency(bucket.amount)}
-                    </p>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                      <p style={{ fontSize: '14px', fontWeight: 600, color: '#E24B4A', margin: 0 }}>
+                        {formatInrCurrency(bucket.amount)}
+                      </p>
+                      {onTapForecastRow && (
+                        <span style={{ fontSize: '14px', color: '#8492A6' }}>›</span>
+                      )}
+                    </div>
                   </div>
                 ))}
               </>
