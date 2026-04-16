@@ -28,6 +28,7 @@ export default defineConfig({
           /^\/api/,
           /^\/auth/,
           /^\/sw\.js$/,
+          /^\/sw-push\.js$/,
           /^\/manifest\.webmanifest$/,
           /^\/workbox-.*\.js$/,
         ],

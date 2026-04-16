@@ -232,16 +232,28 @@ function App() {
 
   // Refresh notification count when a push notification arrives while the app is open
   useEffect(() => {
-    if (!currentBusinessId || !Capacitor.isNativePlatform()) return
+    if (!currentBusinessId) return
 
-    let handle: Awaited<ReturnType<typeof PushNotifications.addListener>> | null = null
+    // Native: listen via Capacitor PushNotifications plugin
+    if (Capacitor.isNativePlatform()) {
+      let handle: Awaited<ReturnType<typeof PushNotifications.addListener>> | null = null
+      PushNotifications.addListener('pushNotificationReceived', (notification) => {
+        console.log('Push received:', notification)
+        checkUnreadRef.current()
+      }).then(h => { handle = h })
+      return () => { handle?.remove() }
+    }
 
-    PushNotifications.addListener('pushNotificationReceived', (notification) => {
-      console.log('Push received:', notification)
-      checkUnreadRef.current()
-    }).then(h => { handle = h })
-
-    return () => { handle?.remove() }
+    // Web/PWA: listen for messages from the push service worker
+    if ('serviceWorker' in navigator) {
+      const handleSwMessage = (event: MessageEvent) => {
+        if (event.data?.type === 'PUSH_RECEIVED') {
+          checkUnreadRef.current()
+        }
+      }
+      navigator.serviceWorker.addEventListener('message', handleSwMessage)
+      return () => navigator.serviceWorker.removeEventListener('message', handleSwMessage)
+    }
   }, [currentBusinessId])
 
   useEffect(() => {
