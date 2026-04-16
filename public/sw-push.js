@@ -2,7 +2,6 @@
 // This file must be served from the root scope (/) for push to work.
 
 self.addEventListener('push', (event) => {
-  self.registration.showNotification('[DEBUG] push fired', { body: 'has data: ' + !!event.data });
   let data = { title: 'Zelto', body: '' }
 
   if (event.data) {
@@ -22,7 +21,6 @@ self.addEventListener('push', (event) => {
     data: data.data || {},
   }
 
-  self.registration.showNotification('[DEBUG] about to call showNotification', { body: JSON.stringify(data).slice(0, 100) });
   event.waitUntil(
     self.registration.showNotification(data.title || 'Zelto', options).then(() => {
       // Notify open client windows so they can refresh in-app state
