@@ -109,24 +109,32 @@ BEGIN
     WHERE id = p_request_id;
 
     BEGIN
-      INSERT INTO notifications (
-        recipient_business_id,
-        type,
-        related_entity_id,
-        connection_id,
-        message,
-        created_at,
-        read_at
-      ) VALUES (
-        v_request.requester_business_id,
-        'ConnectionAccepted',
-        v_connection_id,
-        v_connection_id,
-        'Your connection request has been accepted',
-        v_now,
-        NULL
-      );
-      v_notification_status := 'sent';
+      DECLARE
+        v_accepter_name TEXT;
+      BEGIN
+        SELECT business_name INTO v_accepter_name
+        FROM business_entities
+        WHERE id = p_actor_business_id;
+
+        INSERT INTO notifications (
+          recipient_business_id,
+          type,
+          related_entity_id,
+          connection_id,
+          message,
+          created_at,
+          read_at
+        ) VALUES (
+          v_request.requester_business_id,
+          'ConnectionAccepted',
+          v_connection_id,
+          v_connection_id,
+          'Connection accepted|' || COALESCE(v_accepter_name, 'A business') || ' accepted your connection request',
+          v_now,
+          NULL
+        );
+        v_notification_status := 'sent';
+      END;
     EXCEPTION WHEN OTHERS THEN
       v_notification_status := 'failed';
     END;

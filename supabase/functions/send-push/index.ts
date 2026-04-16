@@ -333,9 +333,17 @@ serve(async (req) => {
     const { record } = await req.json()
 
     const recipientBusinessId = record.recipient_business_id
-    const message = record.message
+    const rawMessage = record.message as string
     const type = record.type
-    const title = NOTIFICATION_TITLES[type] || 'Zelto'
+
+    // Split encoded title|body. If no pipe, fall back to type-based title.
+    const pipeIndex = rawMessage.indexOf('|')
+    const title = pipeIndex >= 0
+      ? rawMessage.slice(0, pipeIndex)
+      : (NOTIFICATION_TITLES[type] || 'Zelto')
+    const message = pipeIndex >= 0
+      ? rawMessage.slice(pipeIndex + 1)
+      : rawMessage
 
     const pushData = {
       type,
