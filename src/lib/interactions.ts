@@ -122,7 +122,7 @@ export async function createOrder(
 
   await recalculateConnectionState(connectionId)
 
-  emitDataChange('orders:changed', 'notifications:changed')
+  emitDataChange('orders:changed')
   return newOrder
 }
 
@@ -235,7 +235,7 @@ export async function transitionOrderState(
 
   await recalculateConnectionState(order.connectionId)
 
-  emitDataChange('orders:changed', 'notifications:changed')
+  emitDataChange('orders:changed')
   return updatedOrder
 }
 
@@ -306,7 +306,7 @@ export async function recordPayment(
 
   await recalculateConnectionState(order.connectionId)
 
-  emitDataChange('payments:changed', 'orders:changed', 'notifications:changed')
+  emitDataChange('payments:changed', 'orders:changed')
   return newPayment
 }
 
@@ -360,7 +360,7 @@ export async function disputePayment(
 
   await recalculateConnectionState(order.connectionId)
 
-  emitDataChange('payments:changed', 'notifications:changed')
+  emitDataChange('payments:changed')
   return updatedPayment
 }
 
@@ -418,7 +418,7 @@ export async function createIssue(
 
   await recalculateConnectionState(order.connectionId)
 
-  emitDataChange('issues:changed', 'notifications:changed')
+  emitDataChange('issues:changed')
   return newIssue
 }
 
@@ -483,7 +483,7 @@ export async function acknowledgeIssue(
 
   await recalculateConnectionState(order.connectionId)
 
-  emitDataChange('issues:changed', 'notifications:changed')
+  emitDataChange('issues:changed')
   return updatedIssue
 }
 
@@ -555,7 +555,7 @@ export async function resolveIssue(
 
   await recalculateConnectionState(order.connectionId)
 
-  emitDataChange('issues:changed', 'payments:changed', 'notifications:changed')
+  emitDataChange('issues:changed', 'payments:changed')
   return updatedIssue
 }
 
@@ -610,7 +610,7 @@ export async function closeIssue(
 
   await recalculateConnectionState(order.connectionId)
 
-  emitDataChange('issues:changed', 'notifications:changed')
+  emitDataChange('issues:changed')
   return updatedIssue
 }
 
@@ -674,7 +674,7 @@ export async function addIssueComment(
 
   await recalculateConnectionState(order.connectionId)
 
-  emitDataChange('issues:changed', 'notifications:changed')
+  emitDataChange('issues:changed')
   return comment
 }
 

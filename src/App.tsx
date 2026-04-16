@@ -191,7 +191,7 @@ function App() {
   useEffect(() => {
     if (!currentBusinessId) return
     void checkUnread()
-  }, [currentBusinessId, navigationStack])
+  }, [currentBusinessId])
 
   // Periodic behaviour engine recalculation (every 20 minutes)
   useEffect(() => {
@@ -226,7 +226,7 @@ function App() {
   }, [currentBusinessId])
 
   useDataListener(
-    ['orders:changed', 'payments:changed', 'connections:changed', 'connection-requests:changed', 'notifications:changed'],
+    ['orders:changed', 'payments:changed', 'connections:changed', 'connection-requests:changed'],
     () => { checkUnreadRef.current() }
   )
 
