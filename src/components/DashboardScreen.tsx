@@ -92,7 +92,7 @@ export function DashboardScreen({ currentBusinessId, onNavigateToOrders, onNavig
   const trimmedUsername = (overview.username ?? '').trim()
   const firstName = trimmedUsername ? trimmedUsername.split(/\s+/)[0] : ''
 
-  const totalAttention = attentionCounts.accept + attentionCounts.dispatch + attentionCounts.awaitingPayment + attentionCounts.disputes + attentionCounts.awaitingDispatch
+  const totalAttention = Object.values(attentionCounts).reduce((sum, n) => sum + n, 0)
 
   const data = {
     username: firstName,
@@ -158,6 +158,34 @@ export function DashboardScreen({ currentBusinessId, onNavigateToOrders, onNavig
               else if (target === 'create-order') onNavigateToConnections()
             }}
           />
+        )}
+
+        {/* Pending connection requests — shown even with 0 connections */}
+        {overview.connectionCount === 0 && attentionCounts.pendingReceivedRequests > 0 && onNavigateToManageConnections && (
+          <div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '10px' }}>
+              <WarningCircle size={14} weight="fill" color="#E24B4A" />
+              <span style={{ fontSize: '12px', fontWeight: 600, color: '#E24B4A' }}>
+                Needs attention
+              </span>
+            </div>
+            <button
+              onClick={onNavigateToManageConnections}
+              className="w-full flex items-center justify-between rounded-xl px-4 py-3 text-left"
+              style={{ backgroundColor: 'var(--bg-card)', borderLeft: '3px solid #4A6CF7' }}
+            >
+              <div className="flex items-center gap-3">
+                <div className="w-7 h-7 rounded-lg flex items-center justify-center" style={{ backgroundColor: '#EEF2FF' }}>
+                  <UsersThree size={15} weight="regular" color="#4A6CF7" />
+                </div>
+                <p className="text-[14px] text-foreground font-semibold">Review connection requests</p>
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="inline-flex items-center justify-center min-w-6 h-6 px-2 rounded-full text-[12px] font-bold text-white" style={{ backgroundColor: '#4A6CF7' }}>{attentionCounts.pendingReceivedRequests}</span>
+                <CaretRight size={16} style={{ color: 'var(--text-muted)' }} />
+              </div>
+            </button>
+          </div>
         )}
 
         {/* Full-screen empty state when no connections */}

@@ -156,6 +156,7 @@ export function useBusinessOverviewData(currentBusinessId: string, isActive = tr
   return useCachedQuery<BusinessOverviewData>({
     key: `business-overview:${currentBusinessId}`,
     isActive,
+    staleAfterMs: 0,
     events: ['orders:changed', 'payments:changed', 'connections:changed', 'issues:changed', 'connection-requests:changed'],
     fetcher: async () => {
       const [orders, connections, entities, attentionItems, session, credibility, allRequests] = await Promise.all([
