@@ -1412,18 +1412,14 @@ export class ZeltoDataStore {
     message: string
   ): Promise<Notification> {
     const { data, error } = await supabase
-      .from('notifications')
-      .insert([{
-        recipient_business_id: recipientBusinessId,
-        type,
-        related_entity_id: relatedEntityId,
-        connection_id: connectionId,
-        message,
-        created_at: Date.now(),
-      }])
-      .select()
-      .single()
-    
+      .rpc('create_notification', {
+        p_recipient_business_id: recipientBusinessId,
+        p_type: type,
+        p_related_entity_id: relatedEntityId,
+        p_connection_id: connectionId,
+        p_message: message,
+      })
+
     if (error) throw error
     return toCamelCase(data)
   }
