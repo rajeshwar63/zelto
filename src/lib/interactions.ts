@@ -16,6 +16,27 @@ import type {
   RaisedBy,
 } from './types'
 
+/**
+ * Encode a notification title + body into the single `message` column.
+ * Consumers split on the first '|' character.
+ */
+function formatNotificationMessage(title: string, body: string): string {
+  return `${title}|${body}`
+}
+
+/**
+ * Resolve the "other party" business name for notifications.
+ * Returns a fallback string if the lookup fails so notifications never break.
+ */
+async function getOtherPartyName(otherPartyBusinessId: string): Promise<string> {
+  try {
+    const business = await dataStore.getBusinessEntityById(otherPartyBusinessId)
+    return business?.businessName ?? 'a connection'
+  } catch {
+    return 'a connection'
+  }
+}
+
 async function recalculateConnectionState(connectionId: string): Promise<void> {
   const newState = await behaviourEngine.computeConnectionState(connectionId)
   await dataStore.updateConnectionState(connectionId, newState)
@@ -109,12 +130,13 @@ export async function createOrder(
 
   // Notify supplier that a new order was placed
   try {
+    const buyerName = await getOtherPartyName(connection.buyerBusinessId)
     await dataStore.createNotification(
       connection.supplierBusinessId,
       'OrderPlaced',
       newOrder.id,
       connectionId,
-      `New order: ${itemSummary}`
+      formatNotificationMessage(itemSummary, `New order from ${buyerName}`)
     )
   } catch (err) {
     console.error('Notification failed:', err)
@@ -195,12 +217,13 @@ export async function transitionOrderState(
 
   if (newState === 'Accepted') {
     try {
+      const supplierName = await getOtherPartyName(connection.supplierBusinessId)
       await dataStore.createNotification(
         connection.buyerBusinessId,
         'OrderAccepted',
         orderId,
         order.connectionId,
-        `Your order has been accepted`
+        formatNotificationMessage(order.itemSummary, `Accepted by ${supplierName}`)
       )
     } catch (err) {
       console.error('Notification failed:', err)
@@ -208,12 +231,13 @@ export async function transitionOrderState(
   }
   if (newState === 'Dispatched') {
     try {
+      const supplierName = await getOtherPartyName(connection.supplierBusinessId)
       await dataStore.createNotification(
         connection.buyerBusinessId,
         'OrderDispatched',
         orderId,
         order.connectionId,
-        `Your order has been dispatched`
+        formatNotificationMessage(order.itemSummary, `Dispatched by ${supplierName}`)
       )
     } catch (err) {
       console.error('Notification failed:', err)
@@ -221,12 +245,13 @@ export async function transitionOrderState(
   }
   if (newState === 'Declined') {
     try {
+      const supplierName = await getOtherPartyName(connection.supplierBusinessId)
       await dataStore.createNotification(
         connection.buyerBusinessId,
         'OrderDeclined',
         orderId,
         order.connectionId,
-        `Your order has been declined`
+        formatNotificationMessage(order.itemSummary, `Declined by ${supplierName}`)
       )
     } catch (err) {
       console.error('Notification failed:', err)
@@ -293,12 +318,20 @@ export async function recordPayment(
     ? connection.supplierBusinessId
     : connection.buyerBusinessId
   try {
+    const otherPartyName = await getOtherPartyName(
+      requestingBusinessId === connection.buyerBusinessId
+        ? connection.buyerBusinessId
+        : connection.supplierBusinessId
+    )
     await dataStore.createNotification(
       otherPartyId,
       'PaymentRecorded',
       orderId,
       order.connectionId,
-      `Payment of ₹${amount.toLocaleString('en-IN')} recorded`
+      formatNotificationMessage(
+        `Payment of ₹${amount.toLocaleString('en-IN')}`,
+        `Recorded by ${otherPartyName} for ${order.itemSummary}`
+      )
     )
   } catch (err) {
     console.error('Notification failed:', err)
@@ -347,12 +380,16 @@ export async function disputePayment(
     ? connection.supplierBusinessId
     : connection.buyerBusinessId
   try {
+    const disputerName = await getOtherPartyName(requestingBusinessId)
     await dataStore.createNotification(
       otherPartyId,
       'PaymentDisputed',
       paymentEventId,
       order.connectionId,
-      `A payment has been disputed`
+      formatNotificationMessage(
+        `Payment disputed`,
+        `${disputerName} disputed a payment on ${order.itemSummary}`
+      )
     )
   } catch (err) {
     console.error('Notification failed:', err)
@@ -405,12 +442,16 @@ export async function createIssue(
     ? connection.supplierBusinessId
     : connection.buyerBusinessId
   try {
+    const raiserName = await getOtherPartyName(requestingBusinessId)
     await dataStore.createNotification(
       otherPartyId,
       'IssueRaised',
       newIssue.id,
       order.connectionId,
-      `New issue reported: ${issueType}`
+      formatNotificationMessage(
+        `Issue: ${issueType}`,
+        `Reported by ${raiserName} on ${order.itemSummary}`
+      )
     )
   } catch (err) {
     console.error('Notification failed:', err)
@@ -470,12 +511,16 @@ export async function acknowledgeIssue(
     ? connection.buyerBusinessId
     : connection.supplierBusinessId
   try {
+    const acknowledgerName = await getOtherPartyName(requestingBusinessId)
     await dataStore.createNotification(
       raiserBusinessId,
       'IssueAcknowledged',
       issueId,
       order.connectionId,
-      `Issue acknowledged: ${targetIssue.issueType}`
+      formatNotificationMessage(
+        `Issue acknowledged: ${targetIssue.issueType}`,
+        `${acknowledgerName} saw your report on ${order.itemSummary}`
+      )
     )
   } catch (err) {
     console.error('Notification failed:', err)
@@ -530,12 +575,16 @@ export async function resolveIssue(
     ? connection.supplierBusinessId
     : connection.buyerBusinessId
   try {
+    const resolverName = await getOtherPartyName(requestingBusinessId)
     await dataStore.createNotification(
       otherPartyId,
       'IssueResolved',
       issueId,
       order.connectionId,
-      `Issue resolved: ${targetIssue.issueType}`
+      formatNotificationMessage(
+        `Issue resolved: ${targetIssue.issueType}`,
+        `Resolved by ${resolverName} on ${order.itemSummary}`
+      )
     )
   } catch (err) {
     console.error('Notification failed:', err)
@@ -597,12 +646,16 @@ export async function closeIssue(
     ? connection.supplierBusinessId
     : connection.buyerBusinessId
   try {
+    const closerName = await getOtherPartyName(requestingBusinessId)
     await dataStore.createNotification(
       otherPartyId,
       'IssueResolved',
       issueId,
       order.connectionId,
-      `Issue closed: ${targetIssue.issueType}`
+      formatNotificationMessage(
+        `Issue closed: ${targetIssue.issueType}`,
+        `Closed by ${closerName} on ${order.itemSummary}`
+      )
     )
   } catch (err) {
     console.error('Notification failed:', err)
@@ -661,12 +714,16 @@ export async function addIssueComment(
     ? connection.supplierBusinessId
     : connection.buyerBusinessId
   try {
+    const commenterName = await getOtherPartyName(requestingBusinessId)
     await dataStore.createNotification(
       otherPartyId,
       'IssueAcknowledged',
       issueId,
       order.connectionId,
-      `New response on issue: ${targetIssue.issueType}`
+      formatNotificationMessage(
+        `Reply on issue: ${targetIssue.issueType}`,
+        `${commenterName} responded on ${order.itemSummary}`
+      )
     )
   } catch (err) {
     console.error('Notification failed:', err)

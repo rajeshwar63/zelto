@@ -6,6 +6,17 @@ import type { Notification, NotificationType } from '@/lib/types'
 import { CaretLeft } from '@phosphor-icons/react'
 import { useDataListener } from '@/lib/data-events'
 
+function splitNotificationMessage(message: string): { title: string; body: string } {
+  const pipeIndex = message.indexOf('|')
+  if (pipeIndex < 0) {
+    return { title: '', body: message }
+  }
+  return {
+    title: message.slice(0, pipeIndex),
+    body: message.slice(pipeIndex + 1),
+  }
+}
+
 interface Props {
   currentBusinessId: string
   onBack: () => void
@@ -128,9 +139,21 @@ export function NotificationHistoryScreen({ currentBusinessId, onBack, onNavigat
                   }`}
                   style={isUnread ? { borderLeft: '3px solid #E8A020' } : {}} // Warning color for unread items
                 >
-                  <p className={`text-[14px] leading-snug mb-1 ${isUnread ? 'font-medium text-foreground' : 'text-foreground'}`}>
-                    {notification.message}
-                  </p>
+                  {(() => {
+                    const { title, body } = splitNotificationMessage(notification.message)
+                    return (
+                      <>
+                        {title && (
+                          <p className={`text-[14px] leading-snug ${isUnread ? 'font-semibold text-foreground' : 'font-semibold text-foreground'}`}>
+                            {title}
+                          </p>
+                        )}
+                        <p className={`text-[13px] leading-snug mb-1 ${title ? 'text-muted-foreground' : (isUnread ? 'font-medium text-foreground' : 'text-foreground')}`}>
+                          {body}
+                        </p>
+                      </>
+                    )
+                  })()}
                   <p className="text-[12px] text-muted-foreground">
                     {formatDistanceToNow(notification.createdAt, { addSuffix: true })}
                   </p>
