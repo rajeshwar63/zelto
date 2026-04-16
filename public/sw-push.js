@@ -36,14 +36,37 @@ self.addEventListener('push', (event) => {
 self.addEventListener('notificationclick', (event) => {
   event.notification.close()
 
+  const notifData = event.notification.data || {}
+  const notifType = notifData.type || ''
+  const entityId = notifData.related_entity_id || ''
+
+  // Determine the deep-link URL based on notification type
+  const orderTypes = [
+    'OrderPlaced',
+    'OrderAccepted',
+    'OrderDispatched',
+    'OrderDelivered',
+    'OrderCancelled',
+  ]
+  const connectionTypes = ['ConnectionAccepted', 'ConnectionRequested']
+
+  let targetUrl = '/'
+  if (orderTypes.includes(notifType) && entityId) {
+    targetUrl = '/orders/' + entityId
+  } else if (connectionTypes.includes(notifType)) {
+    targetUrl = '/connections'
+  }
+
   event.waitUntil(
     clients.matchAll({ type: 'window', includeUncontrolled: true }).then((clientList) => {
-      // Focus an existing window if available
+      // Focus an existing window and navigate it to the target URL
       for (const client of clientList) {
-        if ('focus' in client) return client.focus()
+        if ('focus' in client) {
+          return client.focus().then((focused) => focused.navigate(targetUrl))
+        }
       }
-      // Otherwise open a new one
-      return clients.openWindow('/')
+      // Otherwise open a new window at the target URL
+      return clients.openWindow(targetUrl)
     }),
   )
 })
