@@ -167,19 +167,24 @@ async function persistWebPushSubscription(
     return
   }
 
-  const { error } = await supabase.from('device_tokens').upsert(
-    {
-      user_id: account.userId,
-      business_entity_id: account.businessEntityId,
-      platform: 'web',
-      push_endpoint: endpoint,
-      push_p256dh: p256dh,
-      push_auth: auth,
-      updated_at: Date.now(),
-      created_at: Date.now(),
-    },
-    { onConflict: 'user_id,push_endpoint' },
-  )
+  // PostgREST can't match the partial unique index for upsert, so we
+  // delete-then-insert instead. Both operations have RLS policies.
+  await supabase
+    .from('device_tokens')
+    .delete()
+    .eq('user_id', account.userId)
+    .eq('platform', 'web')
+
+  const { error } = await supabase.from('device_tokens').insert({
+    user_id: account.userId,
+    business_entity_id: account.businessEntityId,
+    platform: 'web',
+    push_endpoint: endpoint,
+    push_p256dh: p256dh,
+    push_auth: auth,
+    updated_at: Date.now(),
+    created_at: Date.now(),
+  })
 
   if (error) {
     console.error('Failed to save web push subscription:', error)
@@ -205,9 +210,10 @@ async function registerWebPush(businessEntityId: string): Promise<void> {
     return
   }
 
-  // Register the push-specific service worker
-  const registration = await navigator.serviceWorker.register('/sw-push.js', { scope: '/' })
-  await navigator.serviceWorker.ready
+  // Use the Workbox service worker that's already registered by vite-plugin-pwa.
+  // sw-push.js is imported into it via workbox.importScripts — do NOT register
+  // a separate SW here or it will conflict with the Workbox one.
+  const registration = await navigator.serviceWorker.ready
 
   // Check for existing subscription first
   let subscription = await registration.pushManager.getSubscription()
@@ -249,8 +255,8 @@ export async function removeDeviceTokens(): Promise<void> {
   // Unsubscribe the web push subscription if on web
   if (!Capacitor.isNativePlatform() && 'serviceWorker' in navigator) {
     try {
-      const registration = await navigator.serviceWorker.getRegistration('/sw-push.js')
-      const subscription = await registration?.pushManager.getSubscription()
+      const registration = await navigator.serviceWorker.ready
+      const subscription = await registration.pushManager.getSubscription()
       if (subscription) await subscription.unsubscribe()
     } catch (e) {
       console.error('Failed to unsubscribe web push:', e)

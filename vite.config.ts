@@ -21,6 +21,10 @@ export default defineConfig({
       base: '/',
       manifest: false, // disable — we use public/manifest.webmanifest directly
       workbox: {
+        // Import push notification handlers into the generated Workbox SW.
+        // This avoids registering a second SW at the same scope (which would
+        // cause the Workbox SW and push SW to fight each other on iOS).
+        importScripts: ['/sw-push.js'],
         maximumFileSizeToCacheInBytes: 3 * 1024 * 1024,
         globPatterns: ['**/*.{js,css,html,ico,png,svg,woff2}'],
         navigateFallback: 'index.html',
