@@ -63,30 +63,21 @@ export function DashboardScreen({ currentBusinessId, onNavigateToOrders, onNavig
     const loadIntel = async () => {
       if (isInitialLoading || !overview) return
 
-      // Let the main UI paint before saturating the DB with intelligence queries.
+      // Let the main UI paint before firing the edge function call.
       await new Promise(resolve => setTimeout(resolve, 500))
       if (cancelled) return
 
       setIntelLoading(true)
 
       try {
-        const forecast = await intelligenceEngine.getCashForecast(currentBusinessId)
+        const result = await intelligenceEngine.getTradeIntelligence(currentBusinessId)
         if (cancelled) return
-        setCashForecast(forecast)
-
-        const items = await intelligenceEngine.getCollectionPriority(currentBusinessId)
-        if (cancelled) return
-        setCollectionItems(items)
-
-        const risks = await intelligenceEngine.getConcentrationRisk(currentBusinessId)
-        if (cancelled) return
-        setConcentrationRisk(risks.length > 0 ? risks[0] : null)
-
-        const calendar = await intelligenceEngine.getPaymentCalendar(currentBusinessId)
-        if (cancelled) return
-        setPaymentCalendar(calendar)
+        setCashForecast(result.cashForecast)
+        setCollectionItems(result.collectionItems)
+        setConcentrationRisk(result.concentrationRisk)
+        setPaymentCalendar(result.paymentCalendar)
       } catch (err) {
-        console.error('Intelligence load failed:', err)
+        console.error('Trade intelligence failed to load:', err)
       } finally {
         if (!cancelled) setIntelLoading(false)
       }

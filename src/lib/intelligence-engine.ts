@@ -2,6 +2,7 @@ import { dataStore } from './data-store'
 import { behaviourEngine } from './behaviour-engine'
 import { computeTrustScore, aggregateBusinessBehaviourSignals } from './trust-score'
 import { scoreToLevel } from './credibility'
+import { supabaseDirect } from './supabase-client'
 import type { OrderWithPaymentState } from './types'
 
 // ─── Types ──────────────────────────────────────────────────────────
@@ -130,9 +131,27 @@ export interface BusinessBenchmark {
   gaps: Array<{ metric: string; yourValue: number; avgValue: number; suggestion: string }>
 }
 
+export interface TradeIntelligenceResponse {
+  cashForecast: CashForecast
+  collectionItems: CollectionItem[]
+  concentrationRisk: ConcentrationRisk | null
+  paymentCalendar: PaymentCalendarItem[]
+}
+
 // ─── Intelligence Engine ────────────────────────────────────────────
 
 export class IntelligenceEngine {
+  // Single-call wrapper around the get-trade-intelligence Edge Function.
+  // Used by the Dashboard to avoid the 200+ client-side fan-out that the
+  // individual getXXX methods below incur.
+  async getTradeIntelligence(businessId: string): Promise<TradeIntelligenceResponse> {
+    const { data, error } = await supabaseDirect.functions.invoke('get-trade-intelligence', {
+      body: { businessId },
+    })
+    if (error) throw new Error(error.message || 'Failed to load trade intelligence')
+    return data as TradeIntelligenceResponse
+  }
+
   async getCollectionPriority(businessId: string): Promise<CollectionItem[]> {
     // Get all connections where this business is the supplier
     const allConnections = await dataStore.getAllConnections()
