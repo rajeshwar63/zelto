@@ -9,8 +9,7 @@ import { EmptyState } from '@/components/EmptyState'
 import { AnimatedListItem } from '@/components/AnimatedListItem'
 import { toast } from 'sonner'
 import { getConnectionStateLabel, getConnectionStateColor } from '@/lib/connection-state-utils'
-import { motion, AnimatePresence, useMotionValue, useTransform, animate, PanInfo } from 'framer-motion'
-import { getArchivedOrderIds, archiveOrder as doArchiveOrder, unarchiveOrder as doUnarchiveOrder } from '@/lib/archive-store'
+import { motion, AnimatePresence } from 'framer-motion'
 import { markOrderSeen, isOrderNew } from '@/lib/unread-tracker'
 import { formatInrCurrency } from '@/lib/utils'
 import { OrderStatusHeader } from '@/components/order/OrderStatusHeader'
@@ -54,8 +53,6 @@ export function ConnectionDetailScreen({ connectionId, currentBusinessId, onBack
   const listScrollRef = useRef<HTMLDivElement>(null)
   const lastScrollTop = useRef(0)
   const [loading, setLoading] = useState(true)
-  const [showArchived, setShowArchived] = useState(false)
-  const [archivedIds, setArchivedIds] = useState<Set<string>>(new Set())
   const [attachmentCounts, setAttachmentCounts] = useState<Record<string, number>>({})
   const [showLedgerSheet, setShowLedgerSheet] = useState(false)
   const [activeConnectionTab, setActiveConnectionTab] = useState<'intelligence' | 'orders'>('orders')
@@ -122,11 +119,7 @@ export function ConnectionDetailScreen({ connectionId, currentBusinessId, onBack
     }
   }
 
-  const refreshArchivedIds = () => {
-    setArchivedIds(getArchivedOrderIds(currentBusinessId))
-  }
-
-  useEffect(() => { loadHeaderData(); loadOrders(); refreshArchivedIds() }, [connectionId, currentBusinessId])
+  useEffect(() => { loadHeaderData(); loadOrders() }, [connectionId, currentBusinessId])
 
   useDataListener(
     ['connections:changed'],
@@ -145,18 +138,6 @@ export function ConnectionDetailScreen({ connectionId, currentBusinessId, onBack
     lastScrollTop.current = st
     if (st > 30) setPanelVisible(true)
     else if (st <= 8) setPanelVisible(false)
-  }
-
-  const handleArchiveOrder = (orderId: string) => {
-    doArchiveOrder(currentBusinessId, orderId)
-    refreshArchivedIds()
-    toast.success('Order archived')
-  }
-
-  const handleUnarchiveOrder = (orderId: string) => {
-    doUnarchiveOrder(currentBusinessId, orderId)
-    refreshArchivedIds()
-    toast.success('Order restored')
   }
 
   const handleSaveContact = async () => {
@@ -229,15 +210,13 @@ export function ConnectionDetailScreen({ connectionId, currentBusinessId, onBack
     return true
   })
 
-  // Stats are based on all non-archived active orders (not affected by search filter)
-  const allActiveOrders = orders.filter(o => !archivedIds.has(o.id))
-  const activeOrders = searchFiltered.filter(o => !archivedIds.has(o.id))
-  const archivedOrders = searchFiltered.filter(o => archivedIds.has(o.id))
-  const filteredOrders = showArchived ? archivedOrders : activeOrders
+  // Stats are based on all orders (not affected by search/date filter)
+  const allOrders = orders
+  const filteredOrders = searchFiltered
 
-  const totalOrders = allActiveOrders.length
-  const totalValue = allActiveOrders.reduce((sum, order) => sum + order.orderValue, 0)
-  const outstandingBalance = allActiveOrders.reduce((sum, order) => {
+  const totalOrders = allOrders.length
+  const totalValue = allOrders.reduce((sum, order) => sum + order.orderValue, 0)
+  const outstandingBalance = allOrders.reduce((sum, order) => {
     if (order.settlementState !== 'Paid') return sum + (order.pendingAmount || 0)
     return sum
   }, 0)
@@ -496,9 +475,9 @@ export function ConnectionDetailScreen({ connectionId, currentBusinessId, onBack
               <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-primary)' }}>
                 Orders ({filteredOrders.length})
               </span>
-              {filteredOrders.length !== allActiveOrders.length && !showArchived && (
+              {filteredOrders.length !== allOrders.length && (
                 <span style={{ fontSize: 12, color: 'var(--text-secondary)' }}>
-                  {filteredOrders.length} of {allActiveOrders.length}
+                  {filteredOrders.length} of {allOrders.length}
                 </span>
               )}
             </div>
@@ -506,13 +485,7 @@ export function ConnectionDetailScreen({ connectionId, currentBusinessId, onBack
             <div className="px-3 pb-4 space-y-3">
               {filteredOrders.length === 0 ? (
                 <div className="px-4">
-                  {showArchived ? (
-                    <EmptyState
-                      icon={Package}
-                      title="No archived orders"
-                      description="Orders you archive will appear here."
-                    />
-                  ) : (searchText.trim() || activeChips.size > 0 || fromDate || toDate) ? (
+                  {(searchText.trim() || activeChips.size > 0 || fromDate || toDate) ? (
                     <EmptyState
                       icon={Funnel}
                       title="No orders match this filter"
@@ -538,10 +511,6 @@ export function ConnectionDetailScreen({ connectionId, currentBusinessId, onBack
                   const isOld = order.settlementState === 'Paid'
                   return (
                     <AnimatedListItem key={order.id} index={index}>
-                    <SwipeableOrderRow
-                      actionLabel={showArchived ? 'Unarchive' : 'Archive'}
-                      onAction={() => showArchived ? handleUnarchiveOrder(order.id) : handleArchiveOrder(order.id)}
-                    >
                       <ConnectionDetailOrderCard
                         itemSummary={order.itemSummary}
                         orderValue={order.orderValue}
@@ -562,7 +531,6 @@ export function ConnectionDetailScreen({ connectionId, currentBusinessId, onBack
                           onOpenOrderDetail(order.id, connection.id)
                         }}
                       />
-                    </SwipeableOrderRow>
                     </AnimatedListItem>
                   )
                 })
@@ -674,76 +642,6 @@ export function ConnectionDetailScreen({ connectionId, currentBusinessId, onBack
           <PencilSimple size={24} weight="regular" color="#FFFFFF" />
         </button>
       )}
-    </div>
-  )
-}
-
-const SWIPE_THRESHOLD = 80
-
-function SwipeableOrderRow({
-  children,
-  actionLabel,
-  onAction,
-}: {
-  children: React.ReactNode
-  actionLabel: string
-  onAction: () => void
-}) {
-  const x = useMotionValue(0)
-  const actionOpacity = useTransform(x, [-SWIPE_THRESHOLD, -SWIPE_THRESHOLD / 2, 0], [1, 0.6, 0])
-  const containerRef = useRef<HTMLDivElement>(null)
-  const didSwipe = useRef(false)
-
-  const handleDragEnd = (_: any, info: PanInfo) => {
-    if (info.offset.x < -SWIPE_THRESHOLD) {
-      // Snap open
-      animate(x, -SWIPE_THRESHOLD, { type: 'spring', stiffness: 300, damping: 30 })
-      didSwipe.current = true
-    } else {
-      // Snap closed
-      animate(x, 0, { type: 'spring', stiffness: 300, damping: 30 })
-      didSwipe.current = false
-    }
-  }
-
-  const handleAction = () => {
-    animate(x, -300, { type: 'spring', stiffness: 300, damping: 30 })
-    setTimeout(onAction, 200)
-  }
-
-  // Close swipe when tapping elsewhere
-  useEffect(() => {
-    const handleTouchOutside = (e: PointerEvent) => {
-      if (didSwipe.current && containerRef.current && !containerRef.current.contains(e.target as Node)) {
-        animate(x, 0, { type: 'spring', stiffness: 300, damping: 30 })
-        didSwipe.current = false
-      }
-    }
-    document.addEventListener('pointerdown', handleTouchOutside)
-    return () => document.removeEventListener('pointerdown', handleTouchOutside)
-  }, [x])
-
-  return (
-    <div ref={containerRef} className="relative overflow-hidden" style={{ borderRadius: '14px' }}>
-      <motion.div style={{ opacity: actionOpacity }} className="absolute right-0 top-0 bottom-0 flex items-center">
-        <button
-          onClick={handleAction}
-          className="h-full px-5 flex items-center text-[13px] font-medium text-white"
-          style={{ backgroundColor: actionLabel === 'Archive' ? 'var(--text-secondary)' : 'var(--status-delivered)' }}
-        >
-          {actionLabel}
-        </button>
-      </motion.div>
-      <motion.div
-        style={{ x, backgroundColor: 'var(--bg-card)', borderRadius: '14px' }}
-        drag="x"
-        dragDirectionLock
-        dragConstraints={{ left: -SWIPE_THRESHOLD, right: 0 }}
-        dragElastic={{ left: 0.2, right: 0 }}
-        onDragEnd={handleDragEnd}
-      >
-        {children}
-      </motion.div>
     </div>
   )
 }
