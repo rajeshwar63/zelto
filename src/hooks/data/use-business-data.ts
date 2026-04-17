@@ -1,13 +1,22 @@
 import { isToday } from 'date-fns'
 import { attentionEngine, type AttentionItem } from '@/lib/attention-engine'
 import { getAuthSession } from '@/lib/auth'
-import { getBusinessActivityCounts, type CredibilityBreakdown } from '@/lib/credibility'
-import { computeTrustScore } from '@/lib/trust-score'
+import { getBusinessActivityCounts, scoreToLevel, type CredibilityBreakdown } from '@/lib/credibility'
 import { dataStore } from '@/lib/data-store'
 
+// Fast path: read the cached credibility score from business_entities so the
+// dashboard/profile don't block on computeTrustScore (which loops every
+// connection). A background refresh in DashboardScreen keeps the cached value
+// fresh; TrustProfileScreen recomputes on demand for the detailed breakdown.
 async function fetchCredibility(businessId: string): Promise<CredibilityBreakdown> {
-  const ts = await computeTrustScore(businessId)
-  return { score: ts.total, level: ts.level, completedItems: [], missingItems: [] }
+  const business = await dataStore.getBusinessEntityById(businessId)
+  const cachedScore = business?.credibilityScore ?? 0
+  return {
+    score: cachedScore,
+    level: scoreToLevel(cachedScore),
+    completedItems: [],
+    missingItems: [],
+  }
 }
 import type { BusinessEntity, Connection, ConnectionRequest, IssueSeverity, IssueStatus, OrderWithPaymentState, UserAccount } from '@/lib/types'
 import { useCachedQuery } from './cache'

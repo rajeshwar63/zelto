@@ -11,6 +11,7 @@ import { useBusinessOverviewData } from '@/hooks/data/use-business-data'
 import { OrderCard } from '@/components/order/OrderCard'
 import { intelligenceEngine } from '@/lib/intelligence-engine'
 import type { CashForecast, CollectionItem, ConcentrationRisk, PaymentCalendarItem } from '@/lib/intelligence-engine'
+import { dataStore } from '@/lib/data-store'
 import { MoneyCard } from './dashboard/MoneyCard'
 
 function formatINR(amount: number): string {
@@ -54,25 +55,58 @@ export function DashboardScreen({ currentBusinessId, onNavigateToOrders, onNavig
     }
   }, [showBadgeInfo, currentBusinessId, trustScoreData])
 
-  useEffect(() => {
-    setIntelLoading(true)
-    Promise.all([
-      intelligenceEngine.getCashForecast(currentBusinessId),
-      intelligenceEngine.getCollectionPriority(currentBusinessId),
-      intelligenceEngine.getConcentrationRisk(currentBusinessId),
-      intelligenceEngine.getPaymentCalendar(currentBusinessId),
-    ])
-      .then(([forecast, items, risks, calendar]) => {
-        setCashForecast(forecast)
-        setCollectionItems(items)
-        setConcentrationRisk(risks.length > 0 ? risks[0] : null)
-        setPaymentCalendar(calendar)
-      })
-      .catch(() => {})
-      .finally(() => setIntelLoading(false))
-  }, [currentBusinessId])
-
   const { data: overview, isInitialLoading } = useBusinessOverviewData(currentBusinessId, isActive)
+
+  useEffect(() => {
+    let cancelled = false
+
+    const loadIntel = async () => {
+      if (isInitialLoading || !overview) return
+
+      // Let the main UI paint before saturating the DB with intelligence queries.
+      await new Promise(resolve => setTimeout(resolve, 500))
+      if (cancelled) return
+
+      setIntelLoading(true)
+
+      try {
+        const forecast = await intelligenceEngine.getCashForecast(currentBusinessId)
+        if (cancelled) return
+        setCashForecast(forecast)
+
+        const items = await intelligenceEngine.getCollectionPriority(currentBusinessId)
+        if (cancelled) return
+        setCollectionItems(items)
+
+        const risks = await intelligenceEngine.getConcentrationRisk(currentBusinessId)
+        if (cancelled) return
+        setConcentrationRisk(risks.length > 0 ? risks[0] : null)
+
+        const calendar = await intelligenceEngine.getPaymentCalendar(currentBusinessId)
+        if (cancelled) return
+        setPaymentCalendar(calendar)
+      } catch (err) {
+        console.error('Intelligence load failed:', err)
+      } finally {
+        if (!cancelled) setIntelLoading(false)
+      }
+
+      // Refresh the cached trust score in the background. The dashboard's
+      // initial render already used the cached value from business_entities.
+      void computeTrustScore(currentBusinessId)
+        .then(async (ts) => {
+          try {
+            await dataStore.updateCredibilityScore(currentBusinessId, ts.total)
+          } catch {
+            /* non-critical, swallow */
+          }
+        })
+        .catch(() => {})
+    }
+
+    void loadIntel()
+    return () => { cancelled = true }
+  }, [currentBusinessId, isInitialLoading, overview])
   const recentOrders = overview?.recentOrders ?? []
   const attentionCounts = overview?.attentionCounts ?? {
     accept: 0,

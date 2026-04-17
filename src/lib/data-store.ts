@@ -744,6 +744,33 @@ export class ZeltoDataStore {
 
     return enrichConnectionOrdersWithPaymentState(orders, allPayments)
   }
+
+  async getOrdersWithPaymentStateByConnectionIds(
+    connectionIds: string[]
+  ): Promise<OrderWithPaymentState[]> {
+    if (connectionIds.length === 0) return []
+
+    const { data: ordersData, error: ordersErr } = await supabase
+      .from('orders')
+      .select('*')
+      .in('connection_id', connectionIds)
+
+    if (ordersErr) throw ordersErr
+    const orders = toCamelCase(ordersData || []) as Order[]
+    if (orders.length === 0) return []
+
+    const orderIds = orders.map(o => o.id)
+    const { data: paymentsData, error: paymentsErr } = await supabase
+      .from('payment_events')
+      .select('*')
+      .in('order_id', orderIds)
+
+    if (paymentsErr) throw paymentsErr
+    const allPayments = toCamelCase(paymentsData || []) as PaymentEvent[]
+
+    return enrichConnectionOrdersWithPaymentState(orders, allPayments)
+  }
+
   // ============ PAYMENT EVENTS ============
 
   async getAllPaymentEvents(): Promise<PaymentEvent[]> {

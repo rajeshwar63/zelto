@@ -1,9 +1,8 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { dataStore } from '@/lib/data-store'
-import { behaviourEngine } from '@/lib/behaviour-engine'
 import { useDataListener } from '@/lib/data-events'
-import type { Connection, ConnectionState } from '@/lib/types'
+import type { Connection, ConnectionState, OrderWithPaymentState } from '@/lib/types'
 import { getConnectionStateLabel, getConnectionStateColor } from '@/lib/connection-state-utils'
 import { Users, UsersThree, PencilSimple, MagnifyingGlass, DownloadSimple, X, Phone, MapPin, User } from '@phosphor-icons/react'
 import { EmptyState } from '@/components/EmptyState'
@@ -55,7 +54,6 @@ function formatPaymentTerms(terms: Connection['paymentTerms']): string | null {
 
 const cachedConnectionsByBusiness = new Map<string, ConnectionWithState[]>()
 const MAX_CACHED_BUSINESSES = 5
-const PREFETCH_CONNECTION_COUNT = 3
 
 function isSamePaymentTerms(a: Connection['paymentTerms'], b: Connection['paymentTerms']) {
   if (!a && !b) return true
@@ -103,44 +101,62 @@ export function ConnectionsScreen({ currentBusinessId, onSelectConnection, onAdd
 
   const loadConnections = useCallback(async () => {
     console.debug('[ConnectionsScreen] fetch start', Date.now(), { currentBusinessId })
-    const cachedConns = cachedConnectionsByBusiness.get(currentBusinessId)
-    const rawConnections = await dataStore.getConnectionsByBusinessId(currentBusinessId)
-    const entities = await dataStore.getAllBusinessEntities()
+
+    const [rawConnections, entities] = await Promise.all([
+      dataStore.getConnectionsByBusinessId(currentBusinessId),
+      dataStore.getAllBusinessEntities(),
+    ])
+
     const entityMap = new Map(entities.map((e) => [e.id, e]))
 
-    const connectionsWithState = await Promise.all(
-      rawConnections.map(async (conn) => {
-        const otherId =
-          conn.buyerBusinessId === currentBusinessId
-            ? conn.supplierBusinessId
-            : conn.buyerBusinessId
-        const otherBusiness = entityMap.get(otherId)
-        const computedState = await behaviourEngine.computeConnectionState(conn.id)
-        const orders = await dataStore.getOrdersWithPaymentStateByConnectionId(conn.id)
-        const nonDeclined = orders.filter(o => !o.declinedAt)
-        const outstandingBalance = nonDeclined.reduce((sum, o) => sum + o.pendingAmount, 0)
-        const totalTradedAmount = nonDeclined.reduce((sum, o) => sum + o.orderValue, 0)
-        const lastActivityAt = nonDeclined.length > 0
-          ? Math.max(...nonDeclined.map(o => o.createdAt))
-          : null
+    if (rawConnections.length === 0) {
+      setConnections([])
+      setIsLoading(false)
+      cachedConnectionsByBusiness.set(currentBusinessId, [])
+      return
+    }
 
-        return {
-          ...conn,
-          otherBusinessName: otherBusiness?.businessName || 'Unknown',
-          otherBusinessType: otherBusiness?.businessType,
-          computedState,
-          outstandingBalance,
-          totalOrders: nonDeclined.length,
-          totalTradedAmount,
-          lastActivityAt,
-        }
-      })
-    )
+    const connectionIds = rawConnections.map(c => c.id)
+    const allOrders = await dataStore.getOrdersWithPaymentStateByConnectionIds(connectionIds)
+
+    const ordersByConnection = new Map<string, OrderWithPaymentState[]>()
+    for (const order of allOrders) {
+      if (!ordersByConnection.has(order.connectionId)) {
+        ordersByConnection.set(order.connectionId, [])
+      }
+      ordersByConnection.get(order.connectionId)!.push(order)
+    }
+
+    const connectionsWithState: ConnectionWithState[] = rawConnections.map(conn => {
+      const otherId = conn.buyerBusinessId === currentBusinessId
+        ? conn.supplierBusinessId
+        : conn.buyerBusinessId
+      const otherBusiness = entityMap.get(otherId)
+      const orders = ordersByConnection.get(conn.id) ?? []
+      const nonDeclined = orders.filter(o => !o.declinedAt)
+      const outstandingBalance = nonDeclined.reduce((sum, o) => sum + o.pendingAmount, 0)
+      const totalTradedAmount = nonDeclined.reduce((sum, o) => sum + o.orderValue, 0)
+      const lastActivityAt = nonDeclined.length > 0
+        ? Math.max(...nonDeclined.map(o => o.createdAt))
+        : null
+
+      return {
+        ...conn,
+        otherBusinessName: otherBusiness?.businessName || 'Unknown',
+        otherBusinessType: otherBusiness?.businessType,
+        computedState: conn.connectionState ?? 'Stable',
+        outstandingBalance,
+        totalOrders: nonDeclined.length,
+        totalTradedAmount,
+        lastActivityAt,
+      }
+    })
 
     console.debug('[ConnectionsScreen] fetch end', Date.now(), { currentBusinessId })
 
     connectionsWithState.sort((a, b) => b.createdAt - a.createdAt)
 
+    const cachedConns = cachedConnectionsByBusiness.get(currentBusinessId)
     if (!cachedConns || !isSameConnections(cachedConns, connectionsWithState)) {
       if (!cachedConnectionsByBusiness.has(currentBusinessId) && cachedConnectionsByBusiness.size >= MAX_CACHED_BUSINESSES) {
         const oldestBusinessId = cachedConnectionsByBusiness.keys().next().value
@@ -152,12 +168,6 @@ export function ConnectionsScreen({ currentBusinessId, onSelectConnection, onAdd
     }
 
     setIsLoading(false)
-
-    void Promise.all(
-      connectionsWithState
-        .slice(0, PREFETCH_CONNECTION_COUNT)
-        .map(conn => dataStore.getOrdersWithPaymentStateByConnectionId(conn.id))
-    ).catch(() => {})
   }, [currentBusinessId])
 
   useEffect(() => {
