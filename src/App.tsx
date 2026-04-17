@@ -193,18 +193,24 @@ function App() {
     void checkUnread()
   }, [currentBusinessId])
 
-  // Periodic behaviour engine recalculation (every 20 minutes)
+  // Periodic behaviour engine recalculation (every 20 minutes).
+  // The first run is deferred 5s so it doesn't compete with the initial
+  // dashboard paint for DB connections.
   useEffect(() => {
     if (!currentBusinessId) return
 
-    // Run once on login
-    behaviourEngine.recalculateAllConnectionStates().catch(console.error)
+    const timeoutId = setTimeout(() => {
+      behaviourEngine.recalculateAllConnectionStates().catch(console.error)
+    }, 5000)
 
     const interval = setInterval(() => {
       behaviourEngine.recalculateAllConnectionStates().catch(console.error)
     }, 20 * 60 * 1000)
 
-    return () => clearInterval(interval)
+    return () => {
+      clearTimeout(timeoutId)
+      clearInterval(interval)
+    }
   }, [currentBusinessId])
 
   // Set Sentry user context when business/user changes

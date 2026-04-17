@@ -281,12 +281,14 @@ export class BehaviourEngine {
   async recalculateAllConnectionStates(): Promise<void> {
     const connections = await dataStore.getAllConnections()
 
-    for (const connection of connections) {
-      const newState = await this.computeConnectionState(connection.id)
-      if (newState !== connection.connectionState) {
-        await dataStore.updateConnectionState(connection.id, newState)
-      }
-    }
+    await Promise.all(
+      connections.map(async (connection) => {
+        const newState = await this.computeConnectionState(connection.id)
+        if (newState !== connection.connectionState) {
+          await dataStore.updateConnectionState(connection.id, newState)
+        }
+      })
+    )
   }
 }
 
