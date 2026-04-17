@@ -1,4 +1,4 @@
-import { ArrowDown, ArrowUp, CaretRight, CurrencyInr, Hourglass, NotePencil, Package, ShieldWarning, Truck, UsersThree, WarningCircle, ChartLineUp, Pulse, Handshake } from '@phosphor-icons/react'
+import { ArrowDown, ArrowUp, CaretRight, CurrencyInr, Hourglass, NotePencil, Package, ShieldWarning, Truck, UsersThree, WarningCircle, Pulse, Handshake } from '@phosphor-icons/react'
 import { TrustBadge } from '@/components/TrustBadge'
 import { AnimatedListItem } from '@/components/AnimatedListItem'
 import { EmptyState } from '@/components/EmptyState'
@@ -9,10 +9,7 @@ import { useState, useEffect } from 'react'
 import { computeTrustScore, type TrustScoreBreakdown } from '@/lib/trust-score'
 import { useBusinessOverviewData } from '@/hooks/data/use-business-data'
 import { OrderCard } from '@/components/order/OrderCard'
-import { intelligenceEngine } from '@/lib/intelligence-engine'
-import type { CashForecast, CollectionItem, ConcentrationRisk, PaymentCalendarItem } from '@/lib/intelligence-engine'
 import { dataStore } from '@/lib/data-store'
-import { MoneyCard } from './dashboard/MoneyCard'
 
 function formatINR(amount: number): string {
   return amount.toLocaleString('en-IN', {
@@ -43,11 +40,6 @@ interface Props {
 export function DashboardScreen({ currentBusinessId, onNavigateToOrders, onNavigateToConnection, onNavigateToProfile, onNavigateToConnections, onNavigateToAttention, onNavigateToManageConnections, onNavigateToSupplierDocs, isActive = true }: Props) {
   const [showBadgeInfo, setShowBadgeInfo] = useState(false)
   const [trustScoreData, setTrustScoreData] = useState<TrustScoreBreakdown | null>(null)
-  const [cashForecast, setCashForecast] = useState<CashForecast | null>(null)
-  const [collectionItems, setCollectionItems] = useState<CollectionItem[]>([])
-  const [concentrationRisk, setConcentrationRisk] = useState<ConcentrationRisk | null>(null)
-  const [paymentCalendar, setPaymentCalendar] = useState<PaymentCalendarItem[]>([])
-  const [intelLoading, setIntelLoading] = useState(true)
 
   useEffect(() => {
     if (showBadgeInfo && !trustScoreData) {
@@ -60,42 +52,24 @@ export function DashboardScreen({ currentBusinessId, onNavigateToOrders, onNavig
   useEffect(() => {
     let cancelled = false
 
-    const loadIntel = async () => {
+    const refreshTrustScore = async () => {
       if (isInitialLoading || !overview) return
 
-      // Let the main UI paint before firing the edge function call.
+      // Defer until after first paint — the initial render uses the cached
+      // business_entities.credibility_score value.
       await new Promise(resolve => setTimeout(resolve, 500))
       if (cancelled) return
 
-      setIntelLoading(true)
-
       try {
-        const result = await intelligenceEngine.getTradeIntelligence(currentBusinessId)
+        const ts = await computeTrustScore(currentBusinessId)
         if (cancelled) return
-        setCashForecast(result.cashForecast)
-        setCollectionItems(result.collectionItems)
-        setConcentrationRisk(result.concentrationRisk)
-        setPaymentCalendar(result.paymentCalendar)
-      } catch (err) {
-        console.error('Trade intelligence failed to load:', err)
-      } finally {
-        if (!cancelled) setIntelLoading(false)
+        await dataStore.updateCredibilityScore(currentBusinessId, ts.total)
+      } catch {
+        /* non-critical, swallow */
       }
-
-      // Refresh the cached trust score in the background. The dashboard's
-      // initial render already used the cached value from business_entities.
-      void computeTrustScore(currentBusinessId)
-        .then(async (ts) => {
-          try {
-            await dataStore.updateCredibilityScore(currentBusinessId, ts.total)
-          } catch {
-            /* non-critical, swallow */
-          }
-        })
-        .catch(() => {})
     }
 
-    void loadIntel()
+    void refreshTrustScore()
     return () => { cancelled = true }
   }, [currentBusinessId, isInitialLoading, overview])
   const recentOrders = overview?.recentOrders ?? []
@@ -531,35 +505,6 @@ export function DashboardScreen({ currentBusinessId, onNavigateToOrders, onNavig
                 </div>
               )}
           </div>
-        </div>
-
-        <div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '10px' }}>
-            <ChartLineUp size={14} weight="bold" color="#4A6CF7" />
-            <span style={{ fontSize: '12px', fontWeight: 600, color: 'var(--text-primary, #0F1320)' }}>
-              Trade intelligence
-            </span>
-          </div>
-          <MoneyCard
-            forecast={cashForecast}
-            collectionItems={collectionItems}
-            concentrationRisk={concentrationRisk}
-            paymentCalendar={paymentCalendar}
-            loading={intelLoading}
-            onTapCollectionItem={(connId) => onNavigateToConnection(connId)}
-            onTapPaymentItem={(connId) => onNavigateToConnection(connId)}
-            onTapForecastRow={(type, label) => {
-              if (type === 'inflow') {
-                onNavigateToOrders(undefined, { role: 'selling', chip: 'delivered' })
-              } else {
-                if (label === 'This Week') {
-                  onNavigateToOrders(undefined, { role: 'buying', chip: 'overdue' })
-                } else {
-                  onNavigateToOrders(undefined, { role: 'buying', chip: 'delivered' })
-                }
-              }
-            }}
-          />
         </div>
 
         {onNavigateToSupplierDocs && (
