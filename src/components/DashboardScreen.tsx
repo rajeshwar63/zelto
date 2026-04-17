@@ -4,7 +4,6 @@ import { AnimatedListItem } from '@/components/AnimatedListItem'
 import { EmptyState } from '@/components/EmptyState'
 import { OnboardingChecklist } from '@/components/OnboardingChecklist'
 import { BadgeInfoSheet } from '@/components/BadgeInfoSheet'
-import { ComplianceCard } from '@/components/ComplianceCard'
 import { useState, useEffect } from 'react'
 import { computeTrustScore, type TrustScoreBreakdown } from '@/lib/trust-score'
 import { useBusinessOverviewData } from '@/hooks/data/use-business-data'
@@ -33,11 +32,10 @@ interface Props {
   onNavigateToConnections: (filter?: string) => void
   onNavigateToAttention: (filter?: string) => void
   onNavigateToManageConnections?: () => void
-  onNavigateToSupplierDocs?: (targetBusinessId: string, connectionId: string) => void
   isActive?: boolean
 }
 
-export function DashboardScreen({ currentBusinessId, onNavigateToOrders, onNavigateToConnection, onNavigateToProfile, onNavigateToConnections, onNavigateToAttention, onNavigateToManageConnections, onNavigateToSupplierDocs, isActive = true }: Props) {
+export function DashboardScreen({ currentBusinessId, onNavigateToOrders, onNavigateToConnection, onNavigateToProfile, onNavigateToConnections, onNavigateToAttention, onNavigateToManageConnections, isActive = true }: Props) {
   const [showBadgeInfo, setShowBadgeInfo] = useState(false)
   const [trustScoreData, setTrustScoreData] = useState<TrustScoreBreakdown | null>(null)
 
@@ -506,13 +504,6 @@ export function DashboardScreen({ currentBusinessId, onNavigateToOrders, onNavig
               )}
           </div>
         </div>
-
-        {onNavigateToSupplierDocs && (
-          <ComplianceCard
-            currentBusinessId={currentBusinessId}
-            onNavigateToSupplierDocs={onNavigateToSupplierDocs}
-          />
-        )}
 
         <div>
           <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '10px' }}>

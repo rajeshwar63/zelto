@@ -63,17 +63,6 @@ export interface BusinessDocument {
   uploadedAt: number
 }
 
-export interface ComplianceAlert {
-  connectionId: string
-  otherBusinessId: string
-  otherBusinessName: string
-  otherBusinessZeltoId: string
-  issueType: 'expired' | 'expiring' | 'missing'
-  documentDisplayName: string
-  expiresAtMs: number | null
-  daysRemaining: number | null
-}
-
 export type UserRole = 'owner' | 'admin' | 'member'
 
 export interface UserAccount {

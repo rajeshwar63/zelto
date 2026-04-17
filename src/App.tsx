@@ -510,16 +510,6 @@ function App() {
     setNavigationStack(stack => [...stack, { type: 'invite' }])
   }
 
-  const navigateToSupplierDocs = (targetBusinessId: string, connectionId: string) => {
-    setNavigationStack(stack => [...stack, {
-      type: 'trust-profile',
-      targetBusinessId,
-      screenMode: { action: 'view-connection', audience: 'connection-review' },
-      connectionId,
-      initialTab: 'docs',
-    }])
-  }
-
   const navigateToTrustProfile = (
     targetBusinessId: string,
     screenMode: TrustProfileScreenMode,
@@ -907,7 +897,6 @@ function App() {
             onNavigateToManageMembers={navigateToManageMembers}
             onNavigateToTeam={navigateToTeam}
             onNavigateToTrustProfile={navigateToTrustProfile}
-            onNavigateToSupplierDocs={navigateToSupplierDocs}
             onNavigateToPlaceOrder={navigateToPlaceOrder}
             onNavigateToInvoiceSettings={navigateToInvoiceSettings}
             onNavigateToItemMaster={navigateToItemMaster}
@@ -943,7 +932,6 @@ function TabShell({
   onNavigateToManageMembers,
   onNavigateToTeam,
   onNavigateToTrustProfile,
-  onNavigateToSupplierDocs,
   onNavigateToPlaceOrder,
   onNavigateToInvoiceSettings,
   onNavigateToItemMaster,
@@ -969,7 +957,6 @@ function TabShell({
   onNavigateToManageMembers?: () => void
   onNavigateToTeam?: () => void
   onNavigateToTrustProfile?: (targetBusinessId: string, screenMode: TrustProfileScreenMode, connectionRequestId?: string, connectionId?: string) => void
-  onNavigateToSupplierDocs?: (targetBusinessId: string, connectionId: string) => void
   onNavigateToPlaceOrder: (prefilledConnectionId?: string | null) => void
   onNavigateToInvoiceSettings?: () => void
   onNavigateToItemMaster?: () => void
@@ -987,7 +974,6 @@ function TabShell({
             onNavigateToConnections={(filter) => onNavigateToTabWithFilter('connections', filter)}
             onNavigateToAttention={(filter) => onNavigateToTabWithFilter('attention', filter)}
             onNavigateToManageConnections={onNavigateToManageConnectionsReceived}
-            onNavigateToSupplierDocs={onNavigateToSupplierDocs}
           />
         ) : activeTabScreen.tab === 'attention' ? (
           <AttentionScreen
