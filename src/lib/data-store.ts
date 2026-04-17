@@ -3,7 +3,6 @@ import {
   AttachmentType,
   BusinessDocument,
   BusinessEntity,
-  ComplianceAlert,
   Connection,
   ConnectionRequest,
   ConnectionRequestStatus,
@@ -1595,16 +1594,6 @@ export class ZeltoDataStore {
       .eq('id', attachmentId)
 
     if (error) throw error
-  }
-
-  // ============ COMPLIANCE ALERTS ============
-
-  async getComplianceAlerts(businessId: string): Promise<ComplianceAlert[]> {
-    const { data, error } = await supabase.rpc('get_compliance_alerts', {
-      p_business_id: businessId,
-    })
-    if (error) throw error
-    return toCamelCase(data || [])
   }
 
   // ============ MEMBER INVITES ============
