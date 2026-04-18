@@ -1,8 +1,6 @@
 name: Build Signed AAB
 
 on:
-  push:
-    branches: [ main ]
   workflow_dispatch:
 
 jobs:
