@@ -205,6 +205,7 @@ export type NotificationType =
   | 'OrderPlaced'
   | 'OrderAccepted'
   | 'OrderDispatched'
+  | 'OrderDelivered'
   | 'OrderDeclined'
   | 'PaymentRecorded'
   | 'PaymentDisputed'

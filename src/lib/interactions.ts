@@ -257,6 +257,26 @@ export async function transitionOrderState(
       console.error('Notification failed:', err)
     }
   }
+  if (newState === 'Delivered') {
+    try {
+      const markedByBuyer = requestingBusinessId === connection.buyerBusinessId
+      const recipientId = markedByBuyer
+        ? connection.supplierBusinessId
+        : connection.buyerBusinessId
+      const actorName = markedByBuyer
+        ? await getOtherPartyName(connection.buyerBusinessId)
+        : await getOtherPartyName(connection.supplierBusinessId)
+      await dataStore.createNotification(
+        recipientId,
+        'OrderDelivered',
+        orderId,
+        order.connectionId,
+        formatNotificationMessage(order.itemSummary, `Delivered by ${actorName}`)
+      )
+    } catch (err) {
+      console.error('Notification failed:', err)
+    }
+  }
 
   await recalculateConnectionState(order.connectionId)
 

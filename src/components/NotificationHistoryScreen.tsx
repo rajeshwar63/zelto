@@ -27,6 +27,7 @@ interface Props {
 const ORDER_RELATED_NOTIFICATION_TYPES: NotificationType[] = [
   'OrderPlaced',
   'OrderDispatched',
+  'OrderDelivered',
   'OrderDeclined',
   'PaymentRecorded',
   'IssueRaised'
