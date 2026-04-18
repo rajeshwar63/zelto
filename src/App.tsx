@@ -1036,7 +1036,7 @@ function TabShell({
       </div>
 
       <div className="bottom-nav fixed bottom-0 left-0 right-0" style={{ backgroundColor: 'var(--bg-card)', borderTop: '1px solid var(--border-light)' }}>
-        <div className="flex items-center justify-around" style={{ paddingTop: '6px', paddingBottom: 'calc(4px + env(safe-area-inset-bottom))' }}>
+        <div className="flex items-center justify-around" style={{ paddingTop: '6px', paddingBottom: 'env(safe-area-inset-bottom, 16px)' }}>
           <TabButton
             label="Home"
             Icon={House}

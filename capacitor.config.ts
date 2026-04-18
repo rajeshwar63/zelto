@@ -7,6 +7,9 @@ const config: CapacitorConfig = {
   server: {
     androidScheme: 'https',
   },
+  android: {
+    adjustMarginsForEdgeToEdge: 'never',
+  },
   plugins: {
     SplashScreen: {
       launchShowDuration: 2000,
