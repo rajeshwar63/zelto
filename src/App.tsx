@@ -975,7 +975,7 @@ function TabShell({
 }) {
   return (
     <>
-      <div className="flex-1 overflow-auto pb-16">
+      <div className="flex-1 overflow-auto pb-[calc(4rem+env(safe-area-inset-bottom))]">
         {activeTabScreen.tab === 'dashboard' ? (
           <DashboardScreen
             currentBusinessId={currentBusinessId}
@@ -1036,7 +1036,7 @@ function TabShell({
       </div>
 
       <div className="bottom-nav fixed bottom-0 left-0 right-0" style={{ backgroundColor: 'var(--bg-card)', borderTop: '1px solid var(--border-light)' }}>
-        <div className="flex items-center justify-around" style={{ paddingTop: '6px', paddingBottom: '4px' }}>
+        <div className="flex items-center justify-around" style={{ paddingTop: '6px', paddingBottom: 'calc(4px + env(safe-area-inset-bottom))' }}>
           <TabButton
             label="Home"
             Icon={House}
