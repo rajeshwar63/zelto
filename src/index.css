@@ -142,7 +142,7 @@ html, body, #root {
 }
 
 .bottom-nav {
-  padding-bottom: env(safe-area-inset-bottom, 16px);
+  padding-bottom: max(env(safe-area-inset-bottom), 24px);
 }
 
 /* ── Micro-interaction animations ────────────────────────────────── */
