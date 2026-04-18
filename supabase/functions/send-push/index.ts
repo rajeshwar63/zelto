@@ -159,6 +159,7 @@ const NOTIFICATION_TITLES: Record<string, string> = {
   OrderPlaced: 'New Order',
   OrderAccepted: 'Order Accepted',
   OrderDispatched: 'Order Dispatched',
+  OrderDelivered: 'Order Delivered',
   OrderDeclined: 'Order Declined',
   PaymentRecorded: 'Payment Received',
   PaymentDisputed: 'Payment Disputed',
