@@ -26,11 +26,18 @@ import { toast } from 'sonner'
 import { useProfileData } from '@/hooks/data/use-business-data'
 import { computeTrustScore } from '@/lib/trust-score'
 import type { UserAccount } from '@/lib/types'
+import {
+  getPushDiagnostic,
+  requestPushPermissionFromUserGesture,
+  isIosDevice,
+  isRunningAsStandalonePwa,
+} from '@/lib/push-notifications'
 
 interface Props {
   currentBusinessId: string
   onLogout: () => void
   onNavigateToNotifications: () => void
+  onNavigateToNotificationDebug: () => void
   onNavigateToNotificationSettings: () => void
   onNavigateToAccount: () => void
   onNavigateToSupport: () => void
@@ -119,6 +126,7 @@ export function ProfileScreen({
   currentBusinessId,
   onLogout,
   onNavigateToNotifications,
+  onNavigateToNotificationDebug,
   onNavigateToNotificationSettings,
   onNavigateToAccount,
   onNavigateToSupport,
@@ -142,6 +150,13 @@ export function ProfileScreen({
   const usernameInputRef = useRef<HTMLInputElement>(null)
   const [trustNudgeText, setTrustNudgeText] = useState('View your trust profile')
   const [trustScorePotential, setTrustScorePotential] = useState(0)
+  const [pushDiag, setPushDiag] = useState(getPushDiagnostic())
+  const [enablingPush, setEnablingPush] = useState(false)
+
+  useEffect(() => {
+    const interval = setInterval(() => setPushDiag(getPushDiagnostic()), 2000)
+    return () => clearInterval(interval)
+  }, [])
 
   useEffect(() => {
     dataStore.getUserAccountsByBusinessId(currentBusinessId)
@@ -319,6 +334,58 @@ export function ProfileScreen({
           )}
         </button>
       </div>
+
+      {/* ── ENABLE NOTIFICATIONS BANNER ── */}
+      {!pushDiag.tokenSavedToDb && (
+        <div style={{ padding: '0 14px 12px' }}>
+          <div
+            style={{
+              padding: '14px 16px',
+              background: '#FFF7E6',
+              border: '1px solid #FFD591',
+              borderRadius: 12,
+            }}
+          >
+            <p style={{ fontSize: 14, fontWeight: 600, margin: 0, color: '#8C5200' }}>
+              Enable notifications
+            </p>
+            <p style={{ fontSize: 12, color: '#8C5200', margin: '6px 0 12px 0', lineHeight: 1.5 }}>
+              {isIosDevice() && !isRunningAsStandalonePwa()
+                ? 'On iPhone: tap the Share button in Safari, then "Add to Home Screen". Open Zelto from the Home Screen icon and return here.'
+                : "You won't receive alerts for new orders, payments, or messages until you enable notifications."}
+            </p>
+            {(!isIosDevice() || isRunningAsStandalonePwa()) && (
+              <button
+                onClick={async () => {
+                  if (!currentBusinessId) return
+                  setEnablingPush(true)
+                  const result = await requestPushPermissionFromUserGesture(currentBusinessId)
+                  setEnablingPush(false)
+                  setPushDiag(getPushDiagnostic())
+                  if (!result.ok) {
+                    toast.error(result.reason ?? 'Could not enable notifications')
+                  } else {
+                    toast.success('Notifications enabled')
+                  }
+                }}
+                disabled={enablingPush}
+                style={{
+                  padding: '10px 18px',
+                  background: '#4A6CF7',
+                  color: '#fff',
+                  border: 'none',
+                  borderRadius: 8,
+                  fontSize: 13,
+                  fontWeight: 600,
+                  cursor: 'pointer',
+                }}
+              >
+                {enablingPush ? 'Enabling…' : 'Enable notifications'}
+              </button>
+            )}
+          </div>
+        </div>
+      )}
 
       {/* ── BUSINESS CARD ── */}
       <div style={{ padding: '0 14px 16px' }}>
@@ -677,6 +744,13 @@ export function ProfileScreen({
             iconBg="#F2F4F8"
             title="Help & Support"
             onPress={onNavigateToSupport}
+          />
+          <MenuRow
+            icon={<Bell size={18} color="#8492A6" weight="bold" />}
+            iconBg="#F2F4F8"
+            title="Notification diagnostics"
+            subtitle="Share with support if alerts aren't arriving"
+            onPress={onNavigateToNotificationDebug}
             showDivider={false}
           />
         </div>

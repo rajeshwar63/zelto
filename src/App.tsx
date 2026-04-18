@@ -18,6 +18,7 @@ import { BusinessDetailsScreen } from '@/components/BusinessDetailsScreen'
 import { TrustProfileScreen, type TrustProfileScreenMode } from '@/components/TrustProfileScreen'
 import { NotificationHistoryScreen } from '@/components/NotificationHistoryScreen'
 import { NotificationSettingsScreen } from '@/components/NotificationSettingsScreen'
+import { NotificationDebugScreen } from '@/components/NotificationDebugScreen'
 import { AccountScreen } from '@/components/AccountScreen'
 import { HelpSupportScreen } from '@/components/HelpSupportScreen'
 import { ReportIssueScreen } from '@/components/ReportIssueScreen'
@@ -69,6 +70,7 @@ type Screen =
   | { type: 'business-details' }
   | { type: 'manage-documents' }
   | { type: 'notifications' }
+  | { type: 'notification-debug' }
   | { type: 'profile-notifications' }
   | { type: 'profile-account' }
   | { type: 'profile-support' }
@@ -527,6 +529,10 @@ function App() {
     setNavigationStack(stack => [...stack, { type: 'notifications' }])
   }
 
+  const navigateToNotificationDebug = () => {
+    setNavigationStack(stack => [...stack, { type: 'notification-debug' }])
+  }
+
   const navigateToProfileNotifications = () => {
     setNavigationStack(stack => [...stack, { type: 'profile-notifications' }])
   }
@@ -629,6 +635,9 @@ function App() {
           onNavigateToConnection={navigateToConnection}
         />
       )
+    }
+    if (detailScreen.type === 'notification-debug') {
+      return <NotificationDebugScreen onBack={navigateBack} />
     }
     if (detailScreen.type === 'business-details') {
       return (
@@ -890,6 +899,7 @@ function App() {
             onNavigateToManageConnectionsReceived={navigateToManageConnectionsReceived}
             onLogout={handleLogout}
             onNavigateToNotifications={navigateToNotifications}
+            onNavigateToNotificationDebug={navigateToNotificationDebug}
             onNavigateToProfileNotifications={navigateToProfileNotifications}
             onNavigateToProfileAccount={navigateToProfileAccount}
             onNavigateToProfileSupport={navigateToProfileSupport}
@@ -925,6 +935,7 @@ function TabShell({
   onNavigateToManageConnectionsReceived,
   onLogout,
   onNavigateToNotifications,
+  onNavigateToNotificationDebug,
   onNavigateToProfileNotifications,
   onNavigateToProfileAccount,
   onNavigateToProfileSupport,
@@ -950,6 +961,7 @@ function TabShell({
   onNavigateToManageConnectionsReceived: () => void
   onLogout: () => Promise<void>
   onNavigateToNotifications: () => void
+  onNavigateToNotificationDebug: () => void
   onNavigateToProfileNotifications: () => void
   onNavigateToProfileAccount: () => void
   onNavigateToProfileSupport: () => void
@@ -1005,6 +1017,7 @@ function TabShell({
             currentBusinessId={currentBusinessId}
             onLogout={onLogout}
             onNavigateToNotifications={onNavigateToNotifications}
+            onNavigateToNotificationDebug={onNavigateToNotificationDebug}
             onNavigateToNotificationSettings={onNavigateToProfileNotifications}
             onNavigateToAccount={onNavigateToProfileAccount}
             onNavigateToSupport={onNavigateToProfileSupport}
