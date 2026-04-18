@@ -1,32 +1,19 @@
 // src/lib/push-notifications.ts
 // Registers device for push notifications.
-// Native (Android/iOS): Uses Capacitor PushNotifications + FCM tokens.
-// Web (PWA):            Uses W3C Push API + VAPID for iOS Safari & desktop browsers.
+// Native (Android): Uses Capacitor PushNotifications + FCM tokens.
+// Web (PWA / desktop): Uses W3C Push API + VAPID.
+//
+// IMPORTANT: On iOS Safari, permission MUST be requested from a direct user
+// gesture. That's why registerPushNotifications() only does the "silent" work
+// (checks state, stores business id). The actual subscribe + permission
+// prompt happens in requestPushPermissionFromUserGesture() which MUST be
+// called from an onClick handler.
 
 import * as Sentry from '@sentry/react'
 import { PushNotifications } from '@capacitor/push-notifications'
 import { Capacitor } from '@capacitor/core'
 import { supabase } from './supabase-client'
 import { getAuthSession } from './auth'
-import { getMessaging } from 'firebase/messaging'
-import { getApp, initializeApp } from 'firebase/app'
-
-// ─── Firebase config (native FCM) ───────────────────────────────────────────
-const firebaseConfig = {
-  apiKey: 'AIzaSyDi88lmNnBmbBQ_kKuL6L2PsQ8cMb1aIQk',
-  projectId: 'zelto-87b9f',
-  messagingSenderId: '1087219191711',
-  appId: '1:1087219191711:android:857f042a120957413077aa',
-  storageBucket: 'zelto-87b9f.firebasestorage.app',
-}
-
-function getFirebaseApp() {
-  try {
-    return getApp()
-  } catch {
-    return initializeApp(firebaseConfig)
-  }
-}
 
 // ─── VAPID public key for Web Push ──────────────────────────────────────────
 const VAPID_PUBLIC_KEY =
@@ -41,10 +28,87 @@ function urlBase64ToUint8Array(base64String: string): Uint8Array {
   return out
 }
 
+// ─── Diagnostic state (exposed for debug screen) ────────────────────────────
+export type PushDiagnostic = {
+  platform: string
+  isStandalone: boolean
+  isIos: boolean
+  pushSupported: boolean
+  permissionStatus: string
+  serviceWorkerReady: boolean
+  registrationAttempted: boolean
+  registrationSucceeded: boolean
+  tokenSavedToDb: boolean
+  lastError: string | null
+  tokenPreview: string | null
+  lastUpdatedAt: number | null
+}
+
+const diagnostic: PushDiagnostic = {
+  platform: Capacitor.getPlatform(),
+  isStandalone: false,
+  isIos: false,
+  pushSupported: false,
+  permissionStatus: 'unknown',
+  serviceWorkerReady: false,
+  registrationAttempted: false,
+  registrationSucceeded: false,
+  tokenSavedToDb: false,
+  lastError: null,
+  tokenPreview: null,
+  lastUpdatedAt: null,
+}
+
+function updateDiagnostic(patch: Partial<PushDiagnostic>) {
+  Object.assign(diagnostic, patch, { lastUpdatedAt: Date.now() })
+}
+
+function recordError(where: string, err: unknown) {
+  const msg = err instanceof Error ? `${where}: ${err.message}` : `${where}: ${String(err)}`
+  updateDiagnostic({ lastError: msg })
+  console.error('[push]', msg, err)
+  Sentry.captureException(err, { tags: { flow: where } })
+}
+
+export function getPushDiagnostic(): PushDiagnostic {
+  return {
+    ...diagnostic,
+    isStandalone: isRunningAsStandalonePwa(),
+    isIos: isIosDevice(),
+    pushSupported: isPushSupported(),
+    permissionStatus:
+      typeof Notification !== 'undefined' ? Notification.permission : 'unavailable',
+  }
+}
+
 // ─── Shared state ───────────────────────────────────────────────────────────
 let listenersRegistered = false
 let activeBusinessEntityId: string | null = null
 let webPushRegistered = false
+
+// ─── Platform detection helpers ─────────────────────────────────────────────
+export function isRunningAsStandalonePwa(): boolean {
+  if (Capacitor.isNativePlatform()) return false
+  if (typeof navigator === 'undefined' || typeof window === 'undefined') return false
+  // iOS Safari uses navigator.standalone (non-standard, not in TS DOM lib)
+  const nav = navigator as Navigator & { standalone?: boolean }
+  if (nav.standalone === true) return true
+  if (window.matchMedia?.('(display-mode: standalone)').matches) return true
+  return false
+}
+
+export function isIosDevice(): boolean {
+  if (Capacitor.isNativePlatform()) return false
+  if (typeof navigator === 'undefined') return false
+  const ua = navigator.userAgent || ''
+  return /iPad|iPhone|iPod/.test(ua)
+}
+
+export function isPushSupported(): boolean {
+  if (Capacitor.isNativePlatform()) return true
+  if (typeof window === 'undefined') return false
+  return 'serviceWorker' in navigator && 'PushManager' in window && 'Notification' in window
+}
 
 // ─── Resolve current user_account row ───────────────────────────────────────
 async function resolveUserAccount(businessEntityId?: string) {
@@ -71,27 +135,52 @@ async function resolveUserAccount(businessEntityId?: string) {
 async function persistDeviceToken(token: string, businessEntityId?: string): Promise<void> {
   const account = await resolveUserAccount(businessEntityId)
   if (!account) {
-    console.error('Push token persistence skipped: no authenticated user')
+    recordError('fcm_persist', new Error('no authenticated user'))
     return
   }
 
+  // Clean up any stale rows for this user on this platform first.
+  // This handles the reinstall case where the old fcm_token is still in the
+  // table but useless. Without this, the unique index (user_id, fcm_token)
+  // would leave orphan rows forever.
+  const platform = Capacitor.getPlatform()
+  const { error: cleanupError } = await supabase
+    .from('device_tokens')
+    .delete()
+    .eq('user_id', account.userId)
+    .eq('platform', platform)
+    .neq('fcm_token', token)
+
+  if (cleanupError) {
+    console.warn('[push] cleanup of stale tokens failed (non-fatal):', cleanupError)
+  }
+
+  // Upsert using the ACTUAL unique index: (user_id, fcm_token).
+  // The old code used onConflict: 'fcm_token' which doesn't match any index.
   const { error } = await supabase.from('device_tokens').upsert(
     {
       user_id: account.userId,
       business_entity_id: account.businessEntityId,
       fcm_token: token,
-      platform: Capacitor.getPlatform(),
+      platform,
       updated_at: Date.now(),
       created_at: Date.now(),
     },
-    { onConflict: 'fcm_token' },
+    { onConflict: 'user_id,fcm_token' },
   )
 
   if (error) {
-    console.error('Failed to save device token:', error)
-  } else {
-    console.log('Device token saved successfully:', token.substring(0, 20))
+    recordError('fcm_persist', error)
+    updateDiagnostic({ tokenSavedToDb: false })
+    return
   }
+
+  updateDiagnostic({
+    tokenSavedToDb: true,
+    tokenPreview: token.substring(0, 20) + '…',
+    registrationSucceeded: true,
+  })
+  console.log('[push] FCM token saved:', token.substring(0, 20))
 }
 
 // ─── Native: listeners ──────────────────────────────────────────────────────
@@ -99,24 +188,21 @@ function registerPushListeners(): void {
   if (listenersRegistered) return
 
   PushNotifications.addListener('registration', async (token) => {
-    console.log('Push registration success', { tokenPreview: token.value.substring(0, 20) })
+    console.log('[push] FCM registration success', token.value.substring(0, 20))
+    updateDiagnostic({ registrationSucceeded: true, tokenPreview: token.value.substring(0, 20) + '…' })
     await persistDeviceToken(token.value, activeBusinessEntityId ?? undefined)
   })
 
   PushNotifications.addListener('registrationError', (err) => {
-    console.error('Push registration error', {
-      code: err.error,
-      message: err.error,
-      details: err,
-    })
+    recordError('fcm_registration', new Error(JSON.stringify(err)))
   })
 
   PushNotifications.addListener('pushNotificationReceived', (notification) => {
-    console.log('Push received:', notification)
+    console.log('[push] received:', notification)
   })
 
   PushNotifications.addListener('pushNotificationActionPerformed', (action) => {
-    console.log('Push tapped:', action)
+    console.log('[push] tapped:', action)
   })
 
   listenersRegistered = true
@@ -124,25 +210,31 @@ function registerPushListeners(): void {
 
 // ─── Native: registration ───────────────────────────────────────────────────
 async function registerNativePush(businessEntityId: string): Promise<void> {
-  if (activeBusinessEntityId === businessEntityId && listenersRegistered) return
+  if (activeBusinessEntityId === businessEntityId && listenersRegistered && diagnostic.tokenSavedToDb) {
+    return
+  }
 
   activeBusinessEntityId = businessEntityId
+  updateDiagnostic({ registrationAttempted: true })
 
   const permissionStatus = await PushNotifications.checkPermissions()
+  updateDiagnostic({ permissionStatus: permissionStatus.receive })
 
   if (permissionStatus.receive !== 'granted') {
     const requestStatus = await PushNotifications.requestPermissions()
+    updateDiagnostic({ permissionStatus: requestStatus.receive })
     if (requestStatus.receive !== 'granted') {
-      console.warn('Push notification permission was not granted')
+      recordError('fcm_permission', new Error('permission not granted: ' + requestStatus.receive))
       return
     }
   }
 
   registerPushListeners()
 
-  // Ensure Firebase messaging is initialized for FCM on native platforms.
-  getMessaging(getFirebaseApp())
-
+  // DO NOT call getMessaging() or any firebase/messaging APIs here.
+  // On native Android, FCM is bootstrapped by google-services.json via the
+  // gradle plugin. The web SDK call would throw and prevent .register() from
+  // running, which is the original bug causing zero Android tokens in DB.
   await PushNotifications.register()
 }
 
@@ -153,7 +245,7 @@ async function persistWebPushSubscription(
 ): Promise<void> {
   const account = await resolveUserAccount(businessEntityId)
   if (!account) {
-    console.error('Web push persistence skipped: no authenticated user')
+    recordError('web_push_persist', new Error('no authenticated user'))
     return
   }
 
@@ -163,12 +255,12 @@ async function persistWebPushSubscription(
   const auth = subJSON.keys?.auth ?? ''
 
   if (!p256dh || !auth) {
-    console.error('Web push subscription missing keys')
+    recordError('web_push_persist', new Error('subscription missing keys'))
     return
   }
 
-  // PostgREST can't match the partial unique index for upsert, so we
-  // delete-then-insert instead. Both operations have RLS policies.
+  // Delete-then-insert: PostgREST can't match a partial unique index for upsert,
+  // and we want only one 'web' row per user at any time.
   await supabase
     .from('device_tokens')
     .delete()
@@ -187,36 +279,62 @@ async function persistWebPushSubscription(
   })
 
   if (error) {
-    console.error('Failed to save web push subscription:', error)
-  } else {
-    console.log('Web push subscription saved for endpoint:', endpoint.substring(0, 40))
+    recordError('web_push_persist', error)
+    updateDiagnostic({ tokenSavedToDb: false })
+    return
   }
+
+  updateDiagnostic({
+    tokenSavedToDb: true,
+    registrationSucceeded: true,
+    tokenPreview: endpoint.substring(0, 40) + '…',
+  })
+  console.log('[push] Web push subscription saved:', endpoint.substring(0, 40))
 }
 
-// ─── Web: registration ──────────────────────────────────────────────────────
-async function registerWebPush(businessEntityId: string): Promise<void> {
-  if (webPushRegistered && activeBusinessEntityId === businessEntityId) return
-
-  if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
-    console.warn('Web Push not supported in this browser')
+// ─── Web: registration (ONLY called from user-gesture handler) ──────────────
+async function subscribeWebPush(businessEntityId: string): Promise<void> {
+  if (!isPushSupported()) {
+    recordError('web_push_subscribe', new Error('Push API not supported'))
     return
   }
 
-  // iOS Safari requires permission request from a user gesture.
-  // This is called from handleOTPSuccess / login flow which IS user-initiated.
+  updateDiagnostic({ registrationAttempted: true })
+
+  // iOS Safari blocks notifications when PWA is run in a regular Safari tab.
+  // It only works when launched from Home Screen (standalone mode).
+  if (isIosDevice() && !isRunningAsStandalonePwa()) {
+    recordError(
+      'web_push_subscribe',
+      new Error('iOS requires Add to Home Screen then launch from icon'),
+    )
+    return
+  }
+
+  // MUST be called from a user-gesture context on iOS Safari.
   const permission = await Notification.requestPermission()
+  updateDiagnostic({ permissionStatus: permission })
   if (permission !== 'granted') {
-    console.warn('Notification permission not granted:', permission)
+    recordError('web_push_permission', new Error('permission: ' + permission))
     return
   }
 
-  // Use the Workbox service worker that's already registered by vite-plugin-pwa.
-  // sw-push.js is imported into it via workbox.importScripts — do NOT register
-  // a separate SW here or it will conflict with the Workbox one.
+  // Workbox SW is already registered by vite-plugin-pwa and imports sw-push.js.
   const registration = await navigator.serviceWorker.ready
+  updateDiagnostic({ serviceWorkerReady: true })
 
-  // Check for existing subscription first
   let subscription = await registration.pushManager.getSubscription()
+
+  // If there's a stale subscription with a different VAPID key, unsubscribe
+  // and re-subscribe. This handles the case where VAPID_PUBLIC_KEY was rotated.
+  if (subscription) {
+    const currentKey = subscription.options.applicationServerKey
+    const expectedKey = urlBase64ToUint8Array(VAPID_PUBLIC_KEY)
+    if (!currentKey || !buffersEqual(currentKey, expectedKey)) {
+      await subscription.unsubscribe()
+      subscription = null
+    }
+  }
 
   if (!subscription) {
     subscription = await registration.pushManager.subscribe({
@@ -231,20 +349,83 @@ async function registerWebPush(businessEntityId: string): Promise<void> {
   webPushRegistered = true
 }
 
+function buffersEqual(a: ArrayBuffer, b: Uint8Array | ArrayBuffer): boolean {
+  const aa = new Uint8Array(a)
+  const bb = b instanceof Uint8Array ? b : new Uint8Array(b)
+  if (aa.byteLength !== bb.byteLength) return false
+  for (let i = 0; i < aa.byteLength; i++) if (aa[i] !== bb[i]) return false
+  return true
+}
+
 // ─── Public API ─────────────────────────────────────────────────────────────
 
+/**
+ * Called at login (handleOTPSuccess). Does silent work only:
+ * - On native: this IS safe to call — it triggers the system permission
+ *   prompt which Android shows as a normal dialog.
+ * - On web: stores businessEntityId and reports capability status, but does
+ *   NOT call Notification.requestPermission (iOS Safari would deny it).
+ *   The user must then tap "Enable notifications" in Profile.
+ */
 export async function registerPushNotifications(businessEntityId: string): Promise<void> {
   try {
+    activeBusinessEntityId = businessEntityId
+
     if (Capacitor.isNativePlatform()) {
       await registerNativePush(businessEntityId)
     } else {
-      await registerWebPush(businessEntityId)
+      // Web: just refresh capability diagnostic, don't prompt.
+      updateDiagnostic({
+        permissionStatus:
+          typeof Notification !== 'undefined' ? Notification.permission : 'unavailable',
+      })
+      // If permission was already granted in a previous session, re-subscribe
+      // silently — no user gesture needed when permission is already 'granted'.
+      if (
+        isPushSupported() &&
+        typeof Notification !== 'undefined' &&
+        Notification.permission === 'granted'
+      ) {
+        await subscribeWebPush(businessEntityId)
+      }
     }
   } catch (e) {
-    Sentry.captureException(e, {
-      tags: { flow: Capacitor.isNativePlatform() ? 'fcm_registration' : 'web_push_registration' },
-    })
-    console.error('Push setup error:', e)
+    recordError('register_push_notifications', e)
+  }
+}
+
+/**
+ * Must be called from a user-gesture onClick handler (button tap).
+ * This is the one that triggers the iOS permission prompt.
+ */
+export async function requestPushPermissionFromUserGesture(
+  businessEntityId: string,
+): Promise<{ ok: boolean; reason?: string }> {
+  try {
+    if (Capacitor.isNativePlatform()) {
+      await registerNativePush(businessEntityId)
+      return diagnostic.tokenSavedToDb
+        ? { ok: true }
+        : { ok: false, reason: diagnostic.lastError ?? 'unknown' }
+    }
+
+    if (!isPushSupported()) {
+      return { ok: false, reason: 'Push notifications not supported on this browser' }
+    }
+    if (isIosDevice() && !isRunningAsStandalonePwa()) {
+      return {
+        ok: false,
+        reason: 'On iOS, add Zelto to your Home Screen and open it from there first.',
+      }
+    }
+
+    await subscribeWebPush(businessEntityId)
+    return diagnostic.tokenSavedToDb
+      ? { ok: true }
+      : { ok: false, reason: diagnostic.lastError ?? 'unknown' }
+  } catch (e) {
+    recordError('request_permission_user_gesture', e)
+    return { ok: false, reason: e instanceof Error ? e.message : String(e) }
   }
 }
 
@@ -252,20 +433,24 @@ export async function removeDeviceTokens(): Promise<void> {
   const session = await getAuthSession()
   if (!session) return
 
-  // Unsubscribe the web push subscription if on web
   if (!Capacitor.isNativePlatform() && 'serviceWorker' in navigator) {
     try {
       const registration = await navigator.serviceWorker.ready
       const subscription = await registration.pushManager.getSubscription()
       if (subscription) await subscription.unsubscribe()
     } catch (e) {
-      console.error('Failed to unsubscribe web push:', e)
+      console.error('[push] Failed to unsubscribe web push:', e)
     }
   }
 
   const { error } = await supabase.from('device_tokens').delete().eq('user_id', session.userId)
-  if (error) console.error('Failed to remove device tokens:', error)
+  if (error) console.error('[push] Failed to remove device tokens:', error)
 
   webPushRegistered = false
   activeBusinessEntityId = null
+  updateDiagnostic({
+    tokenSavedToDb: false,
+    registrationSucceeded: false,
+    tokenPreview: null,
+  })
 }
