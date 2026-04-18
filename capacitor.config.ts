@@ -8,7 +8,7 @@ const config: CapacitorConfig = {
     androidScheme: 'https',
   },
   android: {
-    adjustMarginsForEdgeToEdge: 'never',
+    adjustMarginsForEdgeToEdge: 'auto',
   },
   plugins: {
     SplashScreen: {
