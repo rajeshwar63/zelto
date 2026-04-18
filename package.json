@@ -14,7 +14,8 @@
     "lint": "eslint .",
     "optimize": "vite optimize",
     "start": "serve dist --single --listen $PORT",
-    "preview": "vite preview --host 0.0.0.0 --port $PORT"
+    "preview": "vite preview --host 0.0.0.0 --port $PORT",
+    "icons:regen": "node scripts/regenerate-icons.mjs"
   },
   "dependencies": {
     "@capacitor/android": "^6.0.0",
@@ -110,6 +111,8 @@
     "eslint-plugin-react-hooks": "^5.2.0",
     "eslint-plugin-react-refresh": "^0.4.19",
     "globals": "^16.0.0",
+    "png-to-ico": "^3.0.1",
+    "sharp": "^0.34.5",
     "tailwindcss": "^4.1.11",
     "typescript": "~5.7.2",
     "typescript-eslint": "^8.38.0",
