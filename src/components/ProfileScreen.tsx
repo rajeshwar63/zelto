@@ -27,10 +27,10 @@ import { useProfileData } from '@/hooks/data/use-business-data'
 import { computeTrustScore } from '@/lib/trust-score'
 import type { UserAccount } from '@/lib/types'
 import {
-  getPushDiagnostic,
   requestPushPermissionFromUserGesture,
   isIosDevice,
   isRunningAsStandalonePwa,
+  isPushActuallyEnabled,
 } from '@/lib/push-notifications'
 
 interface Props {
@@ -150,12 +150,24 @@ export function ProfileScreen({
   const usernameInputRef = useRef<HTMLInputElement>(null)
   const [trustNudgeText, setTrustNudgeText] = useState('View your trust profile')
   const [trustScorePotential, setTrustScorePotential] = useState(0)
-  const [pushDiag, setPushDiag] = useState(getPushDiagnostic())
+  // null = initial check is in flight (don't render the banner yet — avoids flash)
+  // false = push is not set up → show banner
+  // true  = push is active → hide banner
+  const [pushEnabled, setPushEnabled] = useState<boolean | null>(null)
   const [enablingPush, setEnablingPush] = useState(false)
 
   useEffect(() => {
-    const interval = setInterval(() => setPushDiag(getPushDiagnostic()), 2000)
-    return () => clearInterval(interval)
+    let cancelled = false
+    isPushActuallyEnabled()
+      .then((enabled) => {
+        if (!cancelled) setPushEnabled(enabled)
+      })
+      .catch(() => {
+        if (!cancelled) setPushEnabled(false)
+      })
+    return () => {
+      cancelled = true
+    }
   }, [])
 
   useEffect(() => {
@@ -336,7 +348,7 @@ export function ProfileScreen({
       </div>
 
       {/* ── ENABLE NOTIFICATIONS BANNER ── */}
-      {!pushDiag.tokenSavedToDb && (
+      {pushEnabled === false && (
         <div style={{ padding: '0 14px 12px' }}>
           <div
             style={{
@@ -361,11 +373,11 @@ export function ProfileScreen({
                   setEnablingPush(true)
                   const result = await requestPushPermissionFromUserGesture(currentBusinessId)
                   setEnablingPush(false)
-                  setPushDiag(getPushDiagnostic())
-                  if (!result.ok) {
-                    toast.error(result.reason ?? 'Could not enable notifications')
-                  } else {
+                  if (result.ok) {
+                    setPushEnabled(true)
                     toast.success('Notifications enabled')
+                  } else {
+                    toast.error(result.reason ?? 'Could not enable notifications')
                   }
                 }}
                 disabled={enablingPush}

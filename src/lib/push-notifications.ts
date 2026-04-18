@@ -360,6 +360,42 @@ function buffersEqual(a: ArrayBuffer, b: Uint8Array | ArrayBuffer): boolean {
 // ─── Public API ─────────────────────────────────────────────────────────────
 
 /**
+ * Returns true if push is actually set up right now, based on real browser
+ * state (not the in-memory diagnostic flag). Safe to call on every mount —
+ * the permission and subscription lookups are cheap.
+ *
+ * Use this instead of getPushDiagnostic().tokenSavedToDb to decide whether
+ * to show the "Enable notifications" banner. The diagnostic flag resets to
+ * false on every page load (module state is not persisted), while the real
+ * subscription persists across reloads in the browser.
+ */
+export async function isPushActuallyEnabled(): Promise<boolean> {
+  try {
+    if (Capacitor.isNativePlatform()) {
+      const status = await PushNotifications.checkPermissions()
+      return status.receive === 'granted'
+    }
+
+    if (!isPushSupported()) return false
+    if (typeof Notification === 'undefined') return false
+    if (Notification.permission !== 'granted') return false
+
+    // Permission alone is necessary but not sufficient — user might have
+    // revoked the subscription via browser settings, or the SW might have
+    // been unregistered. Check the actual PushSubscription exists.
+    if (!('serviceWorker' in navigator)) return false
+    const registration = await navigator.serviceWorker.ready
+    const subscription = await registration.pushManager.getSubscription()
+    return subscription !== null
+  } catch {
+    // Any failure (SW not ready, API access denied, etc.) → treat as not
+    // enabled. The banner will prompt the user; worst case is one extra
+    // tap on a functioning subscription, which is harmless.
+    return false
+  }
+}
+
+/**
  * Called at login (handleOTPSuccess). Does silent work only:
  * - On native: this IS safe to call — it triggers the system permission
  *   prompt which Android shows as a normal dialog.
