@@ -2,6 +2,7 @@
   "rewrites": [
     { "source": "/supabase-proxy/:path*", "destination": "https://cncimuwunjjxrlsnjstm.supabase.co/:path*" },
     { "source": "/sw.js", "destination": "/sw.js" },
+    { "source": "/sw-push.js", "destination": "/sw-push.js" },
     { "source": "/workbox-:hash.js", "destination": "/workbox-:hash.js" },
     { "source": "/manifest.webmanifest", "destination": "/manifest.webmanifest" },
     { "source": "/icons/:path*", "destination": "/icons/:path*" },
@@ -10,6 +11,13 @@
   "headers": [
     {
       "source": "/sw.js",
+      "headers": [
+        { "key": "Cache-Control", "value": "no-cache" },
+        { "key": "Service-Worker-Allowed", "value": "/" }
+      ]
+    },
+    {
+      "source": "/sw-push.js",
       "headers": [
         { "key": "Cache-Control", "value": "no-cache" },
         { "key": "Service-Worker-Allowed", "value": "/" }
