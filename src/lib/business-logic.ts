@@ -198,3 +198,31 @@ export function snapshotPaymentTerms(
 ): PaymentTermType {
   return JSON.parse(JSON.stringify(connectionPaymentTerms))
 }
+
+// Normalize an Indian mobile number to E.164 (+91XXXXXXXXXX)
+export function normalizePhone(phone: string): string {
+  const digits = phone.replace(/\D/g, '')
+  if (digits.startsWith('91') && digits.length === 12) return `+${digits}`
+  if (digits.length === 10) return `+91${digits}`
+  return `+${digits}`
+}
+
+export function validateIndianPhone(phone: string): boolean {
+  const normalized = normalizePhone(phone)
+  return /^\+91[6-9]\d{9}$/.test(normalized)
+}
+
+export function validateGSTIN(gst: string): boolean {
+  return /^\d{2}[A-Z]{5}\d{4}[A-Z]{1}[1-9A-Z]{1}Z[0-9A-Z]{1}$/.test(gst.toUpperCase())
+}
+
+export function validateUdyam(udyam: string): boolean {
+  return /^UDYAM-[A-Z]{2}-\d{2}-\d{7}$/.test(udyam.toUpperCase())
+}
+
+export function formatINR(value: number): string {
+  if (value >= 10000000) return `${(value / 10000000).toFixed(1)}Cr`
+  if (value >= 100000) return `${(value / 100000).toFixed(1)}L`
+  if (value >= 1000) return `${(value / 1000).toFixed(0)}K`
+  return value.toLocaleString('en-IN')
+}

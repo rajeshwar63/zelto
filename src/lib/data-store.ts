@@ -21,8 +21,11 @@ import {
   OrderAttachment,
   OrderWithPaymentState,
   PaymentEvent,
+  PublicShareToken,
   RaisedBy,
   RoleChangeRequest,
+  ShadowCounterpartyWithStats,
+  ShadowMatch,
   UserAccount,
 } from './types'
 import {
@@ -30,6 +33,7 @@ import {
   enrichOrderWithPaymentState,
   generateZeltoId,
   normalizeBusinessName,
+  normalizePhone,
   snapshotPaymentTerms,
 } from './business-logic'
 
@@ -1046,32 +1050,48 @@ export class ZeltoDataStore {
   async getOrdersByBusinessId(businessId: string): Promise<Order[]> {
     const connections = await this.getConnectionsByBusinessId(businessId)
     const connectionIds = connections.map(c => c.id)
-    if (connectionIds.length === 0) return []
 
-    const { data, error } = await supabase
-      .from('orders')
-      .select('*')
-      .in('connection_id', connectionIds)
-      .order('created_at', { ascending: false })
+    const queries: Promise<Order[]>[] = []
 
-    if (error) throw error
-    return toCamelCase(data || [])
+    // Connected orders via connection membership
+    if (connectionIds.length > 0) {
+      queries.push(
+        supabase
+          .from('orders')
+          .select('*')
+          .in('connection_id', connectionIds)
+          .order('created_at', { ascending: false })
+          .then(({ data, error }) => {
+            if (error) throw error
+            return toCamelCase(data || []) as Order[]
+          })
+      )
+    }
+
+    // Shadow orders owned by this supplier
+    queries.push(
+      supabase
+        .from('orders')
+        .select('*')
+        .eq('supplier_business_id', businessId)
+        .eq('counterparty_type', 'shadow')
+        .order('created_at', { ascending: false })
+        .then(({ data, error }) => {
+          if (error) throw error
+          return toCamelCase(data || []) as Order[]
+        })
+    )
+
+    const results = await Promise.all(queries)
+    const merged = results.flat()
+    merged.sort((a, b) => b.createdAt - a.createdAt)
+    return merged
   }
 
   async getOrdersWithPaymentStateByBusinessId(
     businessId: string
   ): Promise<OrderWithPaymentState[]> {
-    const connections = await this.getConnectionsByBusinessId(businessId)
-    const connectionIds = connections.map(c => c.id)
-    if (connectionIds.length === 0) return []
-
-    const { data: ordersData, error: ordersErr } = await supabase
-      .from('orders')
-      .select('*')
-      .in('connection_id', connectionIds)
-
-    if (ordersErr) throw ordersErr
-    const orders = toCamelCase(ordersData || []) as Order[]
+    const orders = await this.getOrdersByBusinessId(businessId)
     if (orders.length === 0) return []
 
     const orderIds = orders.map(o => o.id)
@@ -1899,6 +1919,451 @@ export class ZeltoDataStore {
       .createSignedUrl(storagePath, 3600)
     if (error) return null
     return data.signedUrl
+  }
+
+  // ============ SHADOW COUNTERPARTIES & SINGLE-PARTY TRADES (Spec 1) ============
+
+  async createShadowCounterparty(
+    supplierBusinessId: string,
+    details: {
+      businessName: string
+      phone: string
+      gst?: string
+      udyam?: string
+      address?: string
+      notes?: string
+    }
+  ): Promise<BusinessEntity> {
+    const normalizedPhone = normalizePhone(details.phone)
+    const normalizedName = normalizeBusinessName(details.businessName)
+
+    // Deduplicate: return existing shadow for (supplier, phone, name) tuple
+    const { data: existing } = await supabase
+      .from('business_entities')
+      .select('*')
+      .eq('entity_type', 'shadow')
+      .contains('shadow_metadata', { created_by_business_id: supplierBusinessId, counterparty_phone: normalizedPhone })
+      .eq('name_normalized', normalizedName)
+      .maybeSingle()
+
+    if (existing) return toCamelCase(existing)
+
+    const entities = await this.getAllBusinessEntities()
+    const existingZeltoIds = entities.map(e => e.zeltoId)
+
+    const shadowMetadata = {
+      created_by_business_id: supplierBusinessId,
+      counterparty_phone: normalizedPhone,
+      ...(details.gst ? { counterparty_gst: details.gst.toUpperCase() } : {}),
+      ...(details.udyam ? { counterparty_udyam: details.udyam.toUpperCase() } : {}),
+      ...(details.address ? { counterparty_address: details.address } : {}),
+      ...(details.notes ? { notes: details.notes } : {}),
+    }
+
+    const { data: newEntity, error: entityErr } = await supabase
+      .from('business_entities')
+      .insert([{
+        zelto_id: generateZeltoId(existingZeltoIds),
+        business_name: details.businessName,
+        name_normalized: normalizedName,
+        created_at: Date.now(),
+        entity_type: 'shadow',
+        shadow_metadata: shadowMetadata,
+        credibility_score: 0,
+        mobile_number: null,
+      }])
+      .select()
+      .single()
+
+    if (entityErr) throw entityErr
+
+    // Insert into shadow_match_index
+    const indexRow: any = {
+      shadow_entity_id: newEntity.id,
+      phone_normalized: normalizedPhone,
+      created_by_business_id: supplierBusinessId,
+      created_at: Date.now(),
+    }
+    if (details.gst) indexRow.gst_normalized = details.gst.toUpperCase().replace(/\s/g, '')
+    if (details.udyam) indexRow.udyam_normalized = details.udyam.toUpperCase().replace(/\s/g, '')
+
+    const { error: indexErr } = await supabase
+      .from('shadow_match_index')
+      .insert([indexRow])
+
+    if (indexErr) throw indexErr
+
+    return toCamelCase(newEntity)
+  }
+
+  async createShadowOrder(
+    supplierBusinessId: string,
+    shadowCounterpartyId: string,
+    itemSummary: string,
+    orderValue: number,
+    paymentTerms: import('./types').PaymentTermType,
+    billToBillInvoiceDate?: number
+  ): Promise<Order> {
+    const shadow = await this.getBusinessEntityById(shadowCounterpartyId)
+    if (!shadow || shadow.entityType !== 'shadow') {
+      throw new Error('Shadow counterparty not found or invalid')
+    }
+
+    const insertData: any = {
+      item_summary: itemSummary,
+      order_value: orderValue,
+      created_at: Date.now(),
+      payment_term_snapshot: snapshotPaymentTerms(paymentTerms),
+      counterparty_type: 'shadow',
+      shadow_counterparty_id: shadowCounterpartyId,
+      supplier_business_id: supplierBusinessId,
+      verification_state: 'unverified',
+    }
+    if (billToBillInvoiceDate !== undefined) {
+      insertData.bill_to_bill_invoice_date = billToBillInvoiceDate
+    }
+
+    const { data, error } = await supabase
+      .from('orders')
+      .insert([insertData])
+      .select()
+      .single()
+
+    if (error) throw error
+    return toCamelCase(data)
+  }
+
+  async getShadowCounterpartiesByBusinessId(
+    supplierBusinessId: string
+  ): Promise<ShadowCounterpartyWithStats[]> {
+    const { data: shadows, error: shadowErr } = await supabase
+      .from('business_entities')
+      .select('*')
+      .eq('entity_type', 'shadow')
+      .contains('shadow_metadata', { created_by_business_id: supplierBusinessId })
+
+    if (shadowErr) throw shadowErr
+    if (!shadows || shadows.length === 0) return []
+
+    const shadowIds = shadows.map((s: any) => s.id)
+    const { data: ordersData, error: ordersErr } = await supabase
+      .from('orders')
+      .select('*')
+      .in('shadow_counterparty_id', shadowIds)
+      .eq('supplier_business_id', supplierBusinessId)
+
+    if (ordersErr) throw ordersErr
+    const orders = toCamelCase(ordersData || []) as Order[]
+
+    const orderIds = orders.map(o => o.id)
+    const { data: paymentsData } = await supabase
+      .from('payment_events')
+      .select('*')
+      .in('order_id', orderIds.length > 0 ? orderIds : ['00000000-0000-0000-0000-000000000000'])
+
+    const payments = toCamelCase(paymentsData || []) as import('./types').PaymentEvent[]
+    const enriched = enrichConnectionOrdersWithPaymentState(orders, payments)
+
+    const result: ShadowCounterpartyWithStats[] = (toCamelCase(shadows) as BusinessEntity[]).map(shadow => {
+      const shadowOrders = enriched.filter(o => o.shadowCounterpartyId === shadow.id)
+      const totalValue = shadowOrders.reduce((s, o) => s + o.orderValue, 0)
+      const outstandingAmount = shadowOrders.reduce((s, o) => s + o.pendingAmount, 0)
+      const lastTradeDate = shadowOrders.reduce((max, o) => Math.max(max, o.createdAt), 0)
+      return {
+        shadow,
+        tradeCount: shadowOrders.length,
+        totalValue,
+        outstandingAmount,
+        lastTradeDate,
+      }
+    })
+
+    result.sort((a, b) => b.lastTradeDate - a.lastTradeDate)
+    return result
+  }
+
+  async findShadowMatchesForBusiness(
+    _realBusinessId: string,
+    signupContext: { phone: string; gst?: string; udyam?: string }
+  ): Promise<ShadowMatch[]> {
+    const normalizedPhone = normalizePhone(signupContext.phone)
+    const phoneQuery = supabase
+      .from('shadow_match_index')
+      .select('shadow_entity_id')
+      .eq('phone_normalized', normalizedPhone)
+
+    const gstQuery = signupContext.gst
+      ? supabase
+          .from('shadow_match_index')
+          .select('shadow_entity_id')
+          .eq('gst_normalized', signupContext.gst.toUpperCase().replace(/\s/g, ''))
+      : Promise.resolve({ data: [] })
+
+    const udyamQuery = signupContext.udyam
+      ? supabase
+          .from('shadow_match_index')
+          .select('shadow_entity_id')
+          .eq('udyam_normalized', signupContext.udyam.toUpperCase().replace(/\s/g, ''))
+      : Promise.resolve({ data: [] })
+
+    const [phoneRes, gstRes, udyamRes] = await Promise.all([phoneQuery, gstQuery, udyamQuery])
+
+    const allShadowIds = new Set<string>([
+      ...((phoneRes.data || []).map((r: any) => r.shadow_entity_id)),
+      ...((gstRes.data || []).map((r: any) => r.shadow_entity_id)),
+      ...((udyamRes.data || []).map((r: any) => r.shadow_entity_id)),
+    ])
+
+    if (allShadowIds.size === 0) return []
+
+    const shadowIdList = Array.from(allShadowIds)
+    const { data: shadowEntities, error: shadowErr } = await supabase
+      .from('business_entities')
+      .select('*')
+      .in('id', shadowIdList)
+      .eq('entity_type', 'shadow')
+
+    if (shadowErr) throw shadowErr
+    const shadows = toCamelCase(shadowEntities || []) as BusinessEntity[]
+
+    const supplierIds = [...new Set(shadows.map(s => s.shadowMetadata?.createdByBusinessId).filter(Boolean))] as string[]
+    const { data: supplierEntities, error: supplierErr } = await supabase
+      .from('business_entities')
+      .select('*')
+      .in('id', supplierIds)
+
+    if (supplierErr) throw supplierErr
+    const supplierMap = new Map<string, BusinessEntity>(
+      (toCamelCase(supplierEntities || []) as BusinessEntity[]).map(s => [s.id, s])
+    )
+
+    const { data: ordersData, error: ordersErr } = await supabase
+      .from('orders')
+      .select('*')
+      .in('shadow_counterparty_id', shadowIdList)
+      .eq('verification_state', 'unverified')
+
+    if (ordersErr) throw ordersErr
+    const orders = toCamelCase(ordersData || []) as Order[]
+
+    return shadows.map(shadow => ({
+      shadow,
+      supplier: supplierMap.get(shadow.shadowMetadata!.createdByBusinessId)!,
+      orders: orders.filter(o => o.shadowCounterpartyId === shadow.id),
+    })).filter(m => m.supplier != null)
+  }
+
+  async confirmShadowOrderRetroactively(
+    orderId: string,
+    confirmingUserId: string,
+    confirmingBusinessId: string
+  ): Promise<Order> {
+    const order = await this.getOrderById(orderId)
+    if (!order) throw new Error('Order not found')
+    if (order.verificationState !== 'unverified') {
+      throw new Error('Order is not in unverified state')
+    }
+
+    const now = Date.now()
+    const retroactiveConfirmation = {
+      confirmed_at: now,
+      confirmed_by_user_id: confirmingUserId,
+      original_shadow_entity_id: order.shadowCounterpartyId,
+    }
+
+    const { data, error } = await supabase
+      .from('orders')
+      .update({
+        verification_state: 'retroactively_verified',
+        retroactive_confirmation: retroactiveConfirmation,
+        real_counterparty_id: confirmingBusinessId,
+      })
+      .eq('id', orderId)
+      .select()
+      .single()
+
+    if (error) throw error
+    return toCamelCase(data)
+  }
+
+  async disputeShadowOrderRetroactively(
+    orderId: string,
+    disputingUserId: string,
+    reason?: string
+  ): Promise<Order> {
+    const order = await this.getOrderById(orderId)
+    if (!order) throw new Error('Order not found')
+
+    const disputedRetroactively: any = {
+      disputed_at: Date.now(),
+      disputed_by_user_id: disputingUserId,
+    }
+    if (reason) disputedRetroactively.reason = reason
+
+    const { data, error } = await supabase
+      .from('orders')
+      .update({ disputed_retroactively: disputedRetroactively })
+      .eq('id', orderId)
+      .select()
+      .single()
+
+    if (error) throw error
+    return toCamelCase(data)
+  }
+
+  async archiveShadowEntity(
+    shadowEntityId: string,
+    claimedByBusinessId: string
+  ): Promise<void> {
+    const now = Date.now()
+    const { error: entityErr } = await supabase
+      .from('business_entities')
+      .update({ entity_type: 'shadow_archived' })
+      .eq('id', shadowEntityId)
+
+    if (entityErr) throw entityErr
+
+    await supabase
+      .from('business_entities')
+      .update({ claimed_from_shadow_id: shadowEntityId, claimed_at: now })
+      .eq('id', claimedByBusinessId)
+
+    await supabase
+      .from('shadow_match_index')
+      .delete()
+      .eq('shadow_entity_id', shadowEntityId)
+  }
+
+  async generatePublicShareToken(
+    resourceType: 'trade' | 'shadow_counterparty',
+    resourceId: string
+  ): Promise<string> {
+    // Return existing token if one already exists for this resource
+    const { data: existing } = await supabase
+      .from('public_share_tokens')
+      .select('token')
+      .eq('resource_type', resourceType)
+      .eq('resource_id', resourceId)
+      .maybeSingle()
+
+    if (existing) return existing.token
+
+    const array = new Uint8Array(24)
+    crypto.getRandomValues(array)
+    const token = Array.from(array)
+      .map(b => b.toString(36).padStart(2, '0'))
+      .join('')
+      .slice(0, 32)
+
+    const { error } = await supabase
+      .from('public_share_tokens')
+      .insert([{
+        token,
+        resource_type: resourceType,
+        resource_id: resourceId,
+        created_at: Date.now(),
+        expires_at: null,
+      }])
+
+    if (error) throw error
+    return token
+  }
+
+  async resolvePublicShareToken(
+    token: string
+  ): Promise<{ resourceType: 'trade' | 'shadow_counterparty'; resourceId: string } | null> {
+    const { data, error } = await supabase
+      .from('public_share_tokens')
+      .select('resource_type, resource_id, expires_at')
+      .eq('token', token)
+      .maybeSingle()
+
+    if (error || !data) return null
+    if (data.expires_at && data.expires_at < Date.now()) return null
+
+    return { resourceType: data.resource_type, resourceId: data.resource_id }
+  }
+
+  async updateShadowCounterpartyMetadata(
+    shadowEntityId: string,
+    supplierBusinessId: string,
+    details: {
+      businessName?: string
+      phone?: string
+      gst?: string
+      udyam?: string
+      address?: string
+      notes?: string
+    }
+  ): Promise<BusinessEntity> {
+    const existing = await this.getBusinessEntityById(shadowEntityId)
+    if (!existing || existing.entityType !== 'shadow') throw new Error('Shadow entity not found')
+    if (existing.shadowMetadata?.createdByBusinessId !== supplierBusinessId) {
+      throw new Error('Not authorized to edit this shadow counterparty')
+    }
+
+    const currentMeta = existing.shadowMetadata!
+    const updatedMeta: any = {
+      created_by_business_id: currentMeta.createdByBusinessId,
+      counterparty_phone: details.phone ? normalizePhone(details.phone) : currentMeta.counterpartyPhone,
+      ...(details.gst !== undefined ? { counterparty_gst: details.gst.toUpperCase() } : currentMeta.counterpartyGst ? { counterparty_gst: currentMeta.counterpartyGst } : {}),
+      ...(details.udyam !== undefined ? { counterparty_udyam: details.udyam.toUpperCase() } : currentMeta.counterpartyUdyam ? { counterparty_udyam: currentMeta.counterpartyUdyam } : {}),
+      ...(details.address !== undefined ? { counterparty_address: details.address } : currentMeta.counterpartyAddress ? { counterparty_address: currentMeta.counterpartyAddress } : {}),
+      ...(details.notes !== undefined ? { notes: details.notes } : currentMeta.notes ? { notes: currentMeta.notes } : {}),
+    }
+
+    const entityUpdates: any = { shadow_metadata: updatedMeta }
+    if (details.businessName) {
+      entityUpdates.business_name = details.businessName
+      entityUpdates.name_normalized = normalizeBusinessName(details.businessName)
+    }
+
+    const { data, error } = await supabase
+      .from('business_entities')
+      .update(entityUpdates)
+      .eq('id', shadowEntityId)
+      .select()
+      .single()
+
+    if (error) throw error
+
+    // Update shadow_match_index if phone changed
+    if (details.phone) {
+      const indexUpdates: any = { phone_normalized: normalizePhone(details.phone) }
+      if (details.gst) indexUpdates.gst_normalized = details.gst.toUpperCase().replace(/\s/g, '')
+      if (details.udyam) indexUpdates.udyam_normalized = details.udyam.toUpperCase().replace(/\s/g, '')
+      await supabase
+        .from('shadow_match_index')
+        .update(indexUpdates)
+        .eq('shadow_entity_id', shadowEntityId)
+    }
+
+    return toCamelCase(data)
+  }
+
+  async getShadowOrdersByCounterpartyId(
+    shadowCounterpartyId: string,
+    supplierBusinessId: string
+  ): Promise<OrderWithPaymentState[]> {
+    const { data: ordersData, error: ordersErr } = await supabase
+      .from('orders')
+      .select('*')
+      .eq('shadow_counterparty_id', shadowCounterpartyId)
+      .eq('supplier_business_id', supplierBusinessId)
+      .order('created_at', { ascending: false })
+
+    if (ordersErr) throw ordersErr
+    const orders = toCamelCase(ordersData || []) as Order[]
+    if (orders.length === 0) return []
+
+    const orderIds = orders.map(o => o.id)
+    const { data: paymentsData } = await supabase
+      .from('payment_events')
+      .select('*')
+      .in('order_id', orderIds)
+
+    const payments = toCamelCase(paymentsData || []) as import('./types').PaymentEvent[]
+    return enrichConnectionOrdersWithPaymentState(orders, payments)
   }
 
   // ============ UTILITY ============

@@ -7,6 +7,7 @@ export type AttentionCategory =
   | 'Overdue'
   | 'Disputes'
   | 'Approval Needed'
+  | 'Pending Retroactive Confirmations'
 
 export interface AttentionItem {
   id: string
@@ -23,6 +24,10 @@ export interface AttentionItem {
     daysOverdue?: number
     stateInfo?: string
     orderSummary?: string
+    isShadowOrder?: boolean
+    shadowCounterpartyName?: string
+    pendingConfirmationCount?: number
+    pendingConfirmationSupplierCount?: number
   }
 }
 
@@ -39,6 +44,7 @@ const PRIORITY_SCORES = {
   DISPUTES: 4,
   PENDING_PAYMENTS: 5,
   APPROVAL_NEEDED: 6,
+  PENDING_RETROACTIVE_CONFIRMATIONS: 3,
 }
 
 const ACCEPTANCE_THRESHOLD_MS = 48 * 60 * 60 * 1000
@@ -73,10 +79,11 @@ export class AttentionEngine {
         order.calculatedDueDate !== null &&
         order.calculatedDueDate > now
       ) {
+        const isShadow = (order as any).counterpartyType === 'shadow'
         items.push({
           id: crypto.randomUUID(),
           category: 'Pending Payments',
-          connectionId: order.connectionId,
+          connectionId: order.connectionId ?? '',
           orderId: order.id,
           description: `Payment pending for order ${order.itemSummary}`,
           priorityScore: PRIORITY_SCORES.PENDING_PAYMENTS,
@@ -84,6 +91,7 @@ export class AttentionEngine {
           metadata: {
             pendingAmount: order.pendingAmount,
             orderSummary: order.itemSummary,
+            isShadowOrder: isShadow || undefined,
           },
         })
       }
@@ -105,10 +113,11 @@ export class AttentionEngine {
       ) {
         const dueDayStart = new Date(order.calculatedDueDate)
         dueDayStart.setHours(0, 0, 0, 0)
+        const isShadow = (order as any).counterpartyType === 'shadow'
         items.push({
           id: crypto.randomUUID(),
           category: 'Due Today',
-          connectionId: order.connectionId,
+          connectionId: order.connectionId ?? '',
           orderId: order.id,
           description: order.itemSummary,
           priorityScore: PRIORITY_SCORES.DUE_TODAY,
@@ -116,6 +125,7 @@ export class AttentionEngine {
           metadata: {
             pendingAmount: order.pendingAmount,
             orderSummary: order.itemSummary,
+            isShadowOrder: isShadow || undefined,
           },
         })
       }
@@ -149,11 +159,12 @@ export class AttentionEngine {
       ) {
         const hasOpenIssues = openIssuesByOrderId.has(order.id)
         const daysOverdue = this.getDaysOverdue(order.calculatedDueDate)
+        const isShadow = (order as any).counterpartyType === 'shadow'
 
         items.push({
           id: crypto.randomUUID(),
           category: 'Overdue',
-          connectionId: order.connectionId,
+          connectionId: order.connectionId ?? '',
           orderId: order.id,
           description: order.itemSummary,
           priorityScore: hasOpenIssues
@@ -164,6 +175,7 @@ export class AttentionEngine {
             pendingAmount: order.pendingAmount,
             daysOverdue,
             orderSummary: order.itemSummary,
+            isShadowOrder: isShadow || undefined,
           },
         })
       }
@@ -183,10 +195,11 @@ export class AttentionEngine {
       const order = orderMap.get(issue.orderId)
       if (!order) continue
 
+      const isShadow = (order as any).counterpartyType === 'shadow'
       items.push({
         id: crypto.randomUUID(),
         category: 'Disputes',
-        connectionId: order.connectionId,
+        connectionId: order.connectionId ?? '',
         orderId: issue.orderId,
         issueId: issue.id,
         description: `${issue.issueType} - ${order.itemSummary}`,
@@ -195,6 +208,7 @@ export class AttentionEngine {
         metadata: {
           issueType: issue.issueType,
           orderSummary: order.itemSummary,
+          isShadowOrder: isShadow || undefined,
         },
       })
     }
@@ -207,11 +221,14 @@ export class AttentionEngine {
     const now = Date.now()
 
     for (const order of orders) {
+      // Shadow orders are supplier-driven: no buyer approval step
+      if ((order as any).counterpartyType === 'shadow') continue
+
       if (!order.acceptedAt) {
         items.push({
           id: crypto.randomUUID(),
           category: 'Approval Needed',
-          connectionId: order.connectionId,
+          connectionId: order.connectionId!,
           orderId: order.id,
           description: order.itemSummary,
           priorityScore: PRIORITY_SCORES.APPROVAL_NEEDED,
@@ -227,7 +244,7 @@ export class AttentionEngine {
           items.push({
             id: crypto.randomUUID(),
             category: 'Approval Needed',
-            connectionId: order.connectionId,
+            connectionId: order.connectionId!,
             orderId: order.id,
             description: order.itemSummary,
             priorityScore: PRIORITY_SCORES.APPROVAL_NEEDED,
@@ -244,6 +261,34 @@ export class AttentionEngine {
     return items
   }
 
+  private async generateRetroactiveConfirmationItems(
+    businessId: string
+  ): Promise<AttentionItem[]> {
+    const shadowMatches = await dataStore.findShadowMatchesForBusiness(businessId, {
+      phone: '',
+    }).catch(() => [])
+
+    if (shadowMatches.length === 0) return []
+
+    const pendingCount = shadowMatches.reduce((sum, m) => sum + m.orders.length, 0)
+    const supplierCount = new Set(shadowMatches.map(m => m.supplier.id)).size
+
+    if (pendingCount === 0) return []
+
+    return [{
+      id: crypto.randomUUID(),
+      category: 'Pending Retroactive Confirmations',
+      connectionId: '',
+      description: `${pendingCount} trade${pendingCount > 1 ? 's' : ''} from ${supplierCount} supplier${supplierCount > 1 ? 's' : ''} waiting for your confirmation`,
+      priorityScore: PRIORITY_SCORES.PENDING_RETROACTIVE_CONFIRMATIONS,
+      frictionStartedAt: Date.now(),
+      metadata: {
+        pendingConfirmationCount: pendingCount,
+        pendingConfirmationSupplierCount: supplierCount,
+      },
+    }]
+  }
+
   private sortItemsByPriority(items: AttentionItem[]): AttentionItem[] {
     return items.sort((a, b) => {
       if (a.priorityScore !== b.priorityScore) {
@@ -255,17 +300,18 @@ export class AttentionEngine {
 
   async getAttentionItems(businessId: string): Promise<AttentionItem[]> {
     const connections = await dataStore.getConnectionsByBusinessId(businessId)
-    const connectionIds = connections.map((c) => c.id)
+    const connectionIds = new Set(connections.map((c) => c.id))
 
     const relevantOrders = await dataStore.getOrdersWithPaymentStateByBusinessId(businessId)
 
-    const [pendingPayments, dueToday, overdue, disputes, approvalNeeded] =
+    const [pendingPayments, dueToday, overdue, disputes, approvalNeeded, retroactive] =
       await Promise.all([
         this.generatePendingPaymentItems(relevantOrders),
         this.generateDueTodayItems(relevantOrders),
         this.generateOverdueItems(relevantOrders),
         this.generateDisputeItems(relevantOrders),
         this.generateApprovalNeededItems(relevantOrders),
+        this.generateRetroactiveConfirmationItems(businessId),
       ])
 
     const allItems = [
@@ -274,7 +320,13 @@ export class AttentionEngine {
       ...overdue,
       ...disputes,
       ...approvalNeeded,
-    ].filter((item) => connectionIds.includes(item.connectionId))
+      ...retroactive,
+    ].filter((item) => {
+      // Shadow orders and retroactive items don't have a connectionId
+      if ((item as any).metadata?.isShadowOrder) return true
+      if (item.category === 'Pending Retroactive Confirmations') return true
+      return item.connectionId ? connectionIds.has(item.connectionId) : false
+    })
 
     return this.sortItemsByPriority(allItems)
   }
@@ -336,13 +388,16 @@ export class AttentionEngine {
     const staleItems: AttentionItem[] = []
 
     for (const order of allOrders) {
+      // Shadow orders are supplier-driven, no buyer approval step
+      if ((order as any).counterpartyType === 'shadow') continue
+
       if (order.acceptedAt && !order.dispatchedAt) {
         const timeSinceAcceptance = now - order.acceptedAt
         if (timeSinceAcceptance > ACCEPTANCE_THRESHOLD_MS) {
           staleItems.push({
             id: crypto.randomUUID(),
             category: 'Approval Needed',
-            connectionId: order.connectionId,
+            connectionId: order.connectionId ?? '',
             orderId: order.id,
             description: order.itemSummary,
             priorityScore: PRIORITY_SCORES.APPROVAL_NEEDED,

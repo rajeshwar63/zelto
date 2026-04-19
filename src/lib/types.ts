@@ -26,6 +26,15 @@ export type IssueType =
 
 export type RaisedBy = 'buyer' | 'supplier'
 
+export interface ShadowMetadata {
+  createdByBusinessId: string
+  counterpartyPhone: string
+  counterpartyGst?: string
+  counterpartyUdyam?: string
+  counterpartyAddress?: string
+  notes?: string
+}
+
 export interface BusinessEntity {
   id: string
   zeltoId: string
@@ -47,6 +56,12 @@ export interface BusinessEntity {
   nameNormalized?: string
   mobileNumber: string | null
   description?: string
+
+  // Shadow entity fields (Spec 1)
+  entityType: 'real' | 'shadow' | 'shadow_archived'
+  shadowMetadata?: ShadowMetadata
+  claimedFromShadowId?: string
+  claimedAt?: number
 }
 
 export interface BusinessDocument {
@@ -88,9 +103,23 @@ export interface Connection {
   contactName?: string | null
 }
 
+export type VerificationState = 'verified' | 'unverified' | 'retroactively_verified'
+
+export interface RetroactiveConfirmation {
+  confirmedAt: number
+  confirmedByUserId: string
+  originalShadowEntityId: string
+}
+
+export interface DisputedRetroactively {
+  disputedAt: number
+  disputedByUserId: string
+  reason?: string
+}
+
 export interface Order {
   id: string
-  connectionId: string
+  connectionId: string | null
   itemSummary: string
   orderValue: number
   createdAt: number
@@ -100,6 +129,15 @@ export interface Order {
   declinedAt: number | null
   paymentTermSnapshot: PaymentTermType
   billToBillInvoiceDate: number | null
+
+  // Shadow order fields (Spec 1)
+  counterpartyType: 'connected' | 'shadow'
+  shadowCounterpartyId?: string
+  supplierBusinessId?: string
+  realCounterpartyId?: string
+  verificationState: VerificationState
+  retroactiveConfirmation?: RetroactiveConfirmation
+  disputedRetroactively?: DisputedRetroactively
 }
 
 export interface PaymentEvent {
@@ -300,6 +338,30 @@ export interface InvoiceLineItem {
   totalAmount: number
   sortOrder: number
   createdAt: string
+}
+
+// ============ SHADOW / SINGLE-PARTY TRADE TYPES (Spec 1) ============
+
+export interface ShadowCounterpartyWithStats {
+  shadow: BusinessEntity
+  tradeCount: number
+  totalValue: number
+  outstandingAmount: number
+  lastTradeDate: number
+}
+
+export interface ShadowMatch {
+  shadow: BusinessEntity
+  supplier: BusinessEntity
+  orders: Order[]
+}
+
+export interface PublicShareToken {
+  token: string
+  resourceType: 'trade' | 'shadow_counterparty'
+  resourceId: string
+  createdAt: number
+  expiresAt: number | null
 }
 
 export interface OrderAttachment {

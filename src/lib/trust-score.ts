@@ -19,13 +19,21 @@ export interface TrustScoreBreakdown {
   tradeRecordInsufficient: boolean  // true if < 3 orders
   weakestPillar: 'identity' | 'activity' | 'tradeRecord'
   nudgeText: string
+  // Only present in self-view; omit when returning to other businesses
+  unverified?: UnverifiedTradesSummary
 }
 
 export interface BusinessInsight {
   text: string
-  category: 'settlement' | 'operational' | 'quality'
+  category: 'settlement' | 'operational' | 'quality' | 'verification'
   sentiment: 'positive' | 'warning' | 'neutral'
   timeframe: string
+}
+
+export interface UnverifiedTradesSummary {
+  orderCount: number
+  orderValue: number
+  counterpartyCount: number
 }
 
 export interface AggregatedBehaviourSignals {
@@ -82,13 +90,18 @@ export async function aggregateBusinessBehaviourSignals(
   let has_recurring_issues = false
   let total_orders_evaluated = 0
 
+  // Process verified connected orders via the behaviour engine (connection-scoped)
   await Promise.all(
     connections.map(async (conn) => {
       const [signals, orders] = await Promise.all([
         behaviourEngine.computeAllSignals(conn.id),
         dataStore.getOrdersByConnectionId(conn.id),
       ])
-      const orderCount = orders.length
+      // Only count verified orders (not unverified shadow orders)
+      const verifiedOrders = orders.filter(o =>
+        !('verificationState' in o) || (o as any).verificationState !== 'unverified'
+      )
+      const orderCount = verifiedOrders.length
       total_orders_evaluated += orderCount
 
       // Settlement sums
@@ -245,6 +258,7 @@ async function computeActivityPillar(businessId: string): Promise<PillarScore> {
   const tags: PillarScore['tags'] = []
 
   let score = 0
+  // Only count real bilateral connections (not shadow counterparties)
   const connCount = connections.length
 
   // Connections (max 7)
@@ -252,13 +266,16 @@ async function computeActivityPillar(businessId: string): Promise<PillarScore> {
   if (connCount >= 3) score += 2
   if (connCount >= 5) score += 2
 
-  // Orders (max 5)
+  // Orders: only count verified orders (excludes shadow/unverified)
   let totalOrders = 0
   let mostRecentOrderTime = 0
   for (const conn of connections) {
     const orders = await dataStore.getOrdersByConnectionId(conn.id)
-    totalOrders += orders.length
-    for (const o of orders) {
+    const verifiedOrders = orders.filter(o =>
+      !('verificationState' in o) || (o as any).verificationState !== 'unverified'
+    )
+    totalOrders += verifiedOrders.length
+    for (const o of verifiedOrders) {
       if (o.createdAt > mostRecentOrderTime) mostRecentOrderTime = o.createdAt
     }
   }
@@ -400,10 +417,25 @@ async function computeTradeRecordPillar(
   return { score, max: 50, insufficient: false, tags }
 }
 
+// ─── Unverified trade summary (self-view only) ────────────────────────
+
+async function computeUnverifiedSummary(
+  businessId: string
+): Promise<UnverifiedTradesSummary> {
+  const allOrders = await dataStore.getOrdersByBusinessId(businessId)
+  const unverified = allOrders.filter(o => (o as any).verificationState === 'unverified')
+  const orderValue = unverified.reduce((s, o) => s + o.orderValue, 0)
+  const counterpartyCount = new Set(
+    unverified.map(o => (o as any).shadowCounterpartyId).filter(Boolean)
+  ).size
+  return { orderCount: unverified.length, orderValue, counterpartyCount }
+}
+
 // ─── Main: computeTrustScore ─────────────────────────────────────────
 
 export async function computeTrustScore(
-  businessId: string
+  businessId: string,
+  options?: { includeSelfViewData?: boolean }
 ): Promise<TrustScoreBreakdown> {
   const [identity, activity, agg] = await Promise.all([
     computeIdentityPillar(businessId),
@@ -449,7 +481,7 @@ export async function computeTrustScore(
     console.error('Failed to update trust score:', err)
   }
 
-  return {
+  const breakdown: TrustScoreBreakdown = {
     total,
     level,
     identity,
@@ -459,12 +491,19 @@ export async function computeTrustScore(
     weakestPillar,
     nudgeText,
   }
+
+  if (options?.includeSelfViewData) {
+    breakdown.unverified = await computeUnverifiedSummary(businessId)
+  }
+
+  return breakdown
 }
 
 // ─── Business Insights ───────────────────────────────────────────────
 
 export async function generateBusinessInsights(
-  businessId: string
+  businessId: string,
+  options?: { includeSelfViewInsights?: boolean }
 ): Promise<BusinessInsight[]> {
   const agg = await aggregateBusinessBehaviourSignals(businessId)
 
@@ -569,6 +608,20 @@ export async function generateBusinessInsights(
       sentiment: 'warning',
       timeframe: 'Current',
     })
+  }
+
+  // Verification insight (self-view only, §3.5)
+  if (options?.includeSelfViewInsights) {
+    const unverified = await computeUnverifiedSummary(businessId)
+    if (unverified.orderCount >= 5) {
+      const { formatINR } = await import('./business-logic')
+      insights.push({
+        text: `${unverified.orderCount} unverified trades worth ₹${formatINR(unverified.orderValue)} not counted in trust score`,
+        category: 'verification',
+        sentiment: 'neutral',
+        timeframe: 'Current',
+      })
+    }
   }
 
   return insights
